@@ -1,0 +1,102 @@
+services:
+  # --- 1. BASE DE DONNÉES (POSTGRESQL) ---
+  db:
+    image: postgres:16-alpine
+    container_name: qualisoft_db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=qualisoft_db
+    ports:
+      - "5544:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qualisoft_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - qualisoft_network
+
+  # --- 2. CACHE (REDIS) ---
+  redis:
+    image: redis:7-alpine
+    container_name: qualisoft_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - qualisoft_network
+
+  # --- 3. BACKEND (NOYAU QUALISOFT) ---
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: qualisoft_backend
+    restart: always
+    # ✅ CORRECTION : Automatisation du déploiement et du SEED MASTER
+    command: >
+      sh -c "npx prisma migrate deploy && 
+             npx prisma db seed && 
+             npm run start:prod"
+    ports:
+      - "9000:9000"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups
+    networks:
+      - qualisoft_network
+
+  # --- 4. FRONTEND (INTERFACE UTILISATEUR) ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: qualisoft_frontend
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      # ✅ IMPORTANT : Vérifie si ton backend utilise le préfixe /api
+      - NEXT_PUBLIC_API_URL=http://localhost:9000/api
+    depends_on:
+      - backend
+    networks:
+      - qualisoft_network
+
+  # --- 5. BACKUP AUTOMATISÉ ---
+  backup-cron:
+    image: prodrigestivill/postgres-backup-local
+    container_name: qualisoft_auto_backup
+    restart: always
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=qualisoft_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password123
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=14
+      - BACKUP_SUFFIX=.sql.gz
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - qualisoft_network
+
+networks:
+  qualisoft_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

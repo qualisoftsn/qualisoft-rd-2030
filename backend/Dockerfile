@@ -1,0 +1,25 @@
+# Stage Build
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# Stage Production
+FROM node:18-alpine
+WORKDIR /app
+
+# Installation de pg_dump pour les backups internes
+RUN apk add --no-cache postgresql-client
+
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
+
+# Création des dossiers persistants
+RUN mkdir -p uploads backups
+
+EXPOSE 9000
+CMD ["node", "dist/main"]

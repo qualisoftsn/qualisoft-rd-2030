@@ -1,0 +1,30 @@
+# Dépendances (Ne pas uploader les dossiers lourds)
+node_modules/
+dist/
+build/
+
+# Environnement & Sécurité (CRITIQUE : Ne jamais uploader vos mots de passe)
+.env
+.env.local
+.env.*.local
+
+# Logs (ISO 27001 : les logs doivent rester sur le serveur)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Prisma (On garde le schéma, mais pas les fichiers temporaires)
+/prisma/migrations/
+*.db
+*.db-journal
+
+# OS & Editeur
+.DS_Store
+.vscode/
+.idea/
+thumbs.db
+
+# Fichiers temporaires de tests
+coverage/

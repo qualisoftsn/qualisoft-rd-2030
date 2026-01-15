@@ -1,0 +1,14 @@
+{
+  "extends": [
+    "development"
+  ],
+  "hints": {
+    "typescript-config/is-valid": "off",
+    "axe/name-role-value": "off",
+    "no-inline-styles": "off",
+    "axe/forms": "off",
+    "typescript-config/consistent-casing": "off",
+    "button-type": "off",
+    "disown-opener": "off"
+  }
+}
