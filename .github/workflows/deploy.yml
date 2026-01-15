@@ -1,0 +1,24 @@
+name: Deploy Qualisoft to Production
+
+on:
+  push:
+    branches:
+      - main  # Se déclenche quand vous envoyez du code sur la branche main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connexion SSH et Mise à jour
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /app/qualisoft/qualisoft-rd-2030
+            git pull origin main
+            # Reconstruction du frontend avec les nouveaux réglages de la Sidebar
+            docker compose up -d --build frontend
+            # Facultatif : relancer Nginx pour être sûr
+            sudo systemctl restart nginx
