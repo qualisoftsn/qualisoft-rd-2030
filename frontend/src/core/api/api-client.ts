@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const apiClient = axios.create({
   // ✅ Vérifie que cette variable n'est pas "undefined"
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000/api', 
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:9000/api', 
   headers: {
     'Content-Type': 'application/json',
   },

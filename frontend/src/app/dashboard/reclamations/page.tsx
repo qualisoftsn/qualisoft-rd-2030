@@ -21,7 +21,7 @@ export default function ReclamationsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Adresse de base de ton backend pour les fichiers
-  const API_BASE_URL = "http://localhost:3000"; 
+  const API_BASE_URL = "http://127.0.0.1:3000"; 
 
   const fetchData = useCallback(async () => {
     try {

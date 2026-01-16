@@ -9,7 +9,7 @@ RUN npm install --legacy-peer-deps
 # Copie du code et build
 COPY . .
 # On définit l'URL de l'API pour le build Next.js
-ARG NEXT_PUBLIC_API_URL=http://localhost:9000
+ARG NEXT_PUBLIC_API_URL=http://127.0.0.0:9000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build

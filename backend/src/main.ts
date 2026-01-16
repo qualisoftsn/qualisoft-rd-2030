@@ -31,8 +31,8 @@ async function bootstrap() {
   // On autorise 3000 et 3001 pour couvrir Next.js quel que soit son port
   app.enableCors({
     origin: [
-      'http://localhost:3000', 
-      'http://localhost:3001', 
+      //'http://localhost:3000', 
+      //'http://localhost:3001', 
       'http://127.0.0.1:3000', 
       'http://127.0.0.1:3001'
     ],

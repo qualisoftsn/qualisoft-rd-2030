@@ -10,7 +10,7 @@ async function upload() {
   form.append('file', fs.createReadStream('./package.json')); 
 
   try {
-    const response = await axios.post('http://localhost:3000/documents/upload', form, {
+    const response = await axios.post('http://127.0.0.1:3000/documents/upload', form, {
       headers: {
         ...form.getHeaders(),
         'Authorization': `Bearer TA_VARIABLE_TOKEN_ICI`

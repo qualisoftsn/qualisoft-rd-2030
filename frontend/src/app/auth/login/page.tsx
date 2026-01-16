@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     try {
       // ✅ APPEL AU BACKEND (NestJS sur le port 9000)
-      const response = await fetch("http://localhost:9000/api/auth/login", {
+      const response = await fetch("http://127.0.0.1:9000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

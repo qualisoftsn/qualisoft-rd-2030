@@ -23,7 +23,7 @@ export default function TierForm({ T_Id, onSuccess, onClose }: TierFormProps) {
     setLoading(true);
 
     try {
-      await axios.post(`http://localhost:3000/tiers?T_Id=${T_Id}`, form);
+      await axios.post(`http://127.0.0.1:3000/tiers?T_Id=${T_Id}`, form);
       onSuccess(); // Rafraîchit la liste dans le formulaire de réclamation
       if (onClose) onClose(); // Ferme la modal
       setForm({ TR_Name: '', TR_Type: 'CLIENT', TR_Email: '', TR_CodeExterne: '' });

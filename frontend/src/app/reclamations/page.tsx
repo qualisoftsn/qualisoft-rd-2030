@@ -23,7 +23,7 @@ export default function ReclamationsPage() {
    */
   const loadQualisoftEngine = async (tenantId: string) => {
     try {
-      const apiBase = "http://localhost:3000"; // URL de ton backend NestJS
+      const apiBase = "http://127.0.0.1:3000"; // URL de ton backend NestJS
       
       const [resRec, resTiers, resProcs] = await Promise.all([
         axios.get(`${apiBase}/reclamations?tenantId=${tenantId}`),
