@@ -64,7 +64,7 @@ services:
     container_name: qualisoft-frontend
     restart: always
     ports:
-      - "3001:3001"
+      - "3001:3000"
     environment:
       # ✅ IMPORTANT : Vérifie si ton backend utilise le préfixe /api
       - NEXT_PUBLIC_API_URL=http://localhost:9000/api

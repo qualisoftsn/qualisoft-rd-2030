@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y openssl libssl-dev && rm -rf /var/lib/a
 
 # Installation des dépendances Node
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copie de tout le code (incluant le dossier prisma)
 COPY . .
