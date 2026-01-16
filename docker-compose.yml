@@ -33,7 +33,7 @@ services:
   # --- 3. BACKEND (NOYAU QUALISOFT) ---
   backend:
     build: 
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: qualisoft-backend
     restart: always
