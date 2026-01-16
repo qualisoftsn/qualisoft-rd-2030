@@ -14,7 +14,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://2127.0.0.1:3000](http://127.0.0.1:3000) with your browser to see the result.
+Open [https://elite.qualisoft.sn](https://elite.qualisoft.sn) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

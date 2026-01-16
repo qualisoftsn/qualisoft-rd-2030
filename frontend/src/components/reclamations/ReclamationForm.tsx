@@ -34,7 +34,7 @@ export default function ReclamationForm({ T_Id, U_Id, tiers, processus, onSucces
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('http://127.0.0.1:3000/reclamations', {
+      await axios.post('https://elite.qualisoft.sn/api/reclamations', {
         ...form,
         tenantId: T_Id,
         REC_OwnerId: U_Id
