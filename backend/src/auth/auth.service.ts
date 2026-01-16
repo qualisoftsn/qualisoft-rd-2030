@@ -14,9 +14,6 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  /**
-   * LOGIN : Connexion classique
-   */
   async login(loginDto: LoginDto) {
     const { U_Email, U_Password } = loginDto;
     const user = await this.prisma.user.findUnique({
@@ -43,26 +40,21 @@ export class AuthService {
     };
   }
 
-  /**
-   * REGISTER : Création simultanée de l'Entreprise et de l'Administrateur
-   */
   async registerTenant(dto: RegisterTenantDto) {
+    // 🛠️ On utilise ici les noms adminFirstName/adminLastName du Payload
     const { 
       companyName, ceoName, phone, address,
-      firstName, lastName, email, password 
+      adminFirstName, adminLastName, email, password 
     } = dto;
 
-    // 1. Vérifier si l'email de l'admin existe déjà
     const existingUser = await this.prisma.user.findUnique({ where: { U_Email: email } });
     if (existingUser) throw new BadRequestException("Cet email est déjà utilisé.");
 
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-    // 2. TRANSACTION ATOMIQUE : On remplit les 3 tables d'un coup
     return this.prisma.$transaction(async (tx) => {
-      
-      // Étape A : Créer le TENANT
+      // Étape A : Créer le TENANT (Organisation)
       const tenant = await tx.tenant.create({
         data: {
           T_Name: companyName,
@@ -77,7 +69,7 @@ export class AuthService {
         }
       });
 
-      // Étape B : Créer le SITE de base (Siège)
+      // Étape B : Créer le SITE de base
       const site = await tx.site.create({
         data: {
           S_Name: 'Siège Social',
@@ -86,21 +78,21 @@ export class AuthService {
         }
       });
 
-      // Étape C : Créer l'USER (Administrateur) lié au Tenant et au Site
+      // Étape C : Créer l'USER (Administrateur) lié aux préfixes Prisma U_
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await tx.user.create({
         data: {
           U_Email: email,
           U_PasswordHash: hashedPassword,
-          U_FirstName: firstName, 
-          U_LastName: lastName,   
+          U_FirstName: adminFirstName, // 👈 Mapping correct
+          U_LastName: adminLastName,   // 👈 Mapping correct
           U_Role: 'ADMIN',
           tenantId: tenant.T_Id,
           U_SiteId: site.S_Id,
         }
       });
 
-      this.logger.log(`✨ Succès : Entreprise ${companyName} et Admin ${firstName} créés.`);
+      this.logger.log(`✨ Succès : Instance Elite ${companyName} créée.`);
 
       return {
         access_token: this.jwtService.sign({ U_Id: user.U_Id, tenantId: tenant.T_Id }),
