@@ -1,41 +1,46 @@
+# --- STAGE 1 : BUILD ---
 FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
-# On force l'installation d'openssl avant tout
-RUN apt-get update && apt-get install -y openssl libssl-dev
+# Installation des dépendances système nécessaires pour Prisma
+RUN apt-get update && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
 
+# Installation des dépendances Node
 COPY package*.json ./
 RUN npm install
 
-# Copie explicite du dossier prisma
-COPY prisma ./prisma/
+# Copie de tout le code (incluant le dossier prisma)
+COPY . .
 
-# On génère Prisma AVANT de copier le reste du code pour être sûr
+# Génération du client Prisma (Crucial pour le build NestJS)
 RUN npx prisma generate
 
-COPY . .
+# Build de l'application
 RUN npm run build
 
-# --- PRODUCTION ---
-FROM node:20-bullseye-slim
+# --- STAGE 2 : PRODUCTION ---
+FROM node:20-bullseye
 
 WORKDIR /app
+
+# Installation d'OpenSSL et du client PostgreSQL pour les backups
 RUN apt-get update && apt-get install -y openssl libssl-dev postgresql-client && rm -rf /var/lib/apt/lists/*
 
+# Récupération des fichiers construits
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/public ./public
 
+# Création des dossiers persistants
 RUN mkdir -p uploads backups && chmod -R 777 uploads backups
 
+# Configuration des variables d'environnement
 ENV NODE_ENV=production
-# Force Prisma à utiliser le moteur binaire correct pour Debian
-ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-1.1.x
 
 EXPOSE 9000
 
-# On utilise une commande simplifiée pour tester
+# Commande de démarrage : Migration automatique PUIS lancement
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
