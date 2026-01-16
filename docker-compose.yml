@@ -64,7 +64,7 @@ services:
     container_name: qualisoft-frontend
     restart: always
     ports:
-      - "3001:3000"
+      - "3001:3001"
     environment:
       - NEXT_PUBLIC_API_URL=https://elite.qualisoft.sn/api
     depends_on:
