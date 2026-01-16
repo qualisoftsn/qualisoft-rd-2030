@@ -37,14 +37,14 @@ services:
       dockerfile: Dockerfile
     container_name: qualisoft-backend
     restart: always
-    # ✅ CORRECTION : Automatisation du déploiement et du SEED MASTER
-    command: >
-      sh -c "npx prisma migrate deploy && 
-             npx prisma db seed && 
-             npm run start:prod"
+    environment:
+      # URL de connexion interne utilisant le nom du service 'db'
+      - DATABASE_URL=postgresql://postgres:password123@db:5432/qualisoft_db?schema=public
+      - NODE_ENV=production
+      - PORT=9000
+    # On laisse le Dockerfile gérer le démarrage via son CMD pour éviter les conflits
     ports:
       - "9000:9000"
-    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -66,8 +66,7 @@ services:
     ports:
       - "3001:3000"
     environment:
-      # ✅ IMPORTANT : Vérifie si ton backend utilise le préfixe /api
-      - NEXT_PUBLIC_API_URL=http://localhost:9000/api
+      - NEXT_PUBLIC_API_URL=https://elite.qualisoft.sn/api
     depends_on:
       - backend
     networks:
