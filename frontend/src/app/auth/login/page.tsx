@@ -132,7 +132,7 @@ export default function LoginPage() {
 
           <div className="pt-8 text-center lg:text-left">
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.3em]">
-              SMI Multi-Tenant • Management Intelligence • © 2026
+              SMQ Multi-Tenant • Management Intelligence • © 2026
             </p>
           </div>
         </div>
@@ -160,7 +160,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <p className="text-white text-xs font-black">
-                    SAGAM ELECTRONICS
+                    Qualisoft Elite
                   </p>
                   <p className="text-[9px] text-slate-500 uppercase font-bold">
                     Client Premium Elite

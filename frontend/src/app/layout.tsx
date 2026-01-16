@@ -3,7 +3,7 @@ import Providers from './providers';
 
 export const metadata = {
   title: 'Qualisoft RD 2030',
-  description: 'Système QSE Industriel',
+  description: 'Système SMQ Elite',
 };
 
 export default function RootLayout({
