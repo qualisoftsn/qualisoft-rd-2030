@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { MulterModule } from '@nestjs/platform-express';
-import { ScheduleModule } from '@nestjs/schedule'; // ✅ Pour les Cron Jobs (Désactivation Trials)
+import { ScheduleModule } from '@nestjs/schedule';
 
 // --- INFRASTRUCTURE & SECURITE ---
 import { AuthModule } from './auth/auth.module';
-import { SubscriptionGuard } from './auth/guards/subscription.guard'; // ✅ Le gardien du temps
+import { SubscriptionGuard } from './auth/guards/subscription.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
@@ -16,7 +16,7 @@ import { SitesModule } from './sites/sites.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
 
-// --- MODULES METIER (SMI - 21 MODULES) ---
+// --- MODULES METIER (SMI) ---
 import { ActionsModule } from './actions/actions.module';
 import { AnalysesModule } from './analyses/analyses.module';
 import { AuditsModule } from './audits/audits.module';
@@ -44,28 +44,23 @@ import { SettingsController } from './settings/settings.controller';
 
 @Module({
   imports: [
-    // ⚙️ CONFIGURATION GLOBALE
     ConfigModule.forRoot({ isGlobal: true }),
-    ScheduleModule.forRoot(), // ✅ Active les tâches planifiées à minuit
+    ScheduleModule.forRoot(),
     
-    // 🧱 INFRASTRUCTURE
     PrismaModule,
     AuthModule,
     UsersModule,
     OrgUnitsModule,
     
-    // 📂 GESTION DES FICHIERS (Preuves Audit/NC)
     MulterModule.register({
-      dest: './uploads', // Stockage local (extensible vers S3/Cloud plus tard)
+      dest: './uploads',
     }),
 
-    // 🏛️ CENTRE DE COMMANDE (BACK-OFFICE)
-    AdminModule,      // Ta Master Console
+    AdminModule,
     SubscriptionsModule,
     TransactionsModule,
     SitesModule,
 
-    // 🚀 BUSINESS CORE : LE SYSTEME DE MANAGEMENT INTEGRE (SMI)
     ProcessusModule,
     AuditsModule,
     NonConformiteModule,
@@ -91,8 +86,6 @@ import { SettingsController } from './settings/settings.controller';
   ], 
   providers: [
     AppService,
-    // 🛡️ PROTECTION GLOBALE : Applique le SubscriptionGuard sur TOUTE l'application
-    // Cela garantit que le mode "Lecture Seule" est actif partout dès l'expiration
     {
       provide: APP_GUARD,
       useClass: SubscriptionGuard,

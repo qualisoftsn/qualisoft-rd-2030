@@ -12,18 +12,12 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  /**
-   * LOGIN : Authentification et récupération de l'accès intégral
-   */
   async login(data: any) {
     const { U_Email, U_Password } = data;
 
-    // 1. Recherche de l'utilisateur avec son Tenant
     const user = await this.prisma.user.findUnique({
       where: { U_Email },
-      include: { 
-        tenant: true, 
-      }
+      include: { tenant: true }
     });
 
     if (!user) {
@@ -31,7 +25,6 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    // 2. Vérification du mot de passe
     const isPasswordValid = await bcrypt.compare(U_Password, user.U_PasswordHash);
     
     if (!isPasswordValid) {
@@ -39,9 +32,8 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    this.logger.log(`🚀 Accès Intégral accordé : ${user.U_FirstName} ${user.U_LastName} [${user.U_Role}] - Plan: ${user.tenant?.T_Plan}`);
+    this.logger.log(`🚀 Accès Intégral accordé : ${user.U_FirstName} ${user.U_LastName} [${user.U_Role}]`);
 
-    // 3. Payload JWT enrichi
     const payload = { 
       U_Id: user.U_Id, 
       U_Email: user.U_Email, 
@@ -49,7 +41,6 @@ export class AuthService {
       U_Role: user.U_Role 
     };
 
-    // 4. Retour complet pour le Frontend (Session Pierre Ndiaye)
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -61,49 +52,41 @@ export class AuthService {
         tenantId: user.tenantId,
         U_SiteId: user.U_SiteId,
         U_TenantName: user.tenant?.T_Name,
-        U_Tenant: user.tenant // Contient T_Plan: 'ENTREPRISE'
+        U_Tenant: user.tenant 
       }
     };
   }
 
-  /**
-   * REGISTER : Déploiement d'une nouvelle instance Multi-Tenant
-   * Force le Plan ENTREPRISE et le statut TRIAL pour accès complet.
-   */
   async registerTenant(dto: any) {
     const { 
       companyName, ceoName, phone, address,
       adminFirstName, adminLastName, email, password 
     } = dto;
 
-    // 1. L'email de l'entreprise sert d'identifiant unique pour l'admin
     const existingUser = await this.prisma.user.findUnique({ where: { U_Email: email } });
     if (existingUser) throw new BadRequestException("Cet email entreprise est déjà utilisé.");
 
-    // 2. Configuration de la période d'essai (14 jours)
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-    // 3. Transaction atomique pour garantir l'intégrité des données
     return this.prisma.$transaction(async (tx) => {
-      
-      // A. Création du Tenant (Organisation) en mode ELITE
+      // A. Création du Tenant (Organisation)
       const tenant = await tx.tenant.create({
         data: {
           T_Name: companyName,
           T_CeoName: ceoName,
           T_Phone: phone,
           T_Address: address,
-          T_Email: email, // Mail de l'entreprise
+          T_Email: email,
           T_Domain: companyName.toLowerCase().replace(/\s+/g, '-'),
-          T_Plan: 'ENTREPRISE',              // ⚡ NORMALITÉ : Accès intégral forcé
-          T_SubscriptionStatus: 'TRIAL',      // ⚡ NORMALITÉ : Statut Essai par défaut
+          T_Plan: 'ENTREPRISE', 
+          T_SubscriptionStatus: 'TRIAL',
           T_SubscriptionEndDate: trialEndDate,
           T_IsActive: true,
         }
       });
 
-      // B. Création du Site Principal (Requis pour la structure des données SMI)
+      // B. Création du Site Principal
       const defaultSite = await tx.site.create({
         data: {
           S_Name: 'Siège Social',
@@ -112,30 +95,25 @@ export class AuthService {
         }
       });
 
-      // C. Création de l'Administrateur (ex: Pierre Ndiaye)
+      // C. Création de l'Administrateur
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const user = await tx.user.create({
         data: {
-          U_Email: email, // Identifiant = Mail entreprise
+          U_Email: email,
           U_PasswordHash: hashedPassword,
           U_FirstName: adminFirstName,
           U_LastName: adminLastName,
-          U_Role: 'ADMIN', // Pouvoirs de configuration totaux
+          U_Role: 'ADMIN',
           tenantId: tenant.T_Id,
-          U_SiteId: defaultSite.S_Id, // Rattachement immédiat au site
+          U_SiteId: defaultSite.S_Id,
         },
         include: { tenant: true }
       });
 
       this.logger.log(`✨ Instance ENTREPRISE créée avec succès : ${companyName} (${email})`);
 
-      const payload = { 
-        U_Id: user.U_Id, 
-        U_Email: user.U_Email, 
-        tenantId: user.tenantId, 
-        U_Role: user.U_Role 
-      };
+      const payload = { U_Id: user.U_Id, U_Email: user.U_Email, tenantId: user.tenantId, U_Role: user.U_Role };
 
       return {
         access_token: this.jwtService.sign(payload),

@@ -13,6 +13,7 @@ import {
 import { AuthService } from './auth.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
+import { Public } from '../common/decorators/public.decorator';
 
 @Controller('auth')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -25,10 +26,10 @@ export class AuthController {
    * @route   POST /api/auth/login
    * @desc    Authentification SMI Multi-Tenant
    */
+  @Public() // 🔓 Autorise l'accès sans connexion préalable
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
-    // 🔍 Diagnostic de réception
     this.logger.log(`📥 Requête de login reçue pour : ${loginDto.U_Email}`);
 
     if (!loginDto.U_Email || !loginDto.U_Password) {
@@ -37,7 +38,6 @@ export class AuthController {
       );
     }
 
-    // Appel au service avec les données mappées
     return this.authService.login({
         U_Email: loginDto.U_Email,
         U_Password: loginDto.U_Password
@@ -46,11 +46,14 @@ export class AuthController {
 
   /**
    * @route   POST /api/auth/register-tenant
-   * @desc    Déploiement Instance Qualisoft Elite
+   * @desc    Déploiement Instance Qualisoft Elite (Plan Entreprise)
    */
+  @Public() // 🔓 Indispensable pour éviter le 403 lors de l'inscription
   @Post('register-tenant')
   @HttpCode(HttpStatus.CREATED)
   async registerTenant(@Body() registerDto: RegisterTenantDto) {
+    this.logger.log(`🏢 Tentative de déploiement d'instance pour : ${registerDto.companyName}`);
+
     if (!registerDto.email || !registerDto.password || !registerDto.companyName) {
       throw new BadRequestException(
         'Les informations de structure et de sécurité sont incomplètes',
