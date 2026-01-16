@@ -1,6 +1,7 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class RegisterTenantDto {
+  // Champs pour la table TENANT
   @IsString()
   @IsNotEmpty()
   companyName!: string;
@@ -11,7 +12,16 @@ export class RegisterTenantDto {
 
   @IsString()
   @IsNotEmpty()
-  firstName!: string; // 👈 Doit correspondre au champ "firstName" du formulaire
+  phone!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  address!: string;
+
+  // Champs pour la table USER (L'administrateur)
+  @IsString()
+  @IsNotEmpty()
+  firstName!: string; // 👈 Le message "firstName should not be empty" vient d'ici
 
   @IsString()
   @IsNotEmpty()
@@ -23,12 +33,4 @@ export class RegisterTenantDto {
   @IsString()
   @MinLength(8)
   password!: string;
-
-  @IsString()
-  @IsOptional() // On le met optionnel pour éviter de bloquer si vide
-  phone?: string;
-
-  @IsString()
-  @IsOptional()
-  address?: string;
 }
