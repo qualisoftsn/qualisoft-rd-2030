@@ -12,9 +12,13 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  /**
+   * LOGIN : Authentification Multi-Tenant
+   */
   async login(data: any) {
     const { U_Email, U_Password } = data;
 
+    // 1. Recherche de l'utilisateur avec son Tenant (Respect du schéma Prisma)
     const user = await this.prisma.user.findUnique({
       where: { U_Email },
       include: { tenant: true }
@@ -25,6 +29,7 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
+    // 2. Vérification du mot de passe
     const isPasswordValid = await bcrypt.compare(U_Password, user.U_PasswordHash);
     
     if (!isPasswordValid) {
@@ -32,8 +37,9 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    this.logger.log(`🚀 Accès Intégral accordé : ${user.U_FirstName} ${user.U_LastName} [${user.U_Role}]`);
+    this.logger.log(`🚀 Accès accordé : ${user.U_FirstName} ${user.U_LastName} [${user.U_Role}]`);
 
+    // 3. Payload JWT
     const payload = { 
       U_Id: user.U_Id, 
       U_Email: user.U_Email, 
@@ -57,19 +63,27 @@ export class AuthService {
     };
   }
 
+  /**
+   * REGISTER : Déploiement d'une nouvelle instance Qualisoft Elite
+   * Correction du mapping pour résoudre "firstName must be a string"
+   */
   async registerTenant(dto: any) {
     const { 
       companyName, ceoName, phone, address,
-      adminFirstName, adminLastName, email, password 
+      firstName, lastName, email, password 
     } = dto;
 
+    // 1. Vérification unicité utilisateur
     const existingUser = await this.prisma.user.findUnique({ where: { U_Email: email } });
-    if (existingUser) throw new BadRequestException("Cet email entreprise est déjà utilisé.");
+    if (existingUser) throw new BadRequestException("Cet email est déjà utilisé.");
 
+    // 2. Calcul de la fin d'essai (14 jours)
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
+    // 3. Transaction Atomique (Tout ou rien)
     return this.prisma.$transaction(async (tx) => {
+      
       // A. Création du Tenant (Organisation)
       const tenant = await tx.tenant.create({
         data: {
@@ -79,14 +93,14 @@ export class AuthService {
           T_Address: address,
           T_Email: email,
           T_Domain: companyName.toLowerCase().replace(/\s+/g, '-'),
-          T_Plan: 'ENTREPRISE', 
-          T_SubscriptionStatus: 'TRIAL',
+          T_Plan: 'ENTREPRISE',               // ⚡ Elite Force
+          T_SubscriptionStatus: 'TRIAL',      // ⚡ Mode Essai
           T_SubscriptionEndDate: trialEndDate,
           T_IsActive: true,
         }
       });
 
-      // B. Création du Site Principal
+      // B. Création du Site Principal (Indispensable pour le SMI)
       const defaultSite = await tx.site.create({
         data: {
           S_Name: 'Siège Social',
@@ -95,15 +109,15 @@ export class AuthService {
         }
       });
 
-      // C. Création de l'Administrateur
+      // C. Création de l'Administrateur (Mapping vers U_FirstName / U_LastName)
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const user = await tx.user.create({
         data: {
           U_Email: email,
           U_PasswordHash: hashedPassword,
-          U_FirstName: adminFirstName,
-          U_LastName: adminLastName,
+          U_FirstName: firstName, // Correction : mapping direct depuis le DTO
+          U_LastName: lastName,   // Correction : mapping direct depuis le DTO
           U_Role: 'ADMIN',
           tenantId: tenant.T_Id,
           U_SiteId: defaultSite.S_Id,
@@ -111,9 +125,14 @@ export class AuthService {
         include: { tenant: true }
       });
 
-      this.logger.log(`✨ Instance ENTREPRISE créée avec succès : ${companyName} (${email})`);
+      this.logger.log(`✨ Instance ENTREPRISE créée : ${companyName} (${email})`);
 
-      const payload = { U_Id: user.U_Id, U_Email: user.U_Email, tenantId: user.tenantId, U_Role: user.U_Role };
+      const payload = { 
+        U_Id: user.U_Id, 
+        U_Email: user.U_Email, 
+        tenantId: user.tenantId, 
+        U_Role: user.U_Role 
+      };
 
       return {
         access_token: this.jwtService.sign(payload),
