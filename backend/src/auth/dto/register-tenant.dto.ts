@@ -3,7 +3,7 @@ import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 export class RegisterTenantDto {
   @IsString()
   @IsNotEmpty()
-  companyName!: string; // 👈 Notez l'ajout du "!"
+  companyName!: string; // 👈 Le "!" corrige l'erreur TS2564 (Initialiseur)
 
   @IsString()
   @IsNotEmpty()
@@ -11,11 +11,11 @@ export class RegisterTenantDto {
 
   @IsString()
   @IsNotEmpty()
-  firstName!: string;
+  firstName!: string; // 👈 Résout l'erreur "firstName should not be empty"
 
   @IsString()
   @IsNotEmpty()
-  lastName!: string;
+  lastName!: string; // 👈 Résout l'erreur "lastName should not be empty"
 
   @IsEmail()
   email!: string;

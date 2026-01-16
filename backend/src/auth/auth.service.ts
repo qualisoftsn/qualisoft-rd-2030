@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, Logger, UnauthorizedException } from '
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { RegisterTenantDto } from './dto/register-tenant.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -14,9 +16,10 @@ export class AuthService {
 
   /**
    * LOGIN : Authentification Multi-Tenant
+   * Récupère l'accès intégral basé sur le rôle et le plan.
    */
-  async login(data: any) {
-    const { U_Email, U_Password } = data;
+  async login(loginDto: LoginDto) {
+    const { U_Email, U_Password } = loginDto;
 
     // 1. Recherche de l'utilisateur avec son Tenant (Respect du schéma Prisma)
     const user = await this.prisma.user.findUnique({
@@ -29,7 +32,7 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    // 2. Vérification du mot de passe
+    // 2. Vérification du mot de passe (bcrypt)
     const isPasswordValid = await bcrypt.compare(U_Password, user.U_PasswordHash);
     
     if (!isPasswordValid) {
@@ -39,7 +42,7 @@ export class AuthService {
 
     this.logger.log(`🚀 Accès accordé : ${user.U_FirstName} ${user.U_LastName} [${user.U_Role}]`);
 
-    // 3. Payload JWT
+    // 3. Payload JWT enrichi pour le SMI
     const payload = { 
       U_Id: user.U_Id, 
       U_Email: user.U_Email, 
@@ -58,30 +61,32 @@ export class AuthService {
         tenantId: user.tenantId,
         U_SiteId: user.U_SiteId,
         U_TenantName: user.tenant?.T_Name,
-        U_Tenant: user.tenant 
+        U_Tenant: user.tenant // Contient le T_Plan, T_SubscriptionStatus, etc.
       }
     };
   }
 
   /**
    * REGISTER : Déploiement d'une nouvelle instance Qualisoft Elite
-   * Correction du mapping pour résoudre "firstName must be a string"
+   * Crée atomiquement le Tenant, le Site et l'Admin principal.
    */
-  async registerTenant(dto: any) {
+  async registerTenant(dto: RegisterTenantDto) {
     const { 
       companyName, ceoName, phone, address,
       firstName, lastName, email, password 
     } = dto;
 
-    // 1. Vérification unicité utilisateur
+    // 1. Vérification d'unicité (Empêche les doublons sur l'email admin)
     const existingUser = await this.prisma.user.findUnique({ where: { U_Email: email } });
-    if (existingUser) throw new BadRequestException("Cet email est déjà utilisé.");
+    if (existingUser) {
+      throw new BadRequestException("Cet email entreprise est déjà utilisé pour un compte administrateur.");
+    }
 
-    // 2. Calcul de la fin d'essai (14 jours)
+    // 2. Configuration de la période d'essai Elite (14 jours)
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-    // 3. Transaction Atomique (Tout ou rien)
+    // 3. Transaction Atomique : On crée tout ou on annule tout
     return this.prisma.$transaction(async (tx) => {
       
       // A. Création du Tenant (Organisation)
@@ -93,14 +98,14 @@ export class AuthService {
           T_Address: address,
           T_Email: email,
           T_Domain: companyName.toLowerCase().replace(/\s+/g, '-'),
-          T_Plan: 'ENTREPRISE',               // ⚡ Elite Force
-          T_SubscriptionStatus: 'TRIAL',      // ⚡ Mode Essai
+          T_Plan: 'ENTREPRISE',               // ⚡ Elite Force : Plan complet par défaut
+          T_SubscriptionStatus: 'TRIAL',      // ⚡ Statut Essai
           T_SubscriptionEndDate: trialEndDate,
           T_IsActive: true,
         }
       });
 
-      // B. Création du Site Principal (Indispensable pour le SMI)
+      // B. Création du Site de base (Siège Social)
       const defaultSite = await tx.site.create({
         data: {
           S_Name: 'Siège Social',
@@ -109,15 +114,15 @@ export class AuthService {
         }
       });
 
-      // C. Création de l'Administrateur (Mapping vers U_FirstName / U_LastName)
+      // C. Création de l'Administrateur principal
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const user = await tx.user.create({
         data: {
           U_Email: email,
           U_PasswordHash: hashedPassword,
-          U_FirstName: firstName, // Correction : mapping direct depuis le DTO
-          U_LastName: lastName,   // Correction : mapping direct depuis le DTO
+          U_FirstName: firstName, 
+          U_LastName: lastName,   
           U_Role: 'ADMIN',
           tenantId: tenant.T_Id,
           U_SiteId: defaultSite.S_Id,
@@ -125,8 +130,9 @@ export class AuthService {
         include: { tenant: true }
       });
 
-      this.logger.log(`✨ Instance ENTREPRISE créée : ${companyName} (${email})`);
+      this.logger.log(`✨ Nouvelle instance Elite créée : ${companyName} (${email})`);
 
+      // 4. Génération automatique du token pour connexion immédiate
       const payload = { 
         U_Id: user.U_Id, 
         U_Email: user.U_Email, 
