@@ -3,32 +3,32 @@ import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 export class RegisterTenantDto {
   @IsString()
   @IsNotEmpty()
-  companyName: string;
+  companyName!: string; // 👈 Notez l'ajout du "!"
 
   @IsString()
   @IsNotEmpty()
-  ceoName: string;
+  ceoName!: string;
 
   @IsString()
   @IsNotEmpty()
-  firstName: string; // 👈 C'est ce champ qui corrige l'erreur actuelle
+  firstName!: string;
 
   @IsString()
   @IsNotEmpty()
-  lastName: string;
+  lastName!: string;
 
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
   @MinLength(8)
-  password: string;
+  password!: string;
 
   @IsString()
   @IsNotEmpty()
-  phone: string;
+  phone!: string;
 
   @IsString()
   @IsNotEmpty()
-  address: string;
+  address!: string;
 }
