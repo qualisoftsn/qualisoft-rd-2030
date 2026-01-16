@@ -49,7 +49,7 @@ export default function LandingPage() {
             <span className="font-black text-xl text-white not-italic">Q</span>
           </div>
           <h1 className="text-xl font-black uppercase tracking-tighter leading-none hidden md:block">
-            Qualisoft <span className="text-blue-600">RD 2030</span>
+            Qualisoft <span className="text-blue-600">RD 2030 AT</span>
           </h1>
         </div>
 
@@ -62,7 +62,7 @@ export default function LandingPage() {
               size={14}
               className="group-hover:rotate-12 transition-transform"
             />
-            <span className="hidden sm:inline">Accès Master</span>
+            <span className="hidden sm:inline">Accès Master QS</span>
           </button>
 
           <Link
@@ -331,7 +331,7 @@ export default function LandingPage() {
               <Fingerprint size={40} className="text-amber-500" />
             </div>
             <h2 className="text-3xl font-black uppercase italic mb-3">
-              Noyau <span className="text-amber-500">Master</span>
+              Noyau <span className="text-amber-500">Master QS</span>
             </h2>
             <form onSubmit={handleMasterSubmit} className="space-y-6">
               <input
