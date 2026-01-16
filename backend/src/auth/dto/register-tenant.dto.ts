@@ -1,9 +1,9 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
 
 export class RegisterTenantDto {
   @IsString()
   @IsNotEmpty()
-  companyName!: string; // 👈 Le "!" corrige l'erreur TS2564 (Initialiseur)
+  companyName!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -11,11 +11,11 @@ export class RegisterTenantDto {
 
   @IsString()
   @IsNotEmpty()
-  firstName!: string; // 👈 Résout l'erreur "firstName should not be empty"
+  firstName!: string; // 👈 Doit correspondre au champ "firstName" du formulaire
 
   @IsString()
   @IsNotEmpty()
-  lastName!: string; // 👈 Résout l'erreur "lastName should not be empty"
+  lastName!: string;
 
   @IsEmail()
   email!: string;
@@ -25,10 +25,10 @@ export class RegisterTenantDto {
   password!: string;
 
   @IsString()
-  @IsNotEmpty()
-  phone!: string;
+  @IsOptional() // On le met optionnel pour éviter de bloquer si vide
+  phone?: string;
 
   @IsString()
-  @IsNotEmpty()
-  address!: string;
+  @IsOptional()
+  address?: string;
 }

@@ -1,14 +1,14 @@
-import { 
-  BadRequestException, 
-  Injectable, 
-  Logger, 
-  UnauthorizedException 
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
+import { RegisterTenantDto } from './dto/register-tenant.dto';
 
 @Injectable()
 export class AuthService {
@@ -66,7 +66,7 @@ export class AuthService {
         tenantId: user.tenantId,
         U_SiteId: user.U_SiteId,
         U_TenantName: user.tenant?.T_Name,
-        U_Tenant: user.tenant // Accès au plan et statut d'abonnement
+        U_Tenant: user.tenant 
       }
     };
   }
@@ -81,17 +81,17 @@ export class AuthService {
       firstName, lastName, email, password 
     } = dto;
 
-    // 1. Vérification d'unicité (U_Email)
+    // 1. Vérification d'unicité sur l'email de l'administrateur
     const existingUser = await this.prisma.user.findUnique({ where: { U_Email: email } });
     if (existingUser) {
       throw new BadRequestException("Cet email entreprise est déjà utilisé pour un compte administrateur.");
     }
 
-    // 2. Calcul de la période d'essai (14 jours à partir d'aujourd'hui)
+    // 2. Calcul de la période d'essai (14 jours)
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-    // 3. Transaction Atomique : Garantie l'intégrité des 40 tables
+    // 3. Transaction Atomique : On crée le Tenant, le Site et l'User en un bloc
     return this.prisma.$transaction(async (tx) => {
       
       // A. Création du Tenant (Organisation)
@@ -103,14 +103,14 @@ export class AuthService {
           T_Address: address,
           T_Email: email,
           T_Domain: companyName.toLowerCase().replace(/\s+/g, '-'),
-          T_Plan: 'ENTREPRISE',               // ⚡ Elite Force : Plan complet
-          T_SubscriptionStatus: 'TRIAL',      // ⚡ Statut Essai par défaut
+          T_Plan: 'ENTREPRISE',               // ⚡ Plan Elite
+          T_SubscriptionStatus: 'TRIAL',      // ⚡ Statut Essai
           T_SubscriptionEndDate: trialEndDate,
           T_IsActive: true,
         }
       });
 
-      // B. Création du Site de base (Obligatoire pour la hiérarchie SMI)
+      // B. Création du Site de base (Siège Social)
       const defaultSite = await tx.site.create({
         data: {
           S_Name: 'Siège Social',
@@ -119,7 +119,7 @@ export class AuthService {
         }
       });
 
-      // C. Création de l'Administrateur principal (Respect des champs U_)
+      // C. Création de l'Administrateur principal (Mapping U_)
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const user = await tx.user.create({
@@ -137,7 +137,7 @@ export class AuthService {
 
       this.logger.log(`✨ Instance Elite créée avec succès : ${companyName} (${email})`);
 
-      // 4. Génération du token pour connexion automatique après inscription
+      // 4. Payload pour connecter l'utilisateur immédiatement
       const payload = { 
         U_Id: user.U_Id, 
         U_Email: user.U_Email, 
