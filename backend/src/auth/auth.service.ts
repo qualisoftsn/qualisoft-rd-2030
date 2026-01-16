@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { 
+  BadRequestException, 
+  Injectable, 
+  Logger, 
+  UnauthorizedException 
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,12 +21,12 @@ export class AuthService {
 
   /**
    * LOGIN : Authentification Multi-Tenant
-   * Récupère l'accès intégral basé sur le rôle et le plan.
+   * Gère la connexion et retourne l'accès complet au SMI.
    */
   async login(loginDto: LoginDto) {
     const { U_Email, U_Password } = loginDto;
 
-    // 1. Recherche de l'utilisateur avec son Tenant (Respect du schéma Prisma)
+    // 1. Recherche de l'utilisateur (Respect du préfixe U_)
     const user = await this.prisma.user.findUnique({
       where: { U_Email },
       include: { tenant: true }
@@ -32,7 +37,7 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    // 2. Vérification du mot de passe (bcrypt)
+    // 2. Vérification du mot de passe haché
     const isPasswordValid = await bcrypt.compare(U_Password, user.U_PasswordHash);
     
     if (!isPasswordValid) {
@@ -42,7 +47,7 @@ export class AuthService {
 
     this.logger.log(`🚀 Accès accordé : ${user.U_FirstName} ${user.U_LastName} [${user.U_Role}]`);
 
-    // 3. Payload JWT enrichi pour le SMI
+    // 3. Payload JWT pour la session
     const payload = { 
       U_Id: user.U_Id, 
       U_Email: user.U_Email, 
@@ -61,14 +66,14 @@ export class AuthService {
         tenantId: user.tenantId,
         U_SiteId: user.U_SiteId,
         U_TenantName: user.tenant?.T_Name,
-        U_Tenant: user.tenant // Contient le T_Plan, T_SubscriptionStatus, etc.
+        U_Tenant: user.tenant // Accès au plan et statut d'abonnement
       }
     };
   }
 
   /**
-   * REGISTER : Déploiement d'une nouvelle instance Qualisoft Elite
-   * Crée atomiquement le Tenant, le Site et l'Admin principal.
+   * REGISTER : Déploiement Instance Qualisoft Elite
+   * Crée atomiquement le Tenant, le Site et l'Administrateur principal.
    */
   async registerTenant(dto: RegisterTenantDto) {
     const { 
@@ -76,17 +81,17 @@ export class AuthService {
       firstName, lastName, email, password 
     } = dto;
 
-    // 1. Vérification d'unicité (Empêche les doublons sur l'email admin)
+    // 1. Vérification d'unicité (U_Email)
     const existingUser = await this.prisma.user.findUnique({ where: { U_Email: email } });
     if (existingUser) {
       throw new BadRequestException("Cet email entreprise est déjà utilisé pour un compte administrateur.");
     }
 
-    // 2. Configuration de la période d'essai Elite (14 jours)
+    // 2. Calcul de la période d'essai (14 jours à partir d'aujourd'hui)
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-    // 3. Transaction Atomique : On crée tout ou on annule tout
+    // 3. Transaction Atomique : Garantie l'intégrité des 40 tables
     return this.prisma.$transaction(async (tx) => {
       
       // A. Création du Tenant (Organisation)
@@ -98,14 +103,14 @@ export class AuthService {
           T_Address: address,
           T_Email: email,
           T_Domain: companyName.toLowerCase().replace(/\s+/g, '-'),
-          T_Plan: 'ENTREPRISE',               // ⚡ Elite Force : Plan complet par défaut
-          T_SubscriptionStatus: 'TRIAL',      // ⚡ Statut Essai
+          T_Plan: 'ENTREPRISE',               // ⚡ Elite Force : Plan complet
+          T_SubscriptionStatus: 'TRIAL',      // ⚡ Statut Essai par défaut
           T_SubscriptionEndDate: trialEndDate,
           T_IsActive: true,
         }
       });
 
-      // B. Création du Site de base (Siège Social)
+      // B. Création du Site de base (Obligatoire pour la hiérarchie SMI)
       const defaultSite = await tx.site.create({
         data: {
           S_Name: 'Siège Social',
@@ -114,7 +119,7 @@ export class AuthService {
         }
       });
 
-      // C. Création de l'Administrateur principal
+      // C. Création de l'Administrateur principal (Respect des champs U_)
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const user = await tx.user.create({
@@ -130,9 +135,9 @@ export class AuthService {
         include: { tenant: true }
       });
 
-      this.logger.log(`✨ Nouvelle instance Elite créée : ${companyName} (${email})`);
+      this.logger.log(`✨ Instance Elite créée avec succès : ${companyName} (${email})`);
 
-      // 4. Génération automatique du token pour connexion immédiate
+      // 4. Génération du token pour connexion automatique après inscription
       const payload = { 
         U_Id: user.U_Id, 
         U_Email: user.U_Email, 
