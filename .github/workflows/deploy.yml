@@ -3,7 +3,7 @@ name: Deploy Qualisoft to Production
 on:
   push:
     branches:
-      - main  # Se déclenche quand vous envoyez du code sur la branche main
+      - main
 
 jobs:
   deploy:
@@ -18,7 +18,10 @@ jobs:
           script: |
             cd /app/qualisoft/qualisoft-rd-2030
             git pull origin main
-            # Reconstruction du frontend avec les nouveaux réglages de la Sidebar
-            docker compose up -d --build frontend
-            # Facultatif : relancer Nginx pour être sûr
-            sudo systemctl restart nginx
+            
+            # 1. On force la reconstruction du bon service (qualisoft-ui)
+            # On utilise --force-recreate pour être sûr que la 404 disparaisse
+            docker compose up -d --build --force-recreate qualisoft-ui
+            
+            # 2. Nettoyage des images inutiles pour ne pas saturer le serveur OVH
+            docker image prune -f
