@@ -35,7 +35,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
-    container_name: qualisoft_backend
+    container_name: qualisoft-backend
     restart: always
     # ✅ CORRECTION : Automatisation du déploiement et du SEED MASTER
     command: >
@@ -61,7 +61,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: qualisoft_frontend
+    container_name: qualisoft-frontend
     restart: always
     ports:
       - "3001:3001"
@@ -76,7 +76,7 @@ services:
   # --- 5. BACKUP AUTOMATISÉ ---
   backup-cron:
     image: prodrigestivill/postgres-backup-local
-    container_name: qualisoft_auto_backup
+    container_name: qualisoft-auto-backup
     restart: always
     environment:
       - POSTGRES_HOST=db
