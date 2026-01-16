@@ -1,9 +1,9 @@
-import './globals.css';
-import Providers from './providers';
+import "./globals.css";
+import Providers from "./providers";
 
 export const metadata = {
-  title: 'Qualisoft RD 2030',
-  description: 'Système SMQ Elite',
+  title: "Qualisoft RD 2030 AT",
+  description: "Système SMQ Elite",
 };
 
 export default function RootLayout({
