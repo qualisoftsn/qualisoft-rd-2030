@@ -98,8 +98,8 @@ export default function LandingPage() {
           </h1>
 
           <p className="max-w-3xl mx-auto text-slate-400 text-lg md:text-xl font-medium italic mb-14 leading-relaxed">
-            L'excellence normative ISO 9001, 14001 et 45001 au Sénégal et dans
-            l'UEMOA. Digitalisez votre GED et vos flux Qualité dès aujourd'hui.
+            L&apos;excellence normative ISO 9001, 14001 et 45001 au Sénégal et dans
+            l&apos;UEMOA. Digitalisez votre GED et vos flux Qualité dès aujourd&apos;hui.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-6 mb-20">
@@ -342,7 +342,7 @@ export default function LandingPage() {
                 className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl text-white font-black text-center italic focus:border-amber-500 outline-none"
               />
               <button className="w-full py-6 bg-amber-500 text-slate-950 rounded-4xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-amber-500/20 hover:scale-105 transition-all">
-                Débloquer l'instance
+                Débloquer l&apos;instance
               </button>
             </form>
           </div>
