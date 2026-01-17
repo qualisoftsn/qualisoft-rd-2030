@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
+import { ContactService } from './contact.service'; // 👈 Nouveau service pour l'indépendance mail
 import { LoginDto } from './dto/login.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 
@@ -22,7 +23,10 @@ import { RegisterTenantDto } from './dto/register-tenant.dto';
 export class AuthController {
   private readonly logger = new Logger('AuthController');
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly contactService: ContactService // 👈 Injection pour gérer les invitations
+  ) {}
 
   /**
    * @route   POST /api/auth/login
@@ -80,5 +84,25 @@ export class AuthController {
     }
 
     return this.authService.disableFirstLogin(id);
+  }
+
+  /**
+   * @route   POST /api/auth/invite
+   * @desc    Réception des demandes de démo et d'accès (Remplace définitivement Formspree)
+   */
+  @Public() // 🔓 Public car les prospects n'ont pas encore de compte
+  @Post('invite')
+  @HttpCode(HttpStatus.OK)
+  async invite(@Body() inviteDto: { company: string; email: string; message?: string }) {
+    this.logger.log(`📧 Nouvelle demande d'invitation : ${inviteDto.company} (${inviteDto.email})`);
+
+    // Validation des champs requis pour le mail
+    if (!inviteDto.email || !inviteDto.company) {
+      throw new BadRequestException(
+        "L'email et le nom de l'entreprise sont obligatoires pour la demande d'accès.",
+      );
+    }
+
+    return this.contactService.sendInviteRequest(inviteDto);
   }
 }
