@@ -41,6 +41,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UploadController } from './common/upload.controller';
 import { SettingsController } from './settings/settings.controller';
+import { ContactService } from './auth/contact.service';
 
 @Module({
   imports: [
@@ -85,7 +86,7 @@ import { SettingsController } from './settings/settings.controller';
     UploadController
   ], 
   providers: [
-    AppService,
+    AppService, ContactService,
     {
       provide: APP_GUARD,
       useClass: SubscriptionGuard,

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
@@ -95,9 +94,9 @@ export default function LandingPage() {
           </h1>
 
           <p className="max-w-3xl mx-auto text-slate-400 text-lg md:text-xl font-medium italic mb-14 leading-relaxed">
-            L'excellence normative ISO 9001, 14001 et 45001 digitalisée.
-            Rejoignez la liste d'attente pour obtenir 14 jours d'accès complet
-            dès le lancement.
+            L&apos;excellence normative ISO 9001, 14001 et 45001 digitalisée.
+            Rejoignez la liste d&apos;attente pour obtenir 14 jours d&apos;accès
+            complet dès le lancement.
           </p>
 
           {/* FORMULAIRE DE PRÉ-INSCRIPTION ATTRACTIF */}
@@ -232,7 +231,7 @@ export default function LandingPage() {
                 className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl text-white font-black text-center italic focus:border-amber-500 outline-none"
               />
               <button className="w-full py-6 bg-amber-500 text-slate-950 rounded-4xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-amber-500/20">
-                Débloquer l'instance
+                Débloquer l&apos;instance
               </button>
             </form>
           </div>
