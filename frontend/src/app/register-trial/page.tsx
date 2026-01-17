@@ -103,7 +103,7 @@ export default function LandingPage() {
           <div className="max-w-md mx-auto bg-white/5 border border-white/10 p-8 rounded-[3rem] shadow-3xl backdrop-blur-xl">
             {!submitted ? (
               <form
-                action="https://formspree.io/f/abdoulayethiongane@gmail.com"
+                
                 method="POST"
                 className="space-y-4"
                 onSubmit={() => setTimeout(() => setSubmitted(true), 1000)}

@@ -1,108 +1,51 @@
-import {
-  BadRequestException,
-  Body,
-  ClassSerializerInterceptor,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Logger,
-  Param,
-  Patch,
-  Post,
-  UnauthorizedException,
-  UseInterceptors
-} from '@nestjs/common';
+import { BadRequestException, Body, ClassSerializerInterceptor, Controller, HttpCode, HttpStatus, Logger, Param, Patch, Post, UseInterceptors } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
-import { ContactService } from './contact.service'; // 👈 Nouveau service pour l'indépendance mail
+import { ContactService } from './contact.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
+import { InviteDto } from './dto/invite.dto';
 
 @Controller('auth')
 @UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
   private readonly logger = new Logger('AuthController');
-
+  
   constructor(
-    private readonly authService: AuthService,
-    private readonly contactService: ContactService // 👈 Injection pour gérer les invitations
+    private readonly authService: AuthService, 
+    private readonly contactService: ContactService
   ) {}
 
-  /**
-   * @route   POST /api/auth/login
-   * @desc    Authentification SMI Multi-Tenant
-   */
-  @Public() // 🔓 Autorise l'accès sans connexion préalable
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
-    this.logger.log(`📥 Requête de login reçue pour : ${loginDto.U_Email}`);
-
-    if (!loginDto.U_Email || !loginDto.U_Password) {
-      throw new UnauthorizedException(
-        'Email (U_Email) et mot de passe (U_Password) requis',
-      );
-    }
-
-    return this.authService.login({
-        U_Email: loginDto.U_Email,
-        U_Password: loginDto.U_Password
-    });
+    return this.authService.login({ U_Email: loginDto.U_Email, U_Password: loginDto.U_Password });
   }
 
-  /**
-   * @route   POST /api/auth/register-tenant
-   * @desc    Déploiement Instance Qualisoft Elite (Plan Entreprise)
-   */
-  @Public() // 🔓 Indispensable pour éviter le 403 lors de l'inscription
+  @Public()
   @Post('register-tenant')
   @HttpCode(HttpStatus.CREATED)
   async registerTenant(@Body() registerDto: RegisterTenantDto) {
-    this.logger.log(`🏢 Tentative de déploiement d'instance pour : ${registerDto.companyName}`);
-
-    // Validation de sécurité minimale avant traitement
-    if (!registerDto.email || !registerDto.password || !registerDto.companyName) {
-      throw new BadRequestException(
-        'Les informations de structure et de sécurité sont incomplètes',
-      );
-    }
-
     return this.authService.registerTenant(registerDto);
   }
 
-  /**
-   * @route   PATCH /api/auth/disable-first-login/:id
-   * @desc    Désactive l'affichage de la modale de bienvenue pour l'utilisateur
-   */
   @Patch('disable-first-login/:id')
   @HttpCode(HttpStatus.OK)
   async disableFirstLogin(@Param('id') id: string) {
-    this.logger.log(`💡 Désactivation du flag premier login pour l'utilisateur : ${id}`);
-    
-    if (!id) {
-      throw new BadRequestException("L'identifiant de l'utilisateur est requis.");
-    }
-
     return this.authService.disableFirstLogin(id);
   }
 
-  /**
-   * @route   POST /api/auth/invite
-   * @desc    Réception des demandes de démo et d'accès (Remplace définitivement Formspree)
-   */
-  @Public() // 🔓 Public car les prospects n'ont pas encore de compte
+  @Public()
   @Post('invite')
   @HttpCode(HttpStatus.OK)
-  async invite(@Body() inviteDto: { company: string; email: string; message?: string }) {
-    this.logger.log(`📧 Nouvelle demande d'invitation : ${inviteDto.company} (${inviteDto.email})`);
+  async invite(@Body() inviteDto: InviteDto) {
+    this.logger.log('--- REQUÊTE INVITE REÇUE ---');
+    this.logger.log('Contenu : ' + JSON.stringify(inviteDto));
 
-    // Validation des champs requis pour le mail
     if (!inviteDto.email || !inviteDto.company) {
-      throw new BadRequestException(
-        "L'email et le nom de l'entreprise sont obligatoires pour la demande d'accès.",
-      );
+        throw new BadRequestException("Champs requis manquants : email ou company");
     }
-
     return this.contactService.sendInviteRequest(inviteDto);
   }
 }

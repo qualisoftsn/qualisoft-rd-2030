@@ -36,10 +36,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: qualisoft-backend
+    image: qualisoft-rd-2030-backend
     restart: always
     environment:
       # URL de connexion interne utilisant le nom du service 'db'
       - DATABASE_URL=postgresql://postgres:password123@db:5432/qualisoft_db?schema=public
+      - EMAIL_APP_PASSWORD=wwralsbrpvhweasa
       - NODE_ENV=production
       - PORT=9000
     # On laisse le Dockerfile gérer le démarrage via son CMD pour éviter les conflits
@@ -78,6 +80,8 @@ services:
     container_name: qualisoft-auto-backup
     restart: always
     environment:
+      - EMAIL_APP_PASSWORD=wwralsbrpvhweasa
+      - DATABASE_URL=postgresql://qualisoft_user:qualisoft_password@db:5432/qualisoft_db
       - POSTGRES_HOST=db
       - POSTGRES_DB=qualisoft_db
       - POSTGRES_USER=postgres

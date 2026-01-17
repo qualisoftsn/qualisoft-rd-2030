@@ -27,4 +27,7 @@ logs/
 thumbs.db
 
 # Fichiers temporaires de tests
-coverage/
+coverage/backups/
+id_rsa_deploy*
+*.save
+.env
