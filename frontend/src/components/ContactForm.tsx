@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 export default function ContactForm() {
@@ -7,19 +6,29 @@ export default function ContactForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const data = new FormData(form);
+    const formData = new FormData(form);
+    
+    // On prépare manuellement l'objet JSON
+    const payload = {
+      company: formData.get('company'),
+      email: formData.get('email'),
+      message: formData.get('message'),
+    };
 
-    const response = await fetch("https://formspree.io/f/xojjjjld", {
+    const response = await fetch("/api/auth/invite", {
       method: "POST",
-      body: data,
-      headers: { 'Accept': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json' 
+      },
+      body: JSON.stringify(payload)
     });
 
     if (response.ok) {
       setStatus("MERCI ! Votre demande a été envoyée. Nous vous répondrons très vite.");
       form.reset();
     } else {
-      setStatus("Oups ! Il y a eu un problème. Veuillez réessayer.");
+      setStatus("Oups ! Problème lors de l'envoi. Vérifiez vos informations.");
     }
   };
 
@@ -28,7 +37,7 @@ export default function ContactForm() {
       <h2 className="text-2xl font-bold mb-4">Demander une démo Qualisoft Elite</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium">Nom de l&apos;entreprise</label>
+          <label className="block text-sm font-medium">Nom de l'entreprise</label>
           <input type="text" name="company" required className="w-full border p-2 rounded" />
         </div>
         <div>

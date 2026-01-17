@@ -60,7 +60,7 @@ export default function LoginPage() {
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    const response = await fetch("https://formspree.io/f/xojjjjld", {
+    const response = await fetch("/api/auth/invite", {
       method: "POST",
       body: formData,
       headers: { Accept: "application/json" },
