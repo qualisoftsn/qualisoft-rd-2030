@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
@@ -87,7 +86,7 @@ export default function LandingPage() {
 
         <div className="max-w-7xl mx-auto relative z-10 text-center">
           <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-[0.3em] mb-10">
-            <Zap size={14} className="fill-blue-400" /> Disponibilité Initiale :
+            <Zap size={24} className="fill-blue-400" /> Disponibilité Initiale :
             02/02/2026
           </div>
 
