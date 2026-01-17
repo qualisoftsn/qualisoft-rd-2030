@@ -41,7 +41,7 @@ services:
     environment:
       # URL de connexion interne utilisant le nom du service 'db'
       - DATABASE_URL=postgresql://postgres:password123@db:5432/qualisoft_db?schema=public
-      - EMAIL_APP_PASSWORD=${EMAIL_APP_PASSWORD}
+      - EMAIL_APP_PASSWORD=wwralsbrpvhweasa
       - NODE_ENV=production
       - PORT=9000
     # On laisse le Dockerfile gérer le démarrage via son CMD pour éviter les conflits
