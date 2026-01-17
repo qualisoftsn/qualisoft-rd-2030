@@ -6,6 +6,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import apiClient from '../../core/api/api-client';
 import { usePermissions } from '@/core/hooks/usePermissions';
+import WelcomeModal from '@/components/WelcomeModal'; // 👈 On importe la modale
 
 import { 
   AlertTriangle, ShieldAlert, FileText, 
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false); // 👈 État pour la modale
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -30,6 +32,11 @@ export default function Dashboard() {
       
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       setUser(storedUser);
+
+      // ✅ LOGIQUE DE BIENVENUE : Si c'est sa première fois
+      if (storedUser?.U_FirstLogin === true) {
+        setShowWelcome(true);
+      }
     } catch (err) {
       console.error("❌ ERREUR SYNC COCKPIT :", err);
     } finally {
@@ -40,6 +47,25 @@ export default function Dashboard() {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // ✅ FONCTION POUR FERMER LA BIENVENUE ET PRÉVENIR LE BACKEND
+  const handleCloseWelcome = async () => {
+    try {
+      // 1. Appel au backend via votre apiClient pour désactiver le flag
+      await apiClient.patch(`/auth/disable-first-login/${user.U_Id}`);
+
+      // 2. Mise à jour du localStorage pour ne plus l'afficher au prochain refresh
+      const updatedUser = { ...user, U_FirstLogin: false };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      
+      // 3. Fermeture visuelle
+      setShowWelcome(false);
+    } catch (err) {
+      console.error("Erreur lors de la désactivation du premier login", err);
+      setShowWelcome(false); // On ferme quand même pour ne pas bloquer l'utilisateur
+    }
+  };
 
   const handleDownloadReport = async () => {
     setIsExporting(true);
@@ -55,7 +81,7 @@ export default function Dashboard() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Rapport_Elite_QSE_SAGAM_${month}_${year}.pdf`);
+      link.setAttribute('download', `Rapport_Elite_QSE_${month}_${year}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
@@ -85,7 +111,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 text-blue-400 mb-2 italic">
             <Building2 size={18} />
             <span className="text-[12px] font-black uppercase tracking-[0.5em]">
-              {user?.U_TenantName || "SAGAM ELECTRONICS"}
+              {user?.U_TenantName || "QUALISOFT"}
             </span>
             {user?.U_Tenant?.T_SubscriptionStatus === 'TRIAL' && (
               <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[8px] px-2 py-0.5 rounded-full font-black ml-2 animate-pulse">
@@ -178,7 +204,7 @@ export default function Dashboard() {
               />
             )) : (
               <div className="flex h-full items-center justify-center text-slate-600 font-black uppercase text-[10px] italic border-2 border-dashed border-white/5 rounded-3xl">
-                Chargement de la performance SAGAM...
+                Chargement de la performance ...
               </div>
             )}
           </div>
@@ -222,6 +248,14 @@ export default function Dashboard() {
           <ChevronRight className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-2 transition-all" size={28} />
         </div>
       </Link>
+
+      {/* ✅ LA MODALE DE BIENVENUE : Elle apparaît au-dessus de tout le reste */}
+      {showWelcome && (
+        <WelcomeModal 
+          userName={user?.U_FirstName || 'Admin'} 
+          onClose={handleCloseWelcome} 
+        />
+      )}
     </div>
   );
 }

@@ -67,7 +67,7 @@ export default function ManagementReviewPage() {
             Revue de <span className="text-blue-600">Direction</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-2 italic">
-            Intelligence Stratégique • {user?.U_TenantName || "SAGAM ELECTRONICS"}
+            Intelligence Stratégique • {user?.U_TenantName || "QUALISOFT"}
           </p>
         </div>
         

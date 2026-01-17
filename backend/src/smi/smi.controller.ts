@@ -11,7 +11,7 @@ export class SmiController {
     const tenantId = req.user.tenantId;
     this.logger.log(`📊 Extraction des données stratégiques pour le Tenant : ${tenantId}`);
     
-    // Simulation des données consolidées pour SAGAM Electronics
+    // Simulation des données consolidées pour l'entreprise
     return {
       period: "Année 2026 - Q1",
       globalPerformance: 94,

@@ -90,7 +90,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all font-bold text-slate-700 text-sm"
-                  placeholder="sagam@sagam.sn"
+                  placeholder="qualisoft@qualisoft.sn"
                 />
               </div>
             </div>
@@ -138,7 +138,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* CÔTÉ DROIT : VISUEL SAGAM */}
+      {/* CÔTÉ DROIT : VISUEL  */}
       <div className="hidden lg:flex flex-1 bg-slate-900 relative items-center justify-center p-20 overflow-hidden">
         <div className="relative z-10 text-center space-y-8">
           <div className="inline-block px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full">

@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { 
+  BadRequestException, 
+  Injectable, 
+  Logger, 
+  UnauthorizedException 
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,18 +19,33 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  /**
+   * LOGIN : Authentification et récupération du statut de première connexion
+   */
   async login(loginDto: LoginDto) {
     const { U_Email, U_Password } = loginDto;
+
     const user = await this.prisma.user.findUnique({
       where: { U_Email },
       include: { tenant: true }
     });
 
+    // Vérification de l'existence et du mot de passe
     if (!user || !(await bcrypt.compare(U_Password, user.U_PasswordHash))) {
+      this.logger.error(`❌ Échec de connexion : ${U_Email}`);
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    const payload = { U_Id: user.U_Id, email: user.U_Email, tenantId: user.tenantId, role: user.U_Role };
+    this.logger.log(`🚀 Connexion réussie : ${user.U_FirstName} ${user.U_LastName}`);
+
+    // Construction du Payload JWT
+    const payload = { 
+      U_Id: user.U_Id, 
+      email: user.U_Email, 
+      tenantId: user.tenantId, 
+      role: user.U_Role 
+    };
+
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -34,27 +54,38 @@ export class AuthService {
         U_LastName: user.U_LastName,
         U_Email: user.U_Email,
         U_Role: user.U_Role,
+        U_FirstLogin: user.U_FirstLogin, // 👈 Indispensable pour la modale de bienvenue
         tenantId: user.tenantId,
-        U_TenantName: user.tenant?.T_Name
+        U_TenantName: user.tenant?.T_Name,
+        U_Tenant: user.tenant
       }
     };
   }
 
+  /**
+   * REGISTER : Création atomique de l'instance Elite (Tenant + Site + Admin)
+   */
   async registerTenant(dto: RegisterTenantDto) {
-    // 🛠️ On utilise ici les noms adminFirstName/adminLastName du Payload
+    // 🛠️ Extraction stricte selon le Payload validé (adminFirstName/adminLastName)
     const { 
       companyName, ceoName, phone, address,
       adminFirstName, adminLastName, email, password 
     } = dto;
 
+    // 1. Vérification d'unicité
     const existingUser = await this.prisma.user.findUnique({ where: { U_Email: email } });
-    if (existingUser) throw new BadRequestException("Cet email est déjà utilisé.");
+    if (existingUser) {
+      throw new BadRequestException("Cet email est déjà utilisé pour un compte administrateur.");
+    }
 
+    // 2. Préparation des données temporelles
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
+    // 3. Transaction Atomique (Tout ou rien)
     return this.prisma.$transaction(async (tx) => {
-      // Étape A : Créer le TENANT (Organisation)
+      
+      // Étape A : Création du Tenant
       const tenant = await tx.tenant.create({
         data: {
           T_Name: companyName,
@@ -66,10 +97,11 @@ export class AuthService {
           T_Address: address,
           T_Phone: phone,
           T_CeoName: ceoName,
+          T_IsActive: true,
         }
       });
 
-      // Étape B : Créer le SITE de base
+      // Étape B : Création du Site par défaut (Siège Social)
       const site = await tx.site.create({
         data: {
           S_Name: 'Siège Social',
@@ -78,32 +110,57 @@ export class AuthService {
         }
       });
 
-      // Étape C : Créer l'USER (Administrateur) lié aux préfixes Prisma U_
+      // Étape C : Création de l'Administrateur principal
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await tx.user.create({
         data: {
           U_Email: email,
           U_PasswordHash: hashedPassword,
-          U_FirstName: adminFirstName, // 👈 Mapping correct
-          U_LastName: adminLastName,   // 👈 Mapping correct
+          U_FirstName: adminFirstName, 
+          U_LastName: adminLastName,   
           U_Role: 'ADMIN',
-          U_FirstLogin: true,
+          U_FirstLogin: true,         // 👈 Activé par défaut pour les nouveaux comptes
           tenantId: tenant.T_Id,
           U_SiteId: site.S_Id,
-        }
+        },
+        include: { tenant: true }
       });
 
-      this.logger.log(`✨ Succès : Instance Elite ${companyName} créée.`);
+      this.logger.log(`✨ Instance Elite créée avec succès : ${companyName} (${email})`);
+
+      // 4. Retour des données avec Token pour connexion immédiate
+      const payload = { 
+        U_Id: user.U_Id, 
+        email: user.U_Email, 
+        tenantId: user.tenantId, 
+        role: user.U_Role 
+      };
 
       return {
-        access_token: this.jwtService.sign({ U_Id: user.U_Id, tenantId: tenant.T_Id }),
+        access_token: this.jwtService.sign(payload),
         user: {
           U_Id: user.U_Id,
           U_FirstName: user.U_FirstName,
+          U_LastName: user.U_LastName,
           U_Email: user.U_Email,
-          U_TenantName: tenant.T_Name
+          U_Role: user.U_Role,
+          U_FirstLogin: user.U_FirstLogin,
+          tenantId: user.tenantId,
+          U_TenantName: tenant.T_Name,
+          U_Tenant: tenant
         }
       };
+    });
+  }
+
+  /**
+   * DISABLE FIRST LOGIN : Désactive la modale après la première lecture
+   */
+  async disableFirstLogin(userId: string) {
+    this.logger.log(`✅ Bienvenue terminée pour l'utilisateur : ${userId}`);
+    return this.prisma.user.update({
+      where: { U_Id: userId },
+      data: { U_FirstLogin: false }
     });
   }
 }
