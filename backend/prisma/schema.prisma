@@ -131,9 +131,9 @@ model User {
   U_IsActive     Boolean  @default(true)
   U_CreatedAt    DateTime @default(now())
   U_UpdatedAt    DateTime @updatedAt
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  U_FirstLogin   Boolean  @default(true)
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
   U_SiteId    String?
   U_Site      Site?    @relation(fields: [U_SiteId], references: [S_Id])

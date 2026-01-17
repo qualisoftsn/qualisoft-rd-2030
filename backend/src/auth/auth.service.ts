@@ -87,6 +87,7 @@ export class AuthService {
           U_FirstName: adminFirstName, // 👈 Mapping correct
           U_LastName: adminLastName,   // 👈 Mapping correct
           U_Role: 'ADMIN',
+          U_FirstLogin: true,
           tenantId: tenant.T_Id,
           U_SiteId: site.S_Id,
         }
