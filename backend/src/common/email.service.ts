@@ -12,8 +12,8 @@ export class EmailService {
       port: Number(process.env.MAIL_PORT) || 587,
       secure: false, // true pour le port 465, false pour les autres
       auth: {
-        user: process.env.MAIL_USER || 'ton-email@qualisoft.sn',
-        pass: process.env.MAIL_PASS || 'ton-mot-de-passe',
+        user: process.env.MAIL_USER || 'abdoulayethiongane@gmail.com',
+        pass: process.env.MAIL_PASS || 'wwralsbrpvhweasa',
       },
     });
   }
@@ -32,7 +32,7 @@ export class EmailService {
   }) {
     try {
       const mailOptions = {
-        from: `"Qualisoft RD 2030" <${process.env.MAIL_USER || 'no-reply@qualisoft.sn'}>`,
+        from: `"Qualisoft ELITE 2030" <${process.env.MAIL_USER || 'no-reply@qualisoft.sn'}>`,
         to: options.to,
         subject: options.subject,
         text: options.text,

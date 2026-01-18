@@ -10,7 +10,7 @@ export class OnboardingDto {
   @IsString()
   companyName!: string;
 
-  @IsEnum(['LOGISTICS', 'HEALTH', 'CONSTRUCTION', 'MINING', 'SERVICES'])
+  @IsEnum(['LOGISTICS', 'HEALTH', 'CONSTRUCTION', 'MINING', 'SERVICES', 'AGRICULTURE', 'AUTRE'], { message: 'Le secteur doit être l\'un des suivants : LOGISTICS, HEALTH, CONSTRUCTION, MINING, SERVICES, AGRICULTURE, OTHER' })
   @IsOptional()
   sector?: string;
 
