@@ -263,7 +263,7 @@ export default function LoginPage() {
                     name="company"
                     required
                     type="text"
-                    placeholder="Ex: SAGAM"
+                    placeholder="Ex: QUALISOFT"
                     className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-600 transition-all text-sm font-bold"
                   />
                 </div>
