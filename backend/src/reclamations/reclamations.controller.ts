@@ -22,8 +22,7 @@ export class ReclamationsController {
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: any, @Req() req: any) {
-    // Note: On pourrait ajouter une vérification de tenantId ici aussi
-    return this.reclamationsService.update(id, body);
+    return this.reclamationsService.update(id, req.user.tenantId, body);
   }
 
   @Post(':id/link-paq')

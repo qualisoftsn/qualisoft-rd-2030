@@ -7,11 +7,17 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class RisksController {
   constructor(private readonly risksService: RisksService) {}
 
+  /**
+   * 📊 RÉCUPÉRATION DE LA MATRICE DE RISQUES
+   */
   @Get('heatmap')
   async getHeatmap(@Req() req: any, @Query('processusId') pid?: string) {
     return this.risksService.getHeatmapData(req.user.tenantId, pid);
   }
 
+  /**
+   * ➕ CRÉATION D'UN RISQUE AVEC CALCUL AUTO
+   */
   @Post()
   async create(@Body() data: any, @Req() req: any) {
     return this.risksService.create(data, req.user.tenantId);

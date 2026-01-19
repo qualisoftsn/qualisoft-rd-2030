@@ -1,12 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReclamationStatus } from '@prisma/client';
 
 @Injectable()
 export class ReclamationsService {
-  remove(id: string, tenantId: any) {
-    throw new Error('Method not implemented.');
-  }
+  private readonly logger = new Logger(ReclamationsService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -66,7 +65,11 @@ export class ReclamationsService {
   /**
    * 🔄 MISE À JOUR & LOGIQUE DE CLÔTURE AUTOMATIQUE
    */
-  async update(id: string, data: any) {
+  async update(id: string, tenantId: string, data: any) {
+    // Vérification de propriété (Multi-tenancy)
+    const existing = await this.prisma.reclamation.findFirst({ where: { REC_Id: id, tenantId } });
+    if (!existing) throw new NotFoundException("Réclamation introuvable.");
+
     const { 
       REC_Tier, REC_Processus, REC_Owner, REC_Tenant, REC_Actions,
       REC_CreatedAt, REC_Id, tenantName, processusLibelle, processusCode, 
@@ -98,14 +101,15 @@ export class ReclamationsService {
         include: { REC_Processus: true }
     });
     
-    if (!rec || !rec.REC_ProcessusId) throw new BadRequestException("Processus responsable requis.");
+    if (!rec || rec.tenantId !== tenantId) throw new NotFoundException("Réclamation introuvable.");
+    if (!rec.REC_ProcessusId) throw new BadRequestException("Processus responsable requis.");
 
     const paq = await this.prisma.pAQ.findFirst({
       where: { PAQ_ProcessusId: rec.REC_ProcessusId, tenantId },
       orderBy: { PAQ_Year: 'desc' }
     });
 
-    if (!paq) throw new BadRequestException("Aucun PAQ trouvé.");
+    if (!paq) throw new BadRequestException("Aucun PAQ trouvé pour ce processus.");
 
     return this.prisma.$transaction(async (tx) => {
       await tx.action.create({
@@ -130,5 +134,15 @@ export class ReclamationsService {
         }
       });
     });
+  }
+
+  /**
+   * 🗑️ SUPPRESSION SÉCURISÉE
+   */
+  async remove(id: string, tenantId: string) {
+    const existing = await this.prisma.reclamation.findFirst({ where: { REC_Id: id, tenantId } });
+    if (!existing) throw new NotFoundException("Réclamation introuvable.");
+    
+    return this.prisma.reclamation.delete({ where: { REC_Id: id } });
   }
 }

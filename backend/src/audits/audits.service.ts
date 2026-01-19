@@ -1,16 +1,18 @@
-import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuditsService {
-  findOne(id: string, tenantId: any) {
-    throw new Error('Method not implemented.');
-  }
+  private readonly logger = new Logger(AuditsService.name);
+
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * ✅ LISTE : Récupération des audits avec relations complètes
+   */
   async findAll(tenantId: string) {
     return this.prisma.audit.findMany({
-      where: { tenantId: tenantId },
+      where: { tenantId },
       include: { 
         AU_Processus: true, 
         AU_Lead: true, 
@@ -22,6 +24,27 @@ export class AuditsService {
     });
   }
 
+  /**
+   * ✅ UNIQUE : Implémentation réelle pour l'export PDF
+   */
+  async findOne(id: string, tenantId: string) {
+    const audit = await this.prisma.audit.findFirst({
+      where: { AU_Id: id, tenantId },
+      include: {
+        AU_Processus: true,
+        AU_Lead: true,
+        AU_Site: true,
+        AU_Findings: true,
+        AU_NonConformites: { include: { NC_Actions: true } }
+      }
+    });
+    if (!audit) throw new NotFoundException("Audit introuvable ou accès refusé.");
+    return audit;
+  }
+
+  /**
+   * ✅ CRÉATION : Planification d'un nouvel audit
+   */
   async create(data: any, tenantId: string) {
     return this.prisma.audit.create({
       data: {
@@ -38,15 +61,16 @@ export class AuditsService {
     });
   }
 
+  /**
+   * ✅ SIGNATURE : Acceptation par le Pilote/Copilote (Liaison PKI)
+   */
   async signAcceptance(auditId: string, userId: string, tenantId: string, hash: string) {
     const audit = await this.prisma.audit.findUnique({
       where: { AU_Id: auditId },
       include: { AU_Processus: true }
     });
 
-    if (!audit || audit.tenantId !== tenantId) {
-      throw new NotFoundException("Audit introuvable.");
-    }
+    if (!audit || audit.tenantId !== tenantId) throw new NotFoundException("Audit introuvable.");
 
     const isPilote = audit.AU_Processus?.PR_PiloteId === userId;
     const isCoPilote = audit.AU_Processus?.PR_CoPiloteId === userId;
@@ -61,8 +85,7 @@ export class AuditsService {
         SIG_EntityId: auditId,
         SIG_UserId: userId,
         tenantId: tenantId,
-        SIG_Hash: hash,
-        //SIG_Metadata: { step: 'ACCEPTANCE_PLANNING', role: isPilote ? 'PILOTE' : 'COPILOTE' }
+        SIG_Hash: hash
       }
     });
 
@@ -72,16 +95,17 @@ export class AuditsService {
     });
   }
 
+  /**
+   * ✅ CLÔTURE : Enregistrement rapport, constats et génération automatique de NC/Actions
+   */
   async closeAuditWithReport(auditId: string, reportData: any, tenantId: string, auditorId: string) {
     const { findings, nonConformites } = reportData;
 
     return await this.prisma.$transaction(async (tx) => {
-      const audit = await tx.audit.findUnique({ 
-        where: { AU_Id: auditId }
-      });
-      
+      const audit = await tx.audit.findUnique({ where: { AU_Id: auditId } });
       if (!audit || audit.tenantId !== tenantId) throw new NotFoundException("Audit introuvable.");
 
+      // 1. Enregistrement des constats (Findings)
       if (findings?.length > 0) {
         await tx.finding.createMany({
           data: findings.map((f: any) => ({
@@ -92,6 +116,7 @@ export class AuditsService {
         });
       }
 
+      // 2. Traitement des NC et création automatique des Actions dans le PAQ
       if (nonConformites?.length > 0) {
         for (const nc of nonConformites) {
           const createdNc = await tx.nonConformite.create({
@@ -107,7 +132,6 @@ export class AuditsService {
             }
           });
 
-          // 🛡️ Correction 1 & 2 : Cast 'as string' pour satisfaire le compilateur strict
           if (audit.AU_ProcessusId) {
             const paq = await tx.pAQ.findFirst({ 
               where: { PAQ_ProcessusId: audit.AU_ProcessusId as string } 
@@ -120,10 +144,10 @@ export class AuditsService {
                   ACT_Origin: 'AUDIT',
                   ACT_Type: 'CORRECTIVE',
                   ACT_Status: 'A_FAIRE',
-                  ACT_PAQId: paq.PAQ_Id, // ✅ Corrigé : PAQ_Id au lieu de PA_Id
+                  ACT_PAQId: paq.PAQ_Id,
                   ACT_AuditId: auditId,
+                  ACT_ReclamationId: null, // Clarification structurelle
                   tenantId: tenantId,
-                  // 🛡️ Correction 3 : Cast 'as string'
                   ACT_ResponsableId: (audit.AU_LeadId || auditorId) as string,
                   ACT_CreatorId: auditorId
                 }

@@ -1,20 +1,28 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ActionStatus } from '@prisma/client';
 
 @Injectable()
 export class AnalysesService {
   private readonly logger = new Logger(AnalysesService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifService: NotificationsService // ✅ Intelligence Active : Lien vers les alertes
+  ) {}
 
+  /**
+   * 📊 STATISTIQUES DASHBOARD : CALCUL PRÉCIS QHSE-E AVEC SEUILS D'ALERTE
+   * Agrégation en temps réel et évaluation de la santé visuelle du système
+   */
   async getDashboardStats(T_Id: string) {
     if (!T_Id) {
       throw new UnauthorizedException("Identifiant entreprise (TenantId) manquant.");
     }
 
     try {
-      // Exécution de toutes les requêtes en parallèle (Counts, Actions, et Infos Entreprise)
+      // 1. Exécution des requêtes en parallèle (Transaction multi-tables)
       const [counts, allActions, tenantInfo] = await Promise.all([
         this.prisma.$transaction([
           this.prisma.nonConformite.count({ where: { tenantId: T_Id } }),
@@ -40,32 +48,41 @@ export class AnalysesService {
         })
       ]);
 
-      // Extraction des résultats de la transaction
-      const [
-        ncs, 
-        sses, 
-        docs, 
-        processus, 
-        paqs, 
-        accidentsArret, 
-        joursPerdusAgg
-      ] = counts;
+      const [ncs, sses, docs, processus, paqs, accidentsArret, joursPerdusAgg] = counts;
 
-      // Calcul des statistiques des actions
+      // 2. Calcul des statistiques des actions (PDCA)
       const total = allActions.length;
       const termine = allActions.filter(a => a.ACT_Status === ActionStatus.TERMINEE).length;
-      const enCours = allActions.filter(a => a.ACT_Status === ActionStatus.EN_COURS).length;
-      const aFaire = allActions.filter(a => a.ACT_Status === ActionStatus.A_FAIRE).length;
-      
       const today = new Date();
       const enRetard = allActions.filter(a => 
         a.ACT_Status !== ActionStatus.TERMINEE && 
         a.ACT_Deadline && new Date(a.ACT_Deadline) < today
       ).length;
 
-      // Construction de la réponse finale
+      const tauxRealisation = total > 0 ? Math.round((termine / total) * 100) : 0;
+
+      // ======================================================
+      // 🚨 LOGIQUE DE VISIBILITÉ ÉLITE : SEUILS DE SANTÉ (HEALTH CHECK)
+      // ======================================================
+      let performanceStatus: 'GREEN' | 'ORANGE' | 'RED' = 'GREEN';
+      let statusMessage = "Le SMI est sous contrôle.";
+
+      if (tauxRealisation < 70 || accidentsArret > 0) {
+        performanceStatus = 'RED';
+        statusMessage = "ALERTE CRITIQUE : Performance dégradée ou accident détecté.";
+      } else if (tauxRealisation < 90 || enRetard > 5) {
+        performanceStatus = 'ORANGE';
+        statusMessage = "VIGILANCE : Plusieurs actions sont en retard.";
+      }
+
+      // 3. Construction du Dashboard consolidé
       const result = {
         enterpriseName: tenantInfo?.T_Name || "Entreprise non identifiée",
+        healthCheck: {
+          status: performanceStatus,
+          message: statusMessage,
+          globalScore: tauxRealisation
+        },
         counts: {
           processus: processus || 0,
           paq: paqs || 0,
@@ -76,22 +93,19 @@ export class AnalysesService {
           sseJoursPerdus: joursPerdusAgg?._sum?.SSE_NbJoursArret || 0
         },
         actions: {
-          total: total || 0,
-          termine: termine || 0,
-          enCours: enCours || 0,
-          aFaire: aFaire || 0,
-          enRetard: enRetard || 0,
-          tauxRealisation: total > 0 ? Math.round((termine / total) * 100) : 0
+          total,
+          termine,
+          enRetard,
+          tauxRealisation
         }
       };
 
-      // Log de diagnostic dans le terminal
-      this.logger.debug(`Données pour ${result.enterpriseName} (${T_Id}) : NC=${ncs}, Actions=${total}`);
-
+      this.logger.debug(`Dashboard ${result.enterpriseName} : Statut ${performanceStatus}`);
       return result;
 
-    } catch (error: any) {
-      this.logger.error(`Erreur Prisma dans getDashboardStats: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+      this.logger.error(`Erreur Prisma dans getDashboardStats: ${errorMessage}`);
       throw error;
     }
   }
