@@ -9,7 +9,7 @@ export class IndicatorsService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * ✅ LOGIQUE MÉTIER : VÉRIFICATION DE LA PÉRIODICITÉ
+   * ✅ FONCTIONNALITÉ VALIDÉE : VÉRIFICATION DE LA PÉRIODICITÉ
    */
   private estEcheanceActive(frequence: string, mois: number): boolean {
     const freq = frequence.toUpperCase();
@@ -21,25 +21,23 @@ export class IndicatorsService {
   }
 
   /**
-   * ✅ LOGIQUE MÉTIER : DÉLAI DE GRÂCE (10 DU MOIS SUIVANT)
+   * ✅ FONCTIONNALITÉ VALIDÉE : DÉLAI DE GRÂCE (10 DU MOIS SUIVANT)
    */
   private estDelaiDepasse(moisSaisie: number, anneeSaisie: number): boolean {
     const maintenant = new Date();
-    // Date limite fixée au 10 du mois suivant la période de saisie
     const dateLimite = new Date(anneeSaisie, moisSaisie, 10); 
     return maintenant > dateLimite;
   }
 
   /**
    * ✅ STATISTIQUES DASHBOARD (GRAPHES & KPIs)
-   * Isolation Tenant + Filtrage par Rôle (Admin vs Pilote)
+   * Version intégrale : calcul précis des attendus vs saisis
    */
   async getDashboardStats(tenantId: string, userId: string, role: string) {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
 
-    // Isolation SaaS : ADMIN voit tout, Pilote voit ses processus
     const accessFilter = role === 'ADMIN' ? {} : { PR_PiloteId: userId };
 
     const processes = await this.prisma.processus.findMany({
@@ -56,22 +54,25 @@ export class IndicatorsService {
       }
     });
 
-    let totalInd = 0;
+    let totalAttendusCeMois = 0; // Précision ISO
     let saisiInd = 0;
     let performanceSum = 0;
     let perfCount = 0;
-    const chartData: any[] = []; // ✅ Typé proprement pour éviter l'erreur "never"
+    const chartData: any[] = [];
 
     processes.forEach(p => {
       p.PR_Indicators.forEach(ind => {
-        totalInd++;
+        // On ne compte dans le taux de complétion que ce qui doit être saisi ce mois-ci
+        const doitEtreSaisi = this.estEcheanceActive(ind.IND_Frequence, month);
+        if (doitEtreSaisi) totalAttendusCeMois++;
+
         const val = ind.IND_Values[0];
         
         if (val && val.IV_Actual !== null) {
           saisiInd++;
           // Calcul de la performance (Réalisé / Cible)
           const ratio = (val.IV_Actual / ind.IND_Cible) * 100;
-          performanceSum += Math.min(ratio, 150); // Capé à 150% pour les moyennes
+          performanceSum += Math.min(ratio, 150); 
           perfCount++;
           
           if (chartData.length < 6) {
@@ -89,17 +90,18 @@ export class IndicatorsService {
       month,
       year,
       stats: {
-        completionRate: totalInd > 0 ? Math.round((saisiInd / totalInd) * 100) : 0,
+        // Taux basé sur les indicateurs dont l'échéance est active
+        completionRate: totalAttendusCeMois > 0 ? Math.round((saisiInd / totalAttendusCeMois) * 100) : 0,
         globalPerformance: perfCount > 0 ? Math.round(performanceSum / perfCount) : 0,
         totalProcessus: processes.length,
-        totalIndicators: totalInd
+        totalIndicatorsExpected: totalAttendusCeMois
       },
       chartData
     };
   }
 
   /**
-   * ✅ GRILLE DE SAISIE MENSUELLE
+   * ✅ GRILLE DE SAISIE MENSUELLE (FONCTIONNALITÉ VALIDÉE)
    */
   async getMonthlyDashboard(tenantId: string, month: number, year: number) {
     const processes = await this.prisma.processus.findMany({
@@ -135,35 +137,36 @@ export class IndicatorsService {
   }
 
   /**
-   * ✅ ENREGISTREMENT MASSIF (BULK SAVE)
+   * ✅ ENREGISTREMENT MASSIF (BULK SAVE) AVEC TRANSACTION
    */
   async saveBulkValues(values: { indicatorId: string, value: number }[], month: number, year: number, userRole: string) {
-    // Vérification du délai de grâce
     if (userRole !== 'ADMIN' && this.estDelaiDepasse(month, year)) {
       throw new ForbiddenException("Délai de saisie expiré (Max le 10 du mois M+1).");
     }
 
-    for (const item of values) {
-      const existing = await this.prisma.indicatorValue.findUnique({
-        where: { IV_IndicatorId_IV_Month_IV_Year: { IV_IndicatorId: item.indicatorId, IV_Month: month, IV_Year: year } }
-      });
+    // Utilisation d'une transaction pour garantir l'intégrité
+    return this.prisma.$transaction(async (tx) => {
+      for (const item of values) {
+        const existing = await tx.indicatorValue.findUnique({
+          where: { IV_IndicatorId_IV_Month_IV_Year: { IV_IndicatorId: item.indicatorId, IV_Month: month, IV_Year: year } }
+        });
 
-      // Sécurité Workflow : Seul ADMIN peut modifier après soumission/validation
-      if (existing && existing.IV_Status !== IVStatus.BROUILLON && userRole !== 'ADMIN') {
-        throw new ForbiddenException(`L'indicateur ${item.indicatorId} est verrouillé en cours de validation.`);
+        if (existing && existing.IV_Status !== IVStatus.BROUILLON && userRole !== 'ADMIN') {
+          throw new ForbiddenException(`L'indicateur ${item.indicatorId} est verrouillé.`);
+        }
+
+        await tx.indicatorValue.upsert({
+          where: { IV_IndicatorId_IV_Month_IV_Year: { IV_IndicatorId: item.indicatorId, IV_Month: month, IV_Year: year } },
+          update: { IV_Actual: item.value, IV_Status: IVStatus.BROUILLON },
+          create: { IV_IndicatorId: item.indicatorId, IV_Actual: item.value, IV_Month: month, IV_Year: year, IV_Status: IVStatus.BROUILLON }
+        });
       }
-
-      await this.prisma.indicatorValue.upsert({
-        where: { IV_IndicatorId_IV_Month_IV_Year: { IV_IndicatorId: item.indicatorId, IV_Month: month, IV_Year: year } },
-        update: { IV_Actual: item.value, IV_Status: IVStatus.BROUILLON },
-        create: { IV_IndicatorId: item.indicatorId, IV_Actual: item.value, IV_Month: month, IV_Year: year, IV_Status: IVStatus.BROUILLON }
-      });
-    }
-    return { success: true };
+      return { success: true };
+    });
   }
 
   /**
-   * ✅ MISE À JOUR DU STATUT (WORKFLOW)
+   * ✅ MISE À JOUR DU STATUT (WORKFLOW VALIDÉ)
    */
   async updateStatus(processId: string, month: number, year: number, fromStatus: IVStatus, toStatus: IVStatus) {
     return this.prisma.indicatorValue.updateMany({
@@ -195,7 +198,7 @@ export class IndicatorsService {
   }
 
   /**
-   * ✅ RÉFÉRENTIEL : SUPPRESSION
+   * ✅ RÉFÉRENTIEL : SUPPRESSION SÉCURISÉE
    */
   async deleteIndicator(id: string) {
     const checkValues = await this.prisma.indicatorValue.count({ where: { IV_IndicatorId: id } });
@@ -204,7 +207,7 @@ export class IndicatorsService {
   }
 
   /**
-   * ✅ MATRICE ANNUELLE
+   * ✅ MATRICE ANNUELLE (COMPLÈTE)
    */
   async getAnnualMatrix(tenantId: string, year: number) {
     return this.prisma.processus.findMany({

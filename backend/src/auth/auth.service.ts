@@ -64,9 +64,10 @@ export class AuthService {
 
   /**
    * REGISTER : Création atomique de l'instance Elite (Tenant + Site + Admin)
+   * Configuration par défaut en mode ESSAI (14 jours)
    */
   async registerTenant(dto: RegisterTenantDto) {
-    // 🛠️ Extraction stricte selon le Payload validé (adminFirstName/adminLastName)
+    // 🛠️ Extraction stricte selon le Payload validé
     const { 
       companyName, ceoName, phone, address,
       adminFirstName, adminLastName, email, password 
@@ -78,20 +79,20 @@ export class AuthService {
       throw new BadRequestException("Cet email est déjà utilisé pour un compte administrateur.");
     }
 
-    // 2. Préparation des données temporelles
+    // 2. Préparation des données temporelles (Période d'essai de 14 jours)
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
     // 3. Transaction Atomique (Tout ou rien)
     return this.prisma.$transaction(async (tx) => {
       
-      // Étape A : Création du Tenant
+      // Étape A : Création du Tenant (Instance de l'entreprise)
       const tenant = await tx.tenant.create({
         data: {
           T_Name: companyName,
           T_Email: email,
           T_Domain: companyName.toLowerCase().replace(/\s+/g, '-'),
-          T_Plan: 'ENTREPRISE',
+          T_Plan: 'ESSAI', // 👈 Verrouillé sur ESSAI pour l'onboarding public
           T_SubscriptionStatus: 'TRIAL',
           T_SubscriptionEndDate: trialEndDate,
           T_Address: address,
@@ -119,14 +120,14 @@ export class AuthService {
           U_FirstName: adminFirstName, 
           U_LastName: adminLastName,   
           U_Role: 'ADMIN',
-          U_FirstLogin: true,         // 👈 Activé par défaut pour les nouveaux comptes
+          U_FirstLogin: true,          // 👈 Active la modale de bienvenue au premier login
           tenantId: tenant.T_Id,
           U_SiteId: site.S_Id,
         },
         include: { tenant: true }
       });
 
-      this.logger.log(`✨ Instance Elite créée avec succès : ${companyName} (${email})`);
+      this.logger.log(`✨ Instance Elite ESSAI créée avec succès : ${companyName} (${email})`);
 
       // 4. Retour des données avec Token pour connexion immédiate
       const payload = { 

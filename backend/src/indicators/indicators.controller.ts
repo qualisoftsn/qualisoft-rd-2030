@@ -57,7 +57,7 @@ export class IndicatorsController {
     @Res() res: Response
   ) {
     try {
-      this.logger.log(`📄 Demande d'export PDF Elite - Tenant: ${req.user.tenantId} (${req.user.U_Email})`);
+      this.logger.log(`📄 Export PDF - Tenant: ${req.user.tenantId} | Période: ${month}/${year}`);
       
       const buffer = await this.exportService.generateManagementReviewPDF(
         req.user.tenantId, 
@@ -65,21 +65,18 @@ export class IndicatorsController {
         parseInt(year)
       );
 
-      // ✅ Configuration des headers pour le flux binaire
       res.set({
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename=Revue_Direction_Qualisoft_${month}_${year}.pdf`,
+        'Content-Disposition': `attachment; filename=Revue_Qualisoft_${month}_${year}.pdf`,
         'Content-Length': buffer.length,
       });
 
-      // ✅ On utilise .send() pour envoyer le buffer proprement
       return res.send(buffer);
 
     } catch (error: any) { 
-      // ✅ Correction TS18046 : Typage 'any' pour accéder à .message
-      this.logger.error(`❌ ERREUR CRITIQUE EXPORT PDF : ${error.message}`);
+      this.logger.error(`❌ ERREUR EXPORT : ${error.message}`);
       return res.status(500).json({ 
-        message: "Une erreur interne est survenue lors de la génération du rapport PDF.",
+        message: "Erreur lors de la génération du rapport.",
         error: error.message 
       });
     }
@@ -113,9 +110,8 @@ export class IndicatorsController {
 
   @Post('validate/:processId')
   async validate(@Param('processId') processId: string, @Body() body: any, @Req() req: any) {
-    // Seul un ADMIN (comme Pierre Ndiaye) peut valider les données
     if (req.user.U_Role !== 'ADMIN') {
-      throw new ForbiddenException("Droits insuffisants. Validation réservée au Responsable Qualité (RQ).");
+      throw new ForbiddenException("Validation réservée au Responsable Qualité.");
     }
     return this.indicatorsService.updateStatus(
       processId, 
@@ -129,7 +125,7 @@ export class IndicatorsController {
   @Post('reject/:processId')
   async reject(@Param('processId') processId: string, @Body() body: any, @Req() req: any) {
     if (req.user.U_Role !== 'ADMIN') {
-      throw new ForbiddenException("Droits insuffisants. Le rejet est réservé au Responsable Qualité (RQ).");
+      throw new ForbiddenException("Le rejet est réservé au Responsable Qualité.");
     }
     return this.indicatorsService.updateStatus(
       processId, 
@@ -141,13 +137,13 @@ export class IndicatorsController {
   }
 
   // ======================================================
-  // 🛠️ ZONE 4 : RÉFÉRENTIEL (MODIFICATIONS STRUCTURELLES)
+  // 🛠️ ZONE 4 : RÉFÉRENTIEL (ADMINISTRATION)
   // ======================================================
 
   @Post()
   async create(@Body() dto: any, @Req() req: any) {
     if (req.user.U_Role !== 'ADMIN') {
-      throw new ForbiddenException("La création d'indicateurs est réservée à l'administrateur de l'instance.");
+      throw new ForbiddenException("Action réservée à l'administrateur.");
     }
     return this.indicatorsService.createIndicator(dto, req.user.tenantId);
   }
@@ -155,7 +151,7 @@ export class IndicatorsController {
   @Delete(':id')
   async remove(@Param('id') id: string, @Req() req: any) {
     if (req.user.U_Role !== 'ADMIN') {
-      throw new ForbiddenException("La suppression d'indicateurs est réservée à l'administrateur de l'instance.");
+      throw new ForbiddenException("Action réservée à l'administrateur.");
     }
     return this.indicatorsService.deleteIndicator(id);
   }

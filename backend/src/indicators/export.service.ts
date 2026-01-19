@@ -1,116 +1,64 @@
 import { Injectable, Logger } from '@nestjs/common';
-import PDFDocument from 'pdfkit'; // ✅ Correct pour TypeScript
 import { PrismaService } from '../prisma/prisma.service';
+import { PdfService } from '../common/services/pdf.service';
 
 @Injectable()
 export class ExportService {
   private readonly logger = new Logger(ExportService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private pdfService: PdfService
+  ) {}
 
   async generateManagementReviewPDF(tenantId: string, month: number, year: number): Promise<Buffer> {
     const tenant = await this.prisma.tenant.findUnique({ where: { T_Id: tenantId } });
-    
-    // ✅ CORRECTION : Utilisation du nom exact de la relation : IND_Processus
     const indicators = await this.prisma.indicator.findMany({
       where: { tenantId },
       include: { 
-        IND_Processus: true 
+        IND_Processus: true,
+        IND_Values: { where: { IV_Month: month, IV_Year: year } }
       }
     });
 
-    return new Promise((resolve, reject) => {
-      try {
-        const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
-        const chunks: Buffer[] = [];
-        doc.on('data', (chunk) => chunks.push(chunk));
-        doc.on('end', () => resolve(Buffer.concat(chunks)));
-        doc.on('error', (err) => reject(err));
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: 'Helvetica', sans-serif; padding: 40px; }
+            .header { background: #0f172a; color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+            .section-title { border-left: 5px solid #2563eb; background: #f8fafc; padding: 10px; font-weight: bold; margin: 20px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
+            th { background: #f1f5f9; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2 style="margin:0">QUALISOFT RD 2030 - REVUE DE DIRECTION</h2>
+            <p style="margin:5px 0 0 0">${tenant?.T_Name || 'CLIENT'} | Période : ${month}/${year}</p>
+          </div>
+          <div class="section-title">PERFORMANCE DES INDICATEURS</div>
+          <table>
+            <thead>
+              <tr><th>Code</th><th>Indicateur</th><th>Cible</th><th>Réalisé</th></tr>
+            </thead>
+            <tbody>
+              ${indicators.map(ind => `
+                <tr>
+                  <td>${ind.IND_Code}</td>
+                  <td>${ind.IND_Libelle}</td>
+                  <td>${ind.IND_Cible}</td>
+                  <td>${ind.IND_Values[0]?.IV_Actual ?? 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <p style="margin-top:40px; font-size:10px; text-align:center; color:#94a3b8">Document confidentiel - Qualisoft Elite 2030</p>
+        </body>
+      </html>
+    `;
 
-        this.drawHeader(doc, tenant?.T_Name || 'CLIENT QUALISOFT');
-
-        doc.moveDown(4);
-        doc.fillColor('#0F172A').fontSize(18).font('Helvetica-Bold').text('REVUE DE DIRECTION STRATÉGIQUE', { align: 'center' });
-        
-        doc.fontSize(10).font('Helvetica').fillColor('#64748B')
-           .text(`Période : ${month}/${year} • Rapport généré par l'IA Qualisoft`, { align: 'center' });
-        
-        doc.moveDown(2);
-        this.drawSectionTitle(doc, '1. SYNTHÈSE DE LA PERFORMANCE');
-        doc.fontSize(11).fillColor('#334155').text(
-          `Analyse de performance pour ${tenant?.T_Name || 'votre organisation'}. ` +
-          `L'extraction des indicateurs clés montre une progression de la maturité digitale.`
-        );
-
-        doc.moveDown(2);
-        this.drawSectionTitle(doc, '2. PERFORMANCE PAR PROCESSUS');
-        
-        // ✅ CORRECTION : Mapping avec les champs exacts (IND_Libelle, IND_Cible)
-        const tableData = indicators.length > 0 
-          ? indicators.map(i => ({ 
-              name: i.IND_Libelle, 
-              score: `${i.IND_Cible}`, 
-              status: 'ACTIF' 
-            }))
-          : [
-              { name: 'Management & Stratégie', score: '95%', status: 'CONFORME' },
-              { name: 'Ressources Humaines', score: '88%', status: 'CONFORME' },
-            ];
-
-        this.drawProcessTable(doc, tableData);
-
-        this.drawFooter(doc, year);
-        doc.end();
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
-  private drawHeader(doc: any, clientName: string) {
-    doc.rect(0, 0, 612, 100).fill('#0F172A');
-    doc.rect(50, 30, 40, 40).fill('#2563EB');
-    doc.fillColor('#FFFFFF').fontSize(20).font('Helvetica-Bold').text('Q', 62, 42);
-    doc.fillColor('#FFFFFF').fontSize(16).text('QUALISOFT RD 2030', 105, 35);
-    doc.fontSize(8).font('Helvetica').text('SYSTEME DE MANAGEMENT INTEGRE ELITE', 105, 55);
-    doc.fontSize(10).font('Helvetica-Bold').text(clientName.toUpperCase(), 400, 45, { align: 'right' });
-  }
-
-  private drawSectionTitle(doc: any, title: string) {
-    const y = doc.y;
-    doc.rect(50, y, 5, 15).fill('#2563EB');
-    doc.fillColor('#0F172A').fontSize(12).font('Helvetica-Bold').text(title, 65, y + 2);
-    doc.moveDown(1);
-  }
-
-  private drawProcessTable(doc: any, items: any[]) {
-    const tableTop = doc.y;
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#475569');
-    doc.text('PROCESSUS', 50, tableTop);
-    doc.text('CIBLE', 250, tableTop);
-    doc.text('STATUT', 400, tableTop);
-    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke('#E2E8F0');
-    
-    let currentY = tableTop + 25;
-    items.forEach(item => {
-      doc.font('Helvetica').fontSize(10).fillColor('#1E293B');
-      doc.text(item.name, 50, currentY);
-      doc.text(item.score, 250, currentY);
-      doc.text(item.status, 400, currentY);
-      currentY += 20;
-    });
-  }
-
-  private drawFooter(doc: any, year: number) {
-    const pages = doc.bufferedPageRange();
-    for (let i = 0; i < pages.count; i++) {
-      doc.switchToPage(i);
-      doc.fontSize(8).fillColor('#94A3B8').text(
-        `Document confidentiel - Généré par Qualisoft RD ${year} ©`,
-        50,
-        780,
-        { align: 'center' }
-      );
-    }
+    return this.pdfService.generateCustomPdf(htmlContent);
   }
 }

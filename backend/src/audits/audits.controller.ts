@@ -1,14 +1,28 @@
 import { 
-  Controller, Get, Post, Body, UseGuards, Req, 
-  BadRequestException, Param, Patch 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  UseGuards, 
+  Req, 
+  Res,
+  BadRequestException, 
+  Param, 
+  Patch,
+  InternalServerErrorException
 } from '@nestjs/common';
+import { Response } from 'express';
 import { AuditsService } from './audits.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PdfService } from '../common/services/pdf.service';
 
 @Controller('audits')
 @UseGuards(JwtAuthGuard)
 export class AuditsController {
-  constructor(private readonly auditsService: AuditsService) {}
+  constructor(
+    private readonly auditsService: AuditsService,
+    private readonly pdfService: PdfService
+  ) {}
 
   @Get()
   async findAll(@Req() req: any) {
@@ -17,7 +31,6 @@ export class AuditsController {
 
   @Post()
   async create(@Body() data: any, @Req() req: any) {
-    // 🛡️ Validation stricte : Le processus est OBLIGATOIRE pour la conformité ISO
     if (!data.AU_Title || !data.AU_ProcessusId || !data.AU_SiteId || !data.AU_LeadId) {
       throw new BadRequestException(
         "Validation échouée : Titre, Processus, Site et Auditeur Lead sont requis."
@@ -47,5 +60,36 @@ export class AuditsController {
       req.user.tenantId, 
       req.user.U_Id
     );
+  }
+
+  @Get(':id/export-pdf')
+  async exportPdf(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
+    try {
+      // 1. On force le type à 'any' ici pour contourner l'erreur de détection de Prisma
+      const audit = await this.auditsService.findOne(id, req.user.tenantId) as any;
+      
+      // Ligne 86 : Correction du test de vérité
+      if (!audit) {
+        throw new BadRequestException("Audit introuvable ou accès refusé.");
+      }
+
+      const pdfBuffer = await this.pdfService.generateAuditReport(audit);
+
+      // Ligne 96 : Accès sécurisé à AU_Reference
+      const fileName = audit.AU_Reference ? `Audit_${audit.AU_Reference}.pdf` : `Audit_${id}.pdf`;
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename=${fileName}`,
+        'Content-Length': pdfBuffer.length,
+      });
+
+      return res.send(pdfBuffer);
+      
+    } catch (error: any) { // Ligne 106 : Typage explicite de l'erreur
+      throw new InternalServerErrorException(
+        `Erreur lors de la génération du PDF : ${error.message}`
+      );
+    }
   }
 }

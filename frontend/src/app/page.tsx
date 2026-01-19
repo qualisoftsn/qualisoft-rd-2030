@@ -44,7 +44,7 @@ export default function LandingPage() {
               size={14}
               className="group-hover:rotate-12 transition-transform"
             />
-            <span className="hidden sm:inline">Accès Master</span>
+            <span className="hidden sm:inline">Master QS</span>
           </button>
 
           <Link
@@ -93,7 +93,7 @@ export default function LandingPage() {
               href="/register"
               className="px-12 py-6 bg-blue-600 rounded-4xl text-xs font-black uppercase tracking-[0.2em] hover:bg-blue-500 shadow-2xl shadow-blue-600/40 transition-all flex items-center justify-center gap-3"
             >
-              Lancer mon essai 14J <Rocket size={20} />
+              Lancer mon essai 14 Jours <Rocket size={20} />
             </Link>
           </div>
         </div>

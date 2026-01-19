@@ -45,7 +45,7 @@ export default function LandingPage() {
             <span className="font-black text-xl text-white not-italic">Q</span>
           </div>
           <h1 className="text-xl font-black uppercase tracking-tighter leading-none hidden md:block">
-            Qualisoft <span className="text-blue-600">RD 2030</span>
+            Qualisoft <span className="text-blue-600">ELITE RD 2030</span>
           </h1>
         </div>
 
@@ -82,7 +82,7 @@ export default function LandingPage() {
 
         <div className="max-w-7xl mx-auto relative z-10 text-center">
           <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-[0.3em] mb-10">
-            <Rocket size={14} className="animate-bounce" /> Disponibilité
+            <Rocket size={25} className="animate-bounce" /> Disponibilité
             Initiale : 02/02/2026 à Minuit
           </div>
 
@@ -103,7 +103,6 @@ export default function LandingPage() {
           <div className="max-w-md mx-auto bg-white/5 border border-white/10 p-8 rounded-[3rem] shadow-3xl backdrop-blur-xl">
             {!submitted ? (
               <form
-                
                 method="POST"
                 className="space-y-4"
                 onSubmit={() => setTimeout(() => setSubmitted(true), 1000)}

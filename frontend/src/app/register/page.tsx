@@ -138,7 +138,7 @@ export default function RegisterTenantPage() {
 
         <footer className="mt-10 text-center">
           <p className="text-[8px] text-slate-600 font-black uppercase tracking-[0.5em]">
-            Qualisoft RD 2030 • Protection des données certifiée
+            Qualisoft ELITE RD 2030 • Protection des données certifiée
           </p>
         </footer>
       </div>

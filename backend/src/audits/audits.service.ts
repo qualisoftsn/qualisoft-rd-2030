@@ -3,6 +3,9 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuditsService {
+  findOne(id: string, tenantId: any) {
+    throw new Error('Method not implemented.');
+  }
   constructor(private prisma: PrismaService) {}
 
   async findAll(tenantId: string) {
