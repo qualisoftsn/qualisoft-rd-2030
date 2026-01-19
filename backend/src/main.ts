@@ -1,38 +1,50 @@
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe, Logger } from '@nestjs/common';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const logger = new Logger('Bootstrap');
+  const logger = new Logger('Qualisoft-Bootstrap');
+  
+  // Utilisation de NestExpressApplication pour accéder aux méthodes Express (Static Assets)
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // 1. PRÉFIXE GLOBAL
-  // Toutes les URLs seront : http://localhost:9000/api/...
+  // ======================================================
+  // 1. PRÉFIXE GLOBAL & VERSIONING API
+  // ======================================================
   app.setGlobalPrefix('api');
 
-  // 2. PIPES DE VALIDATION (Strict pour la sécurité, mais flexible pour le dev)
+  // ======================================================
+  // 2. SÉCURITÉ & VALIDATION (Strict ISO Compliance)
+  // ======================================================
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,               // Supprime les données qui ne sont pas dans le DTO
-    forbidNonWhitelisted: false,    // Évite de planter si le front envoie un champ en trop
-    transform: true,               // Transforme les types (ex: string vers number)
+    whitelist: true,               // Nettoie les entrées non définies dans les DTO
+    forbidNonWhitelisted: false,    // Souplesse pour l'intégration frontend
+    transform: true,               // Conversion automatique des types (String -> Number)
     transformOptions: {
       enableImplicitConversion: true,
     },
   }));
 
-  // 3. FICHIERS STATIQUES (Documents, Preuves, Photos)
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
+  // ======================================================
+  // 3. GESTION DES FLUX GED (Fichiers Statiques)
+  // Résout la dette technique d'accès aux documents/preuves
+  // ======================================================
+  // On utilise process.cwd() pour garantir que le chemin est correct sur OVH (Docker/Linux)
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/', // URL d'accès : https://elite.qualisoft.sn/uploads/...
+    index: false,        // Sécurité : empêche de lister les fichiers du dossier
   });
 
-  // 4. CONFIGURATION CORS ROBUSTE (MULTI-PORTS)
-  // On autorise 3000 et 3001 pour couvrir Next.js quel que soit son port
+  // ======================================================
+  // 4. CONFIGURATION CORS (Écosystème Qualisoft)
+  // ======================================================
   app.enableCors({
     origin: [
-      //'http://localhost:3000', 
-      //'http://localhost:3001', 
+      'http://localhost:3000', 
+      'http://localhost:3001', 
+      'https://elite.qualisoft.sn',
       'https://elite.qualisoft.sn:3000', 
       'https://elite.qualisoft.sn:3001'
     ],
@@ -41,14 +53,17 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
-  // 5. LANCEMENT SUR LE PORT 9000
+  // ======================================================
+  // 5. LANCEMENT DU SERVEUR
+  // ======================================================
   const port = 9000;
   await app.listen(port);
   
   logger.log(`--------------------------------------------------------`);
-  logger.log(`🚀 QUALISOFT ELITE BACKEND : DÉPLOYÉ`);
-  logger.log(`📡 POINT D'ENTRÉE : http://localhost:${port}/api`);
-  logger.log(`🔐 AUTHENTIFICATION : http://localhost:${port}/api/auth/login`);
+  logger.log(`🚀 QUALISOFT ELITE BACKEND : OPÉRATIONNEL`);
+  logger.log(`📡 API BASE URL      : http://localhost:${port}/api`);
+  logger.log(`📂 GED STORAGE       : http://localhost:${port}/uploads`);
+  logger.log(`🔐 AUTH ENDPOINT     : http://localhost:${port}/api/auth/login`);
   logger.log(`--------------------------------------------------------`);
 }
 

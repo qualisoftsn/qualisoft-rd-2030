@@ -8,29 +8,41 @@ export class EvidenceService {
 
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * ✅ CRÉATION UNIFIÉE (Absorbe Evidence & Preuves)
+   */
   async create(tenantId: string, data: any): Promise<Preuve> {
-    if (!data.PV_FileUrl || !data.PV_FileName) {
-      throw new BadRequestException("Le justificatif (URL et Nom) est obligatoire.");
+    // Support des deux formats d'entrée pour éviter les régressions front
+    const fileUrl = data.PV_FileUrl || data.fileUrl;
+    const fileName = data.PV_FileName || data.fileName;
+
+    if (!fileUrl || !fileName) {
+      throw new BadRequestException("Les métadonnées du fichier (URL et Nom) sont obligatoires.");
     }
 
     try {
       return await this.prisma.preuve.create({
         data: {
-          PV_FileUrl: data.PV_FileUrl,
-          PV_FileName: data.PV_FileName,
-          PV_Commentaire: data.PV_Commentaire || null,
+          PV_FileUrl: fileUrl,
+          PV_FileName: fileName,
+          PV_Commentaire: data.PV_Commentaire || data.commentaire || null,
           tenantId: tenantId,
-          PV_NCId: data.PV_NCId || null,
-          PV_ActionId: data.PV_ActionId || null,
-          PV_AuditId: data.PV_AuditId || null,
-          PV_DocumentId: data.PV_DocumentId || null,
+          // Relations de contexte (Liaisons polyvalentes)
+          PV_NCId: data.PV_NCId || data.ncId || null,
+          PV_ActionId: data.PV_ActionId || data.actionId || null,
+          PV_AuditId: data.PV_AuditId || data.auditId || null,
+          PV_DocumentId: data.PV_DocumentId || data.documentId || null,
         },
       });
     } catch (error: any) {
-      throw new BadRequestException(`Erreur lors de l'enregistrement : ${error.message}`);
+      const message = error instanceof Error ? error.message : "Erreur inconnue";
+      throw new BadRequestException(`Échec de l'enregistrement de la preuve : ${message}`);
     }
   }
 
+  /**
+   * ✅ RÉCUPÉRATION PAR TENANT
+   */
   async findAllByTenant(tenantId: string): Promise<Preuve[]> {
     return this.prisma.preuve.findMany({
       where: { tenantId },
@@ -38,8 +50,20 @@ export class EvidenceService {
         PV_NonConformite: { select: { NC_Libelle: true, NC_Statut: true } },
         PV_Action: { select: { ACT_Title: true, ACT_Status: true } },
         PV_Audit: { select: { AU_Reference: true } },
+        PV_Document: true
       },
       orderBy: { PV_CreatedAt: 'desc' },
+    });
+  }
+
+  /**
+   * 🔍 FILTRE PAR AUDIT (Fonctionnalité récupérée de PreuvesService)
+   */
+  async findByAudit(auditId: string, tenantId: string) {
+    return this.prisma.preuve.findMany({
+      where: { PV_AuditId: auditId, tenantId: tenantId },
+      include: { PV_Document: true, PV_NonConformite: true },
+      orderBy: { PV_CreatedAt: 'desc' }
     });
   }
 

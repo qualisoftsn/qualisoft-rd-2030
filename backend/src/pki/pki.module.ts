@@ -3,6 +3,6 @@ import { PkiService } from './pki.service';
 
 @Module({
   providers: [PkiService],
-  exports: [PkiService], // <--- C'EST CETTE LIGNE QUI MANQUE !
+  exports: [PkiService], // ✅ Exportation confirmée pour permettre l'injection dans d'autres services
 })
 export class PkiModule {}

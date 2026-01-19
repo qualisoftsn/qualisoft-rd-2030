@@ -1,14 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Reclamation, ReclamationStatus } from '@prisma/client';
+import { ReclamationStatus } from '@prisma/client';
 
 @Injectable()
 export class ReclamationsService {
+  remove(id: string, tenantId: any) {
+    throw new Error('Method not implemented.');
+  }
   constructor(private prisma: PrismaService) {}
 
   /**
    * 📋 RÉCUPÉRATION DU REGISTRE
-   * Filtre par Tenant (SaaS) et optionnellement par Processus
+   * Aplatit les données pour une consommation directe par le frontend
    */
   async findAll(tenantId: string, processusId?: string) {
     const recs = await this.prisma.reclamation.findMany({
@@ -25,7 +28,6 @@ export class ReclamationsService {
       orderBy: { REC_CreatedAt: 'desc' }
     });
 
-    // Aplatissement pour le frontend
     return recs.map(r => ({
       ...r,
       tenantName: r.tenant?.T_Name || "QUALISOFT CLIENT",
@@ -37,14 +39,11 @@ export class ReclamationsService {
   }
 
   /**
-   * ✅ CRÉATION INITIALE (Statut: NOUVELLE)
-   * Génère une référence de type REC-2026-0001
+   * ✅ CRÉATION INITIALE : GÉNÉRATION RÉFÉRENCE REC-YYYY-XXXX
    */
   async create(data: any, tenantId: string, userId: string) {
     const year = new Date().getFullYear();
-    const count = await this.prisma.reclamation.count({ 
-      where: { tenantId: tenantId } 
-    });
+    const count = await this.prisma.reclamation.count({ where: { tenantId } });
     const reference = `REC-${year}-${(count + 1).toString().padStart(4, '0')}`;
 
     return this.prisma.reclamation.create({
@@ -65,8 +64,7 @@ export class ReclamationsService {
   }
 
   /**
-   * 🔄 MISE À JOUR & WORKFLOW (Preuves, Clôture, Rejet)
-   * 🛡️ Nettoyage des relations pour éviter les erreurs Prisma Client
+   * 🔄 MISE À JOUR & LOGIQUE DE CLÔTURE AUTOMATIQUE
    */
   async update(id: string, data: any) {
     const { 
@@ -75,7 +73,7 @@ export class ReclamationsService {
       tierName, ownerName, ...cleanData 
     } = data;
 
-    // 🚩 LOGIQUE MÉTIER : Clôture automatique si preuves fournies
+    // Clôture si solution proposée
     if (cleanData.REC_SolutionProposed && cleanData.REC_Status === 'ACTION_EN_COURS') {
         cleanData.REC_Status = 'TRAITEE';
     }
@@ -85,7 +83,6 @@ export class ReclamationsService {
       data: {
         ...cleanData,
         REC_DateReceipt: data.REC_DateReceipt ? new Date(data.REC_DateReceipt) : undefined,
-        REC_DateTransmitted: data.REC_DateTransmitted ? new Date(data.REC_DateTransmitted) : undefined,
         REC_Deadline: data.REC_Deadline ? new Date(data.REC_Deadline) : undefined,
         REC_UpdatedAt: new Date()
       }
@@ -93,8 +90,7 @@ export class ReclamationsService {
   }
 
   /**
-   * 🔗 TRANSMISSION AU PROCESSUS (Informer le responsable)
-   * Crée l'action dans le PAQ et bascule le statut en EN COURS
+   * 🔗 TRANSMISSION AU PAQ : CRÉATION D'ACTION CORRECTIVE LIEE
    */
   async linkToPAQ(recId: string, userId: string, tenantId: string) {
     const rec = await this.prisma.reclamation.findUnique({ 
@@ -102,53 +98,37 @@ export class ReclamationsService {
         include: { REC_Processus: true }
     });
     
-    if (!rec || !rec.REC_ProcessusId) {
-      throw new BadRequestException("Action impossible : un processus responsable doit être assigné par le RQ.");
-    }
+    if (!rec || !rec.REC_ProcessusId) throw new BadRequestException("Processus responsable requis.");
 
-    // Récupération du PAQ en cours pour le processus cible
     const paq = await this.prisma.pAQ.findFirst({
-      where: { 
-          PAQ_ProcessusId: rec.REC_ProcessusId, 
-          tenantId: tenantId 
-      },
+      where: { PAQ_ProcessusId: rec.REC_ProcessusId, tenantId },
       orderBy: { PAQ_Year: 'desc' }
     });
 
-    if (!paq) throw new BadRequestException(`Aucun PAQ ouvert trouvé pour le processus ${rec.REC_Processus?.PR_Code}.`);
+    if (!paq) throw new BadRequestException("Aucun PAQ trouvé.");
 
-    // 1. Création de l'action corrective liée à la réclamation
-    await this.prisma.action.create({
-      data: {
-        ACT_Title: `[RÉCLAMATION] ${rec.REC_Object}`,
-        ACT_Description: `Traitement de la réclamation client réf: ${rec.REC_Reference}`,
-        ACT_Origin: 'RECLAMATION',
-        ACT_Status: 'A_FAIRE',
-        ACT_PAQId: paq.PAQ_Id,
-        ACT_ReclamationId: rec.REC_Id,
-        ACT_ResponsableId: userId,
-        ACT_CreatorId: userId,
-        tenantId: tenantId,
-      }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.action.create({
+        data: {
+          ACT_Title: `[RÉCLAMATION] ${rec.REC_Object}`,
+          ACT_Description: `Traitement de la réclamation client réf: ${rec.REC_Reference}`,
+          ACT_Origin: 'RECLAMATION',
+          ACT_Status: 'A_FAIRE',
+          ACT_PAQId: paq.PAQ_Id,
+          ACT_ReclamationId: rec.REC_Id,
+          ACT_ResponsableId: userId,
+          ACT_CreatorId: userId,
+          tenantId: tenantId,
+        }
+      });
+
+      return tx.reclamation.update({
+        where: { REC_Id: recId },
+        data: { 
+          REC_Status: 'ACTION_EN_COURS' as ReclamationStatus,
+          REC_DateTransmitted: new Date()
+        }
+      });
     });
-
-    // 2. Mise à jour de la réclamation (Statut + Date de transmission)
-    return this.prisma.reclamation.update({
-      where: { REC_Id: recId },
-      data: { 
-        REC_Status: 'ACTION_EN_COURS' as ReclamationStatus,
-        REC_DateTransmitted: new Date()
-      }
-    });
-  }
-
-  /**
-   * ❌ SUPPRESSION
-   */
-  async remove(id: string) {
-    const rec = await this.prisma.reclamation.findUnique({ where: { REC_Id: id } });
-    if (!rec) throw new NotFoundException();
-    
-    return this.prisma.reclamation.delete({ where: { REC_Id: id } });
   }
 }
