@@ -21,6 +21,7 @@ import { ActionsModule } from './actions/actions.module';
 import { AnalysesModule } from './analyses/analyses.module';
 import { AuditsModule } from './audits/audits.module';
 import { DocumentsModule } from './documents/documents.module';
+import { EnvironmentModule } from './environment/environment.module'; // ✅ AJOUT : Module ISO 14001
 import { EquipmentModule } from './equipment/equipment.module';
 import { IndicatorsModule } from './indicators/indicators.module';
 import { MeetingsModule } from './meetings/meetings.module';
@@ -39,46 +40,54 @@ import { TiersModule } from './tiers/tiers.module';
 // --- CONTROLLERS & SERVICES DE BASE ---
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ContactService } from './auth/contact.service';
 import { UploadController } from './common/upload.controller';
 import { SettingsController } from './settings/settings.controller';
-import { ContactService } from './auth/contact.service';
 
 @Module({
   imports: [
+    // 1. Config & Core
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    
     PrismaModule,
+    
+    // 2. Auth & IAM
     AuthModule,
     UsersModule,
-    OrgUnitsModule,
     
+    // 3. Infrastructure
     MulterModule.register({
       dest: './uploads',
     }),
-
+    OrgUnitsModule,
     AdminModule,
     SubscriptionsModule,
     TransactionsModule,
     SitesModule,
 
+    // 4. SMI Core (Qualité)
     ProcessusModule,
     AuditsModule,
     NonConformiteModule,
     ActionsModule,
-    SseModule,
-    MeetingsModule,
-    DocumentsModule,
-    EquipmentModule,
-    RisksModule,
-    ServicesModule,
-    PartiesInteresseesModule,
-    AnalysesModule,
     PaqModule,
     TiersModule,
     ReclamationsModule,
     ProcessReviewModule,
     IndicatorsModule,
+    DocumentsModule,
+
+    // 5. SMI Spécialisé (SSE & Environnement)
+    SseModule,
+    EnvironmentModule, // ✅ AJOUT : Activation des services Conso/Déchets
+    
+    // 6. Gouvernance & Risques
+    MeetingsModule,
+    EquipmentModule,
+    RisksModule,
+    ServicesModule,
+    PartiesInteresseesModule,
+    AnalysesModule,
   ],
   controllers: [
     AppController, 
@@ -86,7 +95,8 @@ import { ContactService } from './auth/contact.service';
     UploadController
   ], 
   providers: [
-    AppService, ContactService,
+    AppService, 
+    ContactService,
     {
       provide: APP_GUARD,
       useClass: SubscriptionGuard,
