@@ -46,14 +46,17 @@ export default function LandingPage() {
             />
             <span className="hidden sm:inline">Accès Master</span>
           </button>
+
           <Link
             href="/auth/login"
             className="text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white transition-colors"
           >
             Se connecter
           </Link>
+
+          {/* ✅ LIEN VERS /register */}
           <Link
-            href="/auth/register"
+            href="/register"
             className="px-6 py-3 bg-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all active:scale-95"
           >
             Essai Gratuit
@@ -85,8 +88,9 @@ export default function LandingPage() {
             au Sénégal et dans l&apos;UEMOA.
           </p>
           <div className="flex justify-center">
+            {/* ✅ LIEN VERS /register */}
             <Link
-              href="/auth/register"
+              href="/register"
               className="px-12 py-6 bg-blue-600 rounded-4xl text-xs font-black uppercase tracking-[0.2em] hover:bg-blue-500 shadow-2xl shadow-blue-600/40 transition-all flex items-center justify-center gap-3"
             >
               Lancer mon essai 14J <Rocket size={20} />
@@ -95,7 +99,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- PLANS (MENSUEL / DÉTAILS / DATE AGRANDIE) --- */}
+      {/* --- PLANS (RÉTABLIS : MENSUEL / DÉTAILS / DATE AGRANDIE) --- */}
       <section
         id="plans"
         className="py-32 px-6 bg-white/2 border-y border-white/5 relative z-10"
@@ -166,8 +170,8 @@ export default function LandingPage() {
               </h3>
               <div className="mb-10">
                 <span className="text-5xl font-black italic">{plan.price}</span>
-                {/* 📅 Taille augmentée pour la période/disponibilité */}
-                <span className="text-slate-400 text-sm block font-black uppercase mt-3 tracking-widest">
+                {/* 📅 TAILLE DE POLICE AGRANDIE POUR LA PÉRIODE */}
+                <span className="text-slate-300 text-xl block font-black uppercase mt-4 tracking-widest border-t border-white/10 pt-4">
                   {plan.period}
                 </span>
               </div>
@@ -185,8 +189,9 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
+              {/* ✅ TOUS LES BOUTONS VERS /register */}
               <Link
-                href="/auth/register"
+                href="/register"
                 className={`w-full py-5 rounded-3xl font-black uppercase text-[10px] text-center tracking-widest transition-all ${plan.highlight ? "bg-blue-600 text-white shadow-xl shadow-blue-600/40" : "bg-white/5 text-slate-400 hover:text-white"}`}
               >
                 {plan.id === "TRIAL" ? "Démarrer l'essai" : "Choisir ce plan"}
@@ -202,7 +207,7 @@ export default function LandingPage() {
           <div className="bg-[#0F172A] border border-amber-500/20 w-full max-w-md rounded-[4rem] p-12 relative text-center shadow-2xl shadow-amber-500/10">
             <button
               onClick={() => setShowMasterModal(false)}
-              className="absolute top-10 right-10 text-slate-600 hover:text-white"
+              className="absolute top-10 right-10 text-slate-600 hover:text-white transition-colors"
             >
               <X size={28} />
             </button>
@@ -219,7 +224,7 @@ export default function LandingPage() {
                 value={masterKey}
                 onChange={(e) => setMasterKey(e.target.value)}
                 placeholder="AUTHENTIFICATION SECRÈTE"
-                className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl text-white font-black text-center italic focus:border-amber-500 outline-none placeholder:text-slate-800"
+                className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl text-white font-black text-center italic focus:border-amber-500 outline-none transition-all placeholder:text-slate-800"
               />
               <button
                 type="submit"
