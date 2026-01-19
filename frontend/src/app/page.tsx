@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { CheckCircle2, Crown, Fingerprint, Rocket, X, Zap } from "lucide-react";
+import { Crown, Fingerprint, Rocket, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -13,20 +13,19 @@ export default function LandingPage() {
 
   const handleMasterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // ✅ Logique Master Qualisoft Élite
     if (masterKey === "QUALISOFT_2030_ADMIN") {
       setShowMasterModal(false);
       router.push("/dashboard");
     } else {
-      alert("Clé Master Invalide - Accès Refusé");
+      alert("Clé Master Invalide");
       setMasterKey("");
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white selection:bg-blue-600/30 selection:text-blue-200 font-sans italic">
+    <div className="min-h-screen bg-[#0B0F1A] text-white selection:bg-blue-600/30 font-sans italic">
       {/* --- NAVBAR --- */}
-      <nav className="fixed top-0 w-full z-50 bg-[#0B0F1A]/80 backdrop-blur-2xl border-b border-white/5 px-6 md:px-12 py-5 flex items-center justify-between">
+      <nav className="fixed top-0 w-full z-60 bg-[#0B0F1A]/80 backdrop-blur-2xl border-b border-white/5 px-6 md:px-12 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center border border-white/10 shadow-lg shadow-blue-600/20">
             <span className="font-black text-xl text-white not-italic">Q</span>
@@ -47,17 +46,15 @@ export default function LandingPage() {
             />
             <span className="hidden sm:inline">Accès Master</span>
           </button>
-
           <Link
             href="/auth/login"
             className="text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white transition-colors"
           >
             Se connecter
           </Link>
-
           <Link
             href="/auth/register-trial"
-            className="px-6 py-3 bg-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all active:scale-95"
+            className="px-6 py-3 bg-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all"
           >
             Essai Gratuit
           </Link>
@@ -66,7 +63,7 @@ export default function LandingPage() {
 
       {/* --- HERO --- */}
       <section className="relative pt-48 pb-32 px-6 overflow-hidden">
-        <div className="absolute inset-0 opacity-15 pointer-events-none">
+        <div className="absolute inset-0 opacity-15 pointer-events-none z-0">
           <img
             src="/QS_FondEcran.webp"
             alt="Background"
@@ -87,10 +84,10 @@ export default function LandingPage() {
             La plateforme SaaS de référence pour le management Qualité intégré
             au Sénégal et dans l&apos;UEMOA.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-6">
+          <div className="flex justify-center">
             <Link
               href="/auth/register-trial"
-              className="px-12 py-6 bg-blue-600 rounded-4xl text-xs font-black uppercase tracking-[0.2em] hover:bg-blue-500 shadow-2xl shadow-blue-600/40 transition-all flex items-center justify-center gap-3"
+              className="px-12 py-6 bg-blue-600 rounded-4xl text-xs font-black uppercase tracking-[0.2em] hover:bg-blue-500 shadow-2xl shadow-blue-600/40 transition-all flex items-center gap-3"
             >
               Lancer mon essai 14J <Rocket size={20} />
             </Link>
@@ -98,90 +95,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- PLANS --- */}
-      <section
-        id="plans"
-        className="py-32 px-6 bg-white/2 border-y border-white/5"
-      >
-        <div className="max-w-7xl mx-auto text-center mb-24">
-          <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter italic mb-6">
-            Investissez dans <span className="text-blue-600">la Qualité</span>
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {[
-            {
-              id: "TRIAL",
-              name: "Essai 14J",
-              price: "0",
-              period: "OFFERT",
-              features: ["21 modules actifs", "Config. Assistée"],
-            },
-            {
-              id: "EMERGENCE",
-              name: "Émergence",
-              price: "55K",
-              period: "AN / HT",
-              features: ["RQ + 3 Pilotes", "GED SMQ"],
-            },
-            {
-              id: "PRO",
-              name: "Entreprise",
-              price: "175K",
-              period: "AN / HT",
-              features: ["Illimité", "Support 24/7"],
-              highlight: true,
-            },
-            {
-              id: "GROUPE",
-              name: "Groupe",
-              price: "350K",
-              period: "AN / HT",
-              features: ["Multi-sites", "API Cloud"],
-            },
-          ].map((plan) => (
-            <div
-              key={plan.id}
-              className={`p-10 rounded-[3.5rem] bg-slate-900/50 border flex flex-col transition-all hover:scale-105 duration-500 ${plan.highlight ? "border-blue-600 ring-4 ring-blue-600/10" : "border-white/5"}`}
-            >
-              <h3 className="text-2xl font-black uppercase italic mb-8">
-                {plan.name}
-              </h3>
-              <div className="mb-10">
-                <span className="text-5xl font-black italic">{plan.price}</span>
-                <span className="text-slate-500 text-[10px] block font-black uppercase mt-2 tracking-widest">
-                  {plan.period}
-                </span>
-              </div>
-              <ul className="space-y-4 mb-12 flex-1">
-                {plan.features.map((f, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-tighter"
-                  >
-                    <CheckCircle2 size={14} className="text-blue-600" /> {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href={
-                  plan.id === "TRIAL"
-                    ? "/auth/register-trial"
-                    : `/auth/register?plan=${plan.id}`
-                }
-                className={`w-full py-5 rounded-3xl font-black uppercase text-[10px] text-center tracking-widest transition-all ${plan.highlight ? "bg-blue-600 text-white shadow-xl shadow-blue-600/40" : "bg-white/5 text-slate-400 hover:text-white"}`}
-              >
-                {plan.id === "TRIAL" ? "Démarrer l'essai" : "Choisir ce plan"}
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* --- MODAL MASTER --- */}
+      {/* --- MODAL MASTER (PRIORITÉ Z-INDEX 9999) --- */}
       {showMasterModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/95 backdrop-blur-xl p-6">
-          <div className="bg-[#0F172A] border border-amber-500/20 w-full max-w-md rounded-[4rem] p-12 relative text-center">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/95 backdrop-blur-xl p-6">
+          <div className="bg-[#0F172A] border border-amber-500/20 w-full max-w-md rounded-[4rem] p-12 relative text-center shadow-2xl shadow-amber-500/10">
             <button
               onClick={() => setShowMasterModal(false)}
               className="absolute top-10 right-10 text-slate-600 hover:text-white"
