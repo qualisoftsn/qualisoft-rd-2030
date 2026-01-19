@@ -1,26 +1,26 @@
 import { Module } from '@nestjs/common';
-import { AuditsService } from './audits.service';
+import { PdfService } from '../common/services/pdf.service'; // ✅ AJOUT : Requis pour les rapports
+import { PrismaModule } from '../prisma/prisma.module';
 import { AuditsController } from './audits.controller';
+import { AuditsService } from './audits.service';
 import { NcController } from './nc.controller';
 import { NcService } from './nc.service';
-import { PreuvesService } from './preuves.service';
 import { PreuvesController } from './preuves.controller';
-import { PrismaModule } from '../prisma/prisma.module';
-import { PrismaService } from '../prisma/prisma.service';
+import { PreuvesService } from './preuves.service';
 
 @Module({
   imports: [PrismaModule],
   controllers: [
-    AuditsController, // Corrigé : Pluriel
+    AuditsController,
     NcController,
     PreuvesController
   ],
   providers: [
-    AuditsService,  // Corrigé : Pluriel
+    AuditsService,
     NcService,
     PreuvesService,
-    PrismaService
+    PdfService // ✅ AJOUT : Résout l'erreur "can't resolve dependencies of AuditsController"
   ],
-  exports: [NcService, AuditsService] // Exporté pour la collaboration entre modules (ISO 9001)
+  exports: [NcService, AuditsService]
 })
 export class AuditsModule {}
