@@ -1,3 +1,4 @@
+//* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
@@ -13,19 +14,20 @@ export default function LandingPage() {
 
   const handleMasterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // ✅ Clé de sécurité Qualisoft Élite 2030
     if (masterKey === "QUALISOFT_2030_ADMIN") {
       setShowMasterModal(false);
       router.push("/dashboard");
     } else {
-      alert("Clé Master Invalide");
+      alert("Clé Master Invalide - Accès au Noyau Refusé");
       setMasterKey("");
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white selection:bg-blue-600/30 font-sans italic">
+    <div className="min-h-screen bg-[#0B0F1A] text-white selection:bg-blue-600/30 selection:text-blue-200 font-sans italic">
       {/* --- NAVBAR --- */}
-      <nav className="fixed top-0 w-full z-60 bg-[#0B0F1A]/80 backdrop-blur-2xl border-b border-white/5 px-6 md:px-12 py-5 flex items-center justify-between">
+      <nav className="fixed top-0 w-full z-50 bg-[#0B0F1A]/80 backdrop-blur-2xl border-b border-white/5 px-6 md:px-12 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center border border-white/10 shadow-lg shadow-blue-600/20">
             <span className="font-black text-xl text-white not-italic">Q</span>
@@ -46,15 +48,17 @@ export default function LandingPage() {
             />
             <span className="hidden sm:inline">Accès Master</span>
           </button>
+
           <Link
             href="/auth/login"
             className="text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white transition-colors"
           >
             Se connecter
           </Link>
+
           <Link
             href="/auth/register-trial"
-            className="px-6 py-3 bg-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all"
+            className="px-6 py-3 bg-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all active:scale-95"
           >
             Essai Gratuit
           </Link>
@@ -63,7 +67,7 @@ export default function LandingPage() {
 
       {/* --- HERO --- */}
       <section className="relative pt-48 pb-32 px-6 overflow-hidden">
-        <div className="absolute inset-0 opacity-15 pointer-events-none z-0">
+        <div className="absolute inset-0 opacity-15 pointer-events-none">
           <img
             src="/QS_FondEcran.webp"
             alt="Background"
@@ -84,10 +88,10 @@ export default function LandingPage() {
             La plateforme SaaS de référence pour le management Qualité intégré
             au Sénégal et dans l&apos;UEMOA.
           </p>
-          <div className="flex justify-center">
+          <div className="flex flex-col sm:flex-row justify-center gap-6">
             <Link
               href="/auth/register-trial"
-              className="px-12 py-6 bg-blue-600 rounded-4xl text-xs font-black uppercase tracking-[0.2em] hover:bg-blue-500 shadow-2xl shadow-blue-600/40 transition-all flex items-center gap-3"
+              className="px-12 py-6 bg-blue-600 rounded-4xl text-xs font-black uppercase tracking-[0.2em] hover:bg-blue-500 shadow-2xl shadow-blue-600/40 transition-all flex items-center justify-center gap-3"
             >
               Lancer mon essai 14J <Rocket size={20} />
             </Link>
@@ -95,10 +99,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- MODAL MASTER (PRIORITÉ Z-INDEX 9999) --- */}
+      {/* --- MODAL MASTER (FIXÉ : Z-INDEX MAXIMAL) --- */}
       {showMasterModal && (
         <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/95 backdrop-blur-xl p-6">
-          <div className="bg-[#0F172A] border border-amber-500/20 w-full max-w-md rounded-[4rem] p-12 relative text-center shadow-2xl shadow-amber-500/10">
+          <div className="bg-[#0F172A] border border-amber-500/20 w-full max-w-md rounded-[4rem] p-12 relative text-center shadow-2xl shadow-amber-500/20">
             <button
               onClick={() => setShowMasterModal(false)}
               className="absolute top-10 right-10 text-slate-600 hover:text-white"
@@ -118,7 +122,7 @@ export default function LandingPage() {
                 value={masterKey}
                 onChange={(e) => setMasterKey(e.target.value)}
                 placeholder="AUTHENTIFICATION SECRÈTE"
-                className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl text-white font-black text-center italic focus:border-amber-500 outline-none"
+                className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl text-white font-black text-center italic focus:border-amber-500 outline-none placeholder:text-slate-800"
               />
               <button
                 type="submit"
