@@ -13,21 +13,26 @@ export class CompetencesService {
 
   /**
    * ✅ MATRICE : Récupération croisée Utilisateurs / Compétences
-   * Permet de visualiser les écarts entre niveau requis et niveau actuel
+   * Consolidé : Ajout du filtrage par Unité Organique pour une vision par service
    */
-  async getMatrix(T_Id: string) {
+  async getMatrix(T_Id: string, orgUnitId?: string) {
     const [competences, users] = await Promise.all([
       this.prisma.competence.findMany({
         where: { tenantId: T_Id },
         orderBy: { CP_Name: 'asc' }
       }),
       this.prisma.user.findMany({
-        where: { tenantId: T_Id, U_IsActive: true },
+        where: { 
+          tenantId: T_Id, 
+          U_IsActive: true,
+          ...(orgUnitId && { U_OrgUnitId: orgUnitId }) // 👈 Consolidation hiérarchique
+        },
         select: {
           U_Id: true,
           U_FirstName: true,
           U_LastName: true,
           U_Role: true,
+          U_OrgUnitId: true,
           U_Competences: {
             select: { UC_CompetenceId: true, UC_NiveauActuel: true }
           }
@@ -76,21 +81,22 @@ export class CompetencesService {
   }
 
   // ======================================================
-  // 🛡️ ZONE 2 : HABILITATIONS & CONFORMITÉ SSE
+  // 🛡️ ZONE 2 : HABILITATIONS & CONFORMITÉ SSE (MASE / ISO 45001)
   // ======================================================
 
   /**
    * ✅ SURVEILLANCE : LISTE DES HABILITATIONS EN EXPIRATION
-   * Alerte pour les CACES, Habilitations Électriques, etc. (Seuil 30 jours)
+   * Alerte proactive pour les CACES, Habilitations Électriques, etc. (Seuil 30 jours)
    */
   async getExpiringHabilitations(T_Id: string) {
     const alertThreshold = new Date();
     alertThreshold.setDate(alertThreshold.getDate() + 30);
 
+    // Note : UH_ExpiryDate utilise la table userHabilitation du schéma
     return this.prisma.userHabilitation.findMany({
       where: {
         tenantId: T_Id,
-        UH_ExpiryDate: { lte: alertThreshold }
+        UH_ExpiryDate: { lte: alertThreshold, gte: new Date() } // Uniquement les futures expirations
       },
       include: { 
         UH_User: { select: { U_FirstName: true, U_LastName: true } } 

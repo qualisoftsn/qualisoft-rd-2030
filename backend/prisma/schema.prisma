@@ -64,6 +64,8 @@ model Tenant {
   T_OrgUnitTypes    OrgUnitType[]
   T_ProcessTypes    ProcessType[]
   T_RiskTypes       RiskType[]
+  T_Consumptions    Consumption[]
+  T_Wastes          Waste[]
 }
 
 // ==========================================
@@ -78,11 +80,13 @@ model Site {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
-  S_OrgUnits  OrgUnit[]
-  S_Users     User[]
-  S_Audits    Audit[]
-  S_Documents Document[]
-  S_SSEEvents SSEEvent[]
+  S_OrgUnits   OrgUnit[]
+  S_Users      User[]
+  S_Audits     Audit[]
+  S_Documents  Document[]
+  S_SSEEvents  SSEEvent[]
+  consumptions Consumption[]
+  wastes       Waste[]
 
   @@index([tenantId])
 }
@@ -158,6 +162,7 @@ model User {
   U_Signatures         Signature[]
   U_Competences        UserCompetence[]
   U_SecurityAuditLogs  SecurityAuditLog[]
+  consumptions         Consumption[]
 
   @@index([tenantId])
 }
@@ -742,6 +747,51 @@ model Tier {
   TR_Reclamations Reclamation[]
 
   @@unique([TR_Id, tenantId])
+  @@index([tenantId])
+}
+
+// ==========================================
+// ENVIRONNEMENT (ISO 14001)
+// ==========================================
+
+model Consumption {
+  CON_Id        String   @id @default(uuid())
+  CON_Type      String // ELECTRICITE, EAU, GAZ, CARBURANT
+  CON_Value     Float
+  CON_Unit      String
+  CON_Month     Int
+  CON_Year      Int
+  CON_Cost      Float?
+  CON_CreatedAt DateTime @default(now())
+
+  CON_SiteId String
+  CON_Site   Site   @relation(fields: [CON_SiteId], references: [S_Id])
+
+  CON_CreatorId String
+  CON_Creator   User   @relation(fields: [CON_CreatorId], references: [U_Id])
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Waste {
+  WAS_Id        String   @id @default(uuid())
+  WAS_Label     String
+  WAS_Weight    Float
+  WAS_Type      String // DANGEREUX, BANAL
+  WAS_Treatment String // RECYCLAGE, VALORISATION, ELIMINATION
+  WAS_Month     Int
+  WAS_Year      Int
+  WAS_CreatedAt DateTime @default(now())
+
+  WAS_SiteId String
+  WAS_Site   Site   @relation(fields: [WAS_SiteId], references: [S_Id])
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+
   @@index([tenantId])
 }
 

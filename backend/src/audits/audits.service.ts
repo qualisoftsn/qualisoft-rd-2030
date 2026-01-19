@@ -8,15 +8,15 @@ export class AuditsService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * ✅ LISTE : Récupération des audits avec relations complètes
+   * ✅ LISTE : Vision globale des audits (Planification annuelle)
    */
   async findAll(tenantId: string) {
     return this.prisma.audit.findMany({
       where: { tenantId },
       include: { 
-        AU_Processus: true, 
-        AU_Lead: true, 
-        AU_Site: true,
+        AU_Processus: { select: { PR_Libelle: true, PR_Code: true } }, 
+        AU_Lead: { select: { U_FirstName: true, U_LastName: true } }, 
+        AU_Site: { select: { S_Name: true } },
         AU_NonConformites: true,
         AU_Findings: true
       },
@@ -25,17 +25,21 @@ export class AuditsService {
   }
 
   /**
-   * ✅ UNIQUE : Implémentation réelle pour l'export PDF
+   * ✅ UNIQUE : Détails complets pour consultation ou export PDF
    */
   async findOne(id: string, tenantId: string) {
     const audit = await this.prisma.audit.findFirst({
       where: { AU_Id: id, tenantId },
       include: {
-        AU_Processus: true,
+        AU_Processus: {
+          include: { PR_Pilote: true, PR_CoPilote: true }
+        },
         AU_Lead: true,
         AU_Site: true,
         AU_Findings: true,
-        AU_NonConformites: { include: { NC_Actions: true } }
+        AU_NonConformites: { 
+          include: { NC_Actions: true, NC_Detector: true } 
+        }
       }
     });
     if (!audit) throw new NotFoundException("Audit introuvable ou accès refusé.");
@@ -43,14 +47,14 @@ export class AuditsService {
   }
 
   /**
-   * ✅ CRÉATION : Planification d'un nouvel audit
+   * ✅ PLANIFICATION : Créer un nouvel audit dans le calendrier
    */
   async create(data: any, tenantId: string) {
     return this.prisma.audit.create({
       data: {
         AU_Reference: data.AU_Reference || `AUD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
         AU_Title: data.AU_Title,
-        AU_Scope: data.AU_Scope || "Périmètre de certification",
+        AU_Scope: data.AU_Scope || "Périmètre SMI",
         AU_DateAudit: new Date(data.AU_DateAudit),
         AU_Status: 'PLANIFIE',
         tenantId: tenantId,
@@ -62,7 +66,7 @@ export class AuditsService {
   }
 
   /**
-   * ✅ SIGNATURE : Acceptation par le Pilote/Copilote (Liaison PKI)
+   * ✅ ACCEPTATION : Signature électronique du Pilote de processus
    */
   async signAcceptance(auditId: string, userId: string, tenantId: string, hash: string) {
     const audit = await this.prisma.audit.findUnique({
@@ -72,11 +76,12 @@ export class AuditsService {
 
     if (!audit || audit.tenantId !== tenantId) throw new NotFoundException("Audit introuvable.");
 
+    // Vérification des droits de signature (Pilote ou Co-Pilote du processus audité)
     const isPilote = audit.AU_Processus?.PR_PiloteId === userId;
     const isCoPilote = audit.AU_Processus?.PR_CoPiloteId === userId;
 
     if (!isPilote && !isCoPilote) {
-      throw new ForbiddenException("Seul le Pilote ou Copilote peut signer l'acceptation.");
+      throw new ForbiddenException("Seul le Pilote ou Copilote du processus peut valider l'ouverture.");
     }
 
     await this.prisma.signature.create({
@@ -96,16 +101,21 @@ export class AuditsService {
   }
 
   /**
-   * ✅ CLÔTURE : Enregistrement rapport, constats et génération automatique de NC/Actions
+   * ✅ CLÔTURE & AMÉLIORATION CONTINUE
+   * Génère les NC et injecte les actions correctives dans le PAQ Processus
    */
   async closeAuditWithReport(auditId: string, reportData: any, tenantId: string, auditorId: string) {
     const { findings, nonConformites } = reportData;
 
     return await this.prisma.$transaction(async (tx) => {
-      const audit = await tx.audit.findUnique({ where: { AU_Id: auditId } });
+      const audit = await tx.audit.findUnique({ 
+        where: { AU_Id: auditId },
+        include: { AU_Processus: true }
+      });
+
       if (!audit || audit.tenantId !== tenantId) throw new NotFoundException("Audit introuvable.");
 
-      // 1. Enregistrement des constats (Findings)
+      // 1. Enregistrement des constats (Findings : Points forts, Observations, NC)
       if (findings?.length > 0) {
         await tx.finding.createMany({
           data: findings.map((f: any) => ({
@@ -116,39 +126,45 @@ export class AuditsService {
         });
       }
 
-      // 2. Traitement des NC et création automatique des Actions dans le PAQ
+      // 2. Traitement des Non-Conformités et liaison PAQ
       if (nonConformites?.length > 0) {
         for (const nc of nonConformites) {
+          // Création de la NC officielle
           const createdNc = await tx.nonConformite.create({
             data: {
               NC_Libelle: nc.NC_Libelle,
               NC_Description: nc.NC_Description,
               NC_Gravite: nc.NC_Gravite || "MINEURE",
-              NC_Statut: "A_TRAITER",
+              NC_Statut: "DETECTION",
               NC_Source: 'INTERNAL_AUDIT',
               NC_AuditId: auditId,
+              NC_ProcessusId: audit.AU_ProcessusId,
               NC_DetectorId: auditorId,
               tenantId: tenantId
             }
           });
 
+          // Liaison automatique avec le PAQ du processus
           if (audit.AU_ProcessusId) {
             const paq = await tx.pAQ.findFirst({ 
-              where: { PAQ_ProcessusId: audit.AU_ProcessusId as string } 
+              where: { 
+                PAQ_ProcessusId: audit.AU_ProcessusId,
+                PAQ_Year: new Date().getFullYear() // PAQ de l'année en cours
+              } 
             });
 
             if (paq) {
               await tx.action.create({
                 data: {
-                  ACT_Title: `Suite audit : ${nc.NC_Libelle}`,
+                  ACT_Title: `[AUDIT] Correctif : ${nc.NC_Libelle}`,
                   ACT_Origin: 'AUDIT',
                   ACT_Type: 'CORRECTIVE',
                   ACT_Status: 'A_FAIRE',
                   ACT_PAQId: paq.PAQ_Id,
                   ACT_AuditId: auditId,
-                  ACT_ReclamationId: null, // Clarification structurelle
+                  ACT_NCId: createdNc.NC_Id,
                   tenantId: tenantId,
-                  ACT_ResponsableId: (audit.AU_LeadId || auditorId) as string,
+                  ACT_ResponsableId: audit.AU_LeadId || auditorId,
                   ACT_CreatorId: auditorId
                 }
               });

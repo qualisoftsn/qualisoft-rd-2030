@@ -13,13 +13,9 @@ export class IndicatorsService {
   ) {}
 
   // ======================================================
-  // 🛡️ UTILITAIRES DE CONFORMITÉ (PÉRIODE & DÉLAIS)
+  // 🛡️ UTILITAIRES DE CONFORMITÉ
   // ======================================================
 
-  /**
-   * ✅ VALIDÉ : VÉRIFICATION DE LA PÉRIODICITÉ ISO
-   * Détermine si un indicateur doit être saisi pour le mois donné
-   */
   private estEcheanceActive(frequence: string, mois: number): boolean {
     const freq = frequence.toUpperCase();
     if (freq === 'MENSUEL') return true;
@@ -29,13 +25,9 @@ export class IndicatorsService {
     return false;
   }
 
-  /**
-   * ✅ VALIDÉ : DÉLAI DE GRÂCE (LIMITE AU 10 DU MOIS SUIVANT)
-   * Verrouille la saisie pour garantir l'intégrité des rapports
-   */
   private estDelaiDepasse(moisSaisie: number, anneeSaisie: number): boolean {
     const maintenant = new Date();
-    const dateLimite = new Date(anneeSaisie, moisSaisie, 10); 
+    const dateLimite = new Date(anneeSaisie, moisSaisie, 10); // Bloqué après le 10 du mois suivant
     return maintenant > dateLimite;
   }
 
@@ -43,16 +35,13 @@ export class IndicatorsService {
   // 📈 ZONE 1 : PERFORMANCE & DASHBOARD (COCKPIT)
   // ======================================================
 
-  /**
-   * 📊 STATISTIQUES DASHBOARD : CALCUL PRÉCIS DES ATTENDUS VS SAISIS
-   * Génère les données pour les graphiques et le taux de complétion global
-   */
   async getDashboardStats(tenantId: string, userId: string, role: string) {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
 
-    const accessFilter = role === 'ADMIN' ? {} : { PR_PiloteId: userId };
+    // Filtre de sécurité : Les pilotes ne voient que leurs processus
+    const accessFilter = (role === 'ADMIN' || role === 'SUPER_ADMIN') ? {} : { PR_PiloteId: userId };
 
     const processes = await this.prisma.processus.findMany({
       where: { tenantId, ...accessFilter },
@@ -80,14 +69,15 @@ export class IndicatorsService {
           if (val && val.IV_Actual !== null) {
             saisiInd++;
             const ratio = (val.IV_Actual / ind.IND_Cible) * 100;
-            performanceSum += Math.min(ratio, 150); // Capé à 150% pour la cohérence globale
+            performanceSum += Math.min(ratio, 150); // Plafond à 150% pour ne pas fausser la moyenne
             perfCount++;
             
             if (chartData.length < 6) {
               chartData.push({
                 label: ind.IND_Code,
-                value: val.IV_Actual,
-                target: ind.IND_Cible
+                actual: val.IV_Actual,
+                target: ind.IND_Cible,
+                status: val.IV_Status
               });
             }
           }
@@ -96,21 +86,13 @@ export class IndicatorsService {
     });
 
     return {
-      month, year,
-      stats: {
-        completionRate: totalExpected > 0 ? Math.round((saisiInd / totalExpected) * 100) : 0,
-        globalPerformance: perfCount > 0 ? Math.round(performanceSum / perfCount) : 0,
-        totalProcessus: processes.length,
-        totalIndicatorsExpected: totalExpected
-      },
+      period: `${month}/${year}`,
+      completion: totalExpected > 0 ? Math.round((saisiInd / totalExpected) * 100) : 0,
+      globalScore: perfCount > 0 ? Math.round(performanceSum / perfCount) : 0,
       chartData
     };
   }
 
-  /**
-   * 📋 RÉCUPÉRATION DE LA GRILLE MENSUELLE
-   * Mappe les données pour l'affichage dynamique avec indicateurs de statut
-   */
   async getMonthlyDashboard(tenantId: string, month: number, year: number) {
     const processes = await this.prisma.processus.findMany({
       where: { tenantId },
@@ -124,143 +106,88 @@ export class IndicatorsService {
       orderBy: { PR_Code: 'asc' }
     });
 
-    const delaiDepasse = this.estDelaiDepasse(month, year);
-
     return processes.map(proc => ({
       processId: proc.PR_Id,
       processCode: proc.PR_Code,
-      processLabel: proc.PR_Libelle,
-      isDeadlineExceeded: delaiDepasse,
       indicators: proc.PR_Indicators.map(ind => ({
         id: ind.IND_Id,
         code: ind.IND_Code,
         label: ind.IND_Libelle,
         target: ind.IND_Cible,
         unit: ind.IND_Unite,
-        frequence: ind.IND_Frequence,
-        doitEtreSaisi: this.estEcheanceActive(ind.IND_Frequence, month),
+        isExpected: this.estEcheanceActive(ind.IND_Frequence, month),
         entry: ind.IND_Values[0] || { IV_Actual: null, IV_Status: IVStatus.BROUILLON }
       }))
     }));
   }
 
   // ======================================================
-  // ⚙️ ZONE 2 : WORKFLOW & VALIDATION PKI
+  // ⚙️ ZONE 2 : WORKFLOW & PKI
   // ======================================================
 
-  /**
-   * ⚡ ENREGISTREMENT MASSIF : SAISIE EN VRAC (BULK SAVE)
-   * Utilise une transaction pour garantir l'intégrité des données saisies
-   */
-  async saveBulkValues(values: { indicatorId: string, value: number }[], month: number, year: number, userRole: string) {
-    if (userRole !== 'ADMIN' && this.estDelaiDepasse(month, year)) {
-      throw new ForbiddenException("Délai de saisie expiré (Max le 10 du mois M+1).");
+  async saveBulkValues(values: { indicatorId: string, value: number }[], month: number, year: number, role: string) {
+    if (role !== 'ADMIN' && this.estDelaiDepasse(month, year)) {
+      throw new ForbiddenException("Période de saisie clôturée.");
     }
 
     return this.prisma.$transaction(async (tx) => {
       for (const item of values) {
-        const existing = await tx.indicatorValue.findUnique({
-          where: { IV_IndicatorId_IV_Month_IV_Year: { IV_IndicatorId: item.indicatorId, IV_Month: month, IV_Year: year } }
-        });
-
-        if (existing && existing.IV_Status !== IVStatus.BROUILLON && userRole !== 'ADMIN') {
-          throw new ForbiddenException(`L'indicateur ${item.indicatorId} est verrouillé.`);
-        }
-
         await tx.indicatorValue.upsert({
-          where: { IV_IndicatorId_IV_Month_IV_Year: { IV_IndicatorId: item.indicatorId, IV_Month: month, IV_Year: year } },
-          update: { IV_Actual: item.value, IV_Status: IVStatus.BROUILLON },
-          create: { IV_IndicatorId: item.indicatorId, IV_Actual: item.value, IV_Month: month, IV_Year: year, IV_Status: IVStatus.BROUILLON }
+          where: { 
+            IV_IndicatorId_IV_Month_IV_Year: { 
+              IV_IndicatorId: item.indicatorId, 
+              IV_Month: month, 
+              IV_Year: year 
+            } 
+          },
+          update: { IV_Actual: item.value, IV_UpdatedAt: new Date() },
+          create: { 
+            IV_IndicatorId: item.indicatorId, 
+            IV_Actual: item.value, 
+            IV_Month: month, 
+            IV_Year: year, 
+            IV_Status: IVStatus.BROUILLON 
+          }
         });
       }
       return { success: true };
     });
   }
 
-  /**
-   * ✅ MISE À JOUR DU STATUT (WORKFLOW INTERMÉDIAIRE)
-   * Permet le passage de BROUILLON à SOUMIS par le Pilote
-   */
-  async updateStatus(processId: string, month: number, year: number, fromStatus: IVStatus, toStatus: IVStatus) {
-    return this.prisma.indicatorValue.updateMany({
-      where: { 
-        IV_Indicator: { IND_ProcessusId: processId }, 
-        IV_Month: month, 
-        IV_Year: year, 
-        IV_Status: fromStatus 
-      },
-      data: { IV_Status: toStatus }
-    });
-  }
-
-  /**
-   * 🖋️ VALIDATION OFFICIELLE : PASSAGE AU STATUT VALIDE + SIGNATURE PKI
-   * Verrouille officiellement la performance avec une preuve cryptographique
-   */
-  async validateProcessIndicators(processId: string, month: number, year: number, userId: string, tenantId: string) {
+  async updateStatus(processId: string, month: number, year: number, toStatus: IVStatus, userId: string, tenantId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const updateResult = await tx.indicatorValue.updateMany({
+      const result = await tx.indicatorValue.updateMany({
         where: { 
           IV_Indicator: { IND_ProcessusId: processId }, 
           IV_Month: month, 
-          IV_Year: year, 
-          IV_Status: IVStatus.SOUMIS 
+          IV_Year: year 
         },
-        data: { IV_Status: IVStatus.VALIDE }
+        data: { IV_Status: toStatus }
       });
 
-      if (updateResult.count === 0) throw new NotFoundException("Aucun indicateur soumis trouvé.");
+      if (toStatus === IVStatus.VALIDE) {
+        const sigId = `PERF-${processId}-${month}-${year}`;
+        await this.pkiService.sign(sigId, 'PROCESS_PERFORMANCE', userId, tenantId);
+      }
 
-      // Création de la signature électronique ELITE
-      const entityId = `PERF-${processId}-${month}-${year}`;
-      await this.pkiService.sign(entityId, 'PROCESS_PERFORMANCE', userId, tenantId);
-      
-      return { success: true, count: updateResult.count };
+      return result;
     });
   }
 
   // ======================================================
-  // 🛠️ ZONE 3 : RÉFÉRENTIEL & ANALYSE ANNUELLE
+  // 🛠️ ZONE 3 : RÉFÉRENTIEL
   // ======================================================
 
-  /**
-   * ✅ RÉFÉRENTIEL : CRÉATION D'UN NOUVEL INDICATEUR
-   */
   async createIndicator(dto: any, tenantId: string) {
     return this.prisma.indicator.create({
       data: {
-        IND_Code: dto.IND_Code.trim().toUpperCase(),
+        IND_Code: dto.IND_Code.toUpperCase(),
         IND_Libelle: dto.IND_Libelle,
         IND_Unite: dto.IND_Unite,
         IND_Cible: parseFloat(dto.IND_Cible),
         IND_Frequence: dto.IND_Frequence,
+        IND_ProcessusId: dto.IND_ProcessusId,
         tenantId: tenantId,
-        IND_ProcessusId: dto.IND_ProcessusId
-      }
-    });
-  }
-
-  /**
-   * ✅ RÉFÉRENTIEL : SUPPRESSION SÉCURISÉE (SANS HISTORIQUE)
-   */
-  async deleteIndicator(id: string) {
-    const checkValues = await this.prisma.indicatorValue.count({ where: { IV_IndicatorId: id } });
-    if (checkValues > 0) throw new BadRequestException("Suppression impossible : historique de données existant.");
-    return this.prisma.indicator.delete({ where: { IND_Id: id } });
-  }
-
-  /**
-   * 📅 MATRICE ANNUELLE : RÉCUPÉRATION DES 12 MOIS
-   */
-  async getAnnualMatrix(tenantId: string, year: number) {
-    return this.prisma.processus.findMany({
-      where: { tenantId },
-      include: { 
-        PR_Indicators: { 
-          include: { 
-            IND_Values: { where: { IV_Year: year }, orderBy: { IV_Month: 'asc' } } 
-          } 
-        } 
       }
     });
   }

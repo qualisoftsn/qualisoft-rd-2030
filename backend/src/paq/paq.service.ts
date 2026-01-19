@@ -12,13 +12,13 @@ import { PrismaService } from '../prisma/prisma.service';
 export class PaqService {
   constructor(private prisma: PrismaService) {}
 
-  /** ✅ DASHBOARD : Analyse d'efficacité (Correction du type enRetard) */
+  /** ✅ DASHBOARD : Analyse de l'avancement du Plan d'Actions */
   async getDashboard(T_Id: string) {
     if (!T_Id) throw new UnauthorizedException("Identifiant entreprise manquant.");
 
     const today = new Date();
     
-    // Récupération de toutes les actions pour les calculs
+    // Récupération globale pour analyse
     const actions = await this.prisma.action.findMany({
       where: { tenantId: T_Id },
       include: { 
@@ -26,16 +26,17 @@ export class PaqService {
       },
     });
 
-    // ✅ CORRECTION : On renvoie le TABLEAU filtré pour que le .slice() fonctionne en Frontend
+    // 1. Actions en retard (Deadline passée et non terminée)
     const enRetard = actions.filter(a => 
       a.ACT_Status !== 'TERMINEE' && 
       a.ACT_Deadline && 
       new Date(a.ACT_Deadline) < today
     );
 
+    // 2. Actions clôturées
     const cloturees = actions.filter(a => a.ACT_Status === 'TERMINEE');
 
-    // Calcul de la charge par pilote
+    // 3. Calcul de la charge par pilote (Top 5)
     const chargeMap = new Map<string, number>();
     actions.forEach(a => {
       if (a.ACT_Status !== 'TERMINEE' && a.ACT_Responsable) {
@@ -46,14 +47,16 @@ export class PaqService {
 
     return {
       total: actions.length,
-      enRetard: enRetard, // Renvoie l'Array d'objets Action
-      cloturees: cloturees.length,
-      chargeTravail: Array.from(chargeMap.entries()),
-      tauxEfficacite: actions.length > 0 ? (cloturees.length / actions.length) * 100 : 0
+      enRetard: enRetard, // Tableau complet pour le slice() frontend
+      clotureesCount: cloturees.length,
+      chargeTravail: Array.from(chargeMap.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count),
+      tauxEfficacite: actions.length > 0 ? Math.round((cloturees.length / actions.length) * 100) : 0
     };
   }
 
-  /** ✅ MISE À JOUR D'UNE ACTION (Débloque la modification réclamée) */
+  /** ✅ MISE À JOUR : Modification d'une action spécifique */
   async updateAction(id: string, T_Id: string, data: any) {
     const existing = await this.prisma.action.findFirst({
       where: { ACT_Id: id, tenantId: T_Id }
@@ -68,16 +71,14 @@ export class PaqService {
         ACT_Status: data.ACT_Status,
         ACT_Priority: data.ACT_Priority,
         ACT_Deadline: data.ACT_Deadline ? new Date(data.ACT_Deadline) : null,
-        ACT_ResponsableId: data.ACT_ResponsableId
+        ACT_ResponsableId: data.ACT_ResponsableId,
+        ACT_CompletedAt: data.ACT_Status === 'TERMINEE' ? new Date() : undefined
       }
     });
   }
 
-  /** ✅ CRÉATION D'UN PAQ */
+  /** ✅ CRÉATION : Nouveau Plan d'Actions Annuel */
   async create(data: any, T_Id: string) {
-    if (!data.PAQ_ProcessusId || !data.PAQ_QualityManagerId) {
-      throw new BadRequestException("Processus et Manager obligatoires.");
-    }
     const year = parseInt(data.PAQ_Year) || new Date().getFullYear();
 
     try {
@@ -92,8 +93,8 @@ export class PaqService {
         },
       });
     } catch (error: any) {
-      if (error.code === 'P2002') throw new ConflictException(`PAQ déjà existant pour ce processus cette année.`);
-      throw new InternalServerErrorException("Erreur serveur lors de la création.");
+      if (error.code === 'P2002') throw new ConflictException(`Un PAQ existe déjà pour ce processus en ${year}.`);
+      throw new InternalServerErrorException("Erreur lors de la création du PAQ.");
     }
   }
 
@@ -101,7 +102,7 @@ export class PaqService {
     return this.prisma.pAQ.findMany({
       where: { tenantId: T_Id },
       include: {
-        PAQ_Processus: true,
+        PAQ_Processus: { select: { PR_Libelle: true, PR_Code: true } },
         PAQ_QualityManager: { select: { U_FirstName: true, U_LastName: true } },
         _count: { select: { PAQ_Actions: true } }
       },
@@ -113,9 +114,13 @@ export class PaqService {
     const paq = await this.prisma.pAQ.findFirst({
       where: { PAQ_Id: id, tenantId: T_Id },
       include: {
-        PAQ_Actions: { include: { ACT_Responsable: true } },
+        PAQ_Actions: { 
+          include: { 
+            ACT_Responsable: { select: { U_FirstName: true, U_LastName: true } },
+            ACT_Creator: { select: { U_FirstName: true, U_LastName: true } }
+          } 
+        },
         PAQ_Processus: true,
-        PAQ_QualityManager: true
       }
     });
     if (!paq) throw new NotFoundException("PAQ introuvable.");

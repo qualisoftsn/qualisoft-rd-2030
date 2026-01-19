@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SSEType } from '@prisma/client';
 
 @Injectable()
 export class SseService {
@@ -7,85 +8,93 @@ export class SseService {
 
   constructor(private prisma: PrismaService) {}
 
-  // 📈 1. POUR ANALYTICS : Renvoie les données brutes complètes
-  async findAll(T_Id: string) {
+  /**
+   * 📈 REGISTRE DES ÉVÉNEMENTS
+   * Utilise les relations définies dans le schéma (SSE_Site, SSE_Processus)
+   */
+  async findAll(tenantId: string) {
     return this.prisma.sSEEvent.findMany({
-      where: { tenantId: T_Id },
+      where: { tenantId },
       include: {
         SSE_Site: { select: { S_Name: true } },
-        SSE_Processus: { select: { PR_Libelle: true } }
+        SSE_Processus: { select: { PR_Libelle: true, PR_Code: true } },
+        SSE_Reporter: { select: { U_FirstName: true, U_LastName: true } }
       },
       orderBy: { SSE_DateEvent: 'desc' }
     });
   }
 
-  // 🛡️ 2. POUR LA MATRICE DES RISQUES (DUER) - FONCTIONNALITÉ VALIDÉE
-  async findAllRisks(T_Id: string) {
+  /**
+   * 🛡️ MATRICE DES RISQUES PROFESSIONNELS (DUER)
+   * Alignement sur le modèle Risk (RS_Score, RS_Probabilite, etc.)
+   */
+  async findAllRisks(tenantId: string) {
     const risks = await this.prisma.risk.findMany({
-      where: { tenantId: T_Id },
+      where: { tenantId },
       include: {
-        RS_Processus: { select: { PR_Libelle: true } }
+        RS_Processus: { select: { PR_Libelle: true, PR_Code: true } },
+        RS_Type: true
       },
-      orderBy: { RS_UpdatedAt: 'desc' }
+      orderBy: { RS_Score: 'desc' }
     });
 
     return risks.map(r => ({
       id: r.RS_Id,
-      title: r.RS_Libelle,
-      processus: r.RS_Processus?.PR_Libelle || 'Non assigné',
-      prob: r.RS_Probabilite || 1,
-      grav: r.RS_Gravite || 1,
-      c: (r.RS_Probabilite || 1) * (r.RS_Gravite || 1), // Score de criticité
-      status: r.RS_Status || 'IDENTIFIE'
+      libelle: r.RS_Libelle,
+      processus: r.RS_Processus?.PR_Libelle || 'SMI',
+      score: r.RS_Score,
+      prob: r.RS_Probabilite,
+      grav: r.RS_Gravite,
+      status: r.RS_Status
     }));
   }
 
-  // 📝 3. CRÉATION SÉCURISÉE AVEC CALCUL AUTO TF/TG
-  async create(data: any, T_Id: string, U_Id: string) {
-    let siteId = data.SSE_SiteId;
-    if (!siteId) {
-      const firstSite = await this.prisma.site.findFirst({ where: { tenantId: T_Id } });
-      if (!firstSite) throw new BadRequestException("Aucun site configuré pour ce Tenant.");
-      siteId = firstSite.S_Id;
-    }
-
-    // Utilisation d'une transaction pour garantir la mise à jour des stats
+  /**
+   * 📝 CRÉATION & CALCUL TF/TG
+   * Transactionnelle pour impacter la table SSEStats
+   */
+  async create(data: any, tenantId: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
+      // 1. Validation du Site
+      let siteId = data.SSE_SiteId;
+      if (!siteId) {
+        const site = await tx.site.findFirst({ where: { tenantId } });
+        if (!site) throw new BadRequestException("Aucun site configuré.");
+        siteId = site.S_Id;
+      }
+
+      // 2. Création de l'événement
       const event = await tx.sSEEvent.create({
         data: {
-          SSE_Type: data.SSE_Type,
+          SSE_Type: data.SSE_Type as SSEType,
           SSE_Lieu: data.SSE_Lieu,
           SSE_Description: data.SSE_Description,
           SSE_AvecArret: data.SSE_AvecArret || false,
           SSE_NbJoursArret: Number(data.SSE_NbJoursArret) || 0,
-          tenantId: T_Id,
-          SSE_ReporterId: U_Id,
-          SSE_SiteId: siteId,
           SSE_DateEvent: data.SSE_DateEvent ? new Date(data.SSE_DateEvent) : new Date(),
+          SSE_ReporterId: userId,
+          SSE_SiteId: siteId,
           SSE_ProcessusId: data.SSE_ProcessusId || null,
+          tenantId: tenantId,
         }
       });
 
-      // 🛠️ AUTOMATISATION : Mise à jour des stats si c'est un accident
+      // 3. Si Accident de travail, mise à jour des stats mensuelles (ST_Id)
       if (['ACCIDENT_TRAVAIL', 'ACCIDENT_TRAVAIL_TRAJET'].includes(data.SSE_Type)) {
-        await this.computeMonthlyStats(tx, T_Id, event.SSE_DateEvent);
+        await this.computeStats(tx, tenantId, event.SSE_DateEvent);
       }
 
       return event;
     });
   }
 
-  /**
-   * 📉 CALCUL DES TAUX DE FRÉQUENCE ET GRAVITÉ (TF/TG)
-   * Résolution de la dette technique : Calcul automatique ISO
-   */
-  private async computeMonthlyStats(tx: any, T_Id: string, date: Date) {
+  private async computeStats(tx: any, tenantId: string, date: Date) {
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
 
     const accidents = await tx.sSEEvent.findMany({
       where: {
-        tenantId: T_Id,
+        tenantId,
         SSE_DateEvent: {
           gte: new Date(year, month - 1, 1),
           lt: new Date(year, month, 1),
@@ -95,41 +104,29 @@ export class SseService {
     });
 
     const nbAccidents = accidents.length;
-    const nbJoursArret = accidents.reduce((sum, acc) => sum + (acc.SSE_NbJoursArret || 0), 0);
-    
-    // Base standard : 200 000 heures ou selon effectif (Dette RH à venir)
-    const heuresTravaillees = 200000; 
+    const nbJoursArret = accidents.reduce((sum: number, acc: any) => sum + (acc.SSE_NbJoursArret || 0), 0);
+    const heuresTravaillees = 200000; // Base théorique à affiner via RH
+
     const tf = (nbAccidents * 1000000) / heuresTravaillees;
     const tg = (nbJoursArret * 1000) / heuresTravaillees;
 
-    await tx.sSEStats.upsert({
-      where: { ST_Id: `${T_Id}-${month}-${year}` }, // Identifiant unique composite
-      update: {
-        ST_NbAccidents: nbAccidents,
-        ST_TauxFrequence: tf,
-        ST_TauxGravite: tg,
-      },
-      create: {
-        ST_Id: `${T_Id}-${month}-${year}`,
-        ST_Mois: month,
-        ST_Annee: year,
-        ST_NbAccidents: nbAccidents,
-        ST_TauxFrequence: tf,
-        ST_TauxGravite: tg,
-        tenantId: T_Id,
-      },
+    // Utilisation de findFirst/upsert sans l'ID composite si non défini, 
+    // ou création d'une logique d'ID unique pour SSEStats
+    await tx.sseStats.create({
+        data: {
+            ST_Mois: month,
+            ST_Annee: year,
+            ST_NbAccidents: nbAccidents,
+            ST_TauxFrequence: tf,
+            ST_TauxGravite: tg,
+            tenantId: tenantId
+        }
     });
   }
 
-  // 🗑️ 4. SUPPRESSION - FONCTIONNALITÉ VALIDÉE
-  async delete(id: string, T_Id: string) {
-    const event = await this.prisma.sSEEvent.findFirst({
-      where: { SSE_Id: id, tenantId: T_Id }
-    });
-    if (!event) throw new NotFoundException("Événement introuvable");
-
-    return this.prisma.sSEEvent.delete({
-      where: { SSE_Id: id }
-    });
+  async delete(id: string, tenantId: string) {
+    const event = await this.prisma.sSEEvent.findFirst({ where: { SSE_Id: id, tenantId } });
+    if (!event) throw new NotFoundException("Événement introuvable.");
+    return this.prisma.sSEEvent.delete({ where: { SSE_Id: id } });
   }
 }

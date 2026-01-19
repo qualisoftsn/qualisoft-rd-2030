@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { PaqService } from './paq.service';
-import { PaqController } from './paq.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { PaqController } from './paq.controller';
+import { PaqService } from './paq.service';
 
 @Module({
   imports: [PrismaModule],
   controllers: [PaqController],
   providers: [PaqService],
-  exports: [PaqService], // Indispensable pour AppModule
+  exports: [PaqService],
 })
-export class PaqModule {} // Vérifie bien que c'est "PaqModule" avec cette casse
+export class PaqModule {}

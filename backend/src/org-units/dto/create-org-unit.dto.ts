@@ -1,16 +1,17 @@
-import { IsString, IsUUID, IsOptional } from 'class-validator';
+import { IsString, IsUUID, IsOptional, MaxLength } from 'class-validator';
 
 export class CreateOrgUnitDto {
   @IsString()
+  @MaxLength(100)
   OU_Name!: string;
 
   @IsUUID()
-  OU_TypeId!: string; // 👈 On remplace OU_Type par l'ID de la table de paramétrage
+  OU_TypeId!: string; // 👈 Relation vers OrgUnitType (Direction, Service, Atelier, etc.)
 
   @IsUUID()
-  OU_SiteId!: string;
+  OU_SiteId!: string; // 👈 Localisation physique obligatoire
 
   @IsOptional()
   @IsUUID()
-  OU_ParentId?: string;
+  OU_ParentId?: string; // 👈 Pour la structure en arbre
 }
