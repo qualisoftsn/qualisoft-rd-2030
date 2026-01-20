@@ -31,6 +31,8 @@ model Tenant {
   T_CeoName             String?
   T_ContractDuration    Int                @default(24)
   T_TacitRenewal        Boolean            @default(true)
+
+  // Relations
   T_Users           User[]
   T_Sites           Site[]
   T_OrgUnits        OrgUnit[]
@@ -134,8 +136,9 @@ model User {
   U_CreatedAt    DateTime @default(now())
   U_UpdatedAt    DateTime @updatedAt
   U_FirstLogin   Boolean  @default(true)
-  tenantId       String
-  tenant         Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
   U_SiteId    String?
   U_Site      Site?    @relation(fields: [U_SiteId], references: [S_Id])
@@ -160,7 +163,7 @@ model User {
   U_Signatures         Signature[]
   U_Competences        UserCompetence[]
   U_SecurityAuditLogs  SecurityAuditLog[]
-  consumptions         Consumption[]
+  U_Consumptions       Consumption[]      @relation("ConsumptionCreator")
 
   @@index([tenantId])
 }
@@ -276,139 +279,93 @@ model Action {
 }
 
 // ==========================================
-// GOUVERNANCE & PLANNING ANNUEL
+// PERFORMANCE & INDICATEURS
 // ==========================================
 
-model GovernanceActivity {
-  GA_Id             String         @id @default(uuid())
-  GA_Num            String?
-  GA_Title          String
-  GA_Type           GovernanceType
-  GA_Theme          String?        @db.Text
-  GA_DatePlanned    DateTime
-  GA_Deadline       DateTime?
-  GA_AnalysisPeriod String?
-  GA_IpDate         DateTime?
-  GA_EffectiveDate  DateTime?
-  GA_Location       String?        @default("Teams")
-  GA_Status         ActivityStatus @default(PLANNED)
-  GA_Comments       String?        @db.Text
-  GA_Observations   String?        @db.Text
+model Indicator {
+  IND_Id        String @id @default(uuid())
+  IND_Code      String
+  IND_Libelle   String
+  IND_Unite     String
+  IND_Cible     Float
+  IND_Frequence String @default("MENSUEL")
 
-  tenantId     String
-  tenant       Tenant      @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  GA_Processes Processus[] @relation("ProcessGovernance")
-  GA_CreatedAt DateTime    @default(now())
-  GA_UpdatedAt DateTime    @updatedAt
+  IND_ProcessusId String
+  IND_Processus   Processus @relation(fields: [IND_ProcessusId], references: [PR_Id])
 
+  tenantId   String
+  tenant     Tenant           @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  IND_Values IndicatorValue[]
+
+  @@unique([IND_Code, tenantId])
   @@index([tenantId])
 }
 
+model IndicatorValue {
+  IV_Id     String   @id @default(uuid())
+  IV_Month  Int
+  IV_Year   Int
+  IV_Actual Float
+  IV_Status IVStatus @default(BROUILLON)
+
+  IV_IndicatorId String
+  IV_Indicator   Indicator @relation(fields: [IV_IndicatorId], references: [IND_Id], onDelete: Cascade)
+  IV_CreatedAt   DateTime  @default(now())
+  IV_UpdatedAt   DateTime  @updatedAt
+
+  @@unique([IV_IndicatorId, IV_Month, IV_Year])
+  @@index([IV_Month, IV_Year])
+}
+
 // ==========================================
-// QUALITÉ & RISQUES
+// ENVIRONNEMENT (ISO 14001)
 // ==========================================
 
-model Reclamation {
-  REC_Id              String            @id @default(uuid())
-  REC_Reference       String            @unique
-  REC_Object          String
-  REC_Description     String            @db.Text
-  REC_Status          ReclamationStatus @default(NOUVELLE)
-  REC_Source          String?
-  REC_DateReceipt     DateTime          @default(now())
-  REC_DateTransmitted DateTime?
-  REC_Deadline        DateTime?
-  REC_Gravity         Priority          @default(MEDIUM)
+model Consumption {
+  CON_Id        String   @id @default(uuid())
+  CON_Type      String
+  CON_Value     Float
+  CON_Unit      String
+  CON_Month     Int
+  CON_Year      Int
+  CON_Cost      Float?
+  CON_CreatedAt DateTime @default(now())
 
-  REC_TierId      String
-  REC_Tier        Tier       @relation(fields: [REC_TierId], references: [TR_Id])
-  REC_ProcessusId String?
-  REC_Processus   Processus? @relation(fields: [REC_ProcessusId], references: [PR_Id])
-  REC_OwnerId     String
-  REC_Owner       User       @relation("ReclamationOwner", fields: [REC_OwnerId], references: [U_Id])
+  CON_SiteId String
+  CON_Site   Site   @relation(fields: [CON_SiteId], references: [S_Id])
+
+  CON_CreatorId String?
+  CON_Creator   User?   @relation("ConsumptionCreator", fields: [CON_CreatorId], references: [U_Id], onDelete: SetNull)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
-  REC_Actions        Action[]
-  REC_NonConformites NonConformite[]
-  REC_CreatedAt      DateTime        @default(now())
-  REC_UpdatedAt      DateTime        @updatedAt
-
   @@index([tenantId])
+  @@index([CON_Month, CON_Year])
 }
 
-model NonConformite {
-  NC_Id          String   @id @default(uuid())
-  NC_Libelle     String
-  NC_Description String   @db.Text
-  NC_Diagnostic  String?  @db.Text
-  NC_Gravite     String   @default("MINEURE")
-  NC_Statut      String   @default("DETECTION")
-  NC_Source      NCSource @default(INTERNAL_AUDIT)
+model Waste {
+  WAS_Id        String   @id @default(uuid())
+  WAS_Label     String
+  WAS_Weight    Float
+  WAS_Type      String
+  WAS_Treatment String
+  WAS_Month     Int
+  WAS_Year      Int
+  WAS_CreatedAt DateTime @default(now())
 
-  NC_ProcessusId   String?
-  NC_Processus     Processus?   @relation(fields: [NC_ProcessusId], references: [PR_Id])
-  NC_ReclamationId String?
-  NC_Reclamation   Reclamation? @relation(fields: [NC_ReclamationId], references: [REC_Id])
-  NC_AuditId       String?
-  NC_Audit         Audit?       @relation(fields: [NC_AuditId], references: [AU_Id])
-  NC_DetectorId    String?
-  NC_Detector      User?        @relation("NCDetector", fields: [NC_DetectorId], references: [U_Id])
-
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  NC_Actions   Action[]
-  NC_Preuves   Preuve[]
-  NC_CreatedAt DateTime @default(now())
-
-  @@index([tenantId])
-}
-
-model RiskType {
-  RT_Id          String  @id @default(uuid())
-  RT_Label       String
-  RT_Description String?
+  WAS_SiteId String
+  WAS_Site   Site   @relation(fields: [WAS_SiteId], references: [S_Id])
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  RT_Risks Risk[]
-
-  @@unique([RT_Label, tenantId])
-  @@index([tenantId])
-}
-
-model Risk {
-  RS_Id          String    @id @default(uuid())
-  RS_Libelle     String
-  RS_Activite    String?
-  RS_Tache       String?
-  RS_Causes      String?   @db.Text
-  RS_Description String?   @db.Text
-  RS_Probabilite Int       @default(1)
-  RS_Gravite     Int       @default(1)
-  RS_Maitrise    Int       @default(1)
-  RS_Score       Int       @default(1)
-  RS_Status      String?   @default("IDENTIFIE")
-  RS_Mesures     String?   @db.Text
-  RS_Acteurs     String?   @db.Text
-  RS_NextReview  DateTime?
-
-  RS_TypeId      String
-  RS_Type        RiskType  @relation(fields: [RS_TypeId], references: [RT_Id])
-  RS_ProcessusId String
-  RS_Processus   Processus @relation(fields: [RS_ProcessusId], references: [PR_Id])
-
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  RS_CreatedAt DateTime @default(now())
-  RS_UpdatedAt DateTime @updatedAt
 
   @@index([tenantId])
+  @@index([WAS_Month, WAS_Year])
 }
 
 // ==========================================
-// SSE & CAUSERIES
+// SSE & CAUSERIES (SÉCURITÉ)
 // ==========================================
 
 model SSEEvent {
@@ -469,7 +426,7 @@ model SSEStats {
 }
 
 // ==========================================
-// AUDITS & RÉUNIONS
+// AUDITS & QUALITÉ
 // ==========================================
 
 model Audit {
@@ -508,39 +465,78 @@ model Finding {
   FI_Audit       Audit       @relation(fields: [FI_AuditId], references: [AU_Id], onDelete: Cascade)
 }
 
-model Meeting {
-  MG_Id     String        @id @default(uuid())
-  MG_Title  String
-  MG_Date   DateTime
-  MG_Status MeetingStatus @default(PLANIFIE)
-  MG_Report String?       @db.Text
+model NonConformite {
+  NC_Id          String   @id @default(uuid())
+  NC_Libelle     String
+  NC_Description String   @db.Text
+  NC_Diagnostic  String?  @db.Text
+  NC_Gravite     String   @default("MINEURE")
+  NC_Statut      String   @default("DETECTION")
+  NC_Source      NCSource @default(INTERNAL_AUDIT)
 
-  MG_ProcessId String?
-  MG_Processus Processus? @relation(fields: [MG_ProcessId], references: [PR_Id])
+  NC_ProcessusId   String?
+  NC_Processus     Processus?   @relation(fields: [NC_ProcessusId], references: [PR_Id])
+  NC_ReclamationId String?
+  NC_Reclamation   Reclamation? @relation(fields: [NC_ReclamationId], references: [REC_Id])
+  NC_AuditId       String?
+  NC_Audit         Audit?       @relation(fields: [NC_AuditId], references: [AU_Id])
+  NC_DetectorId    String?
+  NC_Detector      User?        @relation("NCDetector", fields: [NC_DetectorId], references: [U_Id])
 
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-
-  MG_Attendees MeetingAttendee[]
-  MG_Actions   Action[]
-  MG_CreatedAt DateTime          @default(now())
-  MG_UpdatedAt DateTime          @updatedAt
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  NC_Actions   Action[]
+  NC_Preuves   Preuve[]
+  NC_CreatedAt DateTime @default(now())
 
   @@index([tenantId])
 }
 
-model MeetingAttendee {
-  MA_Id        String  @id @default(uuid())
-  MA_MeetingId String
-  MA_UserId    String
-  MA_Present   Boolean @default(false)
-  MA_Meeting   Meeting @relation(fields: [MA_MeetingId], references: [MG_Id], onDelete: Cascade)
-  MA_User      User    @relation(fields: [MA_UserId], references: [U_Id], onDelete: Cascade)
+// ==========================================
+// RISQUES, GED & TIERS
+// ==========================================
+
+model Risk {
+  RS_Id          String    @id @default(uuid())
+  RS_Libelle     String
+  RS_Activite    String?
+  RS_Tache       String?
+  RS_Causes      String?   @db.Text
+  RS_Description String?   @db.Text
+  RS_Probabilite Int       @default(1)
+  RS_Gravite     Int       @default(1)
+  RS_Maitrise    Int       @default(1)
+  RS_Score       Int       @default(1)
+  RS_Status      String?   @default("IDENTIFIE")
+  RS_Mesures     String?   @db.Text
+  RS_Acteurs     String?   @db.Text
+  RS_NextReview  DateTime?
+
+  RS_TypeId      String
+  RS_Type        RiskType  @relation(fields: [RS_TypeId], references: [RT_Id])
+  RS_ProcessusId String
+  RS_Processus   Processus @relation(fields: [RS_ProcessusId], references: [PR_Id])
+
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  RS_CreatedAt DateTime @default(now())
+  RS_UpdatedAt DateTime @updatedAt
+
+  @@index([tenantId])
 }
 
-// ==========================================
-// GED & PREUVES
-// ==========================================
+model RiskType {
+  RT_Id          String  @id @default(uuid())
+  RT_Label       String
+  RT_Description String?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  RT_Risks Risk[]
+
+  @@unique([RT_Label, tenantId])
+  @@index([tenantId])
+}
 
 model Document {
   DOC_Id             String      @id @default(uuid())
@@ -604,84 +600,108 @@ model Preuve {
   @@index([tenantId])
 }
 
-// ==========================================
-// PERFORMANCE
-// ==========================================
+model Reclamation {
+  REC_Id              String            @id @default(uuid())
+  REC_Reference       String            @unique
+  REC_Object          String
+  REC_Description     String            @db.Text
+  REC_Status          ReclamationStatus @default(NOUVELLE)
+  REC_Source          String?
+  REC_DateReceipt     DateTime          @default(now())
+  REC_DateTransmitted DateTime?
+  REC_Deadline        DateTime?
+  REC_Gravity         Priority          @default(MEDIUM)
 
-model Indicator {
-  IND_Id        String @id @default(uuid())
-  IND_Code      String
-  IND_Libelle   String
-  IND_Unite     String
-  IND_Cible     Float
-  IND_Frequence String @default("MENSUEL")
+  REC_TierId      String
+  REC_Tier        Tier       @relation(fields: [REC_TierId], references: [TR_Id])
+  REC_ProcessusId String?
+  REC_Processus   Processus? @relation(fields: [REC_ProcessusId], references: [PR_Id])
+  REC_OwnerId     String
+  REC_Owner       User       @relation("ReclamationOwner", fields: [REC_OwnerId], references: [U_Id])
 
-  IND_ProcessusId String
-  IND_Processus   Processus @relation(fields: [IND_ProcessusId], references: [PR_Id])
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
-  tenantId   String
-  tenant     Tenant           @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  IND_Values IndicatorValue[]
+  REC_Actions        Action[]
+  REC_NonConformites NonConformite[]
+  REC_CreatedAt      DateTime        @default(now())
+  REC_UpdatedAt      DateTime        @updatedAt
 
   @@index([tenantId])
 }
 
-model IndicatorValue {
-  IV_Id     String   @id @default(uuid())
-  IV_Month  Int
-  IV_Year   Int
-  IV_Actual Float
-  IV_Status IVStatus @default(BROUILLON)
+model Tier {
+  TR_Id    String   @id @default(uuid())
+  TR_Name  String
+  TR_Email String?
+  TR_Type  TierType @default(CLIENT)
 
-  IV_IndicatorId String
-  IV_Indicator   Indicator @relation(fields: [IV_IndicatorId], references: [IND_Id], onDelete: Cascade)
-  IV_CreatedAt   DateTime  @default(now())
-  IV_UpdatedAt   DateTime  @updatedAt
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  TR_Reclamations Reclamation[]
 
-  @@unique([IV_IndicatorId, IV_Month, IV_Year])
-}
-
-model ProcessReview {
-  PRV_Id                  String       @id @default(uuid())
-  PRV_Month               Int
-  PRV_Year                Int
-  PRV_Status              ReviewStatus @default(BROUILLON)
-  PRV_AuditAnalysis       String?      @db.Text
-  PRV_PerformanceAnalysis String?      @db.Text
-  PRV_ResourcesAnalysis   String?      @db.Text
-  PRV_Decisions           String?      @db.Text
-  PRV_RiskAnalysis        String?      @db.Text
-  PRV_DocRef              String?      @default("F-QLT-011")
-  PRV_PiloteSigned        Boolean      @default(false)
-  PRV_RQSigned            Boolean      @default(false)
-
-  PRV_ProcessusId String
-  PRV_Processus   Processus @relation(fields: [PRV_ProcessusId], references: [PR_Id], onDelete: Cascade)
-
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  PRV_CreatedAt DateTime @default(now())
-  PRV_UpdatedAt DateTime @updatedAt
-
-  @@unique([PRV_ProcessusId, PRV_Month, PRV_Year, tenantId])
+  @@unique([TR_Id, tenantId])
   @@index([tenantId])
 }
 
-model RevueDirection {
-  RD_Id      String   @id @default(uuid())
-  RD_Periode String
-  RD_Date    DateTime
+// ==========================================
+// GOUVERNANCE, RH & MAINTENANCE
+// ==========================================
+
+model GovernanceActivity {
+  GA_Id             String         @id @default(uuid())
+  GA_Num            String?
+  GA_Title          String
+  GA_Type           GovernanceType
+  GA_Theme          String?        @db.Text
+  GA_DatePlanned    DateTime
+  GA_Deadline       DateTime?
+  GA_AnalysisPeriod String?
+  GA_IpDate         DateTime?
+  GA_EffectiveDate  DateTime?
+  GA_Location       String?        @default("Teams")
+  GA_Status         ActivityStatus @default(PLANNED)
+  GA_Comments       String?        @db.Text
+  GA_Observations   String?        @db.Text
 
   tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  RD_CreatedAt DateTime @default(now())
+  tenant       Tenant      @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  GA_Processes Processus[] @relation("ProcessGovernance")
+  GA_CreatedAt DateTime    @default(now())
+  GA_UpdatedAt DateTime    @updatedAt
 
   @@index([tenantId])
 }
 
-// ==========================================
-// ÉQUIPEMENTS, RH & FINANCES
-// ==========================================
+model Meeting {
+  MG_Id     String        @id @default(uuid())
+  MG_Title  String
+  MG_Date   DateTime
+  MG_Status MeetingStatus @default(PLANIFIE)
+  MG_Report String?       @db.Text
+
+  MG_ProcessId String?
+  MG_Processus Processus? @relation(fields: [MG_ProcessId], references: [PR_Id])
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+
+  MG_Attendees MeetingAttendee[]
+  MG_Actions   Action[]
+  MG_CreatedAt DateTime          @default(now())
+  MG_UpdatedAt DateTime          @updatedAt
+
+  @@index([tenantId])
+}
+
+model MeetingAttendee {
+  MA_Id        String  @id @default(uuid())
+  MA_MeetingId String
+  MA_UserId    String
+  MA_Present   Boolean @default(false)
+  MA_Meeting   Meeting @relation(fields: [MA_MeetingId], references: [MG_Id], onDelete: Cascade)
+  MA_User      User    @relation(fields: [MA_UserId], references: [U_Id], onDelete: Cascade)
+}
 
 model Equipment {
   EQ_Id           String   @id @default(uuid())
@@ -734,64 +754,47 @@ model Formation {
   @@index([tenantId])
 }
 
-model Tier {
-  TR_Id    String   @id @default(uuid())
-  TR_Name  String
-  TR_Email String?
-  TR_Type  TierType @default(CLIENT)
+model ProcessReview {
+  PRV_Id                  String       @id @default(uuid())
+  PRV_Month               Int
+  PRV_Year                Int
+  PRV_Status              ReviewStatus @default(BROUILLON)
+  PRV_AuditAnalysis       String?      @db.Text
+  PRV_PerformanceAnalysis String?      @db.Text
+  PRV_ResourcesAnalysis   String?      @db.Text
+  PRV_Decisions           String?      @db.Text
+  PRV_RiskAnalysis        String?      @db.Text
+  PRV_DocRef              String?      @default("F-QLT-011")
+  PRV_PiloteSigned        Boolean      @default(false)
+  PRV_RQSigned            Boolean      @default(false)
 
-  tenantId        String
-  tenant          Tenant        @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  TR_Reclamations Reclamation[]
+  PRV_ProcessusId String
+  PRV_Processus   Processus @relation(fields: [PRV_ProcessusId], references: [PR_Id], onDelete: Cascade)
 
-  @@unique([TR_Id, tenantId])
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  PRV_CreatedAt DateTime @default(now())
+  PRV_UpdatedAt DateTime @updatedAt
+
+  @@unique([PRV_ProcessusId, PRV_Month, PRV_Year, tenantId])
+  @@index([tenantId])
+}
+
+model RevueDirection {
+  RD_Id      String   @id @default(uuid())
+  RD_Periode String
+  RD_Date    DateTime
+
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  RD_CreatedAt DateTime @default(now())
+
   @@index([tenantId])
 }
 
 // ==========================================
-// ENVIRONNEMENT (ISO 14001)
+// SÉCURITÉ & SUPPORT TECHNIQUE
 // ==========================================
-
-model Consumption {
-  CON_Id        String   @id @default(uuid())
-  CON_Type      String // ELECTRICITE, EAU, GAZ, CARBURANT
-  CON_Value     Float
-  CON_Unit      String
-  CON_Month     Int
-  CON_Year      Int
-  CON_Cost      Float?
-  CON_CreatedAt DateTime @default(now())
-
-  CON_SiteId String
-  CON_Site   Site   @relation(fields: [CON_SiteId], references: [S_Id])
-
-  CON_CreatorId String
-  CON_Creator   User   @relation(fields: [CON_CreatorId], references: [U_Id])
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-
-  @@index([tenantId])
-}
-
-model Waste {
-  WAS_Id        String   @id @default(uuid())
-  WAS_Label     String
-  WAS_Weight    Float
-  WAS_Type      String // DANGEREUX, BANAL
-  WAS_Treatment String // RECYCLAGE, VALORISATION, ELIMINATION
-  WAS_Month     Int
-  WAS_Year      Int
-  WAS_CreatedAt DateTime @default(now())
-
-  WAS_SiteId String
-  WAS_Site   Site   @relation(fields: [WAS_SiteId], references: [S_Id])
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-
-  @@index([tenantId])
-}
 
 model Signature {
   SIG_Id         String @id @default(uuid())
