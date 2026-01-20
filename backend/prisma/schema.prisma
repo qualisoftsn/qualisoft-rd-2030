@@ -31,8 +31,6 @@ model Tenant {
   T_CeoName             String?
   T_ContractDuration    Int                @default(24)
   T_TacitRenewal        Boolean            @default(true)
-
-  // Relations (le nom de la relation reste explicite, mais le champ devient tenantId)
   T_Users           User[]
   T_Sites           Site[]
   T_OrgUnits        OrgUnit[]
