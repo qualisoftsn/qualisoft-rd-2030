@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
+import apiClient from '../../api/apiClient';
 
 const LandingPage = ({ navigation }: any) => {
   const [domain, setDomain] = useState('');
