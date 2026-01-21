@@ -42,6 +42,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ContactService } from './auth/contact.service';
 import { UploadController } from './common/upload.controller';
+import { HealthController } from './health/health.controller';
 import { SettingsController } from './settings/settings.controller';
 
 @Module({
@@ -92,7 +93,8 @@ import { SettingsController } from './settings/settings.controller';
   controllers: [
     AppController, 
     SettingsController,
-    UploadController
+    UploadController,
+    HealthController
   ], 
   providers: [
     AppService, 
