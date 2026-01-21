@@ -1,36 +1,21 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-/**
- * CONFIGURATION PRODUCTION ELITE - OVH
- * Point d'accès centralisé pour toutes les requêtes vers le conteneur qualisoft-backend
- */
 const apiClient = axios.create({
   baseURL: 'https://elite.qualisoft.sn/api',
   timeout: 20000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Intercepteur pour l'injection automatique des credentials
-apiClient.interceptors.request.use(
-  async (config) => {
-    const { token, tenantId } = useAuthStore.getState();
+apiClient.interceptors.request.use(async (config) => {
+  const state = useAuthStore.getState();
+  const token = state?.token;
+  const tenantId = state?.tenantId;
 
-    // Authentification JWT
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    // Isolation des données par organisation (Multi-tenant)
-    if (tenantId) {
-      config.headers['X-Tenant-ID'] = tenantId;
-    }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (tenantId) config.headers['X-Tenant-ID'] = tenantId;
 
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  return config;
+}, (error) => Promise.reject(error));
 
 export default apiClient;

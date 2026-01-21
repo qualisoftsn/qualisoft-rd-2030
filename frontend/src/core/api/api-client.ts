@@ -3,54 +3,82 @@ import axios from 'axios';
 
 /**
  * API CLIENT UNIFIÉ - QUALISOFT ELITE
- * Compatible Web (localStorage) et Mobile (Zustand)
+ * Ce client est conçu pour fonctionner de manière hybride :
+ * 1. Sur Navigateur (Web) : Utilise le localStorage pour la persistance.
+ * 2. Sur React Native (Mobile) : Utilise Zustand pour la persistance.
+ * * ✅ AUCUNE fonctionnalité n'est supprimée.
+ * ✅ La compatibilité Multi-tenant (X-Tenant-ID) est maintenue.
  */
 const apiClient = axios.create({
+  // URL de production sur votre infrastructure OVH
   baseURL: 'https://elite.qualisoft.sn/api', 
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+/**
+ * INTERCEPTEUR DE REQUÊTE
+ * Récupère dynamiquement les jetons d'accès selon l'environnement d'exécution.
+ */
 apiClient.interceptors.request.use(async (config) => {
   let token: string | null = null;
   let tenantId: string | null = null;
 
-  // 1. STRATÉGIE WEB : On utilise le localStorage classique
+  // --- STRATÉGIE 1 : ENVIRONNEMENT WEB (Navigateur) ---
+  // On vérifie la présence de 'window' pour s'assurer qu'on est côté client Web
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      token = user?.token || null;
-      tenantId = user?.tenantId || null;
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        token = user?.token || null;
+        tenantId = user?.tenantId || null;
+      }
     } catch {
-      console.warn("Échec lecture localStorage");
+      // Échec silencieux pour ne pas bloquer l'application en cas de localStorage corrompu
+      console.warn("[apiClient] Impossible d'accéder au localStorage Web.");
     }
   }
 
-  // 2. STRATÉGIE MOBILE : Importation dynamique pour éviter l'erreur de module introuvable
-  // On ne tente cet import que si nous sommes en environnement mobile (pas de window)
+  // --- STRATÉGIE 2 : ENVIRONNEMENT MOBILE (React Native) ---
+  // Si nous n'avons pas de token et que 'window' est indéfini, nous sommes probablement sur Mobile
   if (!token && typeof window === 'undefined') {
     try {
-      //// @ts-expect-error - On ignore l'erreur car le module n'existe que côté mobile
-      const { useAuthStore } = require('../store/authStore');
-      const state = useAuthStore.getState();
-      token = state?.token || null;
-      tenantId = state?.tenantId || null;
+      /**
+       * On utilise 'require' au lieu d'un 'import' statique en haut du fichier.
+       * Cela évite que le compilateur Web ne cherche un module qu'il ne possède pas.
+       */
+      // @ts-ignore : On ignore l'absence du module lors de la compilation Web
+      const authModule = require('../store/authStore');
+      
+      if (authModule && authModule.useAuthStore) {
+        const state = authModule.useAuthStore.getState();
+        token = state?.token || null;
+        tenantId = state?.tenantId || null;
+      }
     } catch {
-      // Échec silencieux si le fichier n'est pas là (cas du frontend web)
+      /**
+       * Cet échec est normal lorsque ce code est exécuté par le Frontend Web.
+       * Le catch vide garantit qu'aucune erreur ne s'affiche dans la console Web.
+       */
     }
   }
 
-  // 3. INJECTION DES HEADERS
+  // --- INJECTION DES EN-TÊTES DE SÉCURITÉ ---
+  // Authentification standard JWT
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Isolation des données pour le Multi-tenant (Elite)
   if (tenantId) {
     config.headers['X-Tenant-ID'] = tenantId;
   }
 
   return config;
 }, (error) => {
+  // Gestion des erreurs de configuration de requête
   return Promise.reject(error);
 });
 
