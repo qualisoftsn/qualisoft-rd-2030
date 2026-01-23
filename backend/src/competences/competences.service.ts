@@ -92,14 +92,14 @@ export class CompetencesService {
     const alertThreshold = new Date();
     alertThreshold.setDate(alertThreshold.getDate() + 30);
 
-    // Note : UH_ExpiryDate utilise la table userHabilitation du schéma
+    // ✅ Correction : Utilisation des noms de champs du Schéma (userId, user)
     return this.prisma.userHabilitation.findMany({
       where: {
         tenantId: T_Id,
-        UH_ExpiryDate: { lte: alertThreshold, gte: new Date() } // Uniquement les futures expirations
+        UH_ExpiryDate: { lte: alertThreshold, gte: new Date() } 
       },
       include: { 
-        UH_User: { select: { U_FirstName: true, U_LastName: true } } 
+        user: { select: { U_FirstName: true, U_LastName: true } } 
       },
       orderBy: { UH_ExpiryDate: 'asc' }
     });

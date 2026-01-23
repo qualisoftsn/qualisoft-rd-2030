@@ -66,6 +66,8 @@ model Tenant {
   T_RiskTypes       RiskType[]
   T_Consumptions    Consumption[]
   T_Wastes          Waste[]
+  notifications     Notification[]
+  userHabilitations UserHabilitation[]
 }
 
 // ==========================================
@@ -164,6 +166,8 @@ model User {
   U_Competences        UserCompetence[]
   U_SecurityAuditLogs  SecurityAuditLog[]
   U_Consumptions       Consumption[]      @relation("ConsumptionCreator")
+  notifications        Notification[]
+  userHabilitations    UserHabilitation[]
 
   @@index([tenantId])
 }
@@ -320,6 +324,43 @@ model IndicatorValue {
 // ==========================================
 // ENVIRONNEMENT (ISO 14001)
 // ==========================================
+model Notification {
+  N_Id        String           @id @default(uuid())
+  N_Title     String
+  N_Message   String           @db.Text
+  N_Type      NotificationType @default(INFO)
+  N_IsRead    Boolean          @default(false)
+  N_CreatedAt DateTime         @default(now())
+
+  // Relations Master
+  userId   String
+  user     User   @relation(fields: [userId], references: [U_Id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model UserHabilitation {
+  UH_Id           String    @id @default(uuid())
+  UH_Label        String
+  UH_DateObtained DateTime
+  UH_ExpiryDate   DateTime?
+  UH_Status       HabStatus @default(ACTIVE)
+  UH_FileUrl      String? // Preuve PDF/Image de l'habilitation
+  UH_CreatedAt    DateTime  @default(now())
+  UH_UpdatedAt    DateTime  @updatedAt
+
+  // Relations Master
+  userId   String
+  user     User   @relation(fields: [userId], references: [U_Id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
+}
 
 model Consumption {
   CON_Id        String   @id @default(uuid())
@@ -901,6 +942,21 @@ enum DocStatus {
   REJETE
   ARCHIVE
   OBSOLETE
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  DANGER
+  SSE_ALERT
+}
+
+enum HabStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  PENDING
 }
 
 enum DocCategory {

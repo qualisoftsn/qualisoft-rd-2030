@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationType } from '@prisma/client';
 
 @Injectable()
 export class NotificationsService {
@@ -15,17 +16,18 @@ export class NotificationsService {
    * ✅ NOTIFIER : CRÉATION D'UNE ALERTE DANS LE SYSTÈME
    * Utilisé pour la visibilité immédiate des événements critiques
    */
-  async createNotification(userId: string, title: string, message: string, type: 'INFO' | 'WARNING' | 'CRITICAL', tenantId: string) {
+  async createNotification(userId: string, title: string, message: string, type: NotificationType, tenantId: string) {
     this.logger.log(`[NOTIF] Création alerte pour ${userId}: ${title}`);
     
+    // ✅ Correction : Alignement sur les préfixes N_ du schéma
     return this.prisma.notification.create({
       data: {
-        NT_UserId: userId,
-        NT_Title: title,
-        NT_Message: message,
-        NT_Type: type,
+        userId: userId,
+        N_Title: title,
+        N_Message: message,
+        N_Type: type,
         tenantId: tenantId,
-        NT_IsRead: false
+        N_IsRead: false
       }
     });
   }
@@ -35,8 +37,8 @@ export class NotificationsService {
    */
   async getMyNotifications(userId: string, tenantId: string) {
     return this.prisma.notification.findMany({
-      where: { NT_UserId: userId, tenantId, NT_IsRead: false },
-      orderBy: { NT_CreatedAt: 'desc' },
+      where: { userId: userId, tenantId, N_IsRead: false },
+      orderBy: { N_CreatedAt: 'desc' },
       take: 20
     });
   }
@@ -52,7 +54,7 @@ export class NotificationsService {
   async runGlobalSurveillance(tenantId: string) {
     const today = new Date();
     const alertThreshold = new Date();
-    alertThreshold.setDate(today.getDate() + 30); // Anticipation 30 jours
+    alertThreshold.setDate(today.getDate() + 30); 
 
     // 1. Actions du PAQ hors délais
     const delayedActions = await this.prisma.action.findMany({
@@ -69,7 +71,7 @@ export class NotificationsService {
         action.ACT_ResponsableId,
         "⚠️ ACTION EN RETARD",
         `L'action "${action.ACT_Title}" est en retard depuis le ${action.ACT_Deadline?.toLocaleDateString()}.`,
-        'CRITICAL',
+        'DANGER', // ✅ DANGER correspond à ton Enum NotificationType
         tenantId
       );
     }
@@ -81,9 +83,9 @@ export class NotificationsService {
 
     for (const hab of expiringHabs) {
       await this.createNotification(
-        hab.UH_UserId,
+        hab.userId,
         "🛡️ EXPIRATION HABILITATION",
-        `Votre habilitation expire le ${hab.UH_ExpiryDate.toLocaleDateString()}.`,
+        `Votre habilitation expire le ${hab.UH_ExpiryDate?.toLocaleDateString()}.`,
         'WARNING',
         tenantId
       );
@@ -95,8 +97,8 @@ export class NotificationsService {
    */
   async markAsRead(notificationId: string, userId: string) {
     return this.prisma.notification.updateMany({
-      where: { NT_Id: notificationId, NT_UserId: userId },
-      data: { NT_IsRead: true }
+      where: { N_Id: notificationId, userId: userId },
+      data: { N_IsRead: true }
     });
   }
 }
