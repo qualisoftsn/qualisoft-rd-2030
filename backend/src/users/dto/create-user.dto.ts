@@ -1,12 +1,13 @@
-import { IsEmail, IsString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsEmail, IsString, IsEnum, IsOptional, IsUUID, MinLength } from 'class-validator';
 import { Role } from '@prisma/client';
 
 export class CreateUserDto {
-  @IsEmail()
+  @IsEmail({}, { message: "Email invalide" })
   U_Email!: string;
 
   @IsString()
-  U_PasswordHash!: string;
+  @MinLength(8, { message: "Le mot de passe doit faire au moins 8 caractères" })
+  U_Password!: string; // Reçu en clair, sera haché par le service
 
   @IsString()
   @IsOptional()
@@ -20,9 +21,9 @@ export class CreateUserDto {
   U_Role!: Role;
 
   @IsUUID()
-  U_SiteId!: string; // Liste déroulante des sites
+  U_SiteId!: string;
 
-  @IsUUID()
   @IsOptional()
-  U_OrgUnitId?: string; // Liste déroulante des Unités Organiques
+  @IsUUID()
+  U_OrgUnitId?: string;
 }

@@ -1,16 +1,22 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PaymentService {
-  prisma: any;
-  // Simule la vérification du statut avant accès au Dashboard
+  constructor(private prisma: PrismaService) {}
+
   async checkSubscription(tenantId: string) {
-    // Logique : Si le paiement par virement est "En attente" ou Orange Money validé
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await this.prisma.tenant.findUnique({ 
+      where: { T_Id: tenantId } 
+    });
     
-    if (tenant.status === 'CANCELED') {
-      throw new ForbiddenException('Abonnement expiré. Veuillez régulariser via Wave ou Carte Bancaire.');
+    if (!tenant) throw new NotFoundException('Instance introuvable.');
+
+    // Logique SaaS : Blocage si statut annulé ou impayé
+    if (tenant.T_SubscriptionStatus === 'EXPIRED') {
+      throw new ForbiddenException('Abonnement résilié. Veuillez régulariser via Wave, Orange Money ou Carte Bancaire.');
     }
+    
     return true;
   }
 }

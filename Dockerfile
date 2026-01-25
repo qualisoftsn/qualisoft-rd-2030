@@ -5,45 +5,44 @@ WORKDIR /app
 # On définit l'environnement de build
 ENV NODE_ENV=development
 
-# Installation des outils nécessaires pour certaines dépendances natives
+# Installation des outils nécessaires
 RUN apk add --no-cache python3 make g++
 
-# Copie des fichiers de configuration
-COPY backend/package*.json ./
-
-# Installation propre avec gestion des conflits Nest 10 / Swagger 11
+# ✅ Correction du chemin : on copie depuis le contexte local
+COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Copie du code source du backend
-COPY backend/ .
+# Copie du code source et du dossier prisma
+COPY . .
 
-# Génération du client Prisma (Crucial pour le lien avec PostgreSQL)
+# Génération du client Prisma
 RUN npx prisma generate
 
-# Compilation NestJS vers le dossier /dist
+# Compilation NestJS
 RUN npm run build
 
 # --- ÉTAPE 2 : RUNTIME (Exécution) ---
 FROM node:20-alpine
 WORKDIR /app
 
-# Installation du client PostgreSQL pour les backups automatisés
-RUN apk add --no-cache postgresql-client
+# Installation des outils système (PostgreSQL client + OpenSSL pour Prisma)
+RUN apk add --no-cache postgresql-client openssl
 
-# On définit l'environnement de production
+# On définit l'environnement
 ENV NODE_ENV=production
 
-# On récupère uniquement le nécessaire du builder pour alléger l'image
+# ✅ RÉCUPÉRATION DES FICHIERS (On ajoute le dossier prisma ici !)
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
 
-# Création des dossiers persistants (GED et Backups)
+# Création des dossiers persistants
 RUN mkdir -p uploads backups
 
-# Exposition du port du Noyau Qualisoft
 EXPOSE 9000
 
-# ✅ Lancement sécurisé : On spécifie l'extension .js
-CMD ["node", "dist/main.js"]
+# ✅ Lancement avec synchronisation automatique de la base de données
+# Cela règle ton erreur P3005 en forçant la mise à jour du schéma au démarrage
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main.js"]

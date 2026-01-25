@@ -10,14 +10,16 @@ import { JwtStrategy } from './jwt.strategy';
 @Module({
   imports: [
     UsersModule,
+    // Configuration Passport avec la stratégie par défaut
     PassportModule.register({ defaultStrategy: 'jwt' }), 
+    // Configuration JWT avec secret d'environnement
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'secretKey',
+      secret: process.env.JWT_SECRET || 'SECRET_KEY_QUALISOFT',
       signOptions: { expiresIn: '24h' },
     }),
   ],
   providers: [AuthService, JwtStrategy, ContactService], 
   controllers: [AuthController],
-  exports: [AuthService, PassportModule], 
+  exports: [AuthService, PassportModule, JwtStrategy], // Exportation pour usage global
 })
 export class AuthModule {}

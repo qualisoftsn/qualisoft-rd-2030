@@ -19,15 +19,15 @@ export class NotificationsService {
   async createNotification(userId: string, title: string, message: string, type: NotificationType, tenantId: string) {
     this.logger.log(`[NOTIF] Création alerte pour ${userId}: ${title}`);
     
-    // ✅ Correction : Alignement sur les préfixes N_ du schéma
+    // ✅ Alignement strict sur les préfixes N_ et les relations du schéma
     return this.prisma.notification.create({
       data: {
-        userId: userId,
         N_Title: title,
         N_Message: message,
         N_Type: type,
-        tenantId: tenantId,
-        N_IsRead: false
+        N_IsRead: false,
+        user: { connect: { U_Id: userId } },
+        tenant: { connect: { T_Id: tenantId } }
       }
     });
   }
@@ -37,7 +37,11 @@ export class NotificationsService {
    */
   async getMyNotifications(userId: string, tenantId: string) {
     return this.prisma.notification.findMany({
-      where: { userId: userId, tenantId, N_IsRead: false },
+      where: { 
+        userId: userId, 
+        tenantId: tenantId, 
+        N_IsRead: false 
+      },
       orderBy: { N_CreatedAt: 'desc' },
       take: 20
     });
@@ -71,14 +75,17 @@ export class NotificationsService {
         action.ACT_ResponsableId,
         "⚠️ ACTION EN RETARD",
         `L'action "${action.ACT_Title}" est en retard depuis le ${action.ACT_Deadline?.toLocaleDateString()}.`,
-        'DANGER', // ✅ DANGER correspond à ton Enum NotificationType
+        'DANGER', // ✅ DANGER est une valeur valide de ton Enum NotificationType
         tenantId
       );
     }
 
     // 2. Habilitations SSE (CACES, Élec) arrivant à expiration
     const expiringHabs = await this.prisma.userHabilitation.findMany({
-      where: { tenantId, UH_ExpiryDate: { lte: alertThreshold, gte: today } }
+      where: { 
+        tenantId, 
+        UH_ExpiryDate: { lte: alertThreshold, gte: today } 
+      }
     });
 
     for (const hab of expiringHabs) {
@@ -92,13 +99,27 @@ export class NotificationsService {
     }
   }
 
+  // ======================================================
+  // 🛠️ ZONE 3 : ADMINISTRATION (ACQUITTEMENT)
+  // ======================================================
+
   /**
    * ✅ ACQUITTEMENT : MARQUER COMME LU
    */
   async markAsRead(notificationId: string, userId: string) {
-    return this.prisma.notification.updateMany({
-      where: { N_Id: notificationId, userId: userId },
+    // Utilisation de updateMany pour sécuriser par userId (évite qu'un utilisateur acquitte la notif d'un autre)
+    const result = await this.prisma.notification.updateMany({
+      where: { 
+        N_Id: notificationId, 
+        userId: userId 
+      },
       data: { N_IsRead: true }
     });
+
+    if (result.count === 0) {
+      throw new NotFoundException(`Notification introuvable ou déjà traitée.`);
+    }
+
+    return result;
   }
 }

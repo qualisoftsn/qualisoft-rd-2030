@@ -67,7 +67,7 @@ model Tenant {
   T_Consumptions    Consumption[]
   T_Wastes          Waste[]
   notifications     Notification[]
-  userHabilitations UserHabilitation[]
+  userHabilitations userHabilitation[]
 }
 
 // ==========================================
@@ -75,9 +75,10 @@ model Tenant {
 // ==========================================
 
 model Site {
-  S_Id      String  @id @default(uuid())
-  S_Name    String
-  S_Address String?
+  S_Id       String  @id @default(uuid())
+  S_Name     String
+  S_Address  String?
+  S_IsActive Boolean @default(true)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -97,6 +98,7 @@ model OrgUnitType {
   OUT_Id          String  @id @default(uuid())
   OUT_Label       String
   OUT_Description String?
+  OUT_IsActive    Boolean @default(true)
 
   tenantId  String
   tenant    Tenant    @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -167,7 +169,7 @@ model User {
   U_SecurityAuditLogs  SecurityAuditLog[]
   U_Consumptions       Consumption[]      @relation("ConsumptionCreator")
   notifications        Notification[]
-  userHabilitations    UserHabilitation[]
+  userHabilitations    userHabilitation[]
 
   @@index([tenantId])
 }
@@ -181,6 +183,7 @@ model ProcessType {
   PT_Label       String
   PT_Description String?
   PT_Color       String? @default("#3b82f6")
+  PT_IsActive    Boolean @default(true)
 
   tenantId     String
   tenant       Tenant      @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -197,6 +200,7 @@ model Processus {
   PR_Description String?     @db.Text
   PR_TypeId      String
   PR_Type        ProcessType @relation(fields: [PR_TypeId], references: [PT_Id])
+  PR_IsActive    Boolean     @default(true)
 
   PR_PiloteId   String
   PR_Pilote     User    @relation("PiloteProcessus", fields: [PR_PiloteId], references: [U_Id])
@@ -229,6 +233,7 @@ model PAQ {
   PAQ_Title            String
   PAQ_Description      String?   @db.Text
   PAQ_Year             Int
+  PAQ_IsActive         Boolean   @default(true)
   PAQ_ProcessusId      String
   PAQ_Processus        Processus @relation(fields: [PAQ_ProcessusId], references: [PR_Id], onDelete: Cascade)
   PAQ_QualityManagerId String
@@ -252,6 +257,7 @@ model Action {
   ACT_Type        ActionType   @default(CORRECTIVE)
   ACT_Status      ActionStatus @default(A_FAIRE)
   ACT_Priority    Priority     @default(MEDIUM)
+  ACT_IsActive    Boolean      @default(true)
   ACT_CreatedAt   DateTime     @default(now())
   ACT_Deadline    DateTime?
   ACT_CompletedAt DateTime?
@@ -287,12 +293,13 @@ model Action {
 // ==========================================
 
 model Indicator {
-  IND_Id        String @id @default(uuid())
+  IND_Id        String  @id @default(uuid())
   IND_Code      String
   IND_Libelle   String
   IND_Unite     String
   IND_Cible     Float
-  IND_Frequence String @default("MENSUEL")
+  IND_Frequence String  @default("MENSUEL")
+  IND_IsActive  Boolean @default(true)
 
   IND_ProcessusId String
   IND_Processus   Processus @relation(fields: [IND_ProcessusId], references: [PR_Id])
@@ -306,11 +313,12 @@ model Indicator {
 }
 
 model IndicatorValue {
-  IV_Id     String   @id @default(uuid())
-  IV_Month  Int
-  IV_Year   Int
-  IV_Actual Float
-  IV_Status IVStatus @default(BROUILLON)
+  IV_Id       String   @id @default(uuid())
+  IV_Month    Int
+  IV_Year     Int
+  IV_Actual   Float
+  IV_Status   IVStatus @default(BROUILLON)
+  IV_IsActive Boolean  @default(true)
 
   IV_IndicatorId String
   IV_Indicator   Indicator @relation(fields: [IV_IndicatorId], references: [IND_Id], onDelete: Cascade)
@@ -322,17 +330,18 @@ model IndicatorValue {
 }
 
 // ==========================================
-// ENVIRONNEMENT (ISO 14001)
+// NOTIFICATIONS ET RH
 // ==========================================
+
 model Notification {
   N_Id        String           @id @default(uuid())
   N_Title     String
   N_Message   String           @db.Text
   N_Type      NotificationType @default(INFO)
   N_IsRead    Boolean          @default(false)
+  N_IsActive  Boolean          @default(true)
   N_CreatedAt DateTime         @default(now())
 
-  // Relations Master
   userId   String
   user     User   @relation(fields: [userId], references: [U_Id], onDelete: Cascade)
   tenantId String
@@ -342,17 +351,17 @@ model Notification {
   @@index([tenantId])
 }
 
-model UserHabilitation {
+model userHabilitation {
   UH_Id           String    @id @default(uuid())
   UH_Label        String
   UH_DateObtained DateTime
   UH_ExpiryDate   DateTime?
   UH_Status       HabStatus @default(ACTIVE)
-  UH_FileUrl      String? // Preuve PDF/Image de l'habilitation
+  UH_IsActive     Boolean   @default(true)
+  UH_FileUrl      String?
   UH_CreatedAt    DateTime  @default(now())
   UH_UpdatedAt    DateTime  @updatedAt
 
-  // Relations Master
   userId   String
   user     User   @relation(fields: [userId], references: [U_Id], onDelete: Cascade)
   tenantId String
@@ -361,6 +370,10 @@ model UserHabilitation {
   @@index([userId])
   @@index([tenantId])
 }
+
+// ==========================================
+// ENVIRONNEMENT (ISO 14001)
+// ==========================================
 
 model Consumption {
   CON_Id        String   @id @default(uuid())
@@ -370,6 +383,7 @@ model Consumption {
   CON_Month     Int
   CON_Year      Int
   CON_Cost      Float?
+  CON_IsActive  Boolean  @default(true)
   CON_CreatedAt DateTime @default(now())
 
   CON_SiteId String
@@ -393,6 +407,7 @@ model Waste {
   WAS_Treatment String
   WAS_Month     Int
   WAS_Year      Int
+  WAS_IsActive  Boolean  @default(true)
   WAS_CreatedAt DateTime @default(now())
 
   WAS_SiteId String
@@ -417,6 +432,7 @@ model SSEEvent {
   SSE_Description  String   @db.Text
   SSE_AvecArret    Boolean  @default(false)
   SSE_NbJoursArret Int      @default(0)
+  SSE_IsActive     Boolean  @default(true)
 
   SSE_ReporterId  String?
   SSE_Reporter    User?      @relation("EventReporter", fields: [SSE_ReporterId], references: [U_Id])
@@ -441,6 +457,7 @@ model Causerie {
   CS_Theme       String
   CS_Date        DateTime @default(now())
   CS_CompteRendu String?  @db.Text
+  CS_IsActive    Boolean  @default(true)
 
   CS_AnimateurId  String
   CS_Animateur    User   @relation("AnimateurCauserie", fields: [CS_AnimateurId], references: [U_Id])
@@ -453,12 +470,13 @@ model Causerie {
 }
 
 model SSEStats {
-  ST_Id            String @id @default(uuid())
+  ST_Id            String  @id @default(uuid())
   ST_Mois          Int
   ST_Annee         Int
   ST_NbAccidents   Int
-  ST_TauxFrequence Float  @default(0)
-  ST_TauxGravite   Float  @default(0)
+  ST_TauxFrequence Float   @default(0)
+  ST_TauxGravite   Float   @default(0)
+  ST_IsActive      Boolean @default(true)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -477,6 +495,7 @@ model Audit {
   AU_Scope     String      @db.Text
   AU_DateAudit DateTime
   AU_Status    AuditStatus @default(PLANIFIE)
+  AU_IsActive  Boolean     @default(true)
 
   AU_LeadId      String?
   AU_Lead        User?      @relation("LeadAuditor", fields: [AU_LeadId], references: [U_Id])
@@ -502,6 +521,7 @@ model Finding {
   FI_Id          String      @id @default(uuid())
   FI_Description String      @db.Text
   FI_Type        FindingType
+  FI_IsActive    Boolean     @default(true)
   FI_AuditId     String
   FI_Audit       Audit       @relation(fields: [FI_AuditId], references: [AU_Id], onDelete: Cascade)
 }
@@ -514,6 +534,7 @@ model NonConformite {
   NC_Gravite     String   @default("MINEURE")
   NC_Statut      String   @default("DETECTION")
   NC_Source      NCSource @default(INTERNAL_AUDIT)
+  NC_IsActive    Boolean  @default(true)
 
   NC_ProcessusId   String?
   NC_Processus     Processus?   @relation(fields: [NC_ProcessusId], references: [PR_Id])
@@ -552,6 +573,7 @@ model Risk {
   RS_Mesures     String?   @db.Text
   RS_Acteurs     String?   @db.Text
   RS_NextReview  DateTime?
+  RS_IsActive    Boolean   @default(true)
 
   RS_TypeId      String
   RS_Type        RiskType  @relation(fields: [RS_TypeId], references: [RT_Id])
@@ -570,6 +592,7 @@ model RiskType {
   RT_Id          String  @id @default(uuid())
   RT_Label       String
   RT_Description String?
+  RT_IsActive    Boolean @default(true)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -587,6 +610,7 @@ model Document {
   DOC_Status         DocStatus   @default(BROUILLON)
   DOC_CurrentVersion Int         @default(1)
   DOC_IsArchived     Boolean     @default(false)
+  DOC_IsActive       Boolean     @default(true)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -611,6 +635,7 @@ model DocumentVersion {
   DV_FileName      String
   DV_FileSize      Int       @default(0)
   DV_Status        DocStatus @default(BROUILLON)
+  DV_IsActive      Boolean   @default(true)
 
   DV_DocumentId  String
   DV_Document    Document @relation(fields: [DV_DocumentId], references: [DOC_Id], onDelete: Cascade)
@@ -624,6 +649,7 @@ model Preuve {
   PV_Commentaire String?
   PV_FileUrl     String
   PV_FileName    String
+  PV_IsActive    Boolean @default(true)
 
   PV_AuditId       String?
   PV_Audit         Audit?         @relation(fields: [PV_AuditId], references: [AU_Id])
@@ -652,6 +678,7 @@ model Reclamation {
   REC_DateTransmitted DateTime?
   REC_Deadline        DateTime?
   REC_Gravity         Priority          @default(MEDIUM)
+  REC_IsActive        Boolean           @default(true)
 
   REC_TierId      String
   REC_Tier        Tier       @relation(fields: [REC_TierId], references: [TR_Id])
@@ -672,10 +699,11 @@ model Reclamation {
 }
 
 model Tier {
-  TR_Id    String   @id @default(uuid())
-  TR_Name  String
-  TR_Email String?
-  TR_Type  TierType @default(CLIENT)
+  TR_Id       String   @id @default(uuid())
+  TR_Name     String
+  TR_Email    String?
+  TR_Type     TierType @default(CLIENT)
+  TR_IsActive Boolean  @default(true)
 
   tenantId        String
   tenant          Tenant        @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -704,6 +732,7 @@ model GovernanceActivity {
   GA_Status         ActivityStatus @default(PLANNED)
   GA_Comments       String?        @db.Text
   GA_Observations   String?        @db.Text
+  GA_IsActive       Boolean        @default(true)
 
   tenantId     String
   tenant       Tenant      @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -715,11 +744,12 @@ model GovernanceActivity {
 }
 
 model Meeting {
-  MG_Id     String        @id @default(uuid())
-  MG_Title  String
-  MG_Date   DateTime
-  MG_Status MeetingStatus @default(PLANIFIE)
-  MG_Report String?       @db.Text
+  MG_Id       String        @id @default(uuid())
+  MG_Title    String
+  MG_Date     DateTime
+  MG_Status   MeetingStatus @default(PLANIFIE)
+  MG_Report   String?       @db.Text
+  MG_IsActive Boolean       @default(true)
 
   MG_ProcessId String?
   MG_Processus Processus? @relation(fields: [MG_ProcessId], references: [PR_Id])
@@ -740,6 +770,7 @@ model MeetingAttendee {
   MA_MeetingId String
   MA_UserId    String
   MA_Present   Boolean @default(false)
+  MA_IsActive  Boolean @default(true)
   MA_Meeting   Meeting @relation(fields: [MA_MeetingId], references: [MG_Id], onDelete: Cascade)
   MA_User      User    @relation(fields: [MA_UserId], references: [U_Id], onDelete: Cascade)
 }
@@ -751,6 +782,7 @@ model Equipment {
   EQ_DateService  DateTime
   EQ_ProchaineVGP DateTime
   EQ_Status       String   @default("OPERATIONNEL")
+  EQ_IsActive     Boolean  @default(true)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -759,9 +791,10 @@ model Equipment {
 }
 
 model Competence {
-  CP_Id           String @id @default(uuid())
+  CP_Id           String  @id @default(uuid())
   CP_Name         String
   CP_NiveauRequis Int
+  CP_IsActive     Boolean @default(true)
 
   tenantId String
   tenant   Tenant           @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -774,6 +807,7 @@ model UserCompetence {
   UC_UserId       String
   UC_CompetenceId String
   UC_NiveauActuel Int
+  UC_IsActive     Boolean    @default(true)
   UC_User         User       @relation(fields: [UC_UserId], references: [U_Id], onDelete: Cascade)
   UC_Competence   Competence @relation(fields: [UC_CompetenceId], references: [CP_Id], onDelete: Cascade)
 
@@ -781,13 +815,14 @@ model UserCompetence {
 }
 
 model Formation {
-  FOR_Id     String    @id @default(uuid())
-  FOR_Title  String
-  FOR_Date   DateTime
-  FOR_Expiry DateTime?
-  FOR_Status String
-  FOR_UserId String
-  FOR_User   User      @relation(fields: [FOR_UserId], references: [U_Id])
+  FOR_Id       String    @id @default(uuid())
+  FOR_Title    String
+  FOR_Date     DateTime
+  FOR_Expiry   DateTime?
+  FOR_Status   String
+  FOR_IsActive Boolean   @default(true)
+  FOR_UserId   String
+  FOR_User     User      @relation(fields: [FOR_UserId], references: [U_Id])
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id])
@@ -808,6 +843,7 @@ model ProcessReview {
   PRV_DocRef              String?      @default("F-QLT-011")
   PRV_PiloteSigned        Boolean      @default(false)
   PRV_RQSigned            Boolean      @default(false)
+  PRV_IsActive            Boolean      @default(true)
 
   PRV_ProcessusId String
   PRV_Processus   Processus @relation(fields: [PRV_ProcessusId], references: [PR_Id], onDelete: Cascade)
@@ -822,9 +858,10 @@ model ProcessReview {
 }
 
 model RevueDirection {
-  RD_Id      String   @id @default(uuid())
-  RD_Periode String
-  RD_Date    DateTime
+  RD_Id       String   @id @default(uuid())
+  RD_Periode  String
+  RD_Date     DateTime
+  RD_IsActive Boolean  @default(true)
 
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -838,13 +875,14 @@ model RevueDirection {
 // ==========================================
 
 model Signature {
-  SIG_Id         String @id @default(uuid())
+  SIG_Id         String  @id @default(uuid())
   SIG_EntityType String
   SIG_EntityId   String
   SIG_Hash       String
   SIG_Metadata   Json?
   SIG_UserId     String
-  SIG_User       User   @relation(fields: [SIG_UserId], references: [U_Id])
+  SIG_IsActive   Boolean @default(true)
+  SIG_User       User    @relation(fields: [SIG_UserId], references: [U_Id])
 
   tenantId      String
   tenant        Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -858,6 +896,7 @@ model SecurityAuditLog {
   SAL_Action    String
   SAL_Timestamp DateTime @default(now())
   SAL_UserId    String
+  SAL_IsActive  Boolean  @default(true)
   SAL_User      User     @relation(fields: [SAL_UserId], references: [U_Id])
 
   tenantId String
@@ -875,6 +914,7 @@ model Transaction {
   TX_PaymentMethod PaymentMethod
   TX_ProofUrl      String?
   TX_AdminComment  String?
+  TX_IsActive      Boolean           @default(true)
 
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
@@ -891,6 +931,7 @@ model Ticket {
   TK_Priority    Priority     @default(MEDIUM)
   TK_Response    String?      @db.Text
   TK_ResponseAt  DateTime?
+  TK_IsActive    Boolean      @default(true)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id])
@@ -907,9 +948,6 @@ model Ticket {
 
 enum Plan {
   ESSAI
-  FREE
-  BASIC
-  PRO
   EMERGENCE
   CROISSANCE
   ENTREPRISE

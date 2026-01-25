@@ -3,13 +3,13 @@ services:
   db:
     image: postgres:16-alpine
     container_name: qualisoft_db
-    restart: always
+    restart: unless-stopped # Reste allumé sauf si tu l'arrêtes
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password123
       - POSTGRES_DB=qualisoft_db
     ports:
-      - "5544:5432"
+      - "5544:5432" # Accès local : localhost:5544
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: qualisoft_redis
-    restart: always
+    restart: "no" # En dev, on ne veut pas de surprises
     ports:
       - "6379:6379"
     networks:
@@ -36,15 +36,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: qualisoft-backend
-    image: qualisoft-rd-2030-backend
-    restart: always
+    # 🛡️ SÉCURITÉ : Pas de redémarrage automatique en cas d'erreur de port
+    restart: "no" 
     environment:
-      # URL de connexion interne utilisant le nom du service 'db'
       - DATABASE_URL=postgresql://postgres:password123@db:5432/qualisoft_db?schema=public
-      - EMAIL_APP_PASSWORD=wwralsbrpvhweasa
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=9000
-    # On laisse le Dockerfile gérer le démarrage via son CMD pour éviter les conflits
     ports:
       - "9000:9000"
     depends_on:
@@ -53,8 +50,8 @@ services:
       redis:
         condition: service_started
     volumes:
-      - ./uploads:/app/uploads
-      - ./backups:/app/backups
+      - ./backend/uploads:/app/uploads
+      - ./backend/backups:/app/backups
     networks:
       - qualisoft_network
 
@@ -64,36 +61,14 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: qualisoft-frontend
-    restart: always
+    restart: "no"
     ports:
       - "3001:3001"
     environment:
-      - NEXT_PUBLIC_API_URL=https://elite.qualisoft.sn/api
+      # ✅ Crucial : Le navigateur doit pointer sur localhost
+      - NEXT_PUBLIC_API_URL=http://localhost:9000/api
     depends_on:
       - backend
-    networks:
-      - qualisoft_network
-
-  # --- 5. BACKUP AUTOMATISÉ ---
-  backup-cron:
-    image: prodrigestivill/postgres-backup-local
-    container_name: qualisoft-auto-backup
-    restart: always
-    environment:
-      - EMAIL_APP_PASSWORD=wwralsbrpvhweasa
-      - DATABASE_URL=postgresql://qualisoft_user:qualisoft_password@db:5432/qualisoft_db
-      - POSTGRES_HOST=db
-      - POSTGRES_DB=qualisoft_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password123
-      - SCHEDULE=@daily
-      - BACKUP_KEEP_DAYS=14
-      - BACKUP_SUFFIX=.sql.gz
-    volumes:
-      - ./backups:/backups
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - qualisoft_network
 

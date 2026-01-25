@@ -8,6 +8,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { GenericCrudService } from '../common/generic-crud.service';
 
+export interface SiteInput {
+  S_Name: string;
+  S_Address?: string;
+  S_IsActive?: boolean;
+}
+
 @Injectable()
 export class SitesService {
   private readonly logger = new Logger(SitesService.name);
@@ -18,102 +24,70 @@ export class SitesService {
     private genericCrud: GenericCrudService
   ) {}
 
-  /**
-   * ✅ CRÉATION D'UN SITE
-   * Utilise le champ normalisé 'tenantId'
-   */
-  async create(tenantId: string, data: { S_Name: string; S_Address?: string }) {
-    this.logger.log(`[CREATE] Création de site pour le Tenant: ${tenantId}`);
-
+  async create(tenantId: string, data: SiteInput) {
     if (!data.S_Name || data.S_Name.trim() === '') {
-      throw new BadRequestException("Le nom du site (S_Name) est obligatoire.");
+      throw new BadRequestException("Le nom du site est obligatoire.");
     }
 
     try {
-      // On utilise le genericCrud pour bénéficier de l'isolation automatique
       return await this.genericCrud.create(this.model, tenantId, {
         S_Name: data.S_Name.trim(),
         S_Address: data.S_Address?.trim() || null,
+        S_IsActive: true,
       });
     } catch (error: any) {
       if (error.code === 'P2002') {
-        throw new ConflictException("Une implantation portant ce nom existe déjà dans votre organisation.");
+        throw new ConflictException("Une implantation avec ce nom existe déjà.");
       }
       throw new BadRequestException("Erreur technique lors de la création du site.");
     }
   }
 
-  /**
-   * ✅ RÉCUPÉRATION DU RÉFÉRENTIEL SITES
-   * Avec comptage des unités pour le Dashboard
-   */
-  async findAll(tenantId: string) {
+  async findAll(tenantId: string, includeArchived = false) {
     return this.prisma.site.findMany({
-      where: { tenantId }, // 🔄 Correction : tenantId au lieu de tenantId
+      where: { 
+        tenantId,
+        ...(includeArchived ? {} : { S_IsActive: true }) 
+      },
       include: {
-        _count: {
-          select: { S_OrgUnits: true } 
-        }
+        _count: { select: { S_OrgUnits: true } }
       },
       orderBy: { S_Name: 'asc' },
     });
   }
 
-  /**
-   * ✅ DÉTAILS D'UN SITE
-   */
   async findOne(id: string, tenantId: string) {
     const site = await this.prisma.site.findFirst({
-      where: {
-        S_Id: id,
-        tenantId, // 🔄 Correction : tenantId
-      },
+      where: { S_Id: id, tenantId },
       include: { 
-        S_OrgUnits: true
+        S_OrgUnits: { where: { OU_IsActive: true } }
       },
     });
 
-    if (!site) {
-      throw new NotFoundException(`L'implantation demandée est introuvable.`);
-    }
-    
+    if (!site) throw new NotFoundException(`Implantation introuvable.`);
     return site;
   }
 
-  /**
-   * ✅ MISE À JOUR
-   */
-  async update(id: string, tenantId: string, data: { S_Name?: string; S_Address?: string }) {
-    // Le genericCrud s'occupe de vérifier la propriété (tenantId)
-    try {
-      return await this.genericCrud.update(this.model, id, tenantId, {
-        ...(data.S_Name && { S_Name: data.S_Name.trim() }),
-        ...(data.S_Address !== undefined && { S_Address: data.S_Address?.trim() || null }),
-      });
-    } catch (error: any) {
-      if (error.code === 'P2002') {
-        throw new ConflictException("Ce nom de site est déjà utilisé.");
-      }
-      throw error;
-    }
+  async update(id: string, tenantId: string, data: SiteInput) {
+    return this.genericCrud.update(this.model, id, tenantId, {
+      ...(data.S_Name && { S_Name: data.S_Name.trim() }),
+      ...(data.S_Address !== undefined && { S_Address: data.S_Address?.trim() || null }),
+      ...(data.S_IsActive !== undefined && { S_IsActive: data.S_IsActive }),
+    });
   }
 
-  /**
-   * ✅ SUPPRESSION SÉCURISÉE
-   */
   async remove(id: string, tenantId: string) {
-    // 1. Vérification de l'intégrité (Règle métier SMI)
     const linkedUnits = await this.prisma.orgUnit.count({
-      where: { OU_SiteId: id, tenantId }
+      where: { OU_SiteId: id, tenantId, OU_IsActive: true }
     });
 
     if (linkedUnits > 0) {
-      throw new BadRequestException(
-        `Suppression impossible : ${linkedUnits} unité(s) organique(s) sont rattachée(s) à ce site. Veuillez les déplacer ou les supprimer d'abord.`
-      );
+      throw new BadRequestException(`Impossible d'archiver : ${linkedUnits} unité(s) active(s) détectée(s).`);
     }
 
-    // 2. Appel au service générique pour la suppression physique
-    return this.genericCrud.delete(this.model, id, tenantId);
+    return this.prisma.site.update({
+      where: { S_Id: id, tenantId },
+      data: { S_IsActive: false }
+    });
   }
 }

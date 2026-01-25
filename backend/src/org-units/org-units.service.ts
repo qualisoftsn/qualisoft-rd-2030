@@ -1,9 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GenericCrudService } from '../common/generic-crud.service';
 
 @Injectable()
 export class OrgUnitsService {
+  private readonly logger = new Logger(OrgUnitsService.name);
   private readonly model = 'orgUnit';
 
   constructor(
@@ -27,20 +28,27 @@ export class OrgUnitsService {
     });
     if (!site) throw new BadRequestException("Le site rattaché est invalide.");
 
-    return this.genericCrud.create(this.model, tenantId, data);
+    return this.genericCrud.create(this.model, tenantId, {
+      ...data,
+      OU_IsActive: true
+    });
   }
 
   /**
-   * ✅ LECTURE : Vision 360° pour organigramme et fiches d'exposition
+   * ✅ LECTURE : Vision 360° (Organigramme & Fiches d'exposition)
    */
-  async findAll(tenantId: string) {
+  async findAll(tenantId: string, includeArchived: boolean = false) {
     return this.prisma.orgUnit.findMany({
-      where: { tenantId },
+      where: { 
+        tenantId,
+        ...(includeArchived ? {} : { OU_IsActive: true })
+      },
       include: {
         OU_Type: true,
         OU_Site: true,
         OU_Parent: { select: { OU_Name: true } },
         OU_Users: {
+          where: { U_IsActive: true },
           select: { U_Id: true, U_FirstName: true, U_LastName: true, U_Role: true }
         },
         _count: {
@@ -59,24 +67,48 @@ export class OrgUnitsService {
   }
 
   /**
-   * ✅ SUPPRESSION SÉCURISÉE
+   * ✅ ARCHIVAGE SÉCURISÉ (Zéro suppression physique)
    */
   async remove(id: string, tenantId: string) {
     const unit = await this.prisma.orgUnit.findFirst({
       where: { OU_Id: id, tenantId },
-      include: { _count: { select: { OU_Children: true, OU_Users: true } } }
+      include: { 
+        _count: { 
+          select: { 
+            OU_Children: true, // On vérifie les sous-unités
+            OU_Users: true     // On vérifie les collaborateurs
+          } 
+        } 
+      }
     });
 
     if (!unit) throw new NotFoundException("Unité introuvable.");
 
+    // Règle métier : On ne peut pas archiver un parent si des enfants sont actifs
     if (unit._count.OU_Children > 0) {
-      throw new BadRequestException("Cette unité contient des sous-unités.");
+      const activeChildren = await this.prisma.orgUnit.count({
+        where: { OU_ParentId: id, OU_IsActive: true }
+      });
+      if (activeChildren > 0) {
+        throw new BadRequestException(`Cette unité contient ${activeChildren} sous-unité(s) active(s).`);
+      }
     }
 
+    // Règle métier : On ne peut pas archiver si des collaborateurs sont actifs
     if (unit._count.OU_Users > 0) {
-      throw new BadRequestException("Des collaborateurs sont encore rattachés à cette unité.");
+      const activeUsers = await this.prisma.user.count({
+        where: { U_OrgUnitId: id, U_IsActive: true }
+      });
+      if (activeUsers > 0) {
+        throw new BadRequestException(`Il reste ${activeUsers} collaborateur(s) actif(s) rattaché(s) à cette unité.`);
+      }
     }
 
-    return this.genericCrud.delete(this.model, id, tenantId);
+    this.logger.warn(`📁 Archivage de l'unité ${id} (Tenant: ${tenantId})`);
+
+    return this.prisma.orgUnit.update({
+      where: { OU_Id: id },
+      data: { OU_IsActive: false }
+    });
   }
 }

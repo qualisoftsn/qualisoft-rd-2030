@@ -1,53 +1,81 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class GenericCrudService {
+  private readonly logger = new Logger(GenericCrudService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Récupère le nom de la clé primaire (ex: ACT_Id pour Action)
+   * 🗺️ MAPPING DES PRÉFIXES (Basé sur ton Schéma du 21/01/2026)
    */
-  private getPrimaryKeyName(model: string): string {
-    const modelPrefixes: Record<string, string> = {
-      action: 'ACT_Id',
-      processus: 'PR_Id',
-      risk: 'RS_Id',
-      site: 'S_Id',
-      user: 'U_Id',
-      nonConformite: 'NC_Id',
-      reclamation: 'REC_Id',
-      audit: 'AU_Id',
-      paq: 'PAQ_Id',
-      indicator: 'IND_Id'
+  private getModelMetadata(model: string) {
+    const mapping: Record<string, { pk: string; active: string }> = {
+      tenant:           { pk: 'T_Id',   active: 'T_IsActive' },
+      site:             { pk: 'S_Id',   active: 'S_IsActive' },
+      orgUnit:          { pk: 'OU_Id',  active: 'OU_IsActive' },
+      orgUnitType:      { pk: 'OUT_Id', active: 'OUT_IsActive' },
+      user:             { pk: 'U_Id',   active: 'U_IsActive' },
+      processus:        { pk: 'PR_Id',  active: 'PR_IsActive' },
+      processType:      { pk: 'PT_Id',  active: 'PT_IsActive' },
+      action:           { pk: 'ACT_Id', active: 'ACT_IsActive' },
+      paq:              { pk: 'PAQ_Id', active: 'PAQ_IsActive' },
+      indicator:        { pk: 'IND_Id', active: 'IND_IsActive' },
+      indicatorValue:   { pk: 'IV_Id',  active: 'IV_IsActive' },
+      notification:     { pk: 'N_Id',   active: 'N_IsActive' },
+      userHabilitation: { pk: 'UH_Id',  active: 'UH_IsActive' },
+      risk:             { pk: 'RS_Id',  active: 'RS_IsActive' },
+      riskType:         { pk: 'RT_Id',  active: 'RT_IsActive' },
+      audit:            { pk: 'AU_Id',  active: 'AU_IsActive' },
+      nonConformite:    { pk: 'NC_Id',  active: 'NC_IsActive' },
+      reclamation:      { pk: 'REC_Id', active: 'REC_IsActive' },
+      tier:             { pk: 'TR_Id',  active: 'TR_IsActive' }
     };
-    return modelPrefixes[model] || 'id'; // 'id' par défaut si non listé
+
+    return mapping[model] || { pk: 'id', active: 'isActive' };
   }
 
-  // Lecture filtrée par Tenant
-  async findAll(model: string, tenantId: string) {
+  /**
+   * ✅ LECTURE : Filtre automatique par Tenant ET par état Actif
+   */
+  async findAll(model: string, tenantId: string, includeArchived = false) {
+    const { active } = this.getModelMetadata(model);
+    
     return (this.prisma[model] as any).findMany({
-      where: { tenantId },
-      // On retire le orderBy générique car les noms de colonnes dates varient
+      where: { 
+        tenantId,
+        ...(includeArchived ? {} : { [active]: true }) 
+      }
     });
   }
 
-  // Création sécurisée
+  /**
+   * ✅ CRÉATION : Injection automatique du tenantId et du flag IsActive
+   */
   async create(model: string, tenantId: string, data: any) {
+    const { active } = this.getModelMetadata(model);
+    
     return (this.prisma[model] as any).create({
-      data: { ...data, tenantId },
+      data: { 
+        ...data, 
+        tenantId,
+        [active]: true 
+      },
     });
   }
 
-  // Mise à jour avec vérification de propriété
+  /**
+   * ✅ MISE À JOUR : Vérification de propriété (Ownership)
+   */
   async update(model: string, id: string, tenantId: string, data: any) {
-    const pk = this.getPrimaryKeyName(model);
+    const { pk } = this.getModelMetadata(model);
     
     const record = await (this.prisma[model] as any).findFirst({
       where: { [pk]: id, tenantId },
     });
     
-    if (!record) throw new NotFoundException(`Enregistrement introuvable dans votre organisation.`);
+    if (!record) throw new NotFoundException(`Enregistrement introuvable ou accès refusé.`);
 
     return (this.prisma[model] as any).update({
       where: { [pk]: id },
@@ -55,18 +83,24 @@ export class GenericCrudService {
     });
   }
 
-  // Suppression sécurisée
+  /**
+   * 📁 ARCHIVAGE (SOFT DELETE) : Zéro suppression physique
+   */
   async delete(model: string, id: string, tenantId: string) {
-    const pk = this.getPrimaryKeyName(model);
+    const { pk, active } = this.getModelMetadata(model);
     
     const record = await (this.prisma[model] as any).findFirst({
       where: { [pk]: id, tenantId },
     });
     
-    if (!record) throw new NotFoundException(`Suppression impossible : accès refusé.`);
+    if (!record) throw new NotFoundException(`Archivage impossible : accès refusé.`);
 
-    return (this.prisma[model] as any).delete({ 
-      where: { [pk]: id } 
+    this.logger.warn(`[SOFT-DELETE] Archivage logique du modèle ${model} ID: ${id}`);
+
+    // On transforme le DELETE en un UPDATE du flag IsActive
+    return (this.prisma[model] as any).update({ 
+      where: { [pk]: id },
+      data: { [active]: false }
     });
   }
 }

@@ -8,27 +8,18 @@ export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    // 1. Récupération des rôles requis définis sur le Controller ou la méthode
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
     
-    // 2. Si aucun rôle n'est requis (ex: route publique), on laisse passer
-    if (!requiredRoles) {
-      return true;
-    }
+    if (!requiredRoles) return true;
     
-    // 3. Extraction de l'utilisateur injecté par Passport (JwtStrategy)
-    const { user } = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
     
-    // 4. VÉRIFICATION CRITIQUE : 
-    // Votre JwtStrategy renvoie U_Role, donc nous vérifions user.U_Role
-    if (!user || !user.U_Role) {
-      return false; // Pas d'utilisateur ou pas de rôle = Accès refusé
-    }
+    if (!user || !user.U_Role) return false;
     
-    // 5. On vérifie si le rôle de l'utilisateur est présent dans la liste autorisée
     return requiredRoles.includes(user.U_Role);
   }
 }

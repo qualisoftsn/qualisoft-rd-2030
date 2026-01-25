@@ -1,308 +1,239 @@
-/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { ArrowRight, Loader2, Lock, Mail, Send, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  X,
+  Building2,
+  ChevronLeft,
+  UserCheck,
+} from "lucide-react";
+import { AuthUser, useAuthStore } from "@/store/authStore";
+import apiClient from "@/core/api/api-client";
+import DevLoginHelper from "@/components/dev/DevLoginHelper";
+
+interface LoginResponse {
+  access_token: string;
+  user: AuthUser;
+}
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  // --- ÉTATS DE NAVIGATION ---
+  const [step, setStep] = useState<"TENANT" | "USER_SELECT" | "PASSWORD">("TENANT");
+  
+  // --- DONNÉES SÉLECTIONNÉES ---
+  const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
+  const [selectedEmail, setSelectedEmail] = useState<string>("");
 
-  // État pour la modale Formspree "Invitez-moi"
-  const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [inviteStatus, setInviteStatus] = useState("");
+  // --- ÉTATS FORMULAIRE ---
+  const [password, setPassword] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+
+  // --- ÉTATS MODALE INVITATION ---
+  const [isInviteOpen, setIsInviteOpen] = useState<boolean>(false);
+  const [, setInviteStatus] = useState<"IDLE" | "SUCCESS" | "ERROR">("IDLE");
 
   const router = useRouter();
+  const setLogin = useAuthStore((state) => state.setLogin);
+
+  // 📝 Liste des Tenants (Synchronisée avec ton nouveau SEED)
+  const availableTenants = [
+    { id: "ELITE-CORE-001", name: "EXCELLENCE INDUSTRIES" },
+    { id: "bcfea455-ee5c-4868-8f5b-53f4c4c2500e", name: "Qualisoft Corporate" },
+    { id: "tenant-senelec-id", name: "SENELEC SA" },
+  ];
+
+  // 👥 Liste des Users par Tenant (Simulée pour le choix, normalement via une API publique/dev)
+  const usersByTenant: Record<string, string[]> = {
+    "ELITE-CORE-001": ["ab.thiongane@qualisoft.sn", "admin@excellence.sn"],
+    "bcfea455-ee5c-4868-8f5b-53f4c4c2500e": ["admin@qualisoft.sn"],
+    "tenant-senelec-id": ["contact@senelec.sn"],
+  };
+
+  const handleSelectTenant = (tenant: { id: string; name: string }) => {
+    setSelectedTenant(tenant);
+    setStep("USER_SELECT");
+    setError("");
+  };
+
+  const handleSelectUser = (email: string) => {
+    setSelectedEmail(email);
+    setStep("PASSWORD");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedTenant || !selectedEmail) return;
+    
     setIsLoading(true);
     setError("");
 
     try {
-      const response = await fetch(
-        "https://elite.qualisoft.sn/api/auth/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            U_Email: email,
-            U_Password: password,
-          }),
-        },
-      );
+      const response = await apiClient.post<LoginResponse>("/auth/login", {
+        U_Email: selectedEmail,
+        U_Password: password,
+        tenantId: selectedTenant.id,
+      });
 
-      const data = await response.json();
+      setLogin({
+        token: response.data.access_token,
+        user: response.data.user,
+      });
 
-      if (!response.ok) {
-        throw new Error(data.message || "Identifiants incorrects");
-      }
-
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("qs_token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      router.push("/dashboard");
+      router.push("/admin/structure");
     } catch (err: any) {
-      setError(err.message);
+      const errMsg = err.response?.data?.message;
+      setError(Array.isArray(errMsg) ? errMsg[0] : errMsg || "Mot de passe incorrect");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Gestion de l'envoi Formspree
   const handleInviteSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-
-    const response = await fetch("/api/auth/invite", {
-      method: "POST",
-      body: formData,
-      headers: { Accept: "application/json" },
-    });
-
-    if (response.ok) {
-      setInviteStatus("SUCCESS");
-      form.reset();
-      setTimeout(() => {
-        setIsInviteOpen(false);
-        setInviteStatus("");
-      }, 3000);
-    } else {
-      setInviteStatus("ERROR");
-    }
+    try {
+      const response = await fetch("/api/auth/invite", {
+        method: "POST",
+        body: JSON.stringify(Object.fromEntries(formData)),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (response.ok) {
+        setInviteStatus("SUCCESS");
+        form.reset();
+        setTimeout(() => { setIsInviteOpen(false); setInviteStatus("IDLE"); }, 3000);
+      } else { setInviteStatus("ERROR"); }
+    } catch { setInviteStatus("ERROR"); }
   };
 
   return (
-    <div className="min-h-screen flex selection:bg-blue-100 italic bg-white relative">
-      {/* CÔTÉ GAUCHE : FORMULAIRE */}
-      <div className="flex-1 flex flex-col justify-center px-12 lg:px-24 bg-white z-10">
-        <div className="max-w-md w-full mx-auto space-y-8">
+    <div className="min-h-screen flex selection:bg-blue-100 italic bg-white relative font-sans">
+      <DevLoginHelper />
+
+      {/* 🌑 SECTION GAUCHE : FORMULAIRE D'ACCÈS */}
+      <div className="flex-1 flex flex-col justify-center px-8 lg:px-24 bg-white z-10">
+        <div className="max-w-md w-full mx-auto space-y-10">
           <div className="text-center lg:text-left">
-            {/* LOGO MODIFIÉ : Utilisation de QSLogo.PNG */}
-            <div className="inline-flex mb-6 drop-shadow-xl">
-              <img
-                src="/QSLogo.PNG"
-                alt="Qualisoft Logo"
-                className="h-20 w-auto object-contain"
-              />
+            <div className="inline-flex mb-8 drop-shadow-2xl">
+              <img src="/QSLogo.PNG" alt="Qualisoft Logo" className="h-24 w-auto object-contain animate-in fade-in duration-1000" />
             </div>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">
-              QUALI<span className="text-blue-600">SOFT</span> ELITE
+            <h2 className="text-5xl font-black text-slate-900 tracking-tighter uppercase italic leading-none">
+              QUALI<span className="text-[#2563eb]">SOFT</span> <br />
+              <span className="text-3xl text-slate-400">ELITE RD 2030</span>
             </h2>
-            <p className="text-slate-500 font-medium mt-2">
-              Accédez à votre cockpit de gestion Qualité & SSE
-            </p>
           </div>
 
-          {error && (
-            <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-r-xl animate-bounce">
-              {error}
+          {/* --- ÉTAPE 1 : CHOIX DU TENANT --- */}
+          {step === "TENANT" && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">Sélectionnez votre Instance</label>
+              <div className="grid gap-4">
+                {availableTenants.map((tenant) => (
+                  <button key={tenant.id} onClick={() => handleSelectTenant(tenant)}
+                    className="flex items-center justify-between p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:border-[#2563eb] hover:bg-blue-50 transition-all group text-left">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-inner group-hover:text-[#2563eb]"><Building2 size={24} /></div>
+                      <span className="font-bold text-slate-800 uppercase tracking-tight">{tenant.name}</span>
+                    </div>
+                    <ArrowRight size={20} className="text-slate-300 group-hover:text-[#2563eb] transition-transform group-hover:translate-x-1" />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                Identifiant Professionnel
-              </label>
-              <div className="relative">
-                <Mail
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={18}
-                />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all font-bold text-slate-700 text-sm"
-                  placeholder="qualisoft@qualisoft.sn"
-                />
+          {/* --- ÉTAPE 2 : CHOIX DE L'UTILISATEUR --- */}
+          {step === "USER_SELECT" && (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+              <button onClick={() => setStep("TENANT")} className="flex items-center gap-2 text-[10px] font-black uppercase text-[#2563eb]"><ChevronLeft size={14} /> Retour aux instances</button>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">Utilisateurs autorisés sur {selectedTenant?.name}</label>
+              <div className="grid gap-3">
+                {usersByTenant[selectedTenant?.id || ""]?.map((email) => (
+                  <button key={email} onClick={() => handleSelectUser(email)}
+                    className="flex items-center gap-4 p-5 bg-slate-900 text-white rounded-3xl hover:bg-[#2563eb] transition-all text-left group">
+                    <UserCheck size={20} className="text-blue-400 group-hover:text-white" />
+                    <span className="font-bold text-sm">{email}</span>
+                  </button>
+                ))}
               </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                Mot de passe
-              </label>
-              <div className="relative">
-                <Lock
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={18}
-                />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all font-bold text-slate-700 text-sm"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-600 active:scale-95 disabled:bg-slate-400 transition-all shadow-2xl shadow-slate-900/20 flex items-center justify-center gap-3"
-            >
-              {isLoading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <>
-                  Ouvrir le cockpit <ArrowRight size={20} />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* NOUVEAU BOUTON : INVITEZ-MOI */}
-          <div className="flex flex-col items-center gap-4 pt-4">
-            <div className="w-full h-px bg-slate-100 relative">
-              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                Ou
-              </span>
-            </div>
-            <button
-              onClick={() => setIsInviteOpen(true)}
-              className="group flex items-center gap-2 text-blue-600 font-black uppercase italic text-[11px] tracking-widest hover:text-slate-900 transition-colors"
-            >
-              Pas encore de compte ?{" "}
-              <span className="underline underline-offset-4 decoration-2">
-                Invitez-moi
-              </span>
-            </button>
-          </div>
-
-          <div className="pt-8 text-center lg:text-left">
-            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.3em]">
-              SMQ Multi-Tenant • Management Intelligence • © 2026
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* CÔTÉ DROIT : VISUEL  */}
-      <div className="hidden lg:flex flex-1 bg-slate-900 relative items-center justify-center p-20 overflow-hidden">
-        <div className="relative z-10 text-center space-y-8">
-          <div className="inline-block px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full">
-            Qualisoft Elite v2.0
-          </div>
-          <h3 className="text-4xl font-black text-white tracking-tighter italic uppercase leading-tight">
-            Pilotez votre conformité <br />
-            <span className="text-blue-500">en temps réel.</span>
-          </h3>
-
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[2.5rem] space-y-6 shadow-3xl max-w-sm mx-auto">
-            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">
-              Compte Client Actif
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 text-left">
-                <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center font-black text-white">
-                  S
-                </div>
-                <div>
-                  <p className="text-white text-xs font-black italic">
-                    Qualisoft Elite
-                  </p>
-                  <p className="text-[9px] text-slate-500 uppercase font-bold">
-                    Client Premium Elite
-                  </p>
+          {/* --- ÉTAPE 3 : MOT DE PASSE --- */}
+          {step === "PASSWORD" && (
+            <div className="space-y-6 animate-in zoom-in-95 duration-500">
+              <button onClick={() => setStep("USER_SELECT")} className="flex items-center gap-2 text-[10px] font-black uppercase text-[#2563eb]"><ChevronLeft size={14} /> Changer d&apos;utilisateur</button>
+              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-4">
+                <UserCheck size={20} className="text-[#2563eb]" />
+                <div className="flex flex-col text-[10px] font-black uppercase tracking-tighter italic">
+                  <span className="text-slate-400">Session pour</span>
+                  <span className="text-slate-900">{selectedEmail}</span>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-        <div className="absolute top-0 right-0 w-lg h-128 bg-blue-600/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 left-0 w-lg h-128 bg-indigo-900/20 blur-[120px] rounded-full" />
-      </div>
 
-      {/* MODALE FORMSPREE : "INVITEZ-MOI" */}
-      {isInviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 relative shadow-2xl animate-in zoom-in duration-300">
-            <button
-              onClick={() => setIsInviteOpen(false)}
-              className="absolute top-6 right-6 text-slate-400 hover:text-slate-900 transition-colors"
-            >
-              <X size={24} />
-            </button>
+              {error && <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-[11px] font-black uppercase rounded-r-2xl animate-shake">{error}</div>}
 
-            <div className="text-center space-y-4 mb-8">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
-                <Send size={28} />
-              </div>
-              <h3 className="text-2xl font-black uppercase italic tracking-tighter">
-                Demander un accès
-              </h3>
-              <p className="text-slate-500 text-sm italic">
-                Laissez-nous vos coordonnées, nos experts vous contacteront pour
-                une démo personnalisée.
-              </p>
-            </div>
-
-            {inviteStatus === "SUCCESS" ? (
-              <div className="bg-emerald-50 text-emerald-700 p-6 rounded-2xl text-center font-bold italic">
-                ✨ Demande envoyée avec succès ! <br /> Nous revenons vers vous
-                très vite.
-              </div>
-            ) : (
-              <form onSubmit={handleInviteSubmit} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-2">
-                    Entreprise
-                  </label>
-                  <input
-                    name="company"
-                    required
-                    type="text"
-                    placeholder="Ex: QUALISOFT"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-600 transition-all text-sm font-bold"
-                  />
+              <form className="space-y-6" onSubmit={handleSubmit}>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">Clé de sécurité (Mot de passe)</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#2563eb] transition-colors" size={20} />
+                    <input type="password" required autoFocus value={password} onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-[#2563eb]/5 focus:border-[#2563eb] transition-all font-bold text-slate-800 text-sm italic"
+                      placeholder="••••••••" />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-2">
-                    Email Professionnel
-                  </label>
-                  <input
-                    name="email"
-                    required
-                    type="email"
-                    placeholder="contact@entreprise.com"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-600 transition-all text-sm font-bold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-2">
-                    Message (Optionnel)
-                  </label>
-                  <textarea
-                    name="message"
-                    rows={3}
-                    placeholder="Dites-nous en plus..."
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-600 transition-all text-sm font-bold resize-none"
-                  ></textarea>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl shadow-blue-500/20"
-                >
-                  Envoyer ma demande
+                <button type="submit" disabled={isLoading}
+                  className="w-full py-6 bg-slate-900 text-white rounded-4xl font-black uppercase tracking-[0.2em] hover:bg-[#2563eb] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4 text-xs">
+                  {isLoading ? <Loader2 className="animate-spin" size={20} /> : <>Valider l&apos;accès Elite <ArrowRight size={20} /></>}
                 </button>
               </form>
-            )}
-            {inviteStatus === "ERROR" && (
-              <p className="text-red-500 text-[10px] font-bold text-center mt-4">
-                Oups ! Une erreur est survenue. Veuillez réessayer.
-              </p>
-            )}
+            </div>
+          )}
+
+          <div className="flex flex-col items-center gap-6 pt-6">
+            <div className="w-full h-px bg-slate-100 relative">
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-6 text-[10px] font-black text-slate-300 uppercase tracking-widest italic">Authentification Multi-Tenant</span>
+            </div>
+            <button onClick={() => setIsInviteOpen(true)} className="group text-[#2563eb] font-black uppercase italic text-[12px] tracking-widest hover:text-slate-900">
+               Demander un accès Elite
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 🌌 SECTION DROITE IMMERSIVE */}
+      <div className="hidden lg:flex flex-1 bg-[#0B0F1A] relative items-center justify-center p-20 overflow-hidden text-center">
+        <div className="relative z-10 space-y-10">
+          <div className="inline-flex items-center gap-3 px-6 py-2 bg-[#2563eb]/10 border border-[#2563eb]/20 text-[#2563eb] text-[10px] font-black uppercase tracking-[0.4em] rounded-full backdrop-blur-md">
+            <ShieldCheck size={14} /> Noyau Certifié ISO 9001/14001/45001
+          </div>
+          <h3 className="text-5xl font-black text-white tracking-tighter italic uppercase leading-[1.1]">
+            La conformité n&apos;est plus <br /> un fardeau, <span className="text-[#2563eb]">c&apos;est un atout.</span>
+          </h3>
+        </div>
+        <div className="absolute top-0 right-0 w-125 h-125 bg-[#2563eb]/20 blur-[150px] rounded-full animate-pulse" />
+      </div>
+
+      {/* 🚀 MODALE INVITATION */}
+      {isInviteOpen && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-[#0B0F1A]/95 backdrop-blur-xl p-6">
+          <div className="bg-white w-full max-w-xl rounded-[3rem] p-12 relative shadow-3xl">
+            <button onClick={() => setIsInviteOpen(false)} className="absolute top-8 right-8 text-slate-400 hover:text-slate-900"><X size={28} /></button>
+            <h3 className="text-3xl font-black uppercase italic text-slate-900 text-center mb-8">Déployer Elite</h3>
+            <form onSubmit={handleInviteSubmit} className="space-y-6">
+              <input name="company" required placeholder="Organisation" className="w-full px-6 py-4 bg-slate-50 border rounded-2xl font-bold italic" />
+              <input name="email" required type="email" placeholder="Email Décisionnel" className="w-full px-6 py-4 bg-slate-50 border rounded-2xl font-bold italic" />
+              <button type="submit" className="w-full py-5 bg-[#2563eb] text-white rounded-2xl font-black uppercase tracking-widest">Valider</button>
+            </form>
           </div>
         </div>
       )}

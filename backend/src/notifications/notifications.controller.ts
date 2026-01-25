@@ -1,33 +1,63 @@
-import { Controller, Get, Patch, Param, UseGuards, Req, Post } from '@nestjs/common';
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  Patch, 
+  Param, 
+  Query, 
+  HttpCode, 
+  HttpStatus 
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateNotificationDto } from './dto/create-notification.dto';
 
+/**
+ * 🛰️ CONTROLLER NOTIFICATIONS - QUALISOFT ELITE
+ * Gère le flux d'alertes en temps réel entre le Noyau PostgreSQL et l'interface.
+ */
 @Controller('notifications')
-@UseGuards(JwtAuthGuard)
 export class NotificationsController {
-  constructor(private readonly notifService: NotificationsService) {}
+  constructor(private readonly notificationsService: NotificationsService) {}
 
   /**
-   * 📥 RÉCUPÉRER MES ALERTES (DASHBOARD)
+   * 🚀 CRÉATION : ENREGISTREMENT D'UNE NOUVELLE ALERTE
+   * @route POST /api/notifications
    */
-  @Get()
-  async getMine(@Req() req: any) {
-    return this.notifService.getMyNotifications(req.user.U_Id, req.user.tenantId);
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() dto: CreateNotificationDto) {
+    return this.notificationsService.createNotification(
+      dto.userId,
+      dto.N_Title,
+      dto.N_Message,
+      dto.N_Type,
+      dto.tenantId
+    );
   }
 
   /**
-   * ✅ MARQUER UNE ALERTE COMME TRAITÉE
+   * 📥 RÉCUPÉRATION : LISTE DES ALERTES ACTIVES (NON LUES)
+   * @route GET /api/notifications/:userId?tenantId=...
+   */
+  @Get(':userId')
+  async getMyNotifs(
+    @Param('userId') userId: string, 
+    @Query('tenantId') tenantId: string
+  ) {
+    return this.notificationsService.getMyNotifications(userId, tenantId);
+  }
+
+  /**
+   * ✅ ACQUITTEMENT : MARQUER UNE ALERTE COMME TRAITÉE
+   * @route PATCH /api/notifications/:id/read
    */
   @Patch(':id/read')
-  async markRead(@Param('id') id: string, @Req() req: any) {
-    return this.notifService.markAsRead(id, req.user.U_Id);
-  }
-
-  /**
-   * 🚀 DÉCLENCHER LE SCAN (RESERVÉ ADMIN/RQ)
-   */
-  @Post('run-scan')
-  async triggerScan(@Req() req: any) {
-    return this.notifService.runGlobalSurveillance(req.user.tenantId);
+  async markRead(
+    @Param('id') id: string, 
+    @Body('userId') userId: string
+  ) {
+    // On passe le userId pour sécuriser l'acquittement (Seul le destinataire peut acquitter)
+    return this.notificationsService.markAsRead(id, userId);
   }
 }

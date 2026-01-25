@@ -1,21 +1,12 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  Delete, 
-  UseGuards, 
-  Request 
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Patch, UseGuards, Request, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PrismaService } from '../prisma/prisma.service'; // ✅ Import nécessaire
+import { PrismaService } from '../prisma/prisma.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  // ✅ Injection correcte de PrismaService pour éviter les crashs sur findAll
   constructor(
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService 
@@ -23,52 +14,33 @@ export class UsersController {
 
   @Post()
   async create(@Request() req, @Body() createUserDto: any) {
-    const tenantId = req.user.tenantId;
-    return this.usersService.create(tenantId, createUserDto);
+    return this.usersService.create(req.user.tenantId, createUserDto);
   }
 
-  /**
-   * ✅ NOUVELLE ROUTE : Pour la liste des pilotes dans la cartographie
-   * Cette route est indispensable pour remplir ton formulaire de processus
-   */
   @Get('pilotes')
   async findPilotes(@Request() req) {
     return this.prisma.user.findMany({
       where: { 
         tenantId: req.user.tenantId,
-        // On récupère ceux qui ont les droits de pilotage
+        U_IsActive: true,
         U_Role: { in: ['PILOTE', 'ADMIN', 'SUPER_ADMIN'] }
       },
-      select: {
-        U_Id: true,
-        U_FirstName: true,
-        U_LastName: true,
-      }
+      select: { U_Id: true, U_FirstName: true, U_LastName: true }
     });
   }
 
   @Get()
-  async findAll(@Request() req) {
-    const tenantId = req.user.tenantId;
-    return this.prisma.user.findMany({
-      where: { tenantId: tenantId },
-      include: {
-        U_Site: true,
-        U_OrgUnit: {
-          include: { OU_Type: true }
-        }
-      }
-    });
+  async findAll(@Request() req, @Query('all') all: string) {
+    return this.usersService.findAll(req.user.tenantId, all === 'true');
+  }
+
+  @Patch(':id')
+  async update(@Param('id') id: string, @Request() req, @Body() dto: UpdateUserDto) {
+    return this.usersService.update(id, req.user.tenantId, dto);
   }
 
   @Delete(':id')
   async remove(@Request() req, @Param('id') id: string) {
-    return this.prisma.user.update({
-      where: { 
-        U_Id: id, 
-        tenantId: req.user.tenantId 
-      },
-      data: { U_IsActive: false }
-    });
+    return this.usersService.remove(id, req.user.tenantId);
   }
 }

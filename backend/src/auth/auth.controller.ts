@@ -1,10 +1,15 @@
-import { BadRequestException, Body, ClassSerializerInterceptor, Controller, HttpCode, HttpStatus, Logger, Param, Patch, Post, UseInterceptors } from '@nestjs/common';
+import { 
+  BadRequestException, Body, ClassSerializerInterceptor, 
+  Controller, HttpCode, HttpStatus, Logger, Param, Patch, Post, 
+  UseInterceptors, UseGuards 
+} from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import { ContactService } from './contact.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { InviteDto } from './dto/invite.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -20,7 +25,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
-    return this.authService.login({ U_Email: loginDto.U_Email, U_Password: loginDto.U_Password });
+    return this.authService.login(loginDto);
   }
 
   @Public()
@@ -30,6 +35,7 @@ export class AuthController {
     return this.authService.registerTenant(registerDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch('disable-first-login/:id')
   @HttpCode(HttpStatus.OK)
   async disableFirstLogin(@Param('id') id: string) {
@@ -40,9 +46,6 @@ export class AuthController {
   @Post('invite')
   @HttpCode(HttpStatus.OK)
   async invite(@Body() inviteDto: InviteDto) {
-    this.logger.log('--- REQUÊTE INVITE REÇUE ---');
-    this.logger.log('Contenu : ' + JSON.stringify(inviteDto));
-
     if (!inviteDto.email || !inviteDto.company) {
         throw new BadRequestException("Champs requis manquants : email ou company");
     }

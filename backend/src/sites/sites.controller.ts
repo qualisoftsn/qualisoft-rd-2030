@@ -1,5 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ForbiddenException } from '@nestjs/common';
-import { SitesService } from './sites.service';
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  Patch, 
+  Param, 
+  Delete, 
+  UseGuards, 
+  ForbiddenException,
+  Query,
+  Logger
+} from '@nestjs/common';
+import { SitesService, SiteInput } from './sites.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { Role } from '@prisma/client';
@@ -7,13 +19,14 @@ import { Role } from '@prisma/client';
 @Controller('sites')
 @UseGuards(JwtAuthGuard)
 export class SitesController {
+  private readonly logger = new Logger(SitesController.name);
+
   constructor(private readonly sitesService: SitesService) {}
 
-  // 🛡️ Logique de vérification de rôle centralisée
-  private checkAdmin(role: Role) {
-    const allowedRoles = [Role.ADMIN, Role.SUPER_ADMIN];
-    if (!allowedRoles.includes(role as any)) {
-      throw new ForbiddenException('Seul l\'administrateur peut configurer les sites de l\'organisation.');
+  private checkAdmin(userRole: Role) {
+    const allowedRoles: Role[] = [Role.ADMIN, Role.SUPER_ADMIN];
+    if (!allowedRoles.includes(userRole)) {
+      throw new ForbiddenException("Accès refusé : Action réservée aux administrateurs.");
     }
   }
 
@@ -21,15 +34,22 @@ export class SitesController {
   async create(
     @GetUser('U_Role') role: Role,
     @GetUser('tenantId') tenantId: string, 
-    @Body() createSiteDto: any
+    @Body() dto: SiteInput
   ) {
     this.checkAdmin(role);
-    return this.sitesService.create(tenantId, createSiteDto);
+    this.logger.log(`🏗️ Création site pour tenant: ${tenantId}`);
+    return this.sitesService.create(tenantId, dto);
   }
 
   @Get()
-  async findAll(@GetUser('tenantId') tenantId: string) {
-    return this.sitesService.findAll(tenantId);
+  async findAll(
+    @GetUser('tenantId') tenantId: string,
+    @Query('all') all: string
+  ) {
+    this.logger.log(`📥 Fetching sites pour tenant: ${tenantId}`);
+    // Sécurité supplémentaire : si tenantId est vide, on renvoie []
+    if (!tenantId) return [];
+    return this.sitesService.findAll(tenantId, all === 'true');
   }
 
   @Get(':id')
@@ -45,10 +65,10 @@ export class SitesController {
     @Param('id') id: string,
     @GetUser('U_Role') role: Role,
     @GetUser('tenantId') tenantId: string, 
-    @Body() updateSiteDto: any
+    @Body() dto: SiteInput
   ) {
     this.checkAdmin(role);
-    return this.sitesService.update(id, tenantId, updateSiteDto);
+    return this.sitesService.update(id, tenantId, dto);
   }
 
   @Delete(':id')

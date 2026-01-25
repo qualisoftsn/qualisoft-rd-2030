@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, UseGuards, Query } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -11,11 +11,7 @@ import { OrgUnitsService } from './org-units.service';
 export class OrgUnitController {
   constructor(private readonly orgUnitsService: OrgUnitsService) {}
 
-  /**
-   * ✅ Vérification de rôle sécurisée
-   */
   private checkAdmin(role: string) {
-    // Correction : On compare des chaînes ou on cast proprement vers l'enum
     const allowedRoles: string[] = [Role.ADMIN, Role.SUPER_ADMIN];
     if (!allowedRoles.includes(role)) {
       throw new ForbiddenException("Accès refusé : Seule l'administration peut configurer la structure.");
@@ -33,8 +29,11 @@ export class OrgUnitController {
   }
 
   @Get()
-  async findAll(@GetUser('tenantId') tid: string) {
-    return this.orgUnitsService.findAll(tid);
+  async findAll(
+    @GetUser('tenantId') tid: string,
+    @Query('includeArchived') archived: string
+  ) {
+    return this.orgUnitsService.findAll(tid, archived === 'true');
   }
 
   @Patch(':id')

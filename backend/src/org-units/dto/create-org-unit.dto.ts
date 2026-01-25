@@ -6,12 +6,12 @@ export class CreateOrgUnitDto {
   OU_Name!: string;
 
   @IsUUID()
-  OU_TypeId!: string; // 👈 Relation vers OrgUnitType (Direction, Service, Atelier, etc.)
+  OU_TypeId!: string; // Direction, Service, Atelier, etc.
 
   @IsUUID()
-  OU_SiteId!: string; // 👈 Localisation physique obligatoire
+  OU_SiteId!: string; // Localisation physique obligatoire
 
   @IsOptional()
   @IsUUID()
-  OU_ParentId?: string; // 👈 Pour la structure en arbre
+  OU_ParentId?: string; // Pour la structure hiérarchique
 }

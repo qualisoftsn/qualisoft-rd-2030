@@ -19,9 +19,6 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  /**
-   * LOGIN : Authentification et récupération du statut de première connexion
-   */
   async login(loginDto: LoginDto) {
     const { U_Email, U_Password } = loginDto;
 
@@ -30,7 +27,6 @@ export class AuthService {
       include: { tenant: true }
     });
 
-    // Vérification de l'existence et du mot de passe
     if (!user || !(await bcrypt.compare(U_Password, user.U_PasswordHash))) {
       this.logger.error(`❌ Échec de connexion : ${U_Email}`);
       throw new UnauthorizedException('Identifiants incorrects');
@@ -38,12 +34,11 @@ export class AuthService {
 
     this.logger.log(`🚀 Connexion réussie : ${user.U_FirstName} ${user.U_LastName}`);
 
-    // Construction du Payload JWT
     const payload = { 
       U_Id: user.U_Id, 
-      email: user.U_Email, 
+      U_Email: user.U_Email, 
       tenantId: user.tenantId, 
-      role: user.U_Role 
+      U_Role: user.U_Role 
     };
 
     return {
@@ -54,7 +49,7 @@ export class AuthService {
         U_LastName: user.U_LastName,
         U_Email: user.U_Email,
         U_Role: user.U_Role,
-        U_FirstLogin: user.U_FirstLogin, // 👈 Indispensable pour la modale de bienvenue
+        U_FirstLogin: user.U_FirstLogin,
         tenantId: user.tenantId,
         U_TenantName: user.tenant?.T_Name,
         U_Tenant: user.tenant
@@ -62,37 +57,27 @@ export class AuthService {
     };
   }
 
-  /**
-   * REGISTER : Création atomique de l'instance Elite (Tenant + Site + Admin)
-   * Configuration par défaut en mode ESSAI (14 jours)
-   */
   async registerTenant(dto: RegisterTenantDto) {
-    // 🛠️ Extraction stricte selon le Payload validé
     const { 
       companyName, ceoName, phone, address,
       adminFirstName, adminLastName, email, password 
     } = dto;
 
-    // 1. Vérification d'unicité
     const existingUser = await this.prisma.user.findUnique({ where: { U_Email: email } });
     if (existingUser) {
       throw new BadRequestException("Cet email est déjà utilisé pour un compte administrateur.");
     }
 
-    // 2. Préparation des données temporelles (Période d'essai de 14 jours)
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-    // 3. Transaction Atomique (Tout ou rien)
     return this.prisma.$transaction(async (tx) => {
-      
-      // Étape A : Création du Tenant (Instance de l'entreprise)
       const tenant = await tx.tenant.create({
         data: {
           T_Name: companyName,
           T_Email: email,
           T_Domain: companyName.toLowerCase().replace(/\s+/g, '-'),
-          T_Plan: 'ESSAI', // 👈 Verrouillé sur ESSAI pour l'onboarding public
+          T_Plan: 'ESSAI',
           T_SubscriptionStatus: 'TRIAL',
           T_SubscriptionEndDate: trialEndDate,
           T_Address: address,
@@ -102,7 +87,6 @@ export class AuthService {
         }
       });
 
-      // Étape B : Création du Site par défaut (Siège Social)
       const site = await tx.site.create({
         data: {
           S_Name: 'Siège Social',
@@ -111,7 +95,6 @@ export class AuthService {
         }
       });
 
-      // Étape C : Création de l'Administrateur principal
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await tx.user.create({
         data: {
@@ -120,21 +103,18 @@ export class AuthService {
           U_FirstName: adminFirstName, 
           U_LastName: adminLastName,   
           U_Role: 'ADMIN',
-          U_FirstLogin: true,          // 👈 Active la modale de bienvenue au premier login
+          U_FirstLogin: true,
           tenantId: tenant.T_Id,
           U_SiteId: site.S_Id,
         },
         include: { tenant: true }
       });
 
-      this.logger.log(`✨ Instance Elite ESSAI créée avec succès : ${companyName} (${email})`);
-
-      // 4. Retour des données avec Token pour connexion immédiate
       const payload = { 
         U_Id: user.U_Id, 
-        email: user.U_Email, 
-        tenantId: user.tenantId, 
-        role: user.U_Role 
+        U_Email: user.U_Email, 
+        tenantId: tenant.T_Id, 
+        U_Role: user.U_Role 
       };
 
       return {
@@ -154,11 +134,7 @@ export class AuthService {
     });
   }
 
-  /**
-   * DISABLE FIRST LOGIN : Désactive la modale après la première lecture
-   */
   async disableFirstLogin(userId: string) {
-    this.logger.log(`✅ Bienvenue terminée pour l'utilisateur : ${userId}`);
     return this.prisma.user.update({
       where: { U_Id: userId },
       data: { U_FirstLogin: false }

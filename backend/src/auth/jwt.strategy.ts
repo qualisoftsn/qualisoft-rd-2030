@@ -1,9 +1,11 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private readonly logger = new Logger(JwtStrategy.name);
+
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -12,21 +14,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  /**
-   * @param payload Contenu décodé du Token
-   * @returns L'objet injecté dans req.user pour nos services
-   */
   async validate(payload: any) {
-    // 🛡️ Vérification stricte du TenantId (nom de clé harmonisé)
-    if (!payload.tenantId) {
-      throw new UnauthorizedException('Token invalide : Identifiant entreprise manquant.');
+    if (!payload) {
+      throw new UnauthorizedException('Token vide ou corrompu.');
     }
 
-    // On retourne l'objet exactement comme nos services l'attendent (req.user.U_...)
+    if (!payload.tenantId) {
+      this.logger.error('❌ Requête bloquée : Pas de tenantId dans le JWT');
+      throw new UnauthorizedException('Accès refusé : Instance non identifiée.');
+    }
+
+    if (!payload.U_Id) {
+      throw new UnauthorizedException('Token invalide : ID utilisateur manquant.');
+    }
+
+    // L'objet renvoyé ici est celui qui sera utilisé par TOUS les Guards (req.user)
     return { 
       U_Id: payload.U_Id, 
       U_Email: payload.U_Email, 
-      tenantId: payload.tenantId,
+      tenantId: payload.tenantId, 
       U_Role: payload.U_Role 
     };
   }

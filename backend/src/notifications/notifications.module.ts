@@ -1,16 +1,10 @@
-import { Module, Global } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule'; // ✅ Import requis
+import { Module } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
-import { SurveillanceScheduler } from './surveillance.scheduler'; // ✅ Nouveau
 
-@Global()
 @Module({
-  imports: [
-    ScheduleModule.forRoot() // ✅ Active le moteur de tâches planifiées
-  ],
-  providers: [NotificationsService, SurveillanceScheduler],
   controllers: [NotificationsController],
-  exports: [NotificationsService]
+  providers: [NotificationsService],
+  exports: [NotificationsService], // ✅ Important pour que d'autres modules puissent envoyer des notifs
 })
 export class NotificationsModule {}
