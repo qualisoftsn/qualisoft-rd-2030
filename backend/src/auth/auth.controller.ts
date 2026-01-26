@@ -1,6 +1,6 @@
 import { 
   BadRequestException, Body, ClassSerializerInterceptor, 
-  Controller, HttpCode, HttpStatus, Logger, Param, Patch, Post, 
+  Controller, Get, HttpCode, HttpStatus, Logger, Param, Patch, Post, 
   UseInterceptors, UseGuards 
 } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
@@ -20,6 +20,20 @@ export class AuthController {
     private readonly authService: AuthService, 
     private readonly contactService: ContactService
   ) {}
+
+  @Public()
+  @Get('tenants/public')
+  @HttpCode(HttpStatus.OK)
+  async getPublicTenants() {
+    return this.authService.getPublicTenants();
+  }
+
+  @Public()
+  @Get('tenants/:id/users')
+  @HttpCode(HttpStatus.OK)
+  async getTenantUsers(@Param('id') id: string) {
+    return this.authService.getTenantUsers(id);
+  }
 
   @Public()
   @Post('login')
@@ -47,7 +61,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async invite(@Body() inviteDto: InviteDto) {
     if (!inviteDto.email || !inviteDto.company) {
-        throw new BadRequestException("Champs requis manquants : email ou company");
+        throw new BadRequestException("Champs requis manquants");
     }
     return this.contactService.sendInviteRequest(inviteDto);
   }

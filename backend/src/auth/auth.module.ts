@@ -1,25 +1,45 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { ContactService } from './contact.service';
-import { UsersModule } from '../users/users.module';
+import { ContactService } from './contact.service'; // ✅ Import nécessaire
 import { JwtStrategy } from './jwt.strategy';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     UsersModule,
-    // Configuration Passport avec la stratégie par défaut
-    PassportModule.register({ defaultStrategy: 'jwt' }), 
-    // Configuration JWT avec secret d'environnement
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'SECRET_KEY_QUALISOFT',
-      signOptions: { expiresIn: '24h' },
+    ConfigModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): JwtModuleOptions => {
+        const secret = config.get<string>('JWT_SECRET');
+        const expiresIn = config.get<string>('JWT_EXPIRES_IN') || '30d';
+
+        if (!secret) {
+          throw new Error("ERREUR : JWT_SECRET n'est pas configuré dans le .env");
+        }
+
+        return {
+          secret: secret,
+          signOptions: { 
+            expiresIn: expiresIn as any 
+          },
+        };
+      },
     }),
   ],
-  providers: [AuthService, JwtStrategy, ContactService], 
   controllers: [AuthController],
-  exports: [AuthService, PassportModule, JwtStrategy], // Exportation pour usage global
+  providers: [
+    AuthService, 
+    JwtStrategy, 
+    ContactService // ✅ AJOUTÉ : Indispensable car AuthController en a besoin
+  ],
+  exports: [AuthService, JwtStrategy, PassportModule, JwtModule],
 })
 export class AuthModule {}

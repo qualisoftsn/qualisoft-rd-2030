@@ -136,13 +136,27 @@ export default function LandingPage() {
               ],
             },
             {
-              id: "PRO",
+              id: "CROISSANCE",
+              name: "Entreprise",
+              price: "105K",
+              period: "PAR MOIS / HT",
+              features: [
+                "Utilisateurs limités",
+                "Multi-Processus - 5",
+                "Tableaux de bord Live",
+                "Support Premium 24/7",
+              ],
+              highlight: true,
+            },
+
+            {
+              id: "ENTREPRISE",
               name: "Entreprise",
               price: "175K",
               period: "PAR MOIS / HT",
               features: [
-                "Utilisateurs Illimités",
-                "Multi-Processus",
+                "Utilisateurs limités",
+                "Multi-Processus - 10",
                 "Tableaux de bord Live",
                 "Support Premium 24/7",
               ],

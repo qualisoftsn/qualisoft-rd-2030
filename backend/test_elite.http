@@ -1,0 +1,82 @@
+### TEST LOGIN BRUT
+POST http://localhost:9000/api/auth/login
+Content-Type: application/json
+
+{
+  "U_Email": "ab.thiongane@qualisoft.sn",
+  "U_Password": "mohamed1965ab1711@"
+}
+
+
+### ==========================================
+### CONFIGURATION DES VARIABLES
+### ==========================================
+@baseUrl = http://localhost:9000/api
+
+### ------------------------------------------------------------
+### ÉTAPE 1 : CONNEXION DU MASTER (TOI)
+### ------------------------------------------------------------
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "U_Email": "ab.thiongane@qualisoft.sn",
+  "U_Password": "mohamed1965ab1711@"
+}
+
+### VARIABLE : Extraction du token
+### Si l'erreur "No value" apparaît ici, c'est que tu n'as pas cliqué 
+### sur "Send Request" juste au-dessus.
+@token = {{login.response.body.access_token}}
+
+
+### ------------------------------------------------------------
+### ÉTAPE 2 : DÉPLOYER UNE NOUVELLE INSTANCE (SENELEC)
+### ------------------------------------------------------------
+# @name deploy
+POST {{baseUrl}}/super-admin/provisioning/deploy
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "SENELEC SA",
+  "domain": "senelec",
+  "adminEmail": "it.admin@senelec.sn",
+  "plan": "ENTREPRISE"
+}
+
+### VARIABLE : Extraction de l'ID Tenant
+### Attention : on cherche dans .body.data car ton contrôleur 
+### renvoie un objet { data: { ... } }
+@tenantIdSenelec = {{deploy.response.body.data.T_Id}}
+
+
+### ------------------------------------------------------------
+### ÉTAPE 3 : CONNEXION DU NOUVEL ADMIN (SENELEC)
+### ------------------------------------------------------------
+# @name senelecLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "U_Email": "it.admin@senelec.sn",
+  "U_Password": "Elite2030!"
+}
+
+### VARIABLE : Token spécifique à Senelec
+@tokenSenelec = {{senelecLogin.response.body.access_token}}
+
+
+### ------------------------------------------------------------
+### ÉTAPE 4 : CRÉER UN SERVICE (DANS SENELEC)
+### ------------------------------------------------------------
+POST {{baseUrl}}/services
+Authorization: Bearer {{tokenSenelec}}
+Content-Type: application/json
+
+{
+  "OU_Name": "Direction Technique",
+  "OU_TypeId": "A_REMPLIR_APRES_LE_LOGIN",
+  "OU_SiteId": "A_REMPLIR_APRES_LE_LOGIN"
+}

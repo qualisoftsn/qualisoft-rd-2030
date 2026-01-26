@@ -1,60 +1,66 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
+"use client";
 
 import React from 'react';
-import { Zap, ArrowRight, User, ShieldCheck, Fingerprint } from 'lucide-react';
+import { Zap, ArrowRight, User, Fingerprint, AlertOctagon, Crown } from 'lucide-react';
 import Link from 'next/link';
-import { differenceInDays, startOfDay } from 'date-fns';
+import { differenceInDays, startOfDay, parseISO } from 'date-fns';
 
-interface TrialBannerProps {
-  user: any; // On reçoit l'utilisateur complet depuis le Layout
+// --- INTERFACES STRICTES ---
+interface Tenant {
+  T_SubscriptionStatus: 'ACTIVE' | 'TRIAL' | 'EXPIRED';
+  T_SubscriptionEndDate?: string;
 }
 
-export default function TrialBanner({ user }: TrialBannerProps) {
-  // 1. GARDE-FOU : Si pas d'utilisateur ou si la licence est déjà ACTIVE (payée), on n'affiche rien
-  if (!user || user?.tenant?.T_SubscriptionStatus === 'ACTIVE') {
-    return null;
-  }
+interface UserProfile {
+  U_FirstName?: string;
+  U_LastName?: string;
+  U_Role?: string;
+  U_Id?: string;
+  U_Tenant?: Tenant;
+}
 
-  // 2. CALCUL DÉRIVÉ (Sans useState = Zéro erreur de cascade)
-  const endDateRaw = user?.tenant?.T_SubscriptionEndDate || user?.subscriptionEndDate;
+export default function TrialBanner({ user }: { user: UserProfile | null }) {
+  if (!user) return null;
+
+  const tenant = user?.U_Tenant;
+  const isMaster = user?.U_Role === 'SUPER_ADMIN';
+  const subscriptionStatus = tenant?.T_SubscriptionStatus || 'TRIAL';
   
-  let daysLeft = 14;
+  // 👑 Le Master n'est pas soumis à la bannière de restriction
+  if (subscriptionStatus === 'ACTIVE' && !isMaster) return null;
+
+  const endDateRaw = tenant?.T_SubscriptionEndDate;
+  let daysLeft = 14; 
+
   if (endDateRaw) {
-    const end = startOfDay(new Date(endDateRaw));
-    const now = startOfDay(new Date());
-    const diff = differenceInDays(end, now);
-    daysLeft = diff > 0 ? diff : 0;
+    try {
+      const end = startOfDay(parseISO(endDateRaw));
+      const now = startOfDay(new Date());
+      const diff = differenceInDays(end, now);
+      daysLeft = diff > 0 ? diff : 0;
+    } catch { daysLeft = 0; }
   }
 
-  const isUrgent = daysLeft <= 3;
-  const isExpired = daysLeft === 0;
-
-  // 3. PRÉPARATION DES DONNÉES D'IDENTITÉ
-  const displayName = `${user.U_FirstName || user.firstName || ''} ${user.U_LastName || user.lastName || ''}`.trim() || "Utilisateur Élite";
-  const displayRole = user.U_Role || user.role || 'USER';
-  const displayId = (user.U_Id || user.id || '........').substring(0, 8);
+  const isExpired = subscriptionStatus === 'TRIAL' && daysLeft === 0;
+  const isUrgent = daysLeft <= 3 && !isExpired;
 
   return (
-    <div className={`py-2.5 px-8 shadow-2xl relative z-50 border-b border-white/5 transition-all duration-700 ${
-      isUrgent 
-      ? 'bg-linear-to-r from-red-950 via-red-900 to-black' 
-      : 'bg-linear-to-r from-[#0B0F1A] via-blue-950 to-[#0B0F1A]'
+    <div className={`py-2.5 px-8 shadow-2xl relative z-50 border-b border-white/5 transition-all duration-700 font-sans ${
+      isExpired ? 'bg-red-600' : isUrgent ? 'bg-linear-to-r from-red-950 to-black' : 'bg-linear-to-r from-[#0B0F1A] via-blue-950 to-[#0B0F1A]'
     }`}>
       <div className="flex items-center justify-between max-w-full mx-auto italic">
         
-        {/* SECTION GAUCHE : STATUT TRIAL */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className={`p-1.5 rounded-lg animate-pulse ${isUrgent ? 'bg-red-500 shadow-lg shadow-red-500/50' : 'bg-amber-500'}`}>
-              <Zap size={14} className="text-white fill-white" />
+            <div className={`p-1.5 rounded-lg ${isExpired ? 'bg-white text-red-600' : 'bg-amber-500 animate-pulse'}`}>
+              {isExpired ? <AlertOctagon size={14} /> : <Zap size={14} className="text-white fill-white" />}
             </div>
             <div className="flex flex-col">
               <p className="text-[10px] font-black uppercase tracking-widest text-white leading-none">
                 {isExpired ? (
-                  <span className="text-red-400">🚨 Licence Expirée</span>
+                  <span className="animate-in fade-in">🚨 ESSAI TERMINÉ : MODE LECTURE SEULE ACTIF</span>
                 ) : (
-                  <>OFFRE TRIAL : <span className="text-amber-400">{daysLeft} JOURS RESTANTS</span></>
+                  <>PÉRIODE D&apos;ESSAI : <span className="text-amber-400">{daysLeft} JOURS RESTANTS</span></>
                 )}
               </p>
             </div>
@@ -64,35 +70,24 @@ export default function TrialBanner({ user }: TrialBannerProps) {
           
           <Link 
             href="/dashboard/settings/billing" 
-            className="flex items-center gap-2 text-white hover:text-amber-400 no-underline text-[9px] font-black uppercase tracking-widest transition-all group"
+            className={`flex items-center gap-2 text-white hover:text-amber-400 text-[9px] font-black uppercase tracking-widest transition-all group ${isExpired ? 'underline decoration-white/50' : ''}`}
           >
-            Passer à l&apos;offre Élite <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+            {isExpired ? "Régulariser ma licence Élite" : "Activer la licence Élite RD 2030"} 
+            <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
 
-        {/* SECTION DROITE : IDENTITÉ SÉCURISÉE */}
         <div className="flex items-center gap-5">
           <div className="flex flex-col items-end border-r border-white/10 pr-5 leading-none">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-tighter text-white">
-              <User size={12} className="text-blue-500" /> {displayName}
+              {isMaster && <Crown size={12} className="text-amber-400" />}
+              <User size={12} className="text-blue-500" /> {user.U_FirstName} {user.U_LastName}
             </div>
-            
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className={`text-[8px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 text-white ${
-                displayRole === 'ADMIN' ? 'bg-purple-600/80' : 'bg-blue-600/80'
-              }`}>
-                <ShieldCheck size={10} /> {displayRole}
-              </span>
-              <span className="text-[8px] text-slate-500 font-bold tracking-widest uppercase">ID: {displayId}</span>
-            </div>
+            <span className={`text-[8px] font-black px-2 py-0.5 rounded-md mt-1 text-white ${isMaster ? 'bg-amber-600' : 'bg-blue-600'}`}>
+               {user.U_Role}
+            </span>
           </div>
-
-          <div className="bg-white/5 p-2.5 rounded-xl border border-white/10 shadow-inner">
-            <Fingerprint 
-              size={18} 
-              className={displayRole === 'ADMIN' ? 'text-purple-400' : 'text-slate-700'} 
-            />
-          </div>
+          <Fingerprint size={18} className={isMaster ? 'text-amber-400' : 'text-slate-700'} />
         </div>
       </div>
     </div>

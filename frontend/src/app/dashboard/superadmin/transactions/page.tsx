@@ -81,7 +81,7 @@ export default function MasterCommandCenter() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {data.tenants.map((t: any) => (
-                  <tr key={t.T_Id} className="hover:bg-white/[0.02]">
+                  <tr key={t.T_Id} className="hover:bg-white/2">
                     <td className="p-8"><p className="text-xl font-black uppercase text-white leading-none tracking-tighter">{t.T_Name}</p><p className="text-[10px] text-slate-400 mt-2 font-bold uppercase italic">{t.T_CeoName} • {t.T_Phone}</p></td>
                     <td className="p-8 text-center"><span className="text-[9px] font-black uppercase px-4 py-1.5 rounded-full border border-blue-500/20 text-blue-500 bg-blue-500/10">{t.T_Plan}</span></td>
                     <td className="p-8 text-center"><p className="text-xs font-black text-white italic">{t.T_SubscriptionEndDate ? new Date(t.T_SubscriptionEndDate).toLocaleDateString() : '---'}</p><p className="text-[8px] font-black uppercase text-slate-600 mt-1">Tacite: {t.T_TacitRenewal ? 'OUI' : 'NON'}</p></td>

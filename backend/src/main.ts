@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const logger = new Logger('Qualisoft-Bootstrap');
@@ -65,6 +66,15 @@ async function bootstrap() {
   logger.log(`📂 GED STORAGE      : http://localhost:${port}/uploads`);
   logger.log(`🔐 AUTH ENDPOINT    : http://localhost:${port}/api/auth/login`);
   logger.log(`--------------------------------------------------------`);
+
+// src/main.ts
+  const configService = app.get(ConfigService);
+  const jwtSecret = configService.get('JWT_SECRET');
+  console.log('--------------------------------------------------------');
+  console.log(`🚀 SERVEUR DÉMARRÉ SUR LE PORT : ${configService.get('PORT')}`);
+  console.log(`🔐 SECRET JWT CHARGÉ : ${jwtSecret ? jwtSecret.substring(0, 5) + '...' : 'NON DÉFINI'}`);
+  console.log('--------------------------------------------------------');
+
 }
 
 bootstrap();
