@@ -1,0 +1,208 @@
+import { 
+  PrismaClient, 
+  Role, 
+  SubscriptionStatus, 
+  Plan, 
+  Site, 
+  User 
+} from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('🏁 Démarrage du seed Qualisoft Elite (Dakar Time: 16:15)...');
+  
+  // Hashage du mot de passe unique pour tous les comptes de test
+  const passwordEternel = 'mohamed1965ab1711@';
+  const hashedPassword = await bcrypt.hash(passwordEternel, 10);
+
+  // --- 1. TENANT MAÎTRE (QUALISOFT) ---
+  const masterTenant = await prisma.tenant.upsert({
+    where: { T_Id: 'QS-2026-JANV' },
+    update: {
+      T_Name: 'Qualisoft',
+      T_Email: 'qualisoft@qualisoft.sn',
+      T_Domain: 'qualisoft',
+      T_IsActive: true,
+      T_Plan: Plan.GROUPE,
+      T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
+    },
+    create: {
+      T_Id: 'QS-2026-JANV',
+      T_Name: 'Qualisoft',
+      T_Email: 'qualisoft@qualisoft.sn',
+      T_Domain: 'qualisoft',
+      T_Plan: Plan.GROUPE,
+      T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
+      T_IsActive: true,
+      T_Address: 'Dakar, Sénégal',
+      T_Phone: '+221 33 000 00 00',
+      T_CeoName: 'Abdoulaye THIONGANE',
+    },
+  });
+
+  const masterSite = await prisma.site.upsert({
+    where: { S_Id: 'SITE-QS-MASTER' },
+    update: { S_Name: 'Siège Social Qualisoft' },
+    create: {
+      S_Id: 'SITE-QS-MASTER',
+      S_Name: 'Siège Social Qualisoft',
+      tenantId: masterTenant.T_Id,
+    },
+  });
+
+  // Création du Super Admin (Votre compte souverain)
+  await prisma.user.upsert({
+    where: { U_Email: 'ab.thiongane@qualisoft.sn' },
+    update: {
+      U_PasswordHash: hashedPassword,
+      U_Role: Role.SUPER_ADMIN,
+      U_IsActive: true,
+      U_SiteId: masterSite.S_Id,
+    },
+    create: {
+      U_Email: 'ab.thiongane@qualisoft.sn',
+      U_PasswordHash: hashedPassword,
+      U_FirstName: 'Abdoulaye',
+      U_LastName: 'Thiongane',
+      U_Role: Role.SUPER_ADMIN,
+      U_IsActive: true,
+      U_FirstLogin: false,
+      tenantId: masterTenant.T_Id,
+      U_SiteId: masterSite.S_Id,
+    },
+  });
+
+  // --- 2. CONFIGURATION DES 3 NOUVEAUX TENANTS ---
+  const newTenantsData = [
+    {
+      id: 'TEN-INFRA-001',
+      name: 'Global Infra Sénégal',
+      domain: 'global-infra',
+      plan: Plan.ENTREPRISE,
+      status: SubscriptionStatus.ACTIVE,
+      units: ['Logistique', 'Génie Civil', 'Maintenance', 'HSE', 'RH'],
+    },
+    {
+      id: 'TEN-MED-002',
+      name: 'BioSanté Lab',
+      domain: 'biosante',
+      plan: Plan.CROISSANCE,
+      status: SubscriptionStatus.TRIAL,
+      units: ['Laboratoire', 'Prélèvements', 'Qualité Bio', 'Stocks', 'Accueil'],
+    },
+    {
+      id: 'TEN-ENER-003',
+      name: 'Sahel Solar',
+      domain: 'sahel-solar',
+      plan: Plan.EMERGENCE,
+      status: SubscriptionStatus.ACTIVE,
+      units: ['Installation', 'Études', 'Commercial', 'SAV', 'Finance'],
+    }
+  ];
+
+  for (const t of newTenantsData) {
+    const tenant = await prisma.tenant.upsert({
+      where: { T_Email: `contact@${t.domain}.sn` },
+      update: {},
+      create: {
+        T_Id: t.id,
+        T_Name: t.name,
+        T_Email: `contact@${t.domain}.sn`,
+        T_Domain: t.domain,
+        T_Plan: t.plan,
+        T_SubscriptionStatus: t.status,
+        T_IsActive: true,
+      },
+    });
+
+    // Création obligatoire du type d'unité (OrgUnitType)
+    const unitType = await prisma.orgUnitType.create({
+      data: {
+        OUT_Label: 'Département',
+        tenantId: tenant.T_Id,
+      }
+    });
+
+    // Création des 2 sites
+    const sites: Site[] = [];
+    for (let i = 1; i <= 2; i++) {
+      const s = await prisma.site.create({
+        data: {
+          S_Name: `Site ${i} - ${t.name}`,
+          tenantId: tenant.T_Id,
+        }
+      });
+      sites.push(s);
+    }
+
+    // Création des 5 unités rattachées au premier site
+    for (const uName of t.units) {
+      await prisma.orgUnit.create({
+        data: {
+          OU_Name: uName,
+          OU_TypeId: unitType.OUT_Id,
+          OU_SiteId: sites[0].S_Id,
+          tenantId: tenant.T_Id,
+        }
+      });
+    }
+
+    // Création obligatoire du type de processus (ProcessType)
+    const procType = await prisma.processType.create({
+      data: {
+        PT_Label: 'Métier',
+        tenantId: tenant.T_Id,
+      }
+    });
+
+    // Création des 4 utilisateurs par tenant
+    const users: User[] = [];
+    for (let i = 1; i <= 4; i++) {
+      const u = await prisma.user.create({
+        data: {
+          U_Email: `user${i}@${t.domain}.sn`.toLowerCase(),
+          U_PasswordHash: hashedPassword,
+          U_FirstName: `Prénom${i}`,
+          U_LastName: t.name,
+          U_Role: i === 1 ? Role.ADMIN : Role.USER,
+          tenantId: tenant.T_Id,
+          U_SiteId: sites[i % 2].S_Id,
+          U_FirstLogin: false,
+        }
+      });
+      users.push(u);
+    }
+
+    // Création des 3 processus (liés à l'admin du tenant)
+    const procNames = ['Management de la Qualité', 'Opérations Clients', 'Support Technique'];
+    for (let i = 0; i < 3; i++) {
+      await prisma.processus.create({
+        data: {
+          PR_Code: `PROC-${t.domain.toUpperCase()}-0${i+1}`,
+          PR_Libelle: procNames[i],
+          PR_TypeId: procType.PT_Id,
+          PR_PiloteId: users[0].U_Id,
+          tenantId: tenant.T_Id,
+        }
+      });
+    }
+
+    console.log(`✅ Tenant ${t.name} (2 Sites, 5 Unités, 3 Processus, 4 Users) déployé.`);
+  }
+
+  console.log('--------------------------------------------------------');
+  console.log('👑 SEED COMPLET : Environnement de test Qualisoft prêt.');
+  console.log('📧 Identifiants admin test : user1@biosante.sn / ' + passwordEternel);
+  console.log('--------------------------------------------------------');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Erreur critique lors du Seed :', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

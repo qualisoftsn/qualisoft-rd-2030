@@ -8,8 +8,8 @@ import { join } from 'path';
 // --- INFRASTRUCTURE & SÉCURITÉ ---
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { SubscriptionGuard } from './auth/guards/subscription.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
+import { SubscriptionGuard } from './auth/guards/subscription.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
@@ -23,6 +23,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { ActionsModule } from './actions/actions.module';
 import { AnalysesModule } from './analyses/analyses.module';
 import { AuditsModule } from './audits/audits.module';
+import { CompetencesModule } from './competences/competences.module';
 import { DocumentsModule } from './documents/documents.module';
 import { EnvironmentModule } from './environment/environment.module';
 import { EquipmentModule } from './equipment/equipment.module';
@@ -50,19 +51,19 @@ import { SettingsController } from './settings/settings.controller';
 
 @Module({
   imports: [
-    // 1️⃣ CONFIGURATION NOYAU (Chargement prioritaire du .env)
+    // 1️⃣ CONFIGURATION NOYAU (Isolation des variables d'environnement)
     ConfigModule.forRoot({
-      isGlobal: true, 
-      envFilePath: join(process.cwd(), '.env'), 
+      isGlobal: true,
+      envFilePath: join(process.cwd(), '.env'),
     }),
     ScheduleModule.forRoot(),
     PrismaModule,
-    
-    // 2️⃣ IDENTITÉ & ACCÈS
+
+    // 2️⃣ IDENTITÉ & ACCÈS (IAM)
     AuthModule,
     UsersModule,
-    
-    // 3️⃣ INFRASTRUCTURE & GED
+
+    // 3️⃣ INFRASTRUCTURE & GED (Gestion Électronique des Documents)
     MulterModule.register({
       dest: './uploads',
     }),
@@ -72,26 +73,52 @@ import { SettingsController } from './settings/settings.controller';
     SitesModule,
     OrgUnitsModule,
 
-    // 4️⃣ SMI CORE (ISO 9001)
-    ProcessusModule, AuditsModule, NonConformiteModule, ActionsModule,
-    PaqModule, TiersModule, ReclamationsModule, ProcessReviewModule,
-    IndicatorsModule, DocumentsModule,
+    // 4️⃣ SMI CORE (ISO 9001 - Cycle de Qualité)
+    ProcessusModule,
+    AuditsModule,
+    NonConformiteModule,
+    ActionsModule,
+    PaqModule,
+    TiersModule,
+    ReclamationsModule,
+    ProcessReviewModule,
+    IndicatorsModule,
+    DocumentsModule,
 
-    // 5️⃣ SMI SPÉCIALISÉ & GOUVERNANCE
-    SseModule, EnvironmentModule, MeetingsModule, EquipmentModule,
-    RisksModule, ServicesModule, PartiesInteresseesModule, AnalysesModule,
+    // 5️⃣ SMI SPÉCIALISÉ & GOUVERNANCE (ISO 14001, 45001 & GPEC)
+    SseModule,
+    EnvironmentModule,
+    MeetingsModule,
+    EquipmentModule,
+    CompetencesModule, // 👈 Gère la Matrix et les Évaluations
+    RisksModule,
+    ServicesModule,
+    PartiesInteresseesModule,
+    AnalysesModule,
   ],
   controllers: [
-    AppController, SettingsController, UploadController, HealthController
-  ], 
+    AppController,
+    SettingsController,
+    UploadController,
+    HealthController,
+  ],
   providers: [
-    AppService, 
-    ContactService, 
+    AppService,
+    ContactService,
 
-    // 🛡️ SYSTÈME DE PROTECTION GLOBAL (ORDRE STRICT)
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: SubscriptionGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
+    // 🛡️ SYSTÈME DE PROTECTION GLOBAL (L'ordre est vital pour le décodage du Token)
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard, // 1. Vérifie qui tu es
+    },
+    {
+      provide: APP_GUARD,
+      useClass: SubscriptionGuard, // 2. Vérifie si ton instance a payé
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard, // 3. Vérifie tes permissions (Admin, Pilote, etc.)
+    },
   ],
 })
 export class AppModule {}

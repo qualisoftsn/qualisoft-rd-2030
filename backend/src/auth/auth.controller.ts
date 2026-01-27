@@ -61,7 +61,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async invite(@Body() inviteDto: InviteDto) {
     if (!inviteDto.email || !inviteDto.company) {
-        throw new BadRequestException("Champs requis manquants");
+      throw new BadRequestException("Champs requis manquants pour la demande d'invitation.");
     }
     return this.contactService.sendInviteRequest(inviteDto);
   }

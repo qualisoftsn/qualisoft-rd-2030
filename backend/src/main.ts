@@ -7,74 +7,38 @@ import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const logger = new Logger('Qualisoft-Bootstrap');
-  
-  // Utilisation de NestExpressApplication pour le support des fichiers statiques (GED)
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const configService = app.get(ConfigService);
 
-  // ======================================================
-  // 1. PRÉFIXE GLOBAL & VERSIONING
-  // ======================================================
   app.setGlobalPrefix('api');
 
-  // ======================================================
-  // 2. SÉCURITÉ & VALIDATION (ISO Compliance)
-  // ======================================================
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,               // Supprime les propriétés non listées dans les DTO
-    forbidNonWhitelisted: false,    // Souplesse pour les payloads frontend complexes
-    transform: true,               // Conversion automatique (ex: string -> number)
-    transformOptions: {
-      enableImplicitConversion: true,
-    },
+    whitelist: true,
+    transform: true,
+    transformOptions: { enableImplicitConversion: true },
   }));
 
-  // ======================================================
-  // 3. GESTION DE LA GED (Fichiers Statiques)
-  // Permet l'accès aux preuves et documents SMI
-  // ======================================================
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/uploads/', 
-    index: false,        // Sécurité : empêche l'exploration du dossier
+    prefix: '/uploads/',
+    index: false,
   });
 
-  // ======================================================
-  // 4. CONFIGURATION CORS ELITE (Multi-tenant ready)
-  // ======================================================
+  // ✅ FIX CORS : On accepte les deux variantes de casse pour le header tenant
   app.enableCors({
-    origin: [
-      'http://localhost:3000', 
-      'http://localhost:3001', 
-      'https://elite.qualisoft.sn',
-      'https://elite.qualisoft.sn:3000', 
-      'https://elite.qualisoft.sn:3001'
-    ],
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'https://elite.qualisoft.sn'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    // ✅ CRUCIAL : Ajout de X-Tenant-ID pour permettre l'isolation des données
-    allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Tenant-ID'],
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'x-tenant-id', 'X-Tenant-ID'],
   });
 
-  // ======================================================
-  // 5. LANCEMENT DU NOYAU
-  // ======================================================
-  const port = 9000;
+  // ✅ PORT UNIQUE : On s'assure que le serveur écoute sur le port affiché dans les logs
+  const port = configService.get('PORT') || 9000;
   await app.listen(port);
   
   logger.log(`--------------------------------------------------------`);
   logger.log(`🚀 QUALISOFT ELITE BACKEND : OPÉRATIONNEL`);
   logger.log(`📡 API BASE URL     : http://localhost:${port}/api`);
-  logger.log(`📂 GED STORAGE      : http://localhost:${port}/uploads`);
-  logger.log(`🔐 AUTH ENDPOINT    : http://localhost:${port}/api/auth/login`);
   logger.log(`--------------------------------------------------------`);
-
-// src/main.ts
-  const configService = app.get(ConfigService);
-  const jwtSecret = configService.get('JWT_SECRET');
-  console.log('--------------------------------------------------------');
-  console.log(`🚀 SERVEUR DÉMARRÉ SUR LE PORT : ${configService.get('PORT')}`);
-  console.log(`🔐 SECRET JWT CHARGÉ : ${jwtSecret ? jwtSecret.substring(0, 5) + '...' : 'NON DÉFINI'}`);
-  console.log('--------------------------------------------------------');
-
 }
 
 bootstrap();

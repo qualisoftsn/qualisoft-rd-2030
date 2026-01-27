@@ -1,120 +1,68 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class CompetencesService {
-  private readonly logger = new Logger(CompetencesService.name);
-
   constructor(private prisma: PrismaService) {}
 
-  // ======================================================
-  // 📊 ZONE 1 : MATRICE DE POLYVALENCE (ISO 9001)
-  // ======================================================
-
-  /**
-   * ✅ MATRICE : Récupération croisée Utilisateurs / Compétences
-   * Consolidé : Ajout du filtrage par Unité Organique pour une vision par service
-   */
-  async getMatrix(T_Id: string, orgUnitId?: string) {
+  /** ✅ MATRIX : Récupération croisée Users / Competences */
+  async getMatrix(tenantId: string) {
     const [competences, users] = await Promise.all([
       this.prisma.competence.findMany({
-        where: { tenantId: T_Id },
+        where: { tenantId, CP_IsActive: true },
         orderBy: { CP_Name: 'asc' }
       }),
       this.prisma.user.findMany({
-        where: { 
-          tenantId: T_Id, 
-          U_IsActive: true,
-          ...(orgUnitId && { U_OrgUnitId: orgUnitId }) // 👈 Consolidation hiérarchique
-        },
+        where: { tenantId, U_IsActive: true },
         select: {
           U_Id: true,
           U_FirstName: true,
           U_LastName: true,
           U_Role: true,
-          U_OrgUnitId: true,
           U_Competences: {
+            where: { UC_IsActive: true },
             select: { UC_CompetenceId: true, UC_NiveauActuel: true }
           }
         }
       })
     ]);
-
     return { competences, users };
   }
 
-  /**
-   * ✅ RÉFÉRENTIEL : CRÉATION D'UNE COMPÉTENCE
-   */
-  async create(data: any, T_Id: string) {
-    if (!data.CP_Name) {
-      throw new BadRequestException("Le nom de la compétence est requis.");
-    }
-    return this.prisma.competence.create({
-      data: {
-        CP_Name: data.CP_Name,
-        CP_NiveauRequis: Number(data.CP_NiveauRequis) || 3,
-        tenantId: T_Id,
-      }
-    });
-  }
-
-  /**
-   * ✅ ÉVALUATION : MISE À JOUR DU NIVEAU (UPSERT)
-   * Enregistre ou met à jour le niveau d'un collaborateur sur une compétence
-   */
-  async evaluate(data: any, T_Id: string) {
+  /** ✅ EVALUATE : Upsert sur la table de liaison UserCompetence */
+  async evaluate(data: { userId: string, competenceId: string, level: number }, tenantId: string) {
     return this.prisma.userCompetence.upsert({
       where: {
         UC_UserId_UC_CompetenceId: {
           UC_UserId: data.userId,
-          UC_CompetenceId: data.compId
+          UC_CompetenceId: data.competenceId
         }
       },
-      update: { UC_NiveauActuel: Number(data.level) },
+      update: { UC_NiveauActuel: data.level },
       create: {
         UC_UserId: data.userId,
-        UC_CompetenceId: data.compId,
-        UC_NiveauActuel: Number(data.level)
+        UC_CompetenceId: data.competenceId,
+        UC_NiveauActuel: data.level
       }
     });
   }
 
-  // ======================================================
-  // 🛡️ ZONE 2 : HABILITATIONS & CONFORMITÉ SSE (MASE / ISO 45001)
-  // ======================================================
-
-  /**
-   * ✅ SURVEILLANCE : LISTE DES HABILITATIONS EN EXPIRATION
-   * Alerte proactive pour les CACES, Habilitations Électriques, etc. (Seuil 30 jours)
-   */
-  async getExpiringHabilitations(T_Id: string) {
-    const alertThreshold = new Date();
-    alertThreshold.setDate(alertThreshold.getDate() + 30);
-
-    // ✅ Correction : Utilisation des noms de champs du Schéma (userId, user)
-    return this.prisma.userHabilitation.findMany({
-      where: {
-        tenantId: T_Id,
-        UH_ExpiryDate: { lte: alertThreshold, gte: new Date() } 
-      },
-      include: { 
-        user: { select: { U_FirstName: true, U_LastName: true } } 
-      },
-      orderBy: { UH_ExpiryDate: 'asc' }
+  /** ✅ CRUD : Création de compétence */
+  async create(data: any, tenantId: string) {
+    return this.prisma.competence.create({
+      data: {
+        CP_Name: data.CP_Name,
+        CP_NiveauRequis: Number(data.CP_NiveauRequis) || 3,
+        tenantId: tenantId
+      }
     });
   }
 
-  // ======================================================
-  // 🛠️ ZONE 3 : ADMINISTRATION
-  // ======================================================
-
-  /**
-   * ✅ SUPPRESSION : RETRAIT D'UNE COMPÉTENCE DU RÉFÉRENTIEL
-   */
-  async remove(id: string, T_Id: string) {
-    return this.prisma.competence.deleteMany({
-      where: { CP_Id: id, tenantId: T_Id }
+  /** ✅ ARCHIVE : On ne supprime pas, on bascule CP_IsActive */
+  async remove(id: string, tenantId: string) {
+    return this.prisma.competence.updateMany({
+      where: { CP_Id: id, tenantId },
+      data: { CP_IsActive: false }
     });
   }
 }

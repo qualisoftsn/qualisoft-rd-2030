@@ -1,74 +1,90 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NCStatus, NCGravity, NCSource } from '@prisma/client';
 
 @Injectable()
 export class NcService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Création d'une Non-Conformité
+   * ✅ LISTE : Récupération de toutes les NC d'un tenant
    */
-  async create(data: any, T_Id: string, detectorId: string) {
-    return this.prisma.nonConformite.create({
-      data: {
-        NC_Libelle: data.NC_Libelle,
-        NC_Description: data.NC_Description,
-        NC_Gravite: data.NC_Gravite || 'MINEURE',
-        NC_Statut: 'A_TRAITER',
-        NC_Source: data.NC_Source || 'INTERNAL_AUDIT',
-        tenantId: T_Id,
-        NC_DetectorId: detectorId,
-        NC_AuditId: data.NC_AuditId || null,
-      },
-    });
-  }
-
-  /**
-   * Liste des NC avec filtres par Tenant
-   */
-  async findAll(T_Id: string) {
+  async findAll(tenantId: string) {
     return this.prisma.nonConformite.findMany({
-      where: { tenantId: T_Id },
-      include: {
-        NC_Detector: {
-          select: { U_FirstName: true, U_LastName: true },
-        },
-        NC_Actions: true, // Relation NC_Actions définie dans ton schéma
+      where: { tenantId },
+      include: { 
+        NC_Processus: { select: { PR_Libelle: true, PR_Code: true } }, 
+        NC_Detector: { select: { U_FirstName: true, U_LastName: true } }, 
+        NC_Actions: true 
       },
-      orderBy: { NC_CreatedAt: 'desc' },
+      orderBy: { NC_CreatedAt: 'desc' }
     });
   }
 
   /**
-   * Mise à jour du statut d'une NC
+   * ✅ UNIQUE : Détails d'une NC (Appelé par nc.controller.ts:47)
    */
-  async updateStatus(id: string, statut: string, T_Id: string) {
+  async findOne(id: string, tenantId: string) {
     const nc = await this.prisma.nonConformite.findFirst({
-      where: { NC_Id: id, tenantId: T_Id },
-    });
-
-    if (!nc) throw new NotFoundException('Non-conformité introuvable pour ce tenant.');
-
-    return this.prisma.nonConformite.update({
-      where: { NC_Id: id },
-      data: { NC_Statut: statut },
-    });
-  }
-
-  /**
-   * Récupère une NC avec tout son historique d'actions
-   */
-  async findOne(id: string, T_Id: string) {
-    return this.prisma.nonConformite.findFirst({
-      where: { NC_Id: id, tenantId: T_Id },
+      where: { NC_Id: id, tenantId },
       include: {
+        NC_Processus: true,
+        NC_Detector: true,
         NC_Actions: {
-          include: {
-            ACT_Responsable: { select: { U_FirstName: true, U_LastName: true } },
-          },
+          include: { ACT_Responsable: true }
         },
         NC_Audit: true,
-      },
+        NC_Preuves: true
+      }
+    });
+
+    if (!nc) {
+      throw new NotFoundException(`La Non-Conformité avec l'ID ${id} est introuvable.`);
+    }
+
+    return nc;
+  }
+
+  /**
+   * ✅ CRÉATION : Enregistrement d'une nouvelle NC
+   */
+  async create(dto: any, tenantId: string, detectorId: string) {
+    return this.prisma.nonConformite.create({
+      data: {
+        NC_Libelle: dto.NC_Libelle,
+        NC_Description: dto.NC_Description,
+        NC_Gravite: (dto.NC_Gravite as NCGravity) || NCGravity.MINEURE,
+        NC_Statut: NCStatus.DETECTION,
+        NC_Source: (dto.NC_Source as NCSource) || NCSource.PROCESS_REVIEW,
+        tenantId: tenantId,
+        NC_DetectorId: detectorId,
+        NC_ProcessusId: dto.NC_ProcessusId,
+      }
+    });
+  }
+
+  /**
+   * ✅ MISE À JOUR : Cycle de vie de la NC
+   */
+  async update(id: string, dto: any, tenantId: string) {
+    return this.prisma.nonConformite.update({
+      where: { NC_Id: id, tenantId },
+      data: {
+        NC_Libelle: dto.NC_Libelle,
+        NC_Description: dto.NC_Description,
+        NC_Statut: (dto.NC_Statut as NCStatus),
+        NC_Gravite: (dto.NC_Gravite as NCGravity),
+        NC_Diagnostic: dto.NC_Diagnostic
+      }
+    });
+  }
+
+  /**
+   * ✅ SUPPRESSION : Retrait du noyau
+   */
+  async remove(id: string, tenantId: string) {
+    return this.prisma.nonConformite.delete({
+      where: { NC_Id: id, tenantId }
     });
   }
 }
