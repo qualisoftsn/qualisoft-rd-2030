@@ -1,26 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-'use client';
+"use client";
 
 import React, { useEffect, useState } from 'react';
 import apiClient from '@/core/api/api-client';
-import { Database, Search, Loader2, Calendar, FileText, ShieldCheck } from 'lucide-react';
+import { Database, Search, Loader2, Target, Zap, ShieldAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function PreparationRevue() {
   const router = useRouter();
   const [processes, setProcesses] = useState<any[]>([]);
   const [selectedProc, setSelectedProc] = useState('');
-  const [docRef, setDocRef] = useState('F-QLT-011'); // Choix du document
+  const [docRef, setDocRef] = useState('F-QLT-011');
   const [isScanning, setIsScanning] = useState(false);
   const [scanStep, setScanStep] = useState(0);
 
-  const now = new Date();
-  const periods = [
-    { m: now.getMonth(), y: now.getFullYear(), label: 'Mois Précédent' },
-    { m: now.getMonth() + 1, y: now.getFullYear(), label: 'Mois en Cours' }
+  const steps = [
+    { label: "Extraction des KPI", icon: Target },
+    { label: "Analyse des Non-Conformités", icon: ShieldAlert },
+    { label: "Évaluation des Risques", icon: Zap },
+    { label: "Initialisation du PV", icon: Database }
   ];
-  const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
 
   useEffect(() => {
     apiClient.get('/processus').then(res => {
@@ -31,55 +31,86 @@ export default function PreparationRevue() {
 
   const handleStartScan = async () => {
     setIsScanning(true);
-    for (let i = 0; i < 4; i++) { setScanStep(i); await new Promise(r => setTimeout(r, 600)); }
+    // Simulation visuelle du Scan Deep-Learning
+    for (let i = 0; i < steps.length; i++) {
+      setScanStep(i);
+      await new Promise(r => setTimeout(r, 800));
+    }
+
     try {
       const res = await apiClient.post('/process-reviews/initialize', {
         processId: selectedProc,
-        month: selectedPeriod.m,
-        year: selectedPeriod.y,
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
         docRef: docRef
       });
       router.push(`/dashboard/process-review/session/${res.data.PRV_Id}`);
-    } catch (err) { setIsScanning(false); alert("Erreur Scan"); }
+    } catch (err) {
+      setIsScanning(false);
+      alert("Erreur critique lors de l'agrégation des données.");
+    }
   };
 
-  if (isScanning) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-[#0B0F1A] text-white italic">
-      <Loader2 size={80} className="text-blue-600 animate-spin mb-8 opacity-20" />
-      <h2 className="text-2xl font-black uppercase animate-pulse">
-        {["Analyse KPI", "Scan NC", "Risques SMI", "Génération PV"][scanStep]}
-      </h2>
-    </div>
-  );
+  if (isScanning) {
+    const CurrentIcon = steps[scanStep].icon;
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#0B0F1A] text-white italic">
+        <div className="relative mb-12">
+          <Loader2 size={120} className="text-blue-600 animate-spin opacity-20" />
+          <CurrentIcon size={40} className="absolute inset-0 m-auto text-blue-500 animate-pulse" />
+        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-500 mb-4">Moteur d&apos;analyse Qualisoft</p>
+        <h2 className="text-3xl font-black uppercase tracking-tighter italic">
+          {steps[scanStep].label}...
+        </h2>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 bg-[#0B0F1A] min-h-screen text-white italic font-sans">
-      <h1 className="text-5xl font-black uppercase mb-12">Scan de <span className="text-blue-600">Performance</span></h1>
-      <div className="max-w-4xl bg-slate-900/50 border border-white/5 p-12 rounded-[3rem] space-y-10 shadow-2xl">
-        <div className="grid gap-8">
-          <div className="space-y-3">
-            <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2"><Database size={14}/> Périmètre</label>
-            <select value={selectedProc} onChange={e => setSelectedProc(e.target.value)} className="w-full bg-slate-950 border border-white/10 p-5 rounded-2xl font-black text-blue-400 outline-none">
+    <div className="ml-72 p-12 bg-[#0B0F1A] min-h-screen text-white italic font-sans text-left">
+      <header className="mb-16">
+        <h1 className="text-7xl font-black uppercase italic tracking-tighter">
+          Scan <span className="text-blue-600">Performance</span>
+        </h1>
+        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-4">
+          Agrégation automatique des données SMI avant revue
+        </p>
+      </header>
+
+      <div className="max-w-3xl bg-slate-900/40 border border-white/5 p-16 rounded-[4rem] space-y-12 shadow-3xl">
+        <div className="space-y-10">
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase text-blue-500 tracking-widest flex items-center gap-3">
+              <Target size={16}/> Sélection du Processus
+            </label>
+            <select 
+              value={selectedProc} 
+              onChange={e => setSelectedProc(e.target.value)} 
+              className="w-full bg-slate-950 border border-white/10 p-6 rounded-3xl font-black text-xl italic text-white outline-none focus:border-blue-600 transition-all appearance-none"
+            >
               {processes.map(p => <option key={p.PR_Id} value={p.PR_Id}>[{p.PR_Code}] {p.PR_Libelle}</option>)}
             </select>
           </div>
 
-          <div className="space-y-3">
-            <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2"><FileText size={14}/> Référence du Document (Modèle)</label>
-            <input type="text" value={docRef} onChange={e => setDocRef(e.target.value)} className="w-full bg-slate-950 border border-white/10 p-5 rounded-2xl font-black text-emerald-400 outline-none uppercase" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {periods.map((p, i) => (
-              <button key={i} onClick={() => setSelectedPeriod(p)} className={`p-6 rounded-2xl border transition-all ${selectedPeriod.m === p.m ? 'bg-blue-600 border-blue-400' : 'bg-white/5 border-white/10 text-slate-500'}`}>
-                <span className="block text-[8px] font-black uppercase mb-1">{p.label}</span>
-                <span className="font-black italic">{p.m}/2025</span>
-              </button>
-            ))}
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-3">
+              <Database size={16}/> Référence Documentaire
+            </label>
+            <input 
+              type="text" 
+              value={docRef} 
+              onChange={e => setDocRef(e.target.value)} 
+              className="w-full bg-slate-950 border border-white/10 p-6 rounded-3xl font-black text-xl italic text-emerald-500 outline-none uppercase tracking-widest"
+            />
           </div>
         </div>
-        <button onClick={handleStartScan} className="w-full bg-blue-600 p-8 rounded-4xl font-black uppercase text-sm shadow-xl hover:bg-blue-500 transition-all flex items-center justify-center gap-4">
-          Démarrer l&apos;agrégation <Search size={20}/>
+
+        <button 
+          onClick={handleStartScan} 
+          className="w-full bg-blue-600 p-10 rounded-[2.5rem] font-black uppercase text-xs tracking-[0.3em] shadow-2xl shadow-blue-900/40 hover:bg-blue-500 transition-all flex items-center justify-center gap-6 group"
+        >
+          Démarrer le moteur de Scan <Search size={24} className="group-hover:scale-110 transition-transform"/>
         </button>
       </div>
     </div>

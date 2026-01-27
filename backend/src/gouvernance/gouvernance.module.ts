@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { GouvernanceService } from './gouvernance.service';
-import { GouvernanceController } from './gouvernance.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { GouvernanceController } from './gouvernance.controller';
+import { GouvernanceService } from './gouvernance.service';
 
 @Module({
   imports: [PrismaModule],

@@ -26,7 +26,7 @@ const MeetingList = ({ navigation }: any) => {
 
   const fetchMeetings = async () => {
     try {
-      const response = await axios.get(`https://api.qualisoft.sn/v1/governance/meetings`, {
+      const response = await axios.get(`https://api.qualisoft.sn/v1/gouvernance/meetings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMeetings(response.data);

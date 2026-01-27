@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -81,7 +82,7 @@ export default function ProcessusPage() {
           </thead>
           <tbody className="divide-y divide-white/5">
             {items.map((pr) => (
-              <tr key={pr.PR_Id} className="hover:bg-white/[0.02]">
+              <tr key={pr.PR_Id} className="hover:bg-white/2">
                 <td className="px-8 py-6 text-blue-500 font-black uppercase">{pr.PR_Code}</td>
                 <td className="px-8 py-6">
                   <h4 className="text-lg font-black uppercase leading-none">{pr.PR_Libelle}</h4>
@@ -101,7 +102,7 @@ export default function ProcessusPage() {
 
       {/* Modal avec PR_TypeId et PR_PiloteId */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-200 flex items-center justify-center">
           <form onSubmit={handleSubmit} className="bg-[#0B0F1A] border border-white/10 p-16 rounded-[4rem] w-full max-w-2xl relative shadow-4xl">
             <button type="button" onClick={() => setIsModalOpen(false)} className="absolute top-10 right-10 text-slate-500 hover:text-white"><X size={32}/></button>
             <h2 className="text-5xl font-black uppercase italic mb-12">Config. <span className="text-blue-600 italic">SMI</span></h2>

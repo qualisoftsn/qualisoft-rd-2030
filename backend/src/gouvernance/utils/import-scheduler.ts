@@ -1,40 +1,63 @@
 import { GovernanceType, ActivityStatus } from '@prisma/client';
+import { addWeeks, startOfYear, startOfWeek } from 'date-fns';
+
+interface CsvGovernanceRow {
+  'N°'?: string | number;
+  'Activités '?: string;
+  'INTITULE '?: string;
+  'INTITULE'?: string;
+  'Date Prévue'?: string;
+  'DATE PREVISIONNELLE'?: string;
+  'THEMES '?: string;
+  'Thème'?: string;
+  'LIEU PREVISIONNEL'?: string;
+  'Observation'?: string;
+  'Commentaires'?: string;
+  [key: string]: any;
+}
 
 /**
- * Utilitaire pour transformer les données CSV en format Prisma
- * Gère les trois types d'onglets du fichier Excel Qualité
+ * ✅ RÉÉCRITURE ÉLITE : Transformation CSV vers Prisma
  */
-export const transformCsvToGovernance = (csvData: any[], type: GovernanceType, tenantId: string) => {
+export const transformCsvToGovernance = (csvData: CsvGovernanceRow[], type: GovernanceType, tenantId: string) => {
   return csvData.map((row) => {
-    // Logique de conversion des dates spécifiques (ex: 2022-04-12 ou format texte)
-    const plannedDate = row['Date Prévue'] || row['DATE PREVISIONNELLE'];
+    const plannedDateStr = row['Date Prévue'] || row['DATE PREVISIONNELLE'] || '';
     
     return {
-      GA_Num: row['N°'] || row['N° '],
-      GA_Title: row['Activités '] || row['INTITULE '] || row['INTITULE'],
+      GA_Num: row['N°']?.toString() || 'SMI-EXT',
+      GA_Title: (row['Activités '] || row['INTITULE '] || row['INTITULE'] || 'Activité sans titre').toUpperCase(),
       GA_Type: type,
-      GA_Theme: row['THEMES '] || null,
-      GA_DatePlanned: parseExcelDate(plannedDate),
-      GA_AnalysisPeriod: row['Periode Analyse IP -\nEvaluation  '] || row['Période d\'Analyse'] || null,
-      GA_IpDate: row['Date Envoi IP '] ? parseExcelDate(row['Date Envoi IP ']) : null,
-      GA_Deadline: row['DATE AU PLUS TARD'] ? parseExcelDate(row['DATE AU PLUS TARD']) : null,
-      GA_Location: row['LIEU PREVISIONNEL'] || 'Teams',
-      GA_Observations: row['Observation'] || row['Commentaires \n(Raisons Report)'] || null,
+      GA_Theme: row['THEMES '] || row['Thème'] || null,
+      GA_DatePlanned: parseExcelDate(plannedDateStr),
+      GA_Location: row['LIEU PREVISIONNEL'] || 'Visioconférence Teams',
+      GA_Observations: row['Observation'] || row['Commentaires'] || null,
       GA_Status: ActivityStatus.PLANNED,
       tenantId: tenantId,
     };
   });
 };
 
-// Fonction helper pour normaliser les dates du fichier 2022
-function parseExcelDate(dateStr: string) {
-  if (!dateStr || dateStr === '---') return null;
-  // Gestion du format ISO YYYY-MM-DD présent dans ton CSV
-  if (dateStr.includes('-')) return new Date(dateStr);
-  // Pour les formats type "Semaine du...", on prend le lundi de ladite semaine
-  if (dateStr.toLowerCase().includes('semaine')) {
-     // Logique simplifiée : extraction de l'année/mois/jour si possible
-     return new Date('2022-06-01'); // Exemple par défaut pour le prototype
+/**
+ * 🛰️ HELPER : Conversion intelligente des dates Excel/Texte
+ */
+function parseExcelDate(dateStr: string): Date {
+  if (!dateStr || dateStr === '---' || dateStr.trim() === '') return new Date();
+  
+  // 1. Gestion du format ISO direct (YYYY-MM-DD)
+  if (dateStr.includes('-')) {
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? new Date() : d;
   }
+
+  // 2. Intelligence Qualisoft : Gestion des "Semaines" (ex: "Semaine 12")
+  const weekMatch = dateStr.toLowerCase().match(/semaine\s*(\d+)/);
+  if (weekMatch && weekMatch[1]) {
+    const weekNum = parseInt(weekMatch[1], 10);
+    const yearStart = startOfYear(new Date());
+    // On calcule le début de la semaine correspondante
+    return addWeeks(startOfWeek(yearStart, { weekStartsOn: 1 }), weekNum - 1);
+  }
+
+  // 3. Fallback par défaut
   return new Date();
 }

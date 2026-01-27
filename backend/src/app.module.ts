@@ -40,6 +40,7 @@ import { RisksModule } from './risks/risks.module';
 import { ServicesModule } from './services/services.module';
 import { SseModule } from './sse/sse.module';
 import { TiersModule } from './tiers/tiers.module';
+import { GouvernanceModule } from './gouvernance/gouvernance.module';
 
 // --- CONTROLLERS & SERVICES DE BASE ---
 import { AppController } from './app.controller';
@@ -72,6 +73,7 @@ import { SettingsController } from './settings/settings.controller';
     TransactionsModule,
     SitesModule,
     OrgUnitsModule,
+    GouvernanceModule,
 
     // 4️⃣ SMI CORE (ISO 9001 - Cycle de Qualité)
     ProcessusModule,

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { NCSource } from '@prisma/client';
+import { NCSource, NCStatus, NCGravity, ActionStatus, ActionOrigin } from '@prisma/client';
 
 @Injectable()
 export class NonConformiteService {
@@ -9,114 +9,121 @@ export class NonConformiteService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * ✅ LISTE : Vue filtrable par processus pour le Dashboard Qualité
+   * ✅ LISTE : Isolation Tenant
    */
   async findAll(tenantId: string, processusId?: string) {
     return this.prisma.nonConformite.findMany({
       where: { 
-        tenantId: tenantId,
+        tenantId,
         ...(processusId && { NC_ProcessusId: processusId })
       },
       include: {
         NC_Processus: { select: { PR_Libelle: true, PR_Code: true } },
         NC_Detector: { select: { U_FirstName: true, U_LastName: true } },
         NC_Actions: { select: { ACT_Title: true, ACT_Status: true } },
-        NC_Reclamation: { select: { REC_Reference: true } },
-        NC_Audit: { select: { AU_Reference: true } }
       },
       orderBy: { NC_CreatedAt: 'desc' }
     });
   }
 
   /**
-   * ✅ CRÉATION : Déclaration d'un écart (Interne, Audit, Client, SSE)
+   * ✅ UNITAIRE : Détail du dossier
    */
-  async create(data: any, tenantId: string) {
-    return this.prisma.nonConformite.create({
-      data: {
-        NC_Libelle: data.NC_Libelle,
-        NC_Description: data.NC_Description,
-        NC_Diagnostic: data.NC_Diagnostic || "",
-        NC_Gravite: data.NC_Gravite || "MINEURE",
-        NC_Statut: data.NC_Statut || "DETECTION",
-        NC_Source: (data.NC_Source as NCSource) || NCSource.INTERNAL_AUDIT,
-        tenantId: tenantId,
-        NC_ProcessusId: data.NC_ProcessusId,
-        NC_DetectorId: data.NC_DetectorId,
-        NC_AuditId: data.NC_AuditId || null,
-        NC_ReclamationId: data.NC_ReclamationId || null,
+  async findOne(id: string, tenantId: string) {
+    const nc = await this.prisma.nonConformite.findFirst({
+      where: { NC_Id: id, tenantId },
+      include: {
+        NC_Processus: { include: { PR_Pilote: true } },
+        NC_Detector: true,
+        NC_Actions: true,
+        NC_Preuves: true
       }
     });
+    if (!nc) throw new NotFoundException("Dossier NC introuvable.");
+    return nc;
   }
 
   /**
-   * ✅ MISE À JOUR : Analyse des causes et suivi du traitement
+   * ✅ CRÉATION : Sécurisation des relations (PR_Id, U_Id)
    */
+  async create(data: any, tenantId: string) {
+    try {
+      // Construction dynamique des connecteurs de relation
+      const connectRelations: any = {
+        tenant: { connect: { T_Id: tenantId } }
+      };
+
+      if (data.NC_ProcessusId) connectRelations.NC_Processus = { connect: { PR_Id: data.NC_ProcessusId } };
+      if (data.NC_DetectorId) connectRelations.NC_Detector = { connect: { U_Id: data.NC_DetectorId } };
+      if (data.NC_AuditId) connectRelations.NC_Audit = { connect: { AU_Id: data.NC_AuditId } };
+      if (data.NC_ReclamationId) connectRelations.NC_Reclamation = { connect: { REC_Id: data.NC_ReclamationId } };
+
+      return await this.prisma.nonConformite.create({
+        data: {
+          NC_Libelle: data.NC_Libelle,
+          NC_Description: data.NC_Description,
+          NC_Diagnostic: data.NC_Diagnostic || "",
+          NC_Gravite: (data.NC_Gravite as NCGravity) || NCGravity.MINEURE,
+          NC_Statut: NCStatus.DETECTION,
+          NC_Source: (data.NC_Source as NCSource) || NCSource.INTERNAL_AUDIT,
+          ...connectRelations
+        }
+      });
+    } catch (error: any) {
+      // ✅ FIX TS18046 : Utilisation de error: any ou typage explicite
+      const msg = error instanceof Error ? error.message : "Erreur inconnue";
+      this.logger.error(`Erreur création NC : ${msg}`);
+      throw new BadRequestException(`Échec de création : Vérifiez les IDs de relation.`);
+    }
+  }
+
   async update(id: string, tenantId: string, data: any) {
     const existing = await this.prisma.nonConformite.findFirst({
-      where: { NC_Id: id, tenantId: tenantId }
+      where: { NC_Id: id, tenantId }
     });
-    if (!existing) throw new NotFoundException("Non-Conformité introuvable.");
+    if (!existing) throw new NotFoundException("NC introuvable.");
 
     return this.prisma.nonConformite.update({
       where: { NC_Id: id },
       data: {
         NC_Libelle: data.NC_Libelle,
         NC_Description: data.NC_Description,
-        NC_Diagnostic: data.NC_Diagnostic, // Champ pour l'analyse des causes (5 Pourquoi)
-        NC_Gravite: data.NC_Gravite,
-        NC_Statut: data.NC_Statut, // Passage de DETECTION à ANALYSE ou SOLDE
+        NC_Diagnostic: data.NC_Diagnostic,
+        NC_Gravite: data.NC_Gravite as NCGravity,
+        NC_Statut: data.NC_Statut as NCStatus,
       }
     });
   }
 
-  /**
-   * ✅ SUPPRESSION SÉCURISÉE
-   */
   async remove(id: string, tenantId: string) {
-    // On utilise deleteMany pour l'isolation multi-tenant
-    return this.prisma.nonConformite.deleteMany({ 
-      where: { NC_Id: id, tenantId: tenantId } 
-    });
+    return this.prisma.nonConformite.deleteMany({ where: { NC_Id: id, tenantId } });
   }
 
   /**
-   * 🚀 LIAISON PAQ & CAPA (Corrective and Preventive Action)
-   * Génère automatiquement une action dans le plan d'action annuel
+   * 🚀 CAPA : Lien avec le Plan d'Actions (PAQ)
    */
   async linkToPAQ(ncId: string, userId: string, tenantId: string) {
-    const nc = await this.prisma.nonConformite.findFirst({ 
-      where: { NC_Id: ncId, tenantId: tenantId } 
-    });
-    
-    if (!nc) throw new NotFoundException("NC introuvable.");
-    
-    if (!nc.NC_ProcessusId) {
-      throw new BadRequestException("Liaison impossible : Rattachez d'abord la NC à un processus.");
-    }
+    const nc = await this.findOne(ncId, tenantId);
+    if (!nc.NC_ProcessusId) throw new BadRequestException("Liez d'abord un processus.");
 
-    // Récupération du PAQ actif pour le processus concerné
     const paq = await this.prisma.pAQ.findFirst({
-      where: { 
-        tenantId: tenantId,
-        PAQ_ProcessusId: nc.NC_ProcessusId,
-      },
+      where: { tenantId, PAQ_ProcessusId: nc.NC_ProcessusId },
       orderBy: { PAQ_Year: 'desc' }
     });
 
-    if (!paq) throw new BadRequestException("Aucun Plan d'Actions (PAQ) ouvert pour ce processus.");
+    if (!paq) throw new BadRequestException("Aucun PAQ actif trouvé.");
 
     return this.prisma.action.create({
       data: {
-        ACT_Title: `[CAPA] Correction écart : ${nc.NC_Libelle}`,
-        ACT_Description: `Action corrective suite à NC détectée le ${nc.NC_CreatedAt.toLocaleDateString()}. \nDescription : ${nc.NC_Description}`,
-        ACT_Origin: 'NON_CONFORMITE',
-        ACT_Status: 'A_FAIRE',
-        ACT_PAQId: paq.PAQ_Id,
-        ACT_NCId: nc.NC_Id,
-        ACT_ResponsableId: userId,
-        ACT_CreatorId: userId,
-        tenantId: tenantId,
+        ACT_Title: `[CAPA] Correction NC : ${nc.NC_Libelle}`,
+        ACT_Description: `Action corrective générée depuis le SMI.`,
+        ACT_Origin: ActionOrigin.NON_CONFORMITE,
+        ACT_Status: ActionStatus.A_FAIRE,
+        ACT_PAQ: { connect: { PAQ_Id: paq.PAQ_Id } },
+        ACT_NC: { connect: { NC_Id: nc.NC_Id } },
+        ACT_Responsable: { connect: { U_Id: userId } },
+        ACT_Creator: { connect: { U_Id: userId } },
+        tenant: { connect: { T_Id: tenantId } },
       }
     });
   }
