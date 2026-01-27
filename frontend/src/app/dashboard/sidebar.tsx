@@ -162,6 +162,16 @@ export default function Sidebar() {
             description:
               "Gestion de l'organigramme et des unités organiques du tenant.",
           },
+
+          {
+            title: "Tableau de bord Organisation",
+            path: "/dashboard/organization",
+            icon: FolderTree,
+            access: "BASIC",
+            description:
+              "Organisation - tableau de bord.",
+          },
+
           {
             title: "Cartographie Processus",
             path: "/dashboard/processus",
@@ -229,12 +239,12 @@ export default function Sidebar() {
         group: "Système de Management",
         items: [
           {
-            title: "Management GED - vue)",
+            title: "Revue de direction",
             path: "/dashboard/management-review",
             icon: FileText,
             access: "BASIC",
             description:
-              "Vue globale de la GED.",
+              "Revue de direction",
           },
           {
             title: "GED (Documentation)",
@@ -375,6 +385,7 @@ export default function Sidebar() {
       try {
         const parsed = JSON.parse(storageRaw);
         const userData = parsed.state?.user;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (userData) setUser(userData);
       } catch {
         console.error("Erreur de parsing session");
@@ -556,7 +567,7 @@ export default function Sidebar() {
       {hoveredItem && (
         <div
           style={{ top: mousePos.y }}
-          className="fixed left-72 ml-4 w-64 bg-[#0F172A] border border-blue-600/30 p-5 rounded-3xl shadow-2xl z-[100] animate-in fade-in slide-in-from-left-2 duration-300 pointer-events-none backdrop-blur-xl"
+          className="fixed left-72 ml-4 w-64 bg-[#0F172A] border border-blue-600/30 p-5 rounded-3xl shadow-2xl z-100 animate-in fade-in slide-in-from-left-2 duration-300 pointer-events-none backdrop-blur-xl"
         >
           <div className="flex items-center gap-3 mb-3 border-b border-white/5 pb-2">
             <Info size={12} className="text-blue-500" />
