@@ -62,6 +62,7 @@ import { ContactService } from './auth/contact.service';
 import { UploadController } from './common/upload.controller';
 import { HealthController } from './health/health.controller';
 import { SettingsController } from './settings/settings.controller';
+import { FormationsModule } from './formations/formations.module';
 
 
 
@@ -109,6 +110,7 @@ import { SettingsController } from './settings/settings.controller';
     QualityObjectivesModule,
     SmiModule,
     CopilModule,
+    FormationsModule,
 
     // 5️⃣ SMI SPÉCIALISÉ (SST, Environnement, RH & Ops)
     SseModule,

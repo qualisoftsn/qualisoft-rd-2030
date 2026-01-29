@@ -1,72 +1,35 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Query, 
-  Param, 
-  Delete, 
-  HttpException, 
-  HttpStatus 
-} from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+// File: backend/src/formations/formations.controller.ts
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { FormationsService } from './formations.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('formations')
+@UseGuards(JwtAuthGuard)
 export class FormationsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly formationsService: FormationsService) {}
 
   @Get()
-  async getFormations(@Query('tenantId') tenantId: string) {
-    if (!tenantId) {
-      throw new HttpException('TenantId est requis', HttpStatus.BAD_REQUEST);
-    }
+  async getAll(@Req() req: any) {
+    return this.formationsService.findAll(req.user.tenantId);
+  }
 
-    return this.prisma.formation.findMany({
-      where: { tenantId: tenantId },
-      include: {
-        FOR_User: {
-          select: {
-            U_Id: true,
-            U_FirstName: true,
-            U_LastName: true,
-          },
-        },
-      },
-      orderBy: { FOR_Expiry: 'asc' },
-    });
+  @Get('alerts')
+  async getAlerts(@Req() req: any) {
+    return this.formationsService.getAlerts(req.user.tenantId);
   }
 
   @Post()
-  async createFormation(@Body() body: any) {
-    try {
-      const { FOR_Title, FOR_Date, FOR_Expiry, FOR_UserId, tenantId } = body;
+  async create(@Req() req: any, @Body() body: any) {
+    return this.formationsService.create(req.user.tenantId, req.user.U_Id, body);
+  }
 
-      // Calcul du statut
-      const status = FOR_Expiry && new Date(FOR_Expiry) < new Date() ? 'EXPIRE' : 'VALIDE';
-
-      return await this.prisma.formation.create({
-        data: {
-          FOR_Title,
-          FOR_Date: new Date(FOR_Date),
-          FOR_Expiry: FOR_Expiry ? new Date(FOR_Expiry) : null,
-          FOR_Status: status,
-          FOR_UserId,
-          tenantId,
-        },
-      });
-    } catch (error: any) {
-      // ✅ Correction de l'erreur TS18046
-      throw new HttpException(
-        "Erreur lors de la création de la formation : " + (error.message || "Erreur serveur"),
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+  @Patch(':id')
+  async update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+    return this.formationsService.update(req.user.tenantId, id, body);
   }
 
   @Delete(':id')
-  async deleteFormation(@Param('id') id: string) {
-    return this.prisma.formation.delete({
-      where: { FOR_Id: id },
-    });
+  async delete(@Req() req: any, @Param('id') id: string) {
+    return this.formationsService.remove(req.user.tenantId, id);
   }
 }
