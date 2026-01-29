@@ -190,7 +190,8 @@ model User {
   U_QualityObjectives   QualityObjective[]    @relation("ObjectiveOwner")
   U_ApprovalWorkflows   ApprovalWorkflow[]    @relation("WorkflowApprover")
   U_ChangeLogs          ChangeLog[]           @relation("ChangeLogUser")
-
+  U_DocumentsOwned        Document[]  @relation("DocumentOwner")
+  U_VersionsApproved      DocumentVersion[] @relation("VersionApprover")
   @@index([tenantId])
   @@index([tenantId, U_IsActive])
   @@index([tenantId, U_Role])
@@ -590,7 +591,15 @@ model Document {
   DOC_IsActive       Boolean     @default(true)
   DOC_CreatedAt      DateTime    @default(now())
   DOC_UpdatedAt      DateTime    @updatedAt
-
+  DOC_Reference           String?     @unique  // Ex: PR-001-A
+  DOC_NextReviewDate      DateTime?
+  DOC_ReviewFrequencyMonths Int       @default(12)
+  DOC_OwnerId             String?
+  DOC_Owner               User?       @relation("DocumentOwner", fields: [DOC_OwnerId], references: [U_Id])
+  DOC_Tags                String[]    @default([])
+  DOC_Department          String?
+  DOC_ArchivedAt          DateTime?
+  DOC_ArchivedById        String?
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
@@ -616,7 +625,12 @@ model DocumentVersion {
   DV_Status        DocStatus @default(BROUILLON)
   DV_IsActive      Boolean   @default(true)
   DV_CreatedAt     DateTime  @default(now())
-
+  DV_FileType             String?     // pdf, docx, etc.
+  DV_ApprovedById         String?
+  DV_ApprovedBy           User?       @relation("VersionApprover", fields: [DV_ApprovedById], references: [U_Id])
+  DV_ApprovedAt           DateTime?
+  DV_ChangeDescription    String?     @default("Création initiale")
+  DV_RejectionComment     String?
   DV_DocumentId  String
   DV_Document    Document @relation(fields: [DV_DocumentId], references: [DOC_Id], onDelete: Cascade)
   DV_CreatedById String

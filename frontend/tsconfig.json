@@ -30,6 +30,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "../backend/src/workflows/workflow-reminder.service.ts"  ],
   "exclude": ["node_modules"]
 }
