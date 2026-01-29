@@ -7,9 +7,6 @@ export class GenericCrudService {
 
   constructor(private prisma: PrismaService) {}
 
-  /**
-   * 🗺️ MAPPING DES PRÉFIXES (Basé sur ton Schéma du 21/01/2026)
-   */
   private getModelMetadata(model: string) {
     const mapping: Record<string, { pk: string; active: string }> = {
       tenant:           { pk: 'T_Id',   active: 'T_IsActive' },
@@ -32,16 +29,23 @@ export class GenericCrudService {
       reclamation:      { pk: 'REC_Id', active: 'REC_IsActive' },
       tier:             { pk: 'TR_Id',  active: 'TR_IsActive' }
     };
-
     return mapping[model] || { pk: 'id', active: 'isActive' };
   }
 
   /**
-   * ✅ LECTURE : Filtre automatique par Tenant ET par état Actif
+   * 🧹 Nettoyeur de données pour éviter les arguments inconnus (Bug Prisma fix)
    */
+  private prepareData(model: string, data: any) {
+    const cleanData = { ...data };
+    // Si ce n'est pas le modèle 'user', on retire le champ de tunneling pour éviter le crash
+    if (model !== 'user') {
+      delete cleanData.U_AssignedProcessId;
+    }
+    return cleanData;
+  }
+
   async findAll(model: string, tenantId: string, includeArchived = false) {
     const { active } = this.getModelMetadata(model);
-    
     return (this.prisma[model] as any).findMany({
       where: { 
         tenantId,
@@ -50,54 +54,45 @@ export class GenericCrudService {
     });
   }
 
-  /**
-   * ✅ CRÉATION : Injection automatique du tenantId et du flag IsActive
-   */
   async create(model: string, tenantId: string, data: any) {
     const { active } = this.getModelMetadata(model);
+    const sanitizedData = this.prepareData(model, data);
     
     return (this.prisma[model] as any).create({
       data: { 
-        ...data, 
+        ...sanitizedData, 
         tenantId,
         [active]: true 
       },
     });
   }
 
-  /**
-   * ✅ MISE À JOUR : Vérification de propriété (Ownership)
-   */
   async update(model: string, id: string, tenantId: string, data: any) {
     const { pk } = this.getModelMetadata(model);
+    const sanitizedData = this.prepareData(model, data);
     
     const record = await (this.prisma[model] as any).findFirst({
       where: { [pk]: id, tenantId },
     });
     
-    if (!record) throw new NotFoundException(`Enregistrement introuvable ou accès refusé.`);
+    if (!record) throw new NotFoundException(`Accès refusé ou ressource inexistante.`);
 
     return (this.prisma[model] as any).update({
       where: { [pk]: id },
-      data,
+      data: sanitizedData,
     });
   }
 
-  /**
-   * 📁 ARCHIVAGE (SOFT DELETE) : Zéro suppression physique
-   */
   async delete(model: string, id: string, tenantId: string) {
     const { pk, active } = this.getModelMetadata(model);
-    
     const record = await (this.prisma[model] as any).findFirst({
       where: { [pk]: id, tenantId },
     });
     
     if (!record) throw new NotFoundException(`Archivage impossible : accès refusé.`);
 
-    this.logger.warn(`[SOFT-DELETE] Archivage logique du modèle ${model} ID: ${id}`);
+    this.logger.warn(`[SOFT-DELETE] Archivage de ${model} ID: ${id}`);
 
-    // On transforme le DELETE en un UPDATE du flag IsActive
     return (this.prisma[model] as any).update({ 
       where: { [pk]: id },
       data: { [active]: false }

@@ -192,6 +192,8 @@ model User {
   U_ChangeLogs          ChangeLog[]           @relation("ChangeLogUser")
   U_DocumentsOwned        Document[]  @relation("DocumentOwner")
   U_VersionsApproved      DocumentVersion[] @relation("VersionApprover")
+  U_AssignedProcessId String?
+  U_AssignedProcess   Processus? @relation("UserAssignedProcess", fields: [U_AssignedProcessId], references: [PR_Id])
   @@index([tenantId])
   @@index([tenantId, U_IsActive])
   @@index([tenantId, U_Role])
@@ -247,6 +249,7 @@ model ProcessType {
   PT_Label       String
   PT_Description String?
   PT_Color       String? @default("#3b82f6")
+  PT_Family       ProcessFamily @default(OPERATIONNEL)
   PT_IsActive    Boolean @default(true)
   PT_CreatedAt   DateTime @default(now())
 
@@ -256,6 +259,7 @@ model ProcessType {
 
   @@unique([PT_Label, tenantId])
   @@index([tenantId])
+  @@index([PT_Family])
 }
 
 model Processus {
@@ -271,7 +275,7 @@ model Processus {
   PR_TypeId      String
   PR_Type        ProcessType @relation(fields: [PR_TypeId], references: [PT_Id])
   PR_IsActive    Boolean     @default(true)
-
+  PR_DefaultUsers     User[]   @relation("UserAssignedProcess")
   PR_PiloteId   String
   PR_Pilote     User    @relation("PiloteProcessus", fields: [PR_PiloteId], references: [U_Id])
   PR_CoPiloteId String?
@@ -1187,6 +1191,9 @@ model Ticket {
   @@index([tenantId, TK_Status])
 }
 
+
+
+
 // ==========================================
 // ÉNUMÉRATIONS
 // ==========================================
@@ -1479,4 +1486,11 @@ enum ChangeAction {
   UPDATE
   DELETE
   RESTORE
+}
+
+
+enum ProcessFamily {
+  PILOTAGE      // Management, Stratégie, Amélioration
+  OPERATIONNEL  // Cœur de métier, Réalisation, Valeur Client
+  SUPPORT       // Ressources, Maintenance, Soutien
 }

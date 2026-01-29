@@ -1,0 +1,252 @@
+/* eslint-disable no-console */
+import { 
+  PrismaClient, Role, SubscriptionStatus, Plan, 
+  ActionStatus, AuditStatus, DocCategory, DocStatus,
+  TierType, ProcessFamily, ObjectiveStatus, User // 👈 Importation du type User
+} from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('🏁 DÉMARRAGE DU SEED MASTER QUALISOFT ELITE 2026...');
+  
+  const passwordEternel = 'mohamed1965ab1711@';
+  const hashedPassword = await bcrypt.hash(passwordEternel, 10);
+
+  // --- 1. CONFIGURATION DU TENANT MAÎTRE (QUALISOFT) ---
+  const masterTenant = await prisma.tenant.upsert({
+    where: { T_Id: 'QS-2026-JANV' },
+    update: { T_Name: 'Qualisoft Elite', T_IsActive: true, T_Plan: Plan.GROUPE },
+    create: {
+      T_Id: 'QS-2026-JANV',
+      T_Name: 'Qualisoft Elite',
+      T_Email: 'ab.thiongane@qualisoft.sn',
+      T_Domain: 'qualisoft',
+      T_Plan: Plan.GROUPE,
+      T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
+      T_IsActive: true,
+      T_CeoName: 'Abdoulaye THIONGANE'
+    },
+  });
+
+  const masterSite = await prisma.site.upsert({
+    where: { S_Id: 'SITE-QS-MASTER' },
+    update: {},
+    create: { S_Id: 'SITE-QS-MASTER', S_Name: 'Siège Social Qualisoft', tenantId: masterTenant.T_Id },
+  });
+
+  await prisma.user.upsert({
+    where: { U_Email: 'ab.thiongane@qualisoft.sn' },
+    update: { U_PasswordHash: hashedPassword, U_Role: Role.SUPER_ADMIN },
+    create: {
+      U_Email: 'ab.thiongane@qualisoft.sn',
+      U_PasswordHash: hashedPassword,
+      U_FirstName: 'Abdoulaye',
+      U_LastName: 'Thiongane',
+      U_Role: Role.SUPER_ADMIN,
+      U_IsActive: true,
+      U_FirstLogin: false,
+      tenantId: masterTenant.T_Id,
+      U_SiteId: masterSite.S_Id,
+    },
+  });
+
+  // --- 2. DÉPLOIEMENT DES 5 TENANTS ÉCOSYSTÈME ---
+  const tenantsConfig = [
+    { id: 'TEN-INFRA-001', name: 'Global Infra Sénégal', domain: 'global-infra', plan: Plan.ENTREPRISE },
+    { id: 'TEN-MED-002', name: 'BioSanté Lab', domain: 'biosante', plan: Plan.CROISSANCE },
+    { id: 'TEN-ENER-003', name: 'Sahel Solar', domain: 'sahel-solar', plan: Plan.EMERGENCE },
+    { id: 'TEN-AGRO-004', name: 'AgroPlus SN', domain: 'agroplus', plan: Plan.ENTREPRISE },
+    { id: masterTenant.T_Id, name: masterTenant.T_Name, domain: masterTenant.T_Domain, plan: masterTenant.T_Plan }
+  ];
+
+  for (const t of tenantsConfig) {
+    console.log(`📡 Déploiement du Noyau pour : ${t.name}...`);
+    
+    const tenant = await prisma.tenant.upsert({
+      where: { T_Domain: t.domain },
+      update: { T_SubscriptionStatus: SubscriptionStatus.ACTIVE },
+      create: { 
+        T_Id: t.id, T_Name: t.name, T_Email: `contact@${t.domain}.sn`, 
+        T_Domain: t.domain, T_Plan: t.plan, T_SubscriptionStatus: SubscriptionStatus.ACTIVE 
+      }
+    });
+
+    await prisma.orgUnitType.upsert({
+      where: { OUT_Label_tenantId: { OUT_Label: 'Département', tenantId: tenant.T_Id } },
+      update: {},
+      create: { OUT_Label: 'Département', tenantId: tenant.T_Id }
+    });
+
+    const families = [
+      { label: 'Pilotage & Stratégie', family: ProcessFamily.PILOTAGE, color: '#ef4444' },
+      { label: 'Opérationnel / Métier', family: ProcessFamily.OPERATIONNEL, color: '#3b82f6' },
+      { label: 'Soutien & Support', family: ProcessFamily.SUPPORT, color: '#10b981' }
+    ];
+
+    const procTypeIds: string[] = [];
+    for (const f of families) {
+      const pt = await prisma.processType.upsert({
+        where: { PT_Label_tenantId: { PT_Label: f.label, tenantId: tenant.T_Id } },
+        update: { PT_Family: f.family, PT_Color: f.color },
+        create: { PT_Label: f.label, PT_Family: f.family, PT_Color: f.color, tenantId: tenant.T_Id }
+      });
+      procTypeIds.push(pt.PT_Id);
+    }
+
+    const site = await prisma.site.upsert({
+      where: { S_Id: `SITE-${t.id}` },
+      update: {},
+      create: { S_Id: `SITE-${t.id}`, S_Name: `Site Principal ${t.name}`, tenantId: tenant.T_Id }
+    });
+
+    // ✅ CORRECTION : Typage explicite pour éviter l'erreur 'never'
+    const users: User[] = []; 
+    for (let i = 1; i <= 4; i++) {
+      const email = `user${i}@${t.domain}.sn`.toLowerCase();
+      const u = await prisma.user.upsert({
+        where: { U_Email: email },
+        update: { U_PasswordHash: hashedPassword },
+        create: {
+          U_Email: email, U_PasswordHash: hashedPassword, 
+          U_FirstName: `Collaborateur ${i}`, U_LastName: t.name,
+          U_Role: i === 1 ? Role.RQ : Role.USER,
+          tenantId: tenant.T_Id, U_SiteId: site.S_Id, U_FirstLogin: false
+        }
+      });
+      users.push(u);
+    }
+
+    // D. Cartographie des Processus & KPIs
+    for (let i = 0; i < 3; i++) {
+      const pCode = `PR-${t.domain.toUpperCase()}-${i+1}`;
+      const proc = await prisma.processus.upsert({
+        where: { PR_Code_tenantId: { PR_Code: pCode, tenantId: tenant.T_Id } },
+        update: {},
+        create: { 
+            PR_Code: pCode, 
+            PR_Libelle: `Processus ${families[i].label}`, 
+            PR_TypeId: procTypeIds[i], 
+            PR_PiloteId: users[0].U_Id, 
+            tenantId: tenant.T_Id 
+        }
+      });
+
+      // 🔗 MISE EN PLACE DU TUNNELING : On lie le premier utilisateur au premier processus créé
+      if (i === 0) {
+        await prisma.user.update({
+          where: { U_Id: users[0].U_Id },
+          data: { U_AssignedProcessId: proc.PR_Id }
+        });
+      }
+
+      // E. Objectifs Qualité (§6.2)
+      const obj = await prisma.qualityObjective.create({
+        data: {
+            QO_Title: `Optimisation ${pCode}`,
+            QO_Target: '95%',
+            QO_Deadline: new Date('2026-12-31'),
+            QO_Status: ObjectiveStatus.EN_COURS,
+            QO_OwnerId: users[0].U_Id,
+            QO_ProcessusId: proc.PR_Id,
+            tenantId: tenant.T_Id
+        }
+      });
+
+      // F. Indicateurs de Performance (§9.1.3)
+      for (let j = 1; j <= 2; j++) {
+        const indCode = `IND-${pCode}-${j}`;
+        await prisma.indicator.upsert({
+          where: { IND_Code_tenantId: { IND_Code: indCode, tenantId: tenant.T_Id } },
+          update: {},
+          create: {
+            IND_Code: indCode, IND_Libelle: `KPI Performance ${j}`, IND_Unite: '%', IND_Cible: 90,
+            IND_ProcessusId: proc.PR_Id, IND_ObjectiveId: obj.QO_Id, tenantId: tenant.T_Id,
+            IND_Values: { create: { IV_Month: 1, IV_Year: 2026, IV_Actual: 75 + Math.random() * 20, IV_Status: 'VALIDE' } }
+          }
+        });
+      }
+
+      // G. Plan d'Amélioration Qualité (PAQ) & Actions
+      if (i === 1) { 
+        const paq = await prisma.pAQ.upsert({
+          where: { PAQ_ProcessusId_PAQ_Year_tenantId: { PAQ_ProcessusId: proc.PR_Id, PAQ_Year: 2026, tenantId: tenant.T_Id } },
+          update: {},
+          create: { 
+              PAQ_Title: `PAQ Annuel ${t.name}`, 
+              PAQ_Year: 2026, 
+              PAQ_ProcessusId: proc.PR_Id, 
+              PAQ_QualityManagerId: users[0].U_Id, 
+              tenantId: tenant.T_Id 
+          }
+        });
+
+        for (let k = 1; k <= 5; k++) {
+          await prisma.action.create({
+            data: { 
+              ACT_Title: `Action Corrective ISO #${k} - ${t.name}`, 
+              ACT_PAQId: paq.PAQ_Id, 
+              ACT_ResponsableId: users[1].U_Id, 
+              ACT_CreatorId: users[0].U_Id, 
+              tenantId: tenant.T_Id, 
+              ACT_Status: ActionStatus.EN_COURS,
+              ACT_Deadline: new Date('2026-06-01')
+            }
+          });
+        }
+      }
+    }
+
+    // H. Actifs, Tiers & Documentation (§7)
+    for (let i = 1; i <= 3; i++) {
+      const eqRef = `EQ-${tenant.T_Id}-${i}`;
+      await prisma.equipment.upsert({
+        where: { EQ_Reference: eqRef },
+        update: { EQ_Name: `Actif Stratégique ${i}` },
+        create: { 
+            EQ_Reference: eqRef, EQ_Name: `Actif Stratégique ${i}`, 
+            EQ_DateService: new Date(), 
+            EQ_ProchaineVGP: new Date(Date.now() + 1000 * 60 * 60 * 24 * 180),
+            tenantId: tenant.T_Id 
+        }
+      });
+      
+      await prisma.tier.create({
+        data: { TR_Name: `Partenaire ${i} - ${t.name}`, TR_Type: TierType.CLIENT, tenantId: tenant.T_Id }
+      });
+
+      await prisma.document.create({
+        data: { 
+            DOC_Title: `Procédure Qualité P0${i}`, 
+            DOC_Category: DocCategory.PROCEDURE, 
+            DOC_Status: DocStatus.APPROUVE, 
+            tenantId: tenant.T_Id,
+            DOC_Reference: `DOC-${t.domain.toUpperCase()}-00${i}`
+        }
+      });
+    }
+
+    // I. Audits (§9.2)
+    for (let i = 1; i <= 2; i++) {
+      const auRef = `AU-${tenant.T_Id}-2026-${i}`;
+      await prisma.audit.upsert({
+        where: { AU_Reference: auRef },
+        update: {},
+        create: {
+          AU_Reference: auRef, AU_Title: `Audit de Surveillance ISO ${i}`, 
+          AU_Scope: 'SMI', AU_DateAudit: new Date(), AU_SiteId: site.S_Id, 
+          tenantId: tenant.T_Id, AU_Status: AuditStatus.PLANIFIE
+        }
+      });
+    }
+
+    console.log(`✅ Noyau synchronisé pour : ${t.name}`);
+  }
+
+  console.log('🚀 SEED MASTER TERMINÉ : SYSTÈME QUALISOFT ELITE PRÊT.');
+}
+
+main()
+  .catch(e => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

@@ -17,7 +17,7 @@ export class AppController {
   }
 
   /**
-   * 🔍 TEST DE CONNEXION (URL : http://localhost:3000/api/debug/count-all)
+   * 🔍 TEST DE CONNEXION (URL : http://localhost:3001/api/debug/count-all)
    */
   @Get('debug/count-all') // Pas de 'api/' ici car c'est déjà dans le préfixe global
   async debugCount() {
@@ -36,7 +36,7 @@ export class AppController {
   }
 
   /**
-   * 📊 COCKPIT DYNAMIQUE (URL : http://localhost:3000/api/analyses/dashboard)
+   * 📊 COCKPIT DYNAMIQUE (URL : http://localhost:3001/api/analyses/dashboard)
    */
   @UseGuards(JwtAuthGuard)
   @Get('analyses/dashboard') // Pas de 'api/' ici

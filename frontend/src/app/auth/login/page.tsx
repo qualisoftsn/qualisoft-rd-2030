@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -150,7 +150,7 @@ export default function LoginPage() {
     setSubStep("PASSWORD");
   };
 
-  // Authentification finale
+  // --- LOGIQUE DE ROUTAGE ÉLITE PAR RÔLE ---
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -162,8 +162,31 @@ export default function LoginPage() {
         U_Password: credentials.password,
       });
 
-      setLogin({ token: res.data.access_token, user: res.data.user });
-      router.push("/dashboard");
+      const { user, access_token } = res.data;
+
+      // Stockage du state Auth
+      setLogin({ token: access_token, user: user });
+
+      // Aiguillage Souverain
+      const isSovereign =
+        user.U_Role === "SUPER_ADMIN" ||
+        user.U_Email === "ab.thiongane@qualisoft.sn";
+      const isAdminOrRQ = user.U_Role === "ADMIN" || user.U_Role === "RQ";
+      const isPilote = user.U_Role === "PILOTE" || user.U_Role === "USER";
+
+      if (isSovereign) {
+        // Accès Intégral & Vue 360 Clientèle
+        router.push("/admin/super-dashboard");
+      } else if (isAdminOrRQ) {
+        // Vue Intégrale Entreprise (Tenant local)
+        router.push("/dashboard");
+      } else if (isPilote) {
+        // Orientation exclusive vers le Launchpad Opérationnel
+        router.push("/dashboard/launchpad");
+      } else {
+        // Fallback standard
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Identifiants invalides");
     } finally {
@@ -208,10 +231,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex selection:bg-blue-100 italic bg-white relative font-sans overflow-hidden">
       <DevLoginHelper />
 
-      {/* COLONNE PRINCIPALE */}
+      {/* COLONNE PRINCIPALE DE CONNEXION */}
       <div className="flex-1 flex flex-col justify-center px-6 lg:px-20 bg-white z-10 overflow-y-auto">
         <div className="max-w-md w-full mx-auto space-y-8 py-12">
-          {/* Logo */}
+          {/* Logo Section */}
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-900 rounded-4xl mb-6 shadow-2xl shadow-blue-500/10">
               <ShieldCheck className="text-blue-500" size={40} />
@@ -224,7 +247,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Messages */}
+          {/* Feedback Messages */}
           {error && (
             <div
               className={`p-4 rounded-2xl border text-[11px] font-black uppercase text-center animate-in fade-in slide-in-from-top-2 ${
@@ -237,7 +260,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* STEP 1: CHOIX TYPE */}
+          {/* STEP 1: SELECT TYPE */}
           {step === "SELECT_TYPE" && (
             <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
               <h2 className="text-center text-sm font-black uppercase text-slate-400 tracking-widest mb-8">
@@ -296,10 +319,9 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* STEP 2: CONNEXION CLIENT (Wizard) */}
+          {/* STEP 2: TENANT LOGIN WIZARD */}
           {step === "TENANT_LOGIN" && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-              {/* Navigation back */}
               <button
                 onClick={() =>
                   step === "TENANT_LOGIN" && subStep === "TENANT_SELECT"
@@ -314,7 +336,6 @@ export default function LoginPage() {
                   : "Changer d'organisation"}
               </button>
 
-              {/* SubStep 2A: SELECT TENANT */}
               {subStep === "TENANT_SELECT" && (
                 <div className="space-y-6">
                   <div>
@@ -335,7 +356,6 @@ export default function LoginPage() {
                     </div>
                   ) : (
                     <>
-                      {/* Recherche Tenant */}
                       {tenants.length > 5 && (
                         <div className="relative">
                           <Search
@@ -352,7 +372,6 @@ export default function LoginPage() {
                         </div>
                       )}
 
-                      {/* Liste Tenants */}
                       <div className="space-y-2 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
                         {filteredTenants.map((tenant) => (
                           <button
@@ -380,23 +399,16 @@ export default function LoginPage() {
                           </button>
                         ))}
                       </div>
-
-                      {filteredTenants.length === 0 && (
-                        <p className="text-center text-[11px] font-black uppercase text-slate-400 py-8">
-                          Aucune organisation trouvée
-                        </p>
-                      )}
                     </>
                   )}
                 </div>
               )}
 
-              {/* SubStep 2B: SELECT USER */}
               {subStep === "USER_SELECT" && selectedTenant && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                      <Building2 size={20} className="text-white" />
+                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+                      <Building2 size={20} />
                     </div>
                     <div>
                       <p className="text-[9px] font-black uppercase text-blue-600 tracking-widest">
@@ -417,49 +429,39 @@ export default function LoginPage() {
                     </p>
                   </div>
 
-                  {isLoading ? (
-                    <div className="flex justify-center py-12">
-                      <Loader2
-                        className="animate-spin text-blue-600"
-                        size={32}
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {tenantUsers.map((user) => (
-                        <button
-                          key={user.U_Id}
-                          onClick={() => handleSelectUser(user)}
-                          className="w-full flex items-center gap-4 p-5 bg-slate-900 text-white rounded-2xl hover:bg-blue-600 transition-all group text-left"
-                        >
-                          <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
-                            <Users size={20} />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-black uppercase italic tracking-tight text-lg">
-                              {user.U_FirstName} {user.U_LastName}
-                            </p>
-                            <p className="text-[10px] font-bold text-blue-200/70 uppercase tracking-wider">
-                              {user.U_Email}
-                            </p>
-                          </div>
-                          <ArrowRight
-                            size={20}
-                            className="text-white/50 group-hover:text-white"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+                    {tenantUsers.map((user) => (
+                      <button
+                        key={user.U_Id}
+                        onClick={() => handleSelectUser(user)}
+                        className="w-full flex items-center gap-4 p-5 bg-slate-900 text-white rounded-2xl hover:bg-blue-600 transition-all group text-left"
+                      >
+                        <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+                          <Users size={20} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-black uppercase italic tracking-tight text-lg">
+                            {user.U_FirstName} {user.U_LastName}
+                          </p>
+                          <p className="text-[10px] font-bold text-blue-200/70 uppercase tracking-wider">
+                            {user.U_Email}
+                          </p>
+                        </div>
+                        <ArrowRight
+                          size={20}
+                          className="text-white/50 group-hover:text-white"
+                        />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* SubStep 2C: PASSWORD */}
               {subStep === "PASSWORD" && (
                 <form onSubmit={handleLogin} className="space-y-6">
                   <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <div className="w-10 h-10 bg-slate-200 rounded-xl flex items-center justify-center">
-                      <UserCheck size={20} className="text-slate-600" />
+                    <div className="w-10 h-10 bg-slate-200 rounded-xl flex items-center justify-center text-slate-600">
+                      <UserCheck size={20} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
@@ -476,15 +478,6 @@ export default function LoginPage() {
                     >
                       Modifier
                     </button>
-                  </div>
-
-                  <div>
-                    <h3 className="text-2xl font-black uppercase italic text-slate-900 tracking-tighter mb-2">
-                      Authentification
-                    </h3>
-                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
-                      Saisissez votre mot de passe sécurisé
-                    </p>
                   </div>
 
                   <div className="relative">
@@ -527,16 +520,12 @@ export default function LoginPage() {
                       </>
                     )}
                   </button>
-
-                  <p className="text-center text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                    Accès sécurisé SSL • JWT Token
-                  </p>
                 </form>
               )}
             </div>
           )}
 
-          {/* STEP 3: TRIAL */}
+          {/* STEP 3: TRIAL REQUEST */}
           {step === "TRIAL_REQUEST" && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500 space-y-6">
               <button
@@ -545,7 +534,6 @@ export default function LoginPage() {
               >
                 <ChevronLeft size={14} /> Retour accueil
               </button>
-
               <div>
                 <h3 className="text-3xl font-black uppercase italic text-slate-900 tracking-tighter mb-2">
                   Essai Elite
@@ -572,7 +560,6 @@ export default function LoginPage() {
                     }
                   />
                 </div>
-
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
                     Email professionnel
@@ -587,7 +574,6 @@ export default function LoginPage() {
                     }
                   />
                 </div>
-
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -605,7 +591,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Footer */}
+          {/* Footer Copyright */}
           <div className="pt-8 border-t border-slate-100 flex flex-col items-center gap-3">
             <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <Crown size={12} className="text-amber-400" />
@@ -615,7 +601,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* SECTION VISUELLE */}
+      {/* SECTION VISUELLE DROITE */}
       <div className="hidden lg:flex flex-1 bg-[#0B0F1A] relative items-center justify-center p-20 overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
         <div className="absolute top-[-20%] right-[-10%] w-150 h-150 bg-blue-600/20 blur-[150px] rounded-full" />
@@ -630,7 +616,7 @@ export default function LoginPage() {
           </div>
 
           <h3 className="text-6xl font-black italic uppercase leading-none tracking-tighter">
-            L&apos;excellence opérationnelle
+            L&apos;excellence
             <br />
             <span className="text-transparent bg-clip-text bg-linear-to-r from-yellow-400 to-red-400">
               opérationnelle
@@ -638,7 +624,8 @@ export default function LoginPage() {
           </h3>
 
           <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] leading-relaxed max-w-sm mx-auto">
-            Gouvernance, Risques et Conformité propulsés par Qualisoft Votre partenaire IT
+            Gouvernance, Risques et Conformité propulsés par Qualisoft Votre
+            partenaire IT
           </p>
 
           <div className="flex justify-center gap-4 pt-8">

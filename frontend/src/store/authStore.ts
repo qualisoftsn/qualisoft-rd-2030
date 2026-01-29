@@ -1,4 +1,3 @@
-// src/store/authStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -8,7 +7,8 @@ export interface AuthUser {
   U_FirstName: string | null;
   U_LastName: string | null;
   U_Role: string;
-  tenantId: string; // Doit correspondre au T_Id du schéma
+  tenantId: string;
+  assignedProcessId?: string | null; // 🚀 L'ID du processus rattaché
 }
 
 interface AuthState {
@@ -25,19 +25,26 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       tenantId: null,
       user: null,
+      
       setLogin: (data) => {
-        // ✅ On s'assure d'extraire le tenantId depuis l'objet user reçu (vu en F12)
         set({ 
           token: data.token, 
           tenantId: data.user.tenantId, 
           user: data.user 
         });
       },
+
       logout: () => {
-        if (typeof window !== 'undefined') localStorage.clear();
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('qualisoft-auth-storage');
+          localStorage.clear();
+        }
         set({ token: null, tenantId: null, user: null });
       },
     }),
-    { name: 'qualisoft-auth-storage' } // 🔑 LA clé unique obligatoire
+    { 
+      name: 'qualisoft-auth-storage',
+      // Optionnel : s'assurer que le stockage est bien synchronisé
+    }
   )
 );

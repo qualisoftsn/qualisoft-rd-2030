@@ -1,0 +1,110 @@
+╔════════════════════════════════════════════════════════════════╗
+║        ANALYSE D'ARCHITECTURE - QUALISOFT PLATFORM          ║
+╚════════════════════════════════════════════════════════════════╝
+
+📦 BACKEND MODULES
+────────────────────────────────────────────────────────────────
+Total: 147 modules
+
+Controllers (52):
+  • actions
+  • actions
+  • actions-tab
+  • admin
+  • admin
+  • admin
+  • analyses
+  • app.controller
+  • archives
+  • audits
+  ... +42 autres
+
+Services (67):
+  • actions
+  • actions
+  • actions-tab
+  • admin
+  • admin
+  • tasks
+  • tasks
+  • analyses
+  • analyses
+  • analyses
+  ... +57 autres
+
+🌐 FRONTEND PAGES
+────────────────────────────────────────────────────────────────
+Total: 100 pages
+
+Pages principales:
+  • (marketing) → (marketing)
+  • admin/payments → Payments
+  • admin/setup → Setup
+  • admin/structure → Structure
+  • admin/super-dashboard → Super dashboard
+  • admin/tiers → Tiers
+  • admin/users → Users
+  • auth/login → Login
+  • dashboard → Dashboard
+  • dashboard/action-items → Action items
+  • dashboard/action-plans → Action plans
+  • dashboard/actions → Actions
+  • dashboard/actions/new → New
+  • dashboard/actions-tab → Actions tab
+  • dashboard/admin/master-control → Master control
+  ... +85 autres
+
+🚀 RECOMMANDATIONS POUR LA PAGE D'ACCUEIL
+────────────────────────────────────────────────────────────────
+
+🎯 Structure du Dashboard:
+
+1. 📊 Vue d'Ensemble
+   • [KPI] Taux de Conformité Global
+   • [KPI] Processus Actifs
+   • [ALERT] Alertes Critiques
+
+2. 📈 Performance des Processus
+   • [CHART] KPI par Processus
+   • [TABLE] Processus à Risque
+
+3. 📋 Non-Conformités
+   • [LIST] NC Ouvertes
+   • [CHART] Évolution des NC
+
+4. 🔍 Audits
+   • [LIST] Audits à Venir
+   • [KPI] Taux de Réussite
+
+5. ⚠️ Gestion des Risques
+   • [CHART] Matrice des Risques
+
+6. ⛑️ Sécurité & Santé
+   • [KPI] Taux de Fréquence
+   • [LIST] Événements Récents
+
+7. 📄 Documents
+   • [LIST] Documents à Réviser
+
+🧭 Navigation Recommandée:
+   🏠 Tableau de Bord           → /dashboard
+   ⚙️ Processus                 → /processes
+   ⚠️ Non-Conformités           → /non-conformities
+   🔍 Audits                    → /audits
+   🛡️ Risques                   → /risks
+   📄 Documents                 → /documents
+   ⛑️ Sécurité                  → /sse
+   👥 Utilisateurs              → /users
+   ⚙️ Paramètres                → /settings
+
+📊 Indicateurs Clés à Afficher:
+   01. Taux de Conformité Global
+   02. Nombre de Processus Actifs
+   03. Taux de Non-Conformité
+   04. Délai Moyen de Traitement des NC
+   05. Satisfaction Client
+   06. Taux de Réussite des Audits
+
+╔════════════════════════════════════════════════════════════════╗
+║  ✅ Analyse terminée - Dashboard recommandé pour pilotage QSE  ║
+╚════════════════════════════════════════════════════════════════╝

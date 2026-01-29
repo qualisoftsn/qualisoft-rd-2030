@@ -1,4 +1,5 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -65,7 +66,7 @@ export default function WorkflowsPage() {
         </div>
         
         {/* LOGIQUE DE CALCUL INTÉGRÉE (Visible comme demandé) */}
-        <div className="col-span-4 bg-blue-600/5 border border-blue-600/20 rounded-[2rem] p-6 flex items-center gap-5">
+        <div className="col-span-4 bg-blue-600/5 border border-blue-600/20 rounded-4xl p-6 flex items-center gap-5">
            <Calculator className="text-blue-500 shrink-0" size={32} />
            <div>
               <p className="text-[9px] font-black uppercase text-blue-500 mb-1 tracking-widest">Logiciel de Calcul</p>
@@ -103,7 +104,7 @@ export default function WorkflowsPage() {
                     <h4 className="text-2xl font-black uppercase italic text-white tracking-tight">{task.AW_Comment || "Sans commentaire"}</h4>
                   </div>
                   <button className="bg-blue-600/10 text-blue-500 px-8 py-4 rounded-2xl text-[10px] font-black uppercase hover:bg-blue-600 hover:text-white transition-all shadow-lg border border-blue-600/20">
-                    Traiter l'Étape
+                    Traiter l&apos;Étape
                   </button>
                 </div>
               ))

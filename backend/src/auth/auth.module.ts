@@ -4,7 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { ContactService } from './contact.service'; // ✅ Import nécessaire
+import { ContactService } from './contact.service'; 
 import { JwtStrategy } from './jwt.strategy';
 import { UsersModule } from '../users/users.module';
 
@@ -22,7 +22,7 @@ import { UsersModule } from '../users/users.module';
         const expiresIn = config.get<string>('JWT_EXPIRES_IN') || '30d';
 
         if (!secret) {
-          throw new Error("ERREUR : JWT_SECRET n'est pas configuré dans le .env");
+          throw new Error("ERREUR CRITIQUE : JWT_SECRET manquant dans le fichier .env");
         }
 
         return {
@@ -38,7 +38,7 @@ import { UsersModule } from '../users/users.module';
   providers: [
     AuthService, 
     JwtStrategy, 
-    ContactService // ✅ AJOUTÉ : Indispensable car AuthController en a besoin
+    ContactService 
   ],
   exports: [AuthService, JwtStrategy, PassportModule, JwtModule],
 })

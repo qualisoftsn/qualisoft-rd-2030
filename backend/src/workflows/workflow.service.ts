@@ -21,7 +21,7 @@ export class WorkflowService {
               AW_ApproverId: s.approverId || userId, // Sécurité si approverId est vide
               AW_Comment: s.label,
               // Seule la première étape est active au démarrage
-              AW_Status: s.order === 1 ? WorkflowStatus.EN_ATTENTE : WorkflowStatus.BLOQUE,
+              AW_Status: s.order === 1 ? WorkflowStatus.EN_ATTENTE : WorkflowStatus.REJETE,
             },
           })
         )

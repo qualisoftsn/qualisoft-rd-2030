@@ -1,0 +1,744 @@
+{
+  "backend": {
+    "controllers": [
+      "actions",
+      "actions",
+      "actions-tab",
+      "admin",
+      "admin",
+      "admin",
+      "analyses",
+      "app.controller",
+      "archives",
+      "audits",
+      "audits",
+      "audits",
+      "auth",
+      "common",
+      "competences",
+      "copil",
+      "documents",
+      "environment",
+      "equipment",
+      "exposition",
+      "formations",
+      "gouvernance",
+      "health",
+      "indicators",
+      "meetings",
+      "stats",
+      "non-conformites",
+      "notifications",
+      "org-units",
+      "paq",
+      "parties-interessees",
+      "process-review",
+      "processus",
+      "processus",
+      "quality-objectives",
+      "reclamations",
+      "risks",
+      "services",
+      "settings",
+      "sites",
+      "smi",
+      "sse",
+      "sse",
+      "sse",
+      "subscriptions",
+      "tenants",
+      "tiers",
+      "training",
+      "transactions",
+      "users",
+      "users",
+      "workflows"
+    ],
+    "services": [
+      "actions",
+      "actions",
+      "actions-tab",
+      "admin",
+      "admin",
+      "tasks",
+      "tasks",
+      "analyses",
+      "analyses",
+      "analyses",
+      "app.service",
+      "archives",
+      "audits",
+      "audits",
+      "audits",
+      "auth",
+      "auth",
+      "auth",
+      "common",
+      "common",
+      "common",
+      "services",
+      "services",
+      "services",
+      "competences",
+      "copil",
+      "documents",
+      "environment",
+      "equipment",
+      "exposition",
+      "exposition",
+      "formations",
+      "gouvernance",
+      "indicators",
+      "indicators",
+      "meetings",
+      "meetings",
+      "stats",
+      "non-conformites",
+      "notifications",
+      "org-units",
+      "paq",
+      "parties-interessees",
+      "pki",
+      "prisma",
+      "process-review",
+      "processus",
+      "processus",
+      "processus",
+      "quality-objectives",
+      "reclamations",
+      "risks",
+      "dto",
+      "services",
+      "services",
+      "sites",
+      "sse",
+      "sse",
+      "subscriptions",
+      "tenants",
+      "tenants",
+      "tiers",
+      "training",
+      "transactions",
+      "users",
+      "workflows",
+      "workflows"
+    ],
+    "routes": [],
+    "models": [
+      "entities"
+    ],
+    "middlewares": [],
+    "dtos": [
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto",
+      "dto"
+    ],
+    "repositories": [],
+    "total": 147
+  },
+  "frontend": {
+    "pages": [
+      {
+        "path": "(marketing)",
+        "name": "(marketing)"
+      },
+      {
+        "path": "admin/payments",
+        "name": "Payments"
+      },
+      {
+        "path": "admin/setup",
+        "name": "Setup"
+      },
+      {
+        "path": "admin/structure",
+        "name": "Structure"
+      },
+      {
+        "path": "admin/super-dashboard",
+        "name": "Super dashboard"
+      },
+      {
+        "path": "admin/tiers",
+        "name": "Tiers"
+      },
+      {
+        "path": "admin/users",
+        "name": "Users"
+      },
+      {
+        "path": "auth/login",
+        "name": "Login"
+      },
+      {
+        "path": "dashboard",
+        "name": "Dashboard"
+      },
+      {
+        "path": "dashboard/action-items",
+        "name": "Action items"
+      },
+      {
+        "path": "dashboard/action-plans",
+        "name": "Action plans"
+      },
+      {
+        "path": "dashboard/actions",
+        "name": "Actions"
+      },
+      {
+        "path": "dashboard/actions/new",
+        "name": "New"
+      },
+      {
+        "path": "dashboard/actions-tab",
+        "name": "Actions tab"
+      },
+      {
+        "path": "dashboard/admin/master-control",
+        "name": "Master control"
+      },
+      {
+        "path": "dashboard/admin/setup",
+        "name": "Setup"
+      },
+      {
+        "path": "dashboard/admin/sites",
+        "name": "Sites"
+      },
+      {
+        "path": "dashboard/admin/tiers",
+        "name": "Tiers"
+      },
+      {
+        "path": "dashboard/admin_rq",
+        "name": "Admin rq"
+      },
+      {
+        "path": "dashboard/archives",
+        "name": "Archives"
+      },
+      {
+        "path": "dashboard/audit-center",
+        "name": "Audit center"
+      },
+      {
+        "path": "dashboard/auditeur",
+        "name": "Auditeur"
+      },
+      {
+        "path": "dashboard/audits",
+        "name": "Audits"
+      },
+      {
+        "path": "dashboard/audits/[id]/preuves",
+        "name": "Preuves"
+      },
+      {
+        "path": "dashboard/audits/[id]/rapport",
+        "name": "Rapport"
+      },
+      {
+        "path": "dashboard/bibliotheque",
+        "name": "Bibliotheque"
+      },
+      {
+        "path": "dashboard/continuous-improvement",
+        "name": "Continuous improvement"
+      },
+      {
+        "path": "dashboard/direction",
+        "name": "Direction"
+      },
+      {
+        "path": "dashboard/direction/risques",
+        "name": "Risques"
+      },
+      {
+        "path": "dashboard/equipment",
+        "name": "Equipment"
+      },
+      {
+        "path": "dashboard/formations",
+        "name": "Formations"
+      },
+      {
+        "path": "dashboard/ged",
+        "name": "Ged"
+      },
+      {
+        "path": "dashboard/gouvernance",
+        "name": "Gouvernance"
+      },
+      {
+        "path": "dashboard/gouvernance/compliance",
+        "name": "Compliance"
+      },
+      {
+        "path": "dashboard/gouvernance/copil",
+        "name": "Copil"
+      },
+      {
+        "path": "dashboard/gouvernance/planning",
+        "name": "Planning"
+      },
+      {
+        "path": "dashboard/gouvernance/sessions",
+        "name": "Sessions"
+      },
+      {
+        "path": "dashboard/improvement",
+        "name": "Improvement"
+      },
+      {
+        "path": "dashboard/improvement/actions/new",
+        "name": "New"
+      },
+      {
+        "path": "dashboard/improvement/actions/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/indicators",
+        "name": "Indicators"
+      },
+      {
+        "path": "dashboard/launchpad",
+        "name": "Launchpad"
+      },
+      {
+        "path": "dashboard/management-review",
+        "name": "Management review"
+      },
+      {
+        "path": "dashboard/menu",
+        "name": "Menu"
+      },
+      {
+        "path": "dashboard/non-conformites",
+        "name": "Non conformites"
+      },
+      {
+        "path": "dashboard/non-conformites/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/notifications",
+        "name": "Notifications"
+      },
+      {
+        "path": "dashboard/objectifs",
+        "name": "Objectifs"
+      },
+      {
+        "path": "dashboard/observateur",
+        "name": "Observateur"
+      },
+      {
+        "path": "dashboard/org-units",
+        "name": "Org units"
+      },
+      {
+        "path": "dashboard/organization",
+        "name": "Organization"
+      },
+      {
+        "path": "dashboard/organization/chart",
+        "name": "Chart"
+      },
+      {
+        "path": "dashboard/organization/units/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/paq",
+        "name": "Paq"
+      },
+      {
+        "path": "dashboard/paq/nouveau",
+        "name": "Nouveau"
+      },
+      {
+        "path": "dashboard/paq/report",
+        "name": "Report"
+      },
+      {
+        "path": "dashboard/paq/report/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/process-review",
+        "name": "Process review"
+      },
+      {
+        "path": "dashboard/process-review/analytics",
+        "name": "Analytics"
+      },
+      {
+        "path": "dashboard/process-review/preparation",
+        "name": "Preparation"
+      },
+      {
+        "path": "dashboard/process-review/report/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/process-review/session/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/processus",
+        "name": "Processus"
+      },
+      {
+        "path": "dashboard/processus/cockpit/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/reclamations",
+        "name": "Reclamations"
+      },
+      {
+        "path": "dashboard/reclamations/nouveau",
+        "name": "Nouveau"
+      },
+      {
+        "path": "dashboard/reclamations/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/rh",
+        "name": "Rh"
+      },
+      {
+        "path": "dashboard/rh/matrice",
+        "name": "Matrice"
+      },
+      {
+        "path": "dashboard/risks",
+        "name": "Risks"
+      },
+      {
+        "path": "dashboard/settings",
+        "name": "Settings"
+      },
+      {
+        "path": "dashboard/settings/billing",
+        "name": "Billing"
+      },
+      {
+        "path": "dashboard/settings/structure",
+        "name": "Structure"
+      },
+      {
+        "path": "dashboard/sites",
+        "name": "Sites"
+      },
+      {
+        "path": "dashboard/smi-global",
+        "name": "Smi global"
+      },
+      {
+        "path": "dashboard/sse",
+        "name": "Sse"
+      },
+      {
+        "path": "dashboard/sse/analytics",
+        "name": "Analytics"
+      },
+      {
+        "path": "dashboard/sse/formations",
+        "name": "Formations"
+      },
+      {
+        "path": "dashboard/sse/new",
+        "name": "New"
+      },
+      {
+        "path": "dashboard/sse/report/[id]",
+        "name": "[id]"
+      },
+      {
+        "path": "dashboard/stats",
+        "name": "Stats"
+      },
+      {
+        "path": "dashboard/superadmin/console",
+        "name": "Console"
+      },
+      {
+        "path": "dashboard/superadmin/security",
+        "name": "Security"
+      },
+      {
+        "path": "dashboard/superadmin/transactions",
+        "name": "Transactions"
+      },
+      {
+        "path": "dashboard/tenants",
+        "name": "Tenants"
+      },
+      {
+        "path": "dashboard/tiers",
+        "name": "Tiers"
+      },
+      {
+        "path": "dashboard/users",
+        "name": "Users"
+      },
+      {
+        "path": "dashboard/users/nouveau",
+        "name": "Nouveau"
+      },
+      {
+        "path": "dashboard/workflows",
+        "name": "Workflows"
+      },
+      {
+        "path": "essai",
+        "name": "Essai"
+      },
+      {
+        "path": "essai/expire",
+        "name": "Expire"
+      },
+      {
+        "path": "onboarding",
+        "name": "Onboarding"
+      },
+      {
+        "path": "reclamations",
+        "name": "Reclamations"
+      },
+      {
+        "path": "register",
+        "name": "Register"
+      },
+      {
+        "path": "register-trial",
+        "name": "Register trial"
+      },
+      {
+        "path": "settings",
+        "name": "Settings"
+      },
+      {
+        "path": "settings/billing",
+        "name": "Billing"
+      },
+      {
+        "path": "settings/sites",
+        "name": "Sites"
+      },
+      {
+        "path": "sse",
+        "name": "Sse"
+      },
+      {
+        "path": "super-admin/monitoring",
+        "name": "Monitoring"
+      }
+    ],
+    "layouts": [
+      "(dashboard)",
+      "super-admin"
+    ],
+    "components": [
+      "components/providers/TrialProvider.tsx",
+      "dashboard/sse/components/SSEForm.tsx"
+    ],
+    "apiRoutes": [
+      "api/billing/request-activation",
+      "api/dashboard/recent-activity",
+      "api/gouvernance/performance",
+      "api/indicators/dashboard-stats",
+      "api/notifications/trial-reminder",
+      "api/tenant/trial-status",
+      "api/trial/request"
+    ],
+    "total": 100
+  },
+  "recommendations": {
+    "dashboard": [
+      {
+        "section": "📊 Vue d'Ensemble",
+        "widgets": [
+          {
+            "type": "KPI",
+            "title": "Taux de Conformité Global",
+            "source": "indicators.global"
+          },
+          {
+            "type": "KPI",
+            "title": "Processus Actifs",
+            "source": "processes.active"
+          },
+          {
+            "type": "ALERT",
+            "title": "Alertes Critiques",
+            "source": "alerts.critical"
+          }
+        ]
+      },
+      {
+        "section": "📈 Performance des Processus",
+        "widgets": [
+          {
+            "type": "CHART",
+            "title": "KPI par Processus",
+            "source": "processes.kpi"
+          },
+          {
+            "type": "TABLE",
+            "title": "Processus à Risque",
+            "source": "processes.risk"
+          }
+        ]
+      },
+      {
+        "section": "📋 Non-Conformités",
+        "widgets": [
+          {
+            "type": "LIST",
+            "title": "NC Ouvertes",
+            "source": "nc.open"
+          },
+          {
+            "type": "CHART",
+            "title": "Évolution des NC",
+            "source": "nc.trend"
+          }
+        ]
+      },
+      {
+        "section": "🔍 Audits",
+        "widgets": [
+          {
+            "type": "LIST",
+            "title": "Audits à Venir",
+            "source": "audits.upcoming"
+          },
+          {
+            "type": "KPI",
+            "title": "Taux de Réussite",
+            "source": "audits.success"
+          }
+        ]
+      },
+      {
+        "section": "⚠️ Gestion des Risques",
+        "widgets": [
+          {
+            "type": "CHART",
+            "title": "Matrice des Risques",
+            "source": "risks.matrix"
+          }
+        ]
+      },
+      {
+        "section": "⛑️ Sécurité & Santé",
+        "widgets": [
+          {
+            "type": "KPI",
+            "title": "Taux de Fréquence",
+            "source": "sse.frequency"
+          },
+          {
+            "type": "LIST",
+            "title": "Événements Récents",
+            "source": "sse.recent"
+          }
+        ]
+      },
+      {
+        "section": "📄 Documents",
+        "widgets": [
+          {
+            "type": "LIST",
+            "title": "Documents à Réviser",
+            "source": "documents.review"
+          }
+        ]
+      }
+    ],
+    "navigation": [
+      {
+        "label": "Tableau de Bord",
+        "path": "/dashboard",
+        "icon": "🏠"
+      },
+      {
+        "label": "Processus",
+        "path": "/processes",
+        "icon": "⚙️"
+      },
+      {
+        "label": "Non-Conformités",
+        "path": "/non-conformities",
+        "icon": "⚠️"
+      },
+      {
+        "label": "Audits",
+        "path": "/audits",
+        "icon": "🔍"
+      },
+      {
+        "label": "Risques",
+        "path": "/risks",
+        "icon": "🛡️"
+      },
+      {
+        "label": "Documents",
+        "path": "/documents",
+        "icon": "📄"
+      },
+      {
+        "label": "Sécurité",
+        "path": "/sse",
+        "icon": "⛑️"
+      },
+      {
+        "label": "Utilisateurs",
+        "path": "/users",
+        "icon": "👥"
+      },
+      {
+        "label": "Paramètres",
+        "path": "/settings",
+        "icon": "⚙️"
+      }
+    ],
+    "keyMetrics": [
+      "Taux de Conformité Global",
+      "Nombre de Processus Actifs",
+      "Taux de Non-Conformité",
+      "Délai Moyen de Traitement des NC",
+      "Satisfaction Client",
+      "Taux de Réussite des Audits"
+    ]
+  }
+}
