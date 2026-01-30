@@ -1,10 +1,11 @@
-import { IsBoolean, IsString, IsOptional } from 'class-validator';
+import { IsBoolean, IsString, IsOptional, IsNotEmpty } from 'class-validator';
 
 export class ApprovalDto {
-  @IsBoolean()
+  @IsBoolean({ message: "Le statut d'approbation doit être un booléen." })
+  @IsNotEmpty()
   approved: boolean = false;
 
-  @IsString()
+  @IsString({ message: "Le commentaire doit être une chaîne de caractères." })
   @IsOptional()
   comment?: string;
 }

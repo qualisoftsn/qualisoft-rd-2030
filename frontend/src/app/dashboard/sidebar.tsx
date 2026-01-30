@@ -319,6 +319,18 @@ export default function Sidebar({
             access: "ADMIN",
           },
           {
+            title: "Types de processus",
+            path: "/dashboard/processus-type",
+            icon: Users,
+            access: "ADMIN",
+          },
+          {
+            title: "Type d'unité organique",
+            path: "/dashboard/org-units-type",
+            icon: Users,
+            access: "ADMIN",
+          },
+          {
             title: "Configuration",
             path: "/dashboard/settings",
             icon: Settings2,

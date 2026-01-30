@@ -6,14 +6,14 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 
 // --- 1️⃣ INFRASTRUCTURE, SÉCURITÉ & NOYAU ---
-import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { TenantsModule } from './tenants/tenants.module';
 import { CommonModule } from './common/common.module';
+import { StatsModule } from './modules/stats/stats.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PkiModule } from './pki/pki.module';
-import { StatsModule } from './modules/stats/stats.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { UsersModule } from './users/users.module';
 
 // --- 🛡️ SYSTÈME DE PROTECTION (GUARDS) ---
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -22,41 +22,41 @@ import { SubscriptionGuard } from './auth/guards/subscription.guard';
 
 // --- 2️⃣ ADMINISTRATION, SITES & FINANCE ---
 import { AdminModule } from './admin/admin.module';
-import { SitesModule } from './sites/sites.module';
+import { GouvernanceModule } from './gouvernance/gouvernance.module';
 import { OrgUnitsModule } from './org-units/org-units.module';
+import { SitesModule } from './sites/sites.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
-import { GouvernanceModule } from './gouvernance/gouvernance.module';
 
 // --- 3️⃣ MODULES MÉTIER SMI (ISO 9001 - Cycle de Qualité) ---
-import { ProcessusModule } from './processus/processus.module';
-import { AuditsModule } from './audits/audits.module';
-import { NonConformiteModule } from './non-conformites/non-conformites.module';
-import { ActionsModule } from './actions/actions.module';
 import { ActionsTabModule } from './actions-tab/actions-tab.module'; // Hub de pilotage
-import { PaqModule } from './paq/paq.module';
-import { TiersModule } from './tiers/tiers.module';
-import { ReclamationsModule } from './reclamations/reclamations.module';
-import { ProcessReviewModule } from './process-review/process-review.module';
-import { IndicatorsModule } from './indicators/indicators.module';
-import { DocumentsModule } from './documents/documents.module';
-import { QualityObjectivesModule } from './quality-objectives/quality-objectives.module';
-import { SmiModule } from './smi/smi.module';
-import { CopilModule } from './copil/copil.module';
+import { ActionsModule } from './actions/actions.module';
 import { ArchivesModule } from './archives/archives.module'; // Chambre forte
+import { AuditsModule } from './audits/audits.module';
+import { CopilModule } from './copil/copil.module';
+import { DocumentsModule } from './documents/documents.module';
+import { IndicatorsModule } from './indicators/indicators.module';
+import { NonConformiteModule } from './non-conformites/non-conformites.module';
+import { PaqModule } from './paq/paq.module';
+import { ProcessReviewModule } from './process-review/process-review.module';
+import { ProcessusModule } from './processus/processus.module';
+import { QualityObjectivesModule } from './quality-objectives/quality-objectives.module';
+import { ReclamationsModule } from './reclamations/reclamations.module';
+import { SmiModule } from './smi/smi.module';
+import { TiersModule } from './tiers/tiers.module';
 
 // --- 4️⃣ SMI SPÉCIALISÉ & GPEC (SST, ENV, RH) ---
-import { SseModule } from './sse/sse.module';
-import { EnvironmentModule } from './environment/environment.module';
-import { MeetingsModule } from './meetings/meetings.module';
-import { EquipmentModule } from './equipment/equipment.module';
-import { CompetencesModule } from './competences/competences.module';
-import { RisksModule } from './risks/risks.module';
-import { ServicesModule } from './services/services.module';
-import { PartiesInteresseesModule } from './parties-interessees/parties-interessees.module';
 import { AnalysesModule } from './analyses/analyses.module';
+import { CompetencesModule } from './competences/competences.module';
+import { EnvironmentModule } from './environment/environment.module';
+import { EquipmentModule } from './equipment/equipment.module';
 import { ExpositionModule } from './exposition/exposition.module';
 import { FormationsModule } from './formations/formations.module'; // Nomenclature unifiée
+import { MeetingsModule } from './meetings/meetings.module';
+import { PartiesInteresseesModule } from './parties-interessees/parties-interessees.module';
+import { RisksModule } from './risks/risks.module';
+import { ServicesModule } from './services/services.module';
+import { SseModule } from './sse/sse.module';
 import { WorkflowModule } from './workflows/workflow.module';
 
 // --- 5️⃣ CONTROLLERS & SERVICES DE BASE ---
@@ -66,6 +66,8 @@ import { ContactService } from './auth/contact.service';
 import { UploadController } from './common/upload.controller';
 import { HealthController } from './health/health.controller';
 import { SettingsController } from './settings/settings.controller';
+import { OrgUnitsTypeModule } from './org-units-type/org-units-type.module';
+import { ProcessusTypeModule } from './processus-type/processus-type.module';
 
 @Module({
   imports: [
@@ -98,6 +100,8 @@ import { SettingsController } from './settings/settings.controller';
     SitesModule,
     OrgUnitsModule,
     GouvernanceModule,
+    OrgUnitsTypeModule,
+    ProcessusTypeModule,
 
     // 🛠️ SMI CORE (Cycle PDCA - ISO 9001)
     ProcessusModule,

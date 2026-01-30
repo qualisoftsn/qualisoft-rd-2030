@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsArray, IsIn } from 'class-validator';
 import { DocCategory, DocStatus } from '@prisma/client';
 
 export class QueryDocumentsDto {
@@ -18,8 +18,8 @@ export class QueryDocumentsDto {
   @IsOptional()
   q?: string;
 
-  @IsString()
   @IsOptional()
+  @IsIn(['all', 'month', 'quarter', 'overdue'])
   dateRange?: 'all' | 'month' | 'quarter' | 'overdue';
 
   @IsArray()

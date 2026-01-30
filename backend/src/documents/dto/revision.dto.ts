@@ -1,11 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateRevisionDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "La description des modifications est obligatoire pour la traçabilité." })
   changeDescription: string = '';
 
-  @IsString()
+  @IsUUID()
   @IsOptional()
   previousVersionId?: string;
 }

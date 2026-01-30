@@ -20,6 +20,11 @@ export class TenantsController {
   getGlobalStats() {
     return this.tenantsService.getGlobalStats();
   }
+  /** 📊 Métriques SMI individuelles (Pour le dépliage des cartes) */
+  @Get(':id/statistics') // ✅ Pour les metrics des cartes individuelles
+  getTenantStats(@Param('id') id: string) {
+    return this.tenantsService.getTenantStats(id);
+  }
 
   /** 📋 Liste exhaustive (Inclusion des compteurs) */
   @Get()
@@ -28,10 +33,10 @@ export class TenantsController {
   }
 
   /** 📊 Métriques SMI individuelles (Pour le dépliage des cartes) */
-  @Get(':id/statistics')
-  getTenantStats(@Param('id') id: string) {
-    return this.tenantsService.getTenantStats(id);
-  }
+  // @Get(':id/statistics')
+  // getTenantStats(@Param('id') id: string) {
+  //   return this.tenantsService.getTenantStats(id);
+  // }
 
   /** 📝 Mise à jour des propriétés (§8.4) */
   @Patch(':id')

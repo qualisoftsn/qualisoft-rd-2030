@@ -15,7 +15,7 @@ export default function DashboardRedirect() {
         router.push("/admin/super-dashboard"); // Matrix des Tenants
         break;
       case 'ADMIN_RQ':
-        router.push("/dashboard/smi-global"); // Pilotage 360° du SMI
+        router.push("/dashboard/admin_rq"); // Pilotage 360° du SMI
         break;
       case 'PILOTE':
         router.push(`/dashboard/processus/cockpit/${user.assignedProcessId}`); // Tunneling
@@ -27,7 +27,7 @@ export default function DashboardRedirect() {
         router.push("/dashboard/consultation"); // Vue Read-only
         break;
       default:
-        router.push("/dashboard/my-tasks"); // Vue "User" standard
+        router.push("/dashboard/admin_rq"); // Vue "User" standard
     }
   }, [user, router]);
 
