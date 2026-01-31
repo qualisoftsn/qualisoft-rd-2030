@@ -457,7 +457,7 @@ export default function ExecutiveDashboard() {
         <KPICard 
           title="Performance" 
           value={`${data?.globalPerformance || 0}%`} 
-          trend={performanceTrend}
+          trend={performanceTrend} 
           icon={Target} 
           color="emerald"
           subtitle="vs mois précédent"

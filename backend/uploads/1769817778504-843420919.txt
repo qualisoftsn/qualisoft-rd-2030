@@ -1,0 +1,702 @@
+Pour donner une réponse rigoureuse et détaillée, nous allons explorer deux exemples de modèles mathématiques basés sur des fractales : l'ensemble de Mandelbrot et l'algorithme de compression fractale. Nous allons ensuite effectuer une démonstration analytique pour chacun.
+
+1. Ensemble de Mandelbrot
+a. Définition et Construction
+L'ensemble de Mandelbrot est un ensemble de points du plan complexe qui reste borné sous l'itération d'une fonction quadratique complexe. La fonction itérative est définie par :
+
+𝑓
+𝑐
+(
+𝑧
+)
+=
+𝑧
+2
++
+𝑐
+f 
+c
+​
+ (z)=z 
+2
+ +c
+où 
+𝑧
+z et 
+𝑐
+c sont des nombres complexes, et 
+𝑓
+𝑐
+(
+𝑧
+)
+f 
+c
+​
+ (z) représente l'application de la fonction sur 
+𝑧
+z avec un paramètre complexe 
+𝑐
+c.
+
+L'ensemble de Mandelbrot est défini comme l'ensemble des valeurs de 
+𝑐
+c pour lesquelles la suite définie par 
+𝑧
+𝑛
++
+1
+=
+𝑧
+𝑛
+2
++
+𝑐
+z 
+n+1
+​
+ =z 
+n
+2
+​
+ +c avec 
+𝑧
+0
+=
+0
+z 
+0
+​
+ =0 reste bornée.
+
+b. Analyse et Démonstration
+Pour un point 
+𝑐
+c donné dans le plan complexe, la suite 
+{
+𝑧
+𝑛
+}
+{z 
+n
+​
+ } est définie par :
+
+𝑧
+𝑛
++
+1
+=
+𝑧
+𝑛
+2
++
+𝑐
+,
+avec
+𝑧
+0
+=
+0
+z 
+n+1
+​
+ =z 
+n
+2
+​
+ +c,avecz 
+0
+​
+ =0
+Nous devons déterminer si cette suite reste bornée. Plus précisément, si 
+∃
+𝑀
+>
+0
+∃M>0 tel que 
+∣
+𝑧
+𝑛
+∣
+≤
+𝑀
+∣z 
+n
+​
+ ∣≤M pour tout 
+𝑛
+n, alors 
+𝑐
+c appartient à l'ensemble de Mandelbrot.
+
+Cas particulier : 
+𝑐
+=
+0
+c=0
+Pour 
+𝑐
+=
+0
+c=0, la suite devient :
+
+𝑧
+0
+=
+0
+,
+𝑧
+1
+=
+0
+2
++
+0
+=
+0
+,
+𝑧
+2
+=
+0
+2
++
+0
+=
+0
+,
+…
+z 
+0
+​
+ =0,z 
+1
+​
+ =0 
+2
+ +0=0,z 
+2
+​
+ =0 
+2
+ +0=0,…
+Ici, 
+∣
+𝑧
+𝑛
+∣
+=
+0
+∣z 
+n
+​
+ ∣=0 pour tout 
+𝑛
+n, donc 
+𝑐
+=
+0
+c=0 appartient à l'ensemble de Mandelbrot.
+
+Cas général : 
+𝑐
+≠
+0
+c
+
+=0
+Soit 
+𝑧
+𝑛
+=
+𝑎
+𝑛
++
+𝑏
+𝑛
+𝑖
+z 
+n
+​
+ =a 
+n
+​
+ +b 
+n
+​
+ i où 
+𝑎
+𝑛
+a 
+n
+​
+  et 
+𝑏
+𝑛
+b 
+n
+​
+  sont des réels. On a alors :
+
+𝑧
+𝑛
++
+1
+=
+(
+𝑎
+𝑛
++
+𝑏
+𝑛
+𝑖
+)
+2
++
+𝑐
+z 
+n+1
+​
+ =(a 
+n
+​
+ +b 
+n
+​
+ i) 
+2
+ +c
+𝑧
+𝑛
++
+1
+=
+(
+𝑎
+𝑛
+2
+−
+𝑏
+𝑛
+2
++
+Re
+(
+𝑐
+)
+)
++
+(
+2
+𝑎
+𝑛
+𝑏
+𝑛
++
+Im
+(
+𝑐
+)
+)
+𝑖
+z 
+n+1
+​
+ =(a 
+n
+2
+​
+ −b 
+n
+2
+​
+ +Re(c))+(2a 
+n
+​
+ b 
+n
+​
+ +Im(c))i
+On examine si cette suite reste bornée en fonction de 
+𝑐
+c.
+
+Cas particulier : 
+𝑐
+=
+1
+c=1
+Pour 
+𝑐
+=
+1
+c=1, on a :
+
+𝑧
+0
+=
+0
+,
+𝑧
+1
+=
+0
+2
++
+1
+=
+1
+,
+𝑧
+2
+=
+1
+2
++
+1
+=
+2
+,
+𝑧
+3
+=
+2
+2
++
+1
+=
+5
+,
+…
+z 
+0
+​
+ =0,z 
+1
+​
+ =0 
+2
+ +1=1,z 
+2
+​
+ =1 
+2
+ +1=2,z 
+3
+​
+ =2 
+2
+ +1=5,…
+On voit que la suite diverge (les 
+∣
+𝑧
+𝑛
+∣
+∣z 
+n
+​
+ ∣ augmentent sans borne), donc 
+𝑐
+=
+1
+c=1 n'appartient pas à l'ensemble de Mandelbrot.
+
+Conclusion
+L'ensemble de Mandelbrot est constitué des valeurs de 
+𝑐
+c pour lesquelles la suite définie par 
+𝑧
+𝑛
++
+1
+=
+𝑧
+𝑛
+2
++
+𝑐
+z 
+n+1
+​
+ =z 
+n
+2
+​
+ +c reste bornée.
+
+2. Algorithme de Compression Fractale
+a. Concept de Base
+La compression fractale est basée sur l'idée que des parties d'une image peuvent être approximées par des transformations géométriques des autres parties. Ces transformations sont définies par des contractions affines.
+
+Une contraction affine en deux dimensions peut être représentée par une transformation de la forme :
+
+𝑇
+(
+𝑥
+,
+𝑦
+)
+=
+(
+𝑎
+𝑥
++
+𝑏
+𝑦
++
+𝑒
+,
+𝑐
+𝑥
++
+𝑑
+𝑦
++
+𝑓
+)
+T(x,y)=(ax+by+e,cx+dy+f)
+où les coefficients 
+𝑎
+,
+𝑏
+,
+𝑐
+,
+𝑑
+,
+𝑒
+,
+𝑓
+a,b,c,d,e,f sont déterminés pour chaque sous-ensemble de l'image de manière à minimiser l'erreur entre l'image et sa reconstruction.
+
+b. Modèle Mathématique
+Le modèle mathématique sous-jacent à la compression fractale repose sur le Théorème du point fixe de Banach, qui stipule que toute fonction contractante sur un espace métrique complet possède un unique point fixe. Dans le cadre de la compression fractale, l'image compressée est représentée par un attracteur fractal, un ensemble invariant sous un système de transformations affines.
+
+Construction
+Supposons qu'une image est divisée en sous-blocs 
+𝐵
+𝑖
+B 
+i
+​
+ , et que pour chaque sous-bloc 
+𝐵
+𝑖
+B 
+i
+​
+ , on trouve une transformation affine 
+𝑇
+𝑖
+T 
+i
+​
+  telle que :
+
+Erreur
+(
+𝐵
+𝑖
+,
+𝑇
+𝑖
+(
+𝐵
+𝑗
+)
+)
+ est minimale pour un certain bloc 
+𝐵
+𝑗
+Erreur(B 
+i
+​
+ ,T 
+i
+​
+ (B 
+j
+​
+ )) est minimale pour un certain bloc B 
+j
+​
+ 
+La transformation 
+𝑇
+𝑖
+T 
+i
+​
+  est ensuite stockée comme partie de l'ensemble des transformations décrivant l'image.
+
+c. Démonstration Analytique
+Soit une image représentée par une fonction 
+𝐼
+(
+𝑥
+,
+𝑦
+)
+I(x,y), et supposons qu'elle est approximée par un ensemble de transformations 
+{
+𝑇
+𝑖
+}
+{T 
+i
+​
+ }. Le but est de minimiser la différence entre l'image originale et son approximation fractale, représentée par 
+𝐼
+′
+(
+𝑥
+,
+𝑦
+)
+I 
+′
+ (x,y).
+
+Le problème d'optimisation se formule comme suit :
+
+min
+⁡
+𝑇
+𝑖
+∑
+𝑖
+∥
+𝐼
+(
+𝐵
+𝑖
+)
+−
+𝐼
+′
+(
+𝑇
+𝑖
+(
+𝐵
+𝑗
+)
+)
+∥
+2
+T 
+i
+​
+ 
+min
+​
+  
+i
+∑
+​
+ ∥I(B 
+i
+​
+ )−I 
+′
+ (T 
+i
+​
+ (B 
+j
+​
+ ))∥ 
+2
+ 
+où 
+𝐼
+′
+(
+𝑇
+𝑖
+(
+𝐵
+𝑗
+)
+)
+I 
+′
+ (T 
+i
+​
+ (B 
+j
+​
+ )) est l'image obtenue par l'application de la transformation affine 
+𝑇
+𝑖
+T 
+i
+​
+  au bloc 
+𝐵
+𝑗
+B 
+j
+​
+ .
+
+Ce problème est typiquement résolu par des méthodes d'optimisation numérique, telles que les moindres carrés.
+
+Exemple Numérique
+Supposons une image 2D simple où un bloc 
+𝐵
+𝑖
+B 
+i
+​
+  est approximé par une contraction affine avec les coefficients 
+𝑎
+=
+0.5
+,
+𝑏
+=
+0
+,
+𝑐
+=
+0
+,
+𝑑
+=
+0.5
+,
+𝑒
+=
+10
+,
+𝑓
+=
+10
+a=0.5,b=0,c=0,d=0.5,e=10,f=10. Le bloc transformé est :
+
+𝑇
+(
+𝑥
+,
+𝑦
+)
+=
+(
+0.5
+𝑥
++
+10
+,
+0.5
+𝑦
++
+10
+)
+T(x,y)=(0.5x+10,0.5y+10)
+Si l'image originale et transformée sont suffisamment proches, cette transformation est stockée, réduisant ainsi la quantité de données nécessaire pour représenter l'image.
+
+Conclusion
+Ces deux exemples montrent l'utilisation rigoureuse des fractales dans les mathématiques. L'ensemble de Mandelbrot illustre la complexité des ensembles fractals en dynamique complexe, tandis que l'algorithme de compression fractale met en évidence l'application pratique des fractales dans la compression d'images. Ces modèles montrent comment les propriétés auto-similaires et itératives des fractales peuvent être exploitées pour résoudre des problèmes complexes en mathématiques appliquées et en ingénierie

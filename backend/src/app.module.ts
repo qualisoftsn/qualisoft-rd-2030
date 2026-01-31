@@ -58,6 +58,7 @@ import { RisksModule } from './risks/risks.module';
 import { ServicesModule } from './services/services.module';
 import { SseModule } from './sse/sse.module';
 import { WorkflowModule } from './workflows/workflow.module';
+import { GenericCrudModule } from './common/generic-crud.module';
 
 // --- 5️⃣ CONTROLLERS & SERVICES DE BASE ---
 import { AppController } from './app.controller';
@@ -66,8 +67,12 @@ import { ContactService } from './auth/contact.service';
 import { UploadController } from './common/upload.controller';
 import { HealthController } from './health/health.controller';
 import { SettingsController } from './settings/settings.controller';
-import { OrgUnitsTypeModule } from './org-units-type/org-units-type.module';
+import { OrgUnitTypesModule } from './org-unit-types/org-unit-types.module';
 import { ProcessusTypeModule } from './processus-type/processus-type.module';
+import { ConsumptionsModule } from './consumptions/consumptions.module';
+import { WastesModule } from './wastes/wastes.module';
+import { EnvironmentModule } from './environment/environment.module';
+import { SSEEventsModule } from './sse-events/sse-events.module';
 
 @Module({
   imports: [
@@ -100,8 +105,9 @@ import { ProcessusTypeModule } from './processus-type/processus-type.module';
     SitesModule,
     OrgUnitsModule,
     GouvernanceModule,
-    OrgUnitsTypeModule,
+    OrgUnitTypesModule,
     ProcessusTypeModule,
+    GenericCrudModule,
 
     // 🛠️ SMI CORE (Cycle PDCA - ISO 9001)
     ProcessusModule,
@@ -133,6 +139,11 @@ import { ProcessusTypeModule } from './processus-type/processus-type.module';
     ExpositionModule,
     FormationsModule, // Gestion des compétences (§7.2)
     WorkflowModule,
+    ConsumptionsModule,
+    WastesModule,
+    EnvironmentModule,
+    SSEEventsModule,
+
   ],
   controllers: [
     AppController,
