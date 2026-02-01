@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
   BarChart3, LineChart, PieChart, TrendingUp, Calendar, 
@@ -20,11 +20,8 @@ export default function EnvironmentAnalyticsPage() {
   const [selectedSite, setSelectedSite] = useState('ALL');
   const [chartView, setChartView] = useState<'energy' | 'water' | 'waste' | 'recycling'>('energy');
 
-  useEffect(() => {
-    fetchData();
-  }, [timeRange, selectedSite]);
-
-  const fetchData = async () => {
+  // ✅ FETCH DATA : Sécurisé avec useCallback
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [consRes, wastesRes, incidentsRes, sitesRes] = await Promise.all([
@@ -34,435 +31,241 @@ export default function EnvironmentAnalyticsPage() {
         apiClient.get('/sites')
       ]);
       
-      setConsumptions(consRes.data || []);
-      setWastes(wastesRes.data || []);
-      setIncidents(incidentsRes.data || []);
-      setSites(sitesRes.data || []);
+      setConsumptions(consRes.data?.data || consRes.data || []);
+      setWastes(wastesRes.data?.data || wastesRes.data || []);
+      setIncidents(incidentsRes.data?.data || incidentsRes.data || []);
+      setSites(sitesRes.data?.data || sitesRes.data || []);
     } catch (error) {
-      console.error("Erreur chargement analytics:", error);
-      toast.error("Erreur de chargement des statistiques");
+      console.error("Erreur analytics:", error);
+      toast.error("Échec de synchronisation des données");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Préparation des données pour les graphiques
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]); // ✅ Dépendance propre
+
+  // ✅ CHART PREPARATION : Logique de filtrage robuste
   const chartData = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const monthsToShow = timeRange === '3M' ? 3 : timeRange === '6M' ? 6 : 12;
     
-    // Générer les labels des mois
-    const labels = [];
-    const energyData = [];
-    const waterData = [];
-    const wasteData = [];
-    const recyclingData = [];
+    const labels: string[] = [];
+    const energyData: number[] = [];
+    const waterData: number[] = [];
+    const wasteData: number[] = [];
+    const recyclingData: number[] = [];
     
     for (let i = monthsToShow - 1; i >= 0; i--) {
       const date = new Date(currentYear, now.getMonth() - i, 1);
-      const month = date.getMonth() + 1;
-      const year = date.getFullYear();
+      const m = date.getMonth() + 1;
+      const y = date.getFullYear();
       
-      labels.push(date.toLocaleString('fr-FR', { month: 'short' }));
+      labels.push(date.toLocaleString('fr-FR', { month: 'short' }).toUpperCase());
       
-      // Consommations
-      const siteFilter = selectedSite === 'ALL' ? () => true : (c: any) => c.CON_SiteId === selectedSite;
+      const siteFilter = (item: any) => {
+        const itemId = item.CON_SiteId || item.WAS_SiteId || item.SSE_SiteId || item.S_Id;
+        return selectedSite === 'ALL' || itemId === selectedSite;
+      };
+
+      // Énergie
       const energy = consumptions
-        .filter(c => c.CON_Month === month && c.CON_Year === year && siteFilter(c))
-        .filter(c => c.CON_Type.toLowerCase().includes('electric') || c.CON_Type.toLowerCase().includes('énergie'))
-        .reduce((sum, c) => sum + c.CON_Value, 0);
+        .filter(c => c.CON_Month === m && c.CON_Year === y && siteFilter(c))
+        .filter(c => {
+          const type = c.CON_Type?.toLowerCase() || '';
+          return type.includes('electr') || type.includes('éner');
+        })
+        .reduce((sum, c) => sum + (Number(c.CON_Value) || 0), 0);
       
+      // Eau
       const water = consumptions
-        .filter(c => c.CON_Month === month && c.CON_Year === year && siteFilter(c))
-        .filter(c => c.CON_Type.toLowerCase().includes('eau') || c.CON_Type.toLowerCase().includes('water'))
-        .reduce((sum, c) => sum + c.CON_Value, 0);
+        .filter(c => c.CON_Month === m && c.CON_Year === y && siteFilter(c))
+        .filter(c => {
+          const type = c.CON_Type?.toLowerCase() || '';
+          return type.includes('eau') || type.includes('water');
+        })
+        .reduce((sum, c) => sum + (Number(c.CON_Value) || 0), 0);
       
       // Déchets
-      const totalWaste = wastes
-        .filter(w => w.WAS_Month === month && w.WAS_Year === year && siteFilter(w))
-        .reduce((sum, w) => sum + w.WAS_Weight, 0);
-      
-      const recyclableWaste = wastes
-        .filter(w => w.WAS_Month === month && w.WAS_Year === year && siteFilter(w))
-        .filter(w => w.WAS_Type.toLowerCase().includes('recycl') || w.WAS_Treatment.toLowerCase().includes('recycl'))
-        .reduce((sum, w) => sum + w.WAS_Weight, 0);
+      const monthWastes = wastes.filter(w => w.WAS_Month === m && w.WAS_Year === y && siteFilter(w));
+      const totalW = monthWastes.reduce((sum, w) => sum + (Number(w.WAS_Weight) || 0), 0);
+      const recyclableW = monthWastes
+        .filter(w => {
+          const type = w.WAS_Type?.toLowerCase() || '';
+          const treat = w.WAS_Treatment?.toLowerCase() || '';
+          return type.includes('recycl') || treat.includes('recycl');
+        })
+        .reduce((sum, w) => sum + (Number(w.WAS_Weight) || 0), 0);
       
       energyData.push(Math.round(energy));
       waterData.push(Math.round(water));
-      wasteData.push(Math.round(totalWaste));
-      recyclingData.push(totalWaste > 0 ? Math.round((recyclableWaste / totalWaste) * 100) : 0);
+      wasteData.push(Math.round(totalW));
+      recyclingData.push(totalW > 0 ? Math.round((recyclableW / totalW) * 100) : 0);
     }
     
     return { labels, energyData, waterData, wasteData, recyclingData };
   }, [consumptions, wastes, timeRange, selectedSite]);
 
-  // Calculs KPI
+  // ✅ KPI CALCULATIONS
   const kpis = useMemo(() => {
-    const siteFilter = selectedSite === 'ALL' ? () => true : (item: any) => 
-      (item.CON_SiteId || item.WAS_SiteId || item.SSE_SiteId) === selectedSite;
+    const siteFilter = (item: any) => {
+      const id = item.CON_SiteId || item.WAS_SiteId || item.SSE_SiteId;
+      return selectedSite === 'ALL' || id === selectedSite;
+    };
     
-    // Consommations totales sur la période
-    const totalEnergy = consumptions
-      .filter(siteFilter)
-      .filter(c => c.CON_Type.toLowerCase().includes('electric') || c.CON_Type.toLowerCase().includes('énergie'))
-      .reduce((sum, c) => sum + c.CON_Value, 0);
+    const e = consumptions.filter(siteFilter).filter(c => (c.CON_Type?.toLowerCase() || '').includes('éner')).reduce((s, c) => s + (Number(c.CON_Value) || 0), 0);
+    const w = consumptions.filter(siteFilter).filter(c => (c.CON_Type?.toLowerCase() || '').includes('eau')).reduce((s, c) => s + (Number(c.CON_Value) || 0), 0);
     
-    const totalWater = consumptions
-      .filter(siteFilter)
-      .filter(c => c.CON_Type.toLowerCase().includes('eau') || c.CON_Type.toLowerCase().includes('water'))
-      .reduce((sum, c) => sum + c.CON_Value, 0);
+    const totalW = wastes.filter(siteFilter).reduce((s, w) => s + (Number(w.WAS_Weight) || 0), 0);
+    const recW = wastes.filter(siteFilter).filter(w => (w.WAS_Type?.toLowerCase() || '').includes('recycl')).reduce((s, w) => s + (Number(w.WAS_Weight) || 0), 0);
     
-    // Déchets totaux
-    const totalWaste = wastes.filter(siteFilter).reduce((sum, w) => sum + w.WAS_Weight, 0);
-    const recyclableWaste = wastes
-      .filter(siteFilter)
-      .filter(w => w.WAS_Type.toLowerCase().includes('recycl') || w.WAS_Treatment.toLowerCase().includes('recycl'))
-      .reduce((sum, w) => sum + w.WAS_Weight, 0);
-    
-    // Incidents environnementaux
     const envIncidents = incidents.filter(i => 
       siteFilter(i) && 
-      (i.SSE_Type === 'DOMMAGE_MATERIEL' || 
-       i.SSE_Description.toLowerCase().includes('environnement') ||
-       i.SSE_Description.toLowerCase().includes('pollution') ||
-       i.SSE_Description.toLowerCase().includes('déversement'))
+      (i.SSE_Type === 'DOMMAGE_MATERIEL' || (i.SSE_Description?.toLowerCase() || '').includes('environnement'))
     );
     
     return {
-      totalEnergy: Math.round(totalEnergy),
-      totalWater: Math.round(totalWater),
-      totalWaste: Math.round(totalWaste),
-      recyclingRate: totalWaste > 0 ? Math.round((recyclableWaste / totalWaste) * 100) : 0,
+      totalEnergy: Math.round(e),
+      totalWater: Math.round(w),
+      totalWaste: Math.round(totalW),
+      recyclingRate: totalW > 0 ? Math.round((recW / totalW) * 100) : 0,
       totalIncidents: envIncidents.length,
       criticalIncidents: envIncidents.filter(i => i.SSE_AvecArret).length
     };
   }, [consumptions, wastes, incidents, selectedSite]);
 
-  if (loading) {
-    return (
-      <div className="ml-72 h-screen flex items-center justify-center bg-[#0B0F1A]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin mb-6"></div>
-          <p className="text-slate-500 font-black uppercase italic text-[10px] tracking-widest">
-            Génération des statistiques environnementales ISO 14001...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+      <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+      <p className="text-emerald-500 font-black uppercase italic text-[10px] tracking-widest">Calcul des indicateurs ISO 14001...</p>
+    </div>
+  );
 
   return (
-    <div className="p-8 bg-[#0B0F1A] min-h-screen ml-72 text-white font-sans">
-      <header className="mb-8 flex justify-between items-end">
+    <div className="p-8 bg-[#0B0F1A] min-h-screen ml-72 text-white font-sans uppercase italic font-black">
+      <header className="mb-10 flex justify-between items-end border-b border-white/5 pb-8">
         <div>
-          <h1 className="text-4xl font-black uppercase italic tracking-tighter">
-            Analytics <span className="text-green-400">Environnementaux</span>
-          </h1>
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-2 italic">
-            Tableaux de bord opérationnels • Conformité ISO 14001 §9.1
-          </p>
+          <h1 className="text-4xl tracking-tighter">Analytics <span className="text-emerald-400">Environnementaux</span></h1>
+          <p className="text-slate-500 text-[10px] tracking-[0.3em] mt-2">Intelligence Durable • Performance §9.1 ISO 14001</p>
         </div>
-        <div className="flex gap-4">
-          <div className="flex bg-slate-900/50 border border-white/10 rounded-2xl p-1">
+        <div className="flex gap-4 items-center">
+          <div className="flex bg-slate-900/80 border border-white/10 rounded-2xl p-1 shadow-inner">
             {(['3M', '6M', '12M'] as const).map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-4 py-2 text-[9px] font-black uppercase rounded-xl transition-all ${
-                  timeRange === range 
-                    ? 'bg-green-500 text-white shadow-md shadow-green-500/30' 
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {range}
-              </button>
+              <button key={range} onClick={() => setTimeRange(range)} className={`px-4 py-2 text-[9px] rounded-xl transition-all ${timeRange === range ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{range}</button>
             ))}
           </div>
-          
-          <select
-            value={selectedSite}
-            onChange={(e) => setSelectedSite(e.target.value)}
-            className="bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-2 text-[10px] font-black uppercase text-white focus:outline-none focus:border-green-500"
-          >
-            <option value="ALL">Tous les Sites</option>
-            {sites.map(site => (
-              <option key={site.S_Id} value={site.S_Id}>{site.S_Name}</option>
-            ))}
+          <select value={selectedSite} onChange={(e) => setSelectedSite(e.target.value)} className="bg-slate-900 border border-white/10 rounded-2xl px-6 py-3 text-[10px] outline-none focus:border-emerald-500 shadow-xl">
+            <option value="ALL">Périmètre Global</option>
+            {sites.map(s => <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>)}
           </select>
-          
-          <button className="bg-white/5 border border-white/10 p-3 rounded-xl hover:bg-white/10 transition-colors">
-            <Download size={18} className="text-green-400" />
-          </button>
+          <button className="bg-emerald-600 p-3 rounded-xl hover:bg-emerald-500 transition-all shadow-lg"><Download size={20}/></button>
         </div>
       </header>
 
-      {/* KPI RAPIDES */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <KPIBox 
-          label="Énergie Consommée" 
-          value={`${kpis.totalEnergy.toLocaleString()} kWh`} 
-          icon={<BarChart3 className="text-amber-400" />}
-          color="bg-amber-500/10"
-        />
-        <KPIBox 
-          label="Eau Consommée" 
-          value={`${kpis.totalWater.toLocaleString()} m³`} 
-          icon={<BarChart3 className="text-blue-400" />}
-          color="bg-blue-500/10"
-        />
-        <KPIBox 
-          label="Déchets Produits" 
-          value={`${kpis.totalWaste.toLocaleString()} kg`} 
-          icon={<BarChart3 className="text-red-400" />}
-          color="bg-red-500/10"
-        />
-        <KPIBox 
-          label="Taux de Recyclage" 
-          value={`${kpis.recyclingRate}%`} 
-          icon={<BarChart3 className="text-green-400" />}
-          color="bg-green-500/10"
-        />
-        <KPIBox 
-          label="Incidents Environnementaux" 
-          value={kpis.totalIncidents} 
-          icon={<AlertTriangle className="text-amber-400" />}
-          color="bg-amber-500/10"
-          critical={kpis.criticalIncidents > 0}
-        />
+      {/* KPI GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+        <KPIBox label="Énergie" value={`${kpis.totalEnergy} kWh`} icon={<BarChart3 className="text-amber-400" />} color="bg-amber-500/10" />
+        <KPIBox label="Eau" value={`${kpis.totalWater} m³`} icon={<BarChart3 className="text-blue-400" />} color="bg-blue-500/10" />
+        <KPIBox label="Déchets" value={`${kpis.totalWaste} kg`} icon={<BarChart3 className="text-rose-400" />} color="bg-rose-500/10" />
+        <KPIBox label="Recyclage" value={`${kpis.recyclingRate}%`} icon={<TrendingUp className="text-emerald-400" />} color="bg-emerald-500/10" />
+        <KPIBox label="Incidents" value={kpis.totalIncidents} icon={<AlertTriangle className="text-amber-500" />} color="bg-amber-500/10" critical={kpis.criticalIncidents > 0} />
+        <KPIBox label="Émissions" value={`${Math.round(kpis.totalEnergy * 0.5)} kgCO2`} icon={<Leaf className="text-emerald-500" />} color="bg-emerald-500/5" />
       </div>
 
-      {/* GRAPHIQUES PRINCIPAUX */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <ChartCard 
-          title="Évolution des Consommations Énergétiques" 
-          icon={<LineChart className="text-amber-400" />}
-          data={chartData}
-          type="line"
-          series={['Énergie (kWh)']}
-          values={chartData.energyData}
-          color="#f59e0b"
-        />
-        
-        <ChartCard 
-          title="Analyse de la Consommation d'Eau" 
-          icon={<LineChart className="text-blue-400" />}
-          data={chartData}
-          type="line"
-          series={['Eau (m³)']}
-          values={chartData.waterData}
-          color="#3b82f6"
-        />
+      {/* CHARTS SECTION */}
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+        <ChartCard title="Consommations Énergie" data={chartData} type="line" values={chartData.energyData} color="#f59e0b" unit="kWh" />
+        <ChartCard title="Consommations Eau" data={chartData} type="line" values={chartData.waterData} color="#3b82f6" unit="m³" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <ChartCard 
-          title="Production de Déchets" 
-          icon={<BarChart3 className="text-red-400" />}
-          data={chartData}
-          type="bar"
-          series={['Déchets (kg)']}
-          values={chartData.wasteData}
-          color="#ef4444"
-        />
-        
-        <ChartCard 
-          title="Performance du Recyclage" 
-          icon={<PieChart className="text-green-400" />}
-          data={chartData}
-          type="line"
-          series={['Taux de Recyclage (%)']}
-          values={chartData.recyclingData}
-          color="#10b981"
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+        <ChartCard title="Volume Déchets" data={chartData} type="bar" values={chartData.wasteData} color="#f43f5e" unit="kg" />
+        <ChartCard title="Efficacité Recyclage" data={chartData} type="line" values={chartData.recyclingData} color="#10b981" unit="%" />
       </div>
 
-      {/* TABLEAU DE BORD DÉTAILLÉ */}
-      <div className="bg-slate-900/40 border border-white/5 rounded-3xl p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-black uppercase italic">Détails Opérationnels par Mois</h2>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setChartView('energy')}
-              className={`p-2 rounded-lg transition-all ${
-                chartView === 'energy' 
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Énergie
-            </button>
-            <button 
-              onClick={() => setChartView('water')}
-              className={`p-2 rounded-lg transition-all ${
-                chartView === 'water' 
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Eau
-            </button>
-            <button 
-              onClick={() => setChartView('waste')}
-              className={`p-2 rounded-lg transition-all ${
-                chartView === 'waste' 
-                  ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Déchets
-            </button>
-            <button 
-              onClick={() => setChartView('recycling')}
-              className={`p-2 rounded-lg transition-all ${
-                chartView === 'recycling' 
-                  ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Recyclage
-            </button>
+      {/* DETAILED TABLE */}
+      <div className="bg-slate-900/40 border border-white/5 rounded-[3rem] p-10 shadow-2xl overflow-hidden">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-2xl tracking-tighter">Registre de Performance Mensuel</h2>
+          <div className="flex gap-2 bg-black/20 p-1.5 rounded-2xl border border-white/5">
+            {(['energy', 'water', 'waste', 'recycling'] as const).map(v => (
+              <button key={v} onClick={() => setChartView(v)} className={`px-4 py-2 text-[8px] rounded-xl transition-all ${chartView === v ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}>{v.toUpperCase()}</button>
+            ))}
           </div>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-white/5">
-              <tr className="text-[10px] font-black uppercase text-slate-500 italic tracking-widest border-b border-white/5">
-                <th className="p-4">Mois</th>
-                <th className="p-4">Énergie (kWh)</th>
-                <th className="p-4">Eau (m³)</th>
-                <th className="p-4">Déchets (kg)</th>
-                <th className="p-4">Recyclage (%)</th>
-                <th className="p-4">CO₂ Estimé (kg)</th>
-                <th className="p-4">Conformité</th>
+        <table className="w-full text-left">
+          <thead className="bg-white/5 text-[9px] text-slate-500 tracking-widest border-b border-white/5">
+            <tr>
+              <th className="p-6">Période</th>
+              <th className="p-6">Énergie (kWh)</th>
+              <th className="p-6">Eau (m³)</th>
+              <th className="p-6">Déchets (kg)</th>
+              <th className="p-6">Recyclage</th>
+              <th className="p-6">Statut ISO</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5 text-[11px]">
+            {chartData.labels.map((m, i) => (
+              <tr key={i} className="hover:bg-white/5 transition-colors">
+                <td className="p-6 font-black text-emerald-400">{m}</td>
+                <td className="p-6">{chartData.energyData[i].toLocaleString()}</td>
+                <td className="p-6">{chartData.waterData[i].toLocaleString()}</td>
+                <td className="p-6">{chartData.wasteData[i].toLocaleString()}</td>
+                <td className="p-6">
+                  <span className={`px-3 py-1 rounded-lg text-[9px] ${chartData.recyclingData[i] >= 70 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                    {chartData.recyclingData[i]}%
+                  </span>
+                </td>
+                <td className="p-6">
+                  <div className="flex items-center gap-2 text-emerald-500"><Leaf size={12}/> CONFORME</div>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {chartData.labels.map((month, idx) => {
-                const energy = chartData.energyData[idx];
-                const water = chartData.waterData[idx];
-                const waste = chartData.wasteData[idx];
-                const recycling = chartData.recyclingData[idx];
-                // Estimation CO₂: 0.5 kg/kWh pour l'électricité
-                const co2 = Math.round(energy * 0.5);
-                
-                return (
-                  <tr key={month} className="hover:bg-white/5 transition-colors">
-                    <td className="p-4 font-black">{month}</td>
-                    <td className="p-4">{energy.toLocaleString()}</td>
-                    <td className="p-4">{water.toLocaleString()}</td>
-                    <td className="p-4">{waste.toLocaleString()}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-black ${
-                        recycling >= 70 
-                          ? 'bg-green-500/20 text-green-300' 
-                          : recycling >= 50 
-                          ? 'bg-amber-500/20 text-amber-300' 
-                          : 'bg-red-500/20 text-red-300'
-                      }`}>
-                        {recycling}%
-                      </span>
-                    </td>
-                    <td className="p-4">{co2.toLocaleString()}</td>
-                    <td className="p-4">
-                      <span className="flex items-center gap-1 text-[10px] font-black text-green-400">
-                        <Leaf size={14} /> Conforme ISO 14001
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        
-        <div className="mt-6 flex justify-between items-center pt-4 border-t border-white/5">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500">
-            <FileSpreadsheet size={16} className="text-green-400" />
-            <span>Export possible en Excel/PDF pour audits réglementaires</span>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ✅ COMPOSANTS INTERNES ROBUSTES
+function KPIBox({ label, value, icon, color, critical }: any) {
+  return (
+    <div className={`${color} border ${critical ? 'border-rose-500/50 animate-pulse' : 'border-white/5'} rounded-3xl p-6 transition-all hover:scale-105`}>
+      <div className="flex justify-between mb-4">
+        <div className="p-3 bg-white/5 rounded-xl">{icon}</div>
+        {critical && <AlertTriangle className="text-rose-500" size={20} />}
+      </div>
+      <p className="text-[8px] text-slate-500 mb-1 tracking-widest">{label}</p>
+      <p className="text-xl font-black italic tracking-tighter">{value}</p>
+    </div>
+  );
+}
+
+function ChartCard({ title, data, values, color, unit }: any) {
+  const max = Math.max(...values, 1);
+  return (
+    <div className="bg-slate-900/40 border border-white/5 rounded-[3rem] p-8 shadow-inner">
+      <div className="flex justify-between items-center mb-8">
+        <h3 className="text-sm tracking-widest">{title}</h3>
+        <span className="text-[9px] text-slate-500 italic">Période: {data.labels[0]} - {data.labels[data.labels.length-1]}</span>
+      </div>
+      <div className="h-64 flex items-end justify-between px-4 gap-2">
+        {values.map((v: number, i: number) => (
+          <div key={i} className="flex-1 flex flex-col items-center group">
+            <div className="w-full relative">
+               <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] bg-white text-black px-1 rounded">{v}{unit}</div>
+               <div className="w-full rounded-t-xl transition-all duration-700 hover:brightness-125 shadow-lg" 
+                    style={{ height: `${(v/max)*100}%`, backgroundColor: color, opacity: 0.8 }}></div>
+            </div>
+            <span className="text-[8px] mt-4 text-slate-500">{data.labels[i]}</span>
           </div>
-          <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all">
-            <Download size={16} /> Export Complet
-          </button>
-        </div>
-      </div>
-
-      <footer className="mt-8 pt-6 border-t border-white/5 text-center">
-        <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em]">
-          Qualisoft SMI • Analytics Environnementaux ISO 14001:2015 • Données mises à jour en temps réel
-        </p>
-        <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em] mt-1">
-          Conformité aux exigences §9.1.1 (Surveillance), §9.1.2 (Évaluation de la conformité) et §9.3 (Revue de direction)
-        </p>
-      </footer>
-    </div>
-  );
-}
-
-function KPIBox({ label, value, icon, color, critical = false }: any) {
-  return (
-    <div className={`${color} border ${critical ? 'border-amber-500/50' : 'border-white/10'} rounded-2xl p-5`}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="p-2 bg-white/10 rounded-lg">{icon}</div>
-        {critical && (
-          <AlertTriangle className="text-amber-400" size={20} />
-        )}
-      </div>
-      <p className="text-[9px] font-black uppercase text-slate-400 mb-1">{label}</p>
-      <p className="text-2xl font-black">{value}</p>
-    </div>
-  );
-}
-
-function ChartCard({ title, icon, data, type, series, values, color }: any) {
-  return (
-    <div className="bg-slate-900/40 border border-white/5 rounded-3xl p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-xl font-black flex items-center gap-2">
-          {icon} {title}
-        </h3>
-        <div className="flex items-center gap-2 text-[10px] font-black text-slate-500">
-          <Calendar size={14} />
-          <span>{data.labels[0]} - {data.labels[data.labels.length - 1]}</span>
-        </div>
-      </div>
-      
-      <div className="h-80 bg-linear-to-br from-slate-900/50 to-slate-900/30 rounded-2xl border border-white/5 p-4">
-        {/* Simuler un graphique avec des barres */}
-        <div className="flex items-end justify-around h-full px-4">
-          {values.map((val: number, idx: number) => (
-            <div key={idx} className="flex flex-col items-center">
-              <div 
-                className="w-10 rounded-t-xl transition-all duration-500"
-                style={{ 
-                  height: `${Math.max(10, (val / Math.max(...values)) * 90)}%`,
-                  backgroundColor: color,
-                  boxShadow: `0 4px 6px ${color}40`
-                }}
-              ></div>
-              <span className="text-[9px] font-black mt-2 text-slate-400">{data.labels[idx]}</span>
-            </div>
-          ))}
-        </div>
-        
-        <div className="mt-4 flex justify-center gap-6">
-          {series.map((serie: string, idx: number) => (
-            <div key={idx} className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }}></div>
-              <span className="text-[10px] font-black text-slate-300">{serie}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      <div className="mt-4 flex justify-between items-center">
-        <div className="text-[10px] font-black text-slate-500 italic">
-          Source: Données {selectedSite === 'ALL' ? 'tous sites' : 'site sélectionné'} • Mise à jour quotidienne
-        </div>
-        <button className="text-[10px] font-black text-green-400 hover:text-green-300 transition-colors flex items-center gap-1">
-          <Download size={14} /> Export CSV
-        </button>
+        ))}
       </div>
     </div>
   );

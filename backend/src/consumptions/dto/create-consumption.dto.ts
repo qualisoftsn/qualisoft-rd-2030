@@ -9,17 +9,17 @@ export class CreateConsumptionDto {
   CON_Value: number | undefined;
 
   @IsString()
-  CON_Unit: string | undefined;
+  CON_Unit!: string;
 
   @IsNumber()
   @Min(1)
   @Max(12)
-  CON_Month: number | undefined;
+  CON_Month!: number;
 
   @IsNumber()
   @Min(2000)
   @Max(2100)
-  CON_Year: number | undefined;
+  CON_Year!: number;
 
   @IsOptional()
   @IsNumber()
@@ -27,5 +27,5 @@ export class CreateConsumptionDto {
   CON_Cost?: number;
 
   @IsString()
-  CON_SiteId: string | undefined;
+  CON_SiteId!: string;
 }

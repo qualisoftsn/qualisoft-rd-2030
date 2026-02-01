@@ -1,55 +1,53 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query } from '@nestjs/common';
 import { WastesService } from './wastes.service';
 import { CreateWasteDto } from './dto/create-waste.dto';
 import { UpdateWasteDto } from './dto/update-waste.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
-@ApiTags('Environment - Wastes')
+@ApiTags('Environment - Waste Management')
 @Controller('wastes')
 @UseGuards(JwtAuthGuard)
 export class WastesController {
   constructor(private readonly wastesService: WastesService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Créer un nouvel enregistrement de déchet' })
-  @ApiResponse({ status: 201, description: 'Déchet créé avec succès' })
   create(@Body() createWasteDto: CreateWasteDto, @Req() req: any) {
     return this.wastesService.create(createWasteDto, req.user.tenantId);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Récupérer tous les déchets du tenant' })
-  @ApiResponse({ status: 200, description: 'Liste des déchets' })
   findAll(@Req() req: any) {
     return this.wastesService.findAll(req.user.tenantId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Récupérer un déchet par ID' })
-  @ApiResponse({ status: 200, description: 'Déchet trouvé' })
-  findOne(@Param('id') id: string) {
-    return this.wastesService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    // ✅ FIX : Ajout du tenantId (Argument 2)
+    return this.wastesService.findOne(id, req.user.tenantId);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Mettre à jour un déchet' })
-  @ApiResponse({ status: 200, description: 'Déchet mis à jour' })
-  update(@Param('id') id: string, @Body() updateWasteDto: UpdateWasteDto) {
-    return this.wastesService.update(id, updateWasteDto);
+  update(
+    @Param('id') id: string, 
+    @Body() updateWasteDto: UpdateWasteDto, 
+    @Req() req: any
+  ) {
+    // ✅ FIX : Ajout du tenantId (Argument 3)
+    return this.wastesService.update(id, updateWasteDto, req.user.tenantId);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Supprimer un déchet' })
-  @ApiResponse({ status: 200, description: 'Déchet supprimé' })
-  remove(@Param('id') id: string) {
-    return this.wastesService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    // ✅ FIX : Ajout du tenantId (Argument 2)
+    return this.wastesService.remove(id, req.user.tenantId);
   }
 
-  @Get('stats/:period')
-  @ApiOperation({ summary: 'Obtenir les statistiques de déchets' })
-  @ApiResponse({ status: 200, description: 'Statistiques de déchets' })
-  getStats(@Param('period') period: string, @Req() req: any) {
+  @Get('stats')
+  getStats(
+    @Req() req: any, 
+    @Query('period') period: "YEAR" | "MONTH" | "QUARTER" // ✅ FIX : Typage strict
+  ) {
     return this.wastesService.getStats(req.user.tenantId, period);
   }
 }

@@ -35,28 +35,38 @@ export class SSEEventsController {
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer un incident par ID' })
   @ApiResponse({ status: 200, description: 'Incident trouvé' })
-  findOne(@Param('id') id: string) {
-    return this.sseEventsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    // ✅ FIX : Ajout du tenantId pour l'isolation multi-tenant
+    return this.sseEventsService.findOne(id, req.user.tenantId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Mettre à jour un incident' })
   @ApiResponse({ status: 200, description: 'Incident mis à jour' })
-  update(@Param('id') id: string, @Body() updateDto: UpdateSSEEventDto) {
-    return this.sseEventsService.update(id, updateDto);
+  update(
+    @Param('id') id: string, 
+    @Body() updateDto: UpdateSSEEventDto, 
+    @Req() req: any
+  ) {
+    // ✅ FIX : Ajout de @Req() et passage du tenantId
+    return this.sseEventsService.update(id, updateDto, req.user.tenantId);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer un incident (soft delete)' })
   @ApiResponse({ status: 200, description: 'Incident supprimé' })
-  remove(@Param('id') id: string) {
-    return this.sseEventsService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    // ✅ FIX : Ajout de @Req() et passage du tenantId
+    return this.sseEventsService.remove(id, req.user.tenantId);
   }
 
   @Get('stats/:period')
   @ApiOperation({ summary: 'Obtenir les statistiques d\'incidents' })
   @ApiResponse({ status: 200, description: 'Statistiques d\'incidents' })
-  getStats(@Param('period') period: string, @Req() req: any) {
+  getStats(
+    @Param('period') period: "MONTH" | "QUARTER" | "YEAR", // ✅ FIX : Typage strict pour TS2345
+    @Req() req: any
+  ) {
     return this.sseEventsService.getStats(req.user.tenantId, period);
   }
 }

@@ -1,3 +1,4 @@
+//* eslint-disable @typescript-eslint/no-unused-vars */
 //* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
@@ -16,12 +17,14 @@ import {
   Crown,
   Database,
   FileSearch,
+  FileText,
   FolderOpen,
   Gavel,
   GitBranch,
   GraduationCap,
   HardHat,
   LayoutDashboard,
+  Leaf,
   LineChart,
   LogOut,
   Map as MapIcon,
@@ -143,23 +146,33 @@ export default function Sidebar({
         icon: Building,
         items: [
           {
-            title: "Cockpit SMI",
-            path: isPilote
-              ? `/dashboard/processus/cockpit/${user.assignedProcessId}`
-              : "/dashboard",
+            title: "Tableau de Bord Certification",
+            path: getPath("/dashboard/tb-certif", "Tableau de Certification"),
             icon: LayoutDashboard,
-            access: "ALL",
-          },
-          {
-            title: "PAQ & Processus",
-            path: getPath("/dashboard/actions", "ACTIONS"),
-            icon: Gavel,
             access: "ALL",
           },
           {
             title: "Objectifs SMQ",
             path: "/dashboard/objectifs",
             icon: Network,
+            access: "ALL",
+          },
+          {
+            title: "Gestion PAQ",
+            path: getPath("/dashboard/paq", "PAQs"),
+            icon: Gavel,
+            access: "ALL",
+          },
+          {
+            title: "Gestion des Actions",
+            path: getPath("/dashboard/actions", "ACTIONS"),
+            icon: Gavel,
+            access: "ALL",
+          },
+          {
+            title: "Alertes & Echéances",
+            path: getPath("/dashboard/alerts", "Alertes et échéances"),
+            icon: Gavel,
             access: "ALL",
           },
           {
@@ -262,7 +275,7 @@ export default function Sidebar({
             access: "ALL",
           },
           {
-            title: "Tiers / Achats",
+            title: "Tiers (Fournisseurs-Etats-Partenaires)",
             path: "/dashboard/tiers",
             icon: Truck,
             access: "ALL",
@@ -288,7 +301,7 @@ export default function Sidebar({
           },
           {
             title: "Centre des Audits",
-            path: "/dashboard/audit-center",
+            path: "/dashboard/report-generator",
             icon: ClipboardCheck,
             access: "ADMIN",
           },
@@ -313,7 +326,39 @@ export default function Sidebar({
           },
         ],
       },
-     {
+
+      {
+        id: "certification",
+        label: "Certification",
+        icon: ShieldCheck,
+        items: [
+          {
+            title: "Légal Sénégal",
+            path: "/dashboard/senegal-legal",
+            icon: FileText,
+            access: "ADMIN",
+          },
+          {
+            title: "Checklist ISO 9001",
+            path: "/dashboard/checklists/iso9001",
+            icon: Target,
+            access: "ADMIN",
+          },
+          {
+            title: "Checklist ISO 14001",
+            path: "/dashboard/checklists/iso14001",
+            icon: Leaf,
+            access: "ADMIN",
+          },
+          {
+            title: "Générateur Rapports",
+            path: "/dashboard/audit-center/report-generator",
+            icon: FileText,
+            access: "ADMIN",
+          },
+        ],
+      },
+      {
         id: "ENV-01",
         label: "Environnement",
         icon: Settings2,
@@ -344,7 +389,7 @@ export default function Sidebar({
           },
           {
             title: "Causeries",
-            path: "/dashboard/environment/causeries",
+            path: "/dashboard/sse/causeries",
             icon: Users,
             access: "ADMIN",
           },

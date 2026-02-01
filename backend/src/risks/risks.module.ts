@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
 import { RisksService } from './risks.service';
 import { RisksController } from './risks.controller';
-import { PrismaModule } from '../prisma/prisma.module';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
-  imports: [PrismaModule],
   controllers: [RisksController],
-  providers: [RisksService],
-  exports: [RisksService] // Crucial pour l'intégration globale
+  providers: [RisksService, PrismaService],
+  exports: [RisksService],
 })
 export class RisksModule {}

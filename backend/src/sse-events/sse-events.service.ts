@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSSEEventDto } from './dto/create-sse-event.dto';
 import { UpdateSSEEventDto } from './dto/update-sse-event.dto';
@@ -7,14 +7,16 @@ import { UpdateSSEEventDto } from './dto/update-sse-event.dto';
 export class SSEEventsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Créer un incident SSE (ISO 14001 / 45001)
+   */
   async create(createDto: CreateSSEEventDto, tenantId: string, creatorId: string) {
-    // Validation site
+    // Validation site : l'utilisateur ne peut déclarer que sur un site de son organisation
     const site = await this.prisma.site.findFirst({
       where: { S_Id: createDto.SSE_SiteId, tenantId }
     });
     if (!site) throw new BadRequestException('Site non valide pour ce tenant');
 
-    // Création de l'incident
     return this.prisma.sSEEvent.create({
       data: {
         ...createDto,
@@ -32,6 +34,9 @@ export class SSEEventsService {
     });
   }
 
+  /**
+   * Lister tous les incidents du tenant
+   */
   async findAll(tenantId: string) {
     return this.prisma.sSEEvent.findMany({
       where: { tenantId, SSE_IsActive: true },
@@ -45,13 +50,16 @@ export class SSEEventsService {
     });
   }
 
+  /**
+   * Filtrer uniquement les incidents environnementaux (ISO 14001)
+   */
   async findEnvironmental(tenantId: string) {
     return this.prisma.sSEEvent.findMany({
       where: {
         tenantId,
         SSE_IsActive: true,
         OR: [
-          { SSE_Type: 'DOMMAGE_MATERIEL' },
+          { SSE_Type: 'INCIDENT_ENVIRONNEMENTAL' }, // Utilisation de l'enum correct
           { SSE_Description: { contains: 'environnement', mode: 'insensitive' } },
           { SSE_Description: { contains: 'pollution', mode: 'insensitive' } },
           { SSE_Description: { contains: 'déversement', mode: 'insensitive' } },
@@ -68,9 +76,17 @@ export class SSEEventsService {
     });
   }
 
-  async findOne(id: string) {
+  /**
+   * Récupérer un incident spécifique avec isolation multi-tenant
+   * ✅ FIX : Ajout de tenantId dans les arguments
+   */
+  async findOne(id: string, tenantId: string) {
     const incident = await this.prisma.sSEEvent.findFirst({
-      where: { SSE_Id: id, SSE_IsActive: true },
+      where: { 
+        SSE_Id: id, 
+        tenantId, // Sécurité : on ne peut pas lire l'incident d'un autre tenant
+        SSE_IsActive: true 
+      },
       include: {
         SSE_Site: true,
         SSE_Reporter: true,
@@ -79,12 +95,18 @@ export class SSEEventsService {
         SSE_Actions: true
       }
     });
-    if (!incident) throw new NotFoundException('Incident non trouvé');
+    
+    if (!incident) throw new NotFoundException('Incident non trouvé ou accès refusé');
     return incident;
   }
 
-  async update(id: string, updateDto: UpdateSSEEventDto) {
-    await this.findOne(id); // Vérifie existence
+  /**
+   * Mettre à jour un incident
+   * ✅ FIX : Ajout de tenantId dans les arguments
+   */
+  async update(id: string, updateDto: UpdateSSEEventDto, tenantId: string) {
+    await this.findOne(id, tenantId); // Vérifie existence et propriété
+
     return this.prisma.sSEEvent.update({
       where: { SSE_Id: id },
       data: updateDto,
@@ -97,53 +119,48 @@ export class SSEEventsService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  /**
+   * Suppression logique (Soft Delete)
+   * ✅ FIX : Ajout de tenantId dans les arguments
+   */
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId); // Vérifie existence et propriété
+    
     return this.prisma.sSEEvent.update({
       where: { SSE_Id: id },
       data: { SSE_IsActive: false }
     });
   }
 
+  /**
+   * Calcul des indicateurs SSE (Taux de fréquence/gravité)
+   */
   async getStats(tenantId: string, period: 'MONTH' | 'QUARTER' | 'YEAR') {
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-
     let startDate: Date;
+
     if (period === 'MONTH') {
-      startDate = new Date(currentYear, currentMonth - 1, 1);
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     } else if (period === 'QUARTER') {
-      const quarterStartMonth = Math.floor((currentMonth - 1) / 3) * 3;
-      startDate = new Date(currentYear, quarterStartMonth, 1);
+      const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+      startDate = new Date(now.getFullYear(), quarterStartMonth, 1);
     } else {
-      startDate = new Date(currentYear, 0, 1);
+      startDate = new Date(now.getFullYear(), 0, 1);
     }
 
-    const environmentalIncidents = await this.prisma.sSEEvent.findMany({
+    const incidents = await this.prisma.sSEEvent.findMany({
       where: {
         tenantId,
         SSE_IsActive: true,
-        SSE_DateEvent: {
-          gte: startDate,
-          lte: new Date()
-        },
-        OR: [
-          { SSE_Type: 'DOMMAGE_MATERIEL' },
-          { SSE_Description: { contains: 'environnement', mode: 'insensitive' } },
-          { SSE_Description: { contains: 'pollution', mode: 'insensitive' } }
-        ]
+        SSE_DateEvent: { gte: startDate }
       }
     });
 
-    const criticalIncidents = environmentalIncidents.filter(i => i.SSE_AvecArret).length;
-    const withInjuries = environmentalIncidents.filter(i => i.SSE_NbJoursArret > 0).length;
-
     return {
-      totalIncidents: environmentalIncidents.length,
-      criticalIncidents,
-      withInjuries,
-      trend: environmentalIncidents.length > 0 ? `+${environmentalIncidents.length}` : '0'
+      totalIncidents: incidents.length,
+      criticalIncidents: incidents.filter(i => i.SSE_AvecArret).length,
+      withInjuries: incidents.filter(i => i.SSE_NbJoursArret > 0).length,
+      trend: incidents.length > 0 ? `+${incidents.length}` : '0'
     };
   }
 }

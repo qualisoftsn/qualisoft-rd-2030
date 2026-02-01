@@ -71,8 +71,8 @@ import { OrgUnitTypesModule } from './org-unit-types/org-unit-types.module';
 import { ProcessusTypeModule } from './processus-type/processus-type.module';
 import { ConsumptionsModule } from './consumptions/consumptions.module';
 import { WastesModule } from './wastes/wastes.module';
-import { EnvironmentModule } from './environment/environment.module';
 import { SSEEventsModule } from './sse-events/sse-events.module';
+import { CauseriesModule } from './causeries/causeries.module';
 
 @Module({
   imports: [
@@ -143,7 +143,7 @@ import { SSEEventsModule } from './sse-events/sse-events.module';
     WastesModule,
     EnvironmentModule,
     SSEEventsModule,
-
+    CauseriesModule,
   ],
   controllers: [
     AppController,

@@ -1,4 +1,4 @@
-//* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
@@ -10,7 +10,8 @@ interface EnvironmentalKPICardProps {
   target?: string | number;
   progress?: number;
   trend: string;
-  icon: LucideIcon;
+  // ✅ CORRECTION : On accepte soit le type (LucideIcon), soit le rendu (React.ReactNode)
+  icon: any; 
   color: string;
   isoRef?: string;
   alert?: boolean;
@@ -23,12 +24,22 @@ export default function EnvironmentalKPICard({
   target,
   progress,
   trend,
-  icon: Icon,
+  icon: Icon, // On le renomme Icon avec une majuscule pour le traitement
   color,
   isoRef,
   alert = false,
   onClick
 }: EnvironmentalKPICardProps) {
+  
+  // ✅ LOGIQUE DE RENDU SÉCURISÉE : On vérifie si Icon est un composant ou déjà du JSX
+  const renderIcon = () => {
+    if (!Icon) return null;
+    // Si c'est un élément React (ex: <Zap />), on le rend tel quel
+    if (React.isValidElement(Icon)) return Icon;
+    // Si c'est un composant (ex: Zap), on l'instancie
+    return <Icon className="w-8 h-8" />;
+  };
+
   return (
     <div 
       onClick={onClick}
@@ -37,28 +48,28 @@ export default function EnvironmentalKPICard({
       } ${alert ? 'ring-2 ring-amber-400/50 animate-pulse' : ''}`}
     >
       <div className="flex justify-between items-start mb-4">
-        <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm">
-          <Icon className="w-8 h-8" />
+        <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm text-white">
+          {renderIcon()}
         </div>
         {isoRef && (
-          <span className="text-[8px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30">
+          <span className="text-[8px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30 italic">
             {isoRef}
           </span>
         )}
       </div>
       
       <div className="mb-2">
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/80">{title}</p>
-        <p className="text-3xl font-black italic text-white mt-1">{value}</p>
+        <p className="text-[9px] font-black uppercase tracking-widest text-white/80 italic">{title}</p>
+        <p className="text-3xl font-black italic text-white mt-1 uppercase">{value}</p>
         {target && (
-          <p className="text-[10px] font-bold text-white/70 mt-1">
+          <p className="text-[10px] font-bold text-white/70 mt-1 italic uppercase">
             Objectif: {target}
           </p>
         )}
       </div>
       
       {progress !== undefined && (
-        <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden mt-2">
+        <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden mt-2 shadow-inner">
           <div 
             className={`h-full rounded-full transition-all duration-500 ${
               progress > 90 ? 'bg-amber-400' : 'bg-white'
@@ -71,23 +82,25 @@ export default function EnvironmentalKPICard({
       <div className={`flex items-center justify-between mt-3 pt-3 border-t border-white/20 ${
         alert ? 'border-amber-400/30' : ''
       }`}>
-        <p className={`text-[9px] font-black ${
+        <p className={`text-[9px] font-black uppercase italic ${
           alert ? 'text-amber-200' : 'text-white/90'
         }`}>
           {alert ? '⚠️ Seuil critique' : 'Performance'}
         </p>
-        <div className={`flex items-center text-[10px] font-black ${
+        <div className={`flex items-center text-[10px] font-black italic ${
           trend.startsWith('+') ? 'text-emerald-200' : 
           trend.startsWith('-') ? 'text-amber-200' : 'text-white/70'
         }`}>
-          {trend.startsWith('+') && <TrendingUp className="mr-1" size={14} />}
-          {trend.startsWith('-') && <TrendingDown className="mr-1" size={14} />}
+          {trend.startsWith('+') && <TrendingUp size={14} className="mr-1" />}
+          {trend.startsWith('-') && <TrendingDown size={14} className="mr-1" />}
           {trend}
         </div>
       </div>
     </div>
   );
 }
+
+// --- FONCTIONS INTERNES GARDÉES (SANS SUPPRESSION) ---
 
 function TrendingUp({ size, className }: { size: number; className: string }) {
   return (
@@ -97,7 +110,7 @@ function TrendingUp({ size, className }: { size: number; className: string }) {
       viewBox="0 0 24 24" 
       fill="none" 
       stroke="currentColor" 
-      strokeWidth="2"
+      strokeWidth="3"
       className={className}
     >
       <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
@@ -114,7 +127,7 @@ function TrendingDown({ size, className }: { size: number; className: string }) 
       viewBox="0 0 24 24" 
       fill="none" 
       stroke="currentColor" 
-      strokeWidth="2"
+      strokeWidth="3"
       className={className}
     >
       <polyline points="22 17 13.5 8.5 8.5 13.5 2 7" />

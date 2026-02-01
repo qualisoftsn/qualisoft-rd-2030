@@ -12,44 +12,43 @@ export class ConsumptionsController {
   constructor(private readonly consumptionsService: ConsumptionsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Créer une nouvelle consommation' })
-  @ApiResponse({ status: 201, description: 'Consommation créée avec succès' })
-  create(@Body() createConsumptionDto: CreateConsumptionDto, @Req() req: any) {
-    return this.consumptionsService.create(createConsumptionDto, req.user.tenantId);
+  create(@Body() createDto: CreateConsumptionDto, @Req() req: any) {
+    return this.consumptionsService.create(createDto, req.user.tenantId);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Récupérer toutes les consommations du tenant' })
-  @ApiResponse({ status: 200, description: 'Liste des consommations' })
   findAll(@Req() req: any) {
     return this.consumptionsService.findAll(req.user.tenantId);
   }
 
+  @Get('dashboard')
+  getDashboard(@Req() req: any) {
+    return this.consumptionsService.getDashboardData(req.user.tenantId);
+  }
+
+  @Get('alerts')
+  getAlerts(@Req() req: any) {
+    return this.consumptionsService.getAlerts(req.user.tenantId);
+  }
+
+  @Get('stats/:period')
+  getStats(@Param('period') period: string, @Req() req: any) {
+    const validPeriod = period.toUpperCase() as 'MONTH' | 'QUARTER' | 'YEAR';
+    return this.consumptionsService.getStats(req.user.tenantId, validPeriod);
+  }
+
   @Get(':id')
-  @ApiOperation({ summary: 'Récupérer une consommation par ID' })
-  @ApiResponse({ status: 200, description: 'Consommation trouvée' })
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.consumptionsService.findOne(id, req.user.tenantId);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Mettre à jour une consommation' })
-  @ApiResponse({ status: 200, description: 'Consommation mise à jour' })
-  update(@Param('id') id: string, @Body() updateConsumptionDto: UpdateConsumptionDto) {
-    return this.consumptionsService.update(id, updateConsumptionDto);
+  update(@Param('id') id: string, @Body() updateDto: UpdateConsumptionDto, @Req() req: any) {
+    return this.consumptionsService.update(id, updateDto, req.user.tenantId);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Supprimer une consommation' })
-  @ApiResponse({ status: 200, description: 'Consommation supprimée' })
-  remove(@Param('id') id: string) {
-    return this.consumptionsService.remove(id);
-  }
-
-  @Get('stats/:period')
-  @ApiOperation({ summary: 'Obtenir les statistiques de consommation' })
-  @ApiResponse({ status: 200, description: 'Statistiques de consommation' })
-  getStats(@Param('period') period: string, @Req() req: any) {
-    return this.consumptionsService.getStats(req.user.tenantId, period);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.consumptionsService.remove(id, req.user.tenantId);
   }
 }
