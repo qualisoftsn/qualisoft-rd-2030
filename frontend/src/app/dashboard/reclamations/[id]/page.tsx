@@ -70,7 +70,7 @@ export default function ReclamationsPage() {
         REC_Deadline: selectedRec.REC_Deadline,
         REC_ProcessusId: selectedRec.REC_ProcessusId,
         REC_TierId: selectedRec.REC_TierId,
-        REC_PreuveUrl: selectedRec.REC_PreuveUrl,
+        REC_PreuveURL: selectedRec.REC_PreuveURL,
         REC_PreuveName: selectedRec.REC_PreuveName,
         REC_Gravity: selectedRec.REC_Gravity || 'MEDIUM',
       };
@@ -110,7 +110,7 @@ export default function ReclamationsPage() {
       });
       setSelectedRec((prev: any) => ({
         ...prev,
-        REC_PreuveUrl: res.data.url,
+        REC_PreuveURL: res.data.url,
         REC_PreuveName: res.data.filename || file.name
       }));
       toast.success("Document de preuve indexé.");
@@ -218,13 +218,13 @@ export default function ReclamationsPage() {
                     
                     <div className="space-y-4">
                         <label className="text-[8px] font-black text-slate-500 uppercase ml-2 italic">Preuve de Traitement (§7.5)</label>
-                        {selectedRec.REC_PreuveUrl ? (
+                        {selectedRec.REC_PreuveURL ? (
                             <div className="flex items-center justify-between p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl shadow-lg">
                                 <div className="flex items-center gap-4">
                                     <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-500"><FileText size={24}/></div>
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black italic truncate max-w-[15rem] text-white">{selectedRec.REC_PreuveName || "DOCUMENT"}</span>
-                                        <a href={`${API_BASE_URL}${selectedRec.REC_PreuveUrl}`} target="_blank" rel="noreferrer" className="text-[9px] text-emerald-400 underline uppercase flex items-center gap-2 mt-2 font-black hover:text-emerald-300 transition-all"><ExternalLink size={12}/> Visualiser</a>
+                                        <a href={`${API_BASE_URL}${selectedRec.REC_PreuveURL}`} target="_blank" rel="noreferrer" className="text-[9px] text-emerald-400 underline uppercase flex items-center gap-2 mt-2 font-black hover:text-emerald-300 transition-all"><ExternalLink size={12}/> Visualiser</a>
                                     </div>
                                 </div>
                                 {isEditing && <button onClick={() => setSelectedRec({...selectedRec, REC_PreuveUrl: null})} className="p-3 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><Trash2 size={20}/></button>}

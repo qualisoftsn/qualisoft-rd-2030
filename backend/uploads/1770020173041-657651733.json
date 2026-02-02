@@ -1,0 +1,51 @@
+{
+    "report_name": "Qualisoft - Tableau de Bord Power BI",
+    "pages": [
+        {
+            "name": "Synth\u00e8se G\u00e9n\u00e9rale",
+            "description": "Vue globale des activit\u00e9s de Qualisoft."
+        },
+        {
+            "name": "Finance & Comptabilit\u00e9",
+            "description": "Suivi du chiffre d'affaires, marge, tr\u00e9sorerie."
+        },
+        {
+            "name": "Ventes & Marketing",
+            "description": "Performance commerciale, taux de conversion."
+        },
+        {
+            "name": "Projets IT & D\u00e9veloppement",
+            "description": "Suivi des projets logiciels et IT."
+        },
+        {
+            "name": "Formations",
+            "description": "Gestion des formations, taux d'inscription et satisfaction."
+        },
+        {
+            "name": "Immobilier",
+            "description": "Suivi des biens, locations et rentabilit\u00e9."
+        },
+        {
+            "name": "Ressources Humaines",
+            "description": "Suivi du personnel, formation et satisfaction."
+        },
+        {
+            "name": "Cybers\u00e9curit\u00e9",
+            "description": "Surveillance des incidents de s\u00e9curit\u00e9 et conformit\u00e9."
+        }
+    ],
+    "data_sources": [
+        "ERP (Comptabilit\u00e9 & Finances)",
+        "CRM (Ventes & Clients)",
+        "Base de donn\u00e9es SQL (Projets, Formations, RH)",
+        "Logs de s\u00e9curit\u00e9 (Cybers\u00e9curit\u00e9)",
+        "Fichiers Excel / API externes (Immobilier, RH)"
+    ],
+    "visualizations": [
+        "Graphiques en barres et colonnes",
+        "Jauges de performance",
+        "Cartes g\u00e9ographiques (clients, biens immobiliers)",
+        "Tableaux dynamiques avec filtres interactifs",
+        "Indicateurs cl\u00e9s avec couleurs conditionnelles (KPI)"
+    ]
+}

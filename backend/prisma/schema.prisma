@@ -1,4 +1,4 @@
-// ==========================================
+//==========================================
 // CONFIGURATION & DATASOURCE
 // ==========================================
 
@@ -714,13 +714,14 @@ model Reclamation {
   REC_Deadline        DateTime?
   REC_CreatedAt       DateTime          @default(now())
   REC_UpdatedAt       DateTime          @updatedAt
-
-  REC_TierId      String
-  REC_Tier        Tier       @relation(fields: [REC_TierId], references: [TR_Id])
-  REC_ProcessusId String?
-  REC_Processus   Processus? @relation(fields: [REC_ProcessusId], references: [PR_Id])
-  REC_OwnerId     String
-  REC_Owner       User       @relation("ReclamationOwner", fields: [REC_OwnerId], references: [U_Id])
+  REC_PreuveURL       String?
+  REC_PreuveName      String?
+  REC_TierId          String
+  REC_Tier            Tier              @relation(fields: [REC_TierId], references: [TR_Id])
+  REC_ProcessusId     String?
+  REC_Processus       Processus?        @relation(fields: [REC_ProcessusId], references: [PR_Id])
+  REC_OwnerId         String
+  REC_Owner           User              @relation("ReclamationOwner", fields: [REC_OwnerId], references: [U_Id])
 
   tenantId           String
   tenant             Tenant          @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)

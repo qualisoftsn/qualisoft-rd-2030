@@ -51,30 +51,44 @@ export class ReclamationsService {
         REC_Status: 'NOUVELLE',
         REC_DateReceipt: new Date(),
         REC_Deadline: dto.REC_Deadline ? new Date(dto.REC_Deadline) : null,
-      }
+      },
+      include: { REC_Tier: true, REC_Processus: true }
     });
   }
 
   async update(id: string, tenantId: string, dto: UpdateReclamationDto) {
-    const existing = await this.prisma.reclamation.findFirst({ where: { REC_Id: id, tenantId } });
+    const existing = await this.prisma.reclamation.findFirst({ 
+      where: { REC_Id: id, tenantId } 
+    });
+    
     if (!existing) throw new NotFoundException("Réclamation introuvable.");
 
-    const data: any = { ...dto };
-    if (data.REC_Deadline) data.REC_Deadline = new Date(data.REC_Deadline);
+    // ✅ Nettoyage des données pour Prisma
+    const { ...updateData }: any = dto;
     
-    // Logique métier : Passage en TRAITEE si une solution est saisie
-    if (data.REC_SolutionProposed && existing.REC_Status === 'ACTION_EN_COURS') {
-      data.REC_Status = 'TRAITEE';
+    if (updateData.REC_Deadline) {
+      updateData.REC_Deadline = new Date(updateData.REC_Deadline);
     }
 
-    return this.prisma.reclamation.update({
-      where: { REC_Id: id },
-      data: {
-        ...data,
-        REC_UpdatedAt: new Date()
-      },
-      include: { REC_Tier: true, REC_Processus: true }
-    });
+    // Logique métier automatique §10.2
+    if (updateData.REC_SolutionProposed && existing.REC_Status === 'ACTION_EN_COURS') {
+      updateData.REC_Status = 'TRAITEE';
+    }
+
+    try {
+      return await this.prisma.reclamation.update({
+        where: { REC_Id: id },
+        data: {
+          ...updateData,
+          REC_UpdatedAt: new Date()
+        },
+        include: { REC_Tier: true, REC_Processus: true }
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Erreur Prisma Update: ${errorMessage}`);
+      throw new BadRequestException("Données invalides pour la mise à jour.");
+    }
   }
 
   async linkToPAQ(recId: string, userId: string, tenantId: string) {

@@ -1,10 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsUUID, IsDateString } from 'class-validator';
 import { Priority } from '@prisma/client';
 
 export class CreateReclamationDto {
   @IsString()
   @IsNotEmpty()
-  REC_Object!: string; // ✅ Le "!" supprime l'erreur TS2564
+  REC_Object!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -27,5 +27,6 @@ export class CreateReclamationDto {
   REC_Source?: string;
 
   @IsOptional()
+  @IsDateString() // ✅ Force le format ISO pour éviter les crashs de date
   REC_Deadline?: string | Date;
 }
