@@ -73,6 +73,8 @@ import { ConsumptionsModule } from './consumptions/consumptions.module';
 import { WastesModule } from './wastes/wastes.module';
 import { SSEEventsModule } from './sse-events/sse-events.module';
 import { CauseriesModule } from './causeries/causeries.module';
+import { IncidentsModule } from './incidents/incidents.module';
+import { SenegalLegalModule } from './senegal-legal/senegal-legal.module';
 
 @Module({
   imports: [
@@ -144,6 +146,8 @@ import { CauseriesModule } from './causeries/causeries.module';
     EnvironmentModule,
     SSEEventsModule,
     CauseriesModule,
+    IncidentsModule,
+    SenegalLegalModule,
   ],
   controllers: [
     AppController,

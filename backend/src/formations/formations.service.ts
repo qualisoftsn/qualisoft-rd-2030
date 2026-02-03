@@ -1,67 +1,65 @@
-// File: backend/src/formations/formations.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateFormationDto } from './dto/create-formation.dto';
+import { UpdateFormationDto } from './dto/update-formation.dto';
 
 @Injectable()
 export class FormationsService {
   constructor(private prisma: PrismaService) {}
 
-  /**
-   * Récupère toutes les formations du Tenant (§7.2 ISO 9001)
-   */
   async findAll(tenantId: string) {
     return this.prisma.formation.findMany({
-      where: { 
-        tenantId,
-        FOR_IsActive: true 
-      },
+      where: { tenantId, FOR_IsActive: true },
       include: {
         FOR_User: {
-          select: {
-            U_FirstName: true,
-            U_LastName: true,
-            U_Role: true,
-            U_OrgUnit: { select: { OU_Name: true } }
-          }
+          select: { U_FirstName: true, U_LastName: true, U_Role: true }
         }
       },
       orderBy: { FOR_Date: 'desc' }
     });
   }
 
-  /**
-   * Initialise une nouvelle ligne au plan de formation
-   */
-  async create(tenantId: string, userId: string, data: any) {
+  async create(tenantId: string, creatorId: string, dto: CreateFormationDto) {
+    const sessionDate = new Date(dto.FOR_Date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (sessionDate < today) {
+      throw new BadRequestException("LA DATE DE FORMATION NE PEUT PAS ÊTRE DANS LE PASSÉ");
+    }
+
+    // On s'assure que l'objet data correspond exactement au schéma Prisma
     return this.prisma.formation.create({
       data: {
-        ...data,
-        tenantId,
-        FOR_UserId: data.FOR_UserId || userId, // Par défaut le créateur si non spécifié
-        FOR_Status: data.FOR_Status || 'PLANIFIE'
+        FOR_Title: dto.FOR_Title.toUpperCase(),
+        FOR_Date: sessionDate,
+        FOR_Expiry: dto.FOR_Expiry ? new Date(dto.FOR_Expiry) : null,
+        FOR_Provider: dto.FOR_Provider || "INTERNE",
+        FOR_Status: dto.FOR_Status || 'PLANIFIE',
+        FOR_UserId: dto.FOR_UserId,
+        tenantId: tenantId,
+        FOR_IsActive: true
       }
     });
   }
 
-  /**
-   * Mise à jour d'une session (Status, Date, Expiration)
-   */
-  async update(tenantId: string, id: string, data: any) {
+  async update(tenantId: string, id: string, dto: UpdateFormationDto) {
     const exists = await this.prisma.formation.findFirst({
       where: { FOR_Id: id, tenantId }
     });
 
-    if (!exists) throw new NotFoundException("Instance de formation introuvable");
+    if (!exists) throw new NotFoundException("Instance introuvable");
+
+    const updateData: any = { ...dto };
+    if (dto.FOR_Date) updateData.FOR_Date = new Date(dto.FOR_Date);
+    if (dto.FOR_Expiry) updateData.FOR_Expiry = new Date(dto.FOR_Expiry);
 
     return this.prisma.formation.update({
       where: { FOR_Id: id },
-      data
+      data: updateData
     });
   }
 
-  /**
-   * Archivage logique (Traçabilité normative)
-   */
   async remove(tenantId: string, id: string) {
     return this.prisma.formation.updateMany({
       where: { FOR_Id: id, tenantId },
@@ -69,9 +67,6 @@ export class FormationsService {
     });
   }
 
-  /**
-   * Surveillance des recyclages critiques
-   */
   async getAlerts(tenantId: string) {
     const threshold = new Date();
     threshold.setMonth(threshold.getMonth() + 1);
@@ -79,7 +74,7 @@ export class FormationsService {
     return this.prisma.formation.findMany({
       where: {
         tenantId,
-        FOR_Expiry: { lte: threshold },
+        FOR_Expiry: { lte: threshold, not: null },
         FOR_IsActive: true,
         FOR_Status: 'TERMINE'
       },

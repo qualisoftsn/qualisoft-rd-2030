@@ -1,14 +1,11 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
-  GraduationCap, Plus, Calendar, Search, 
-  Activity, Zap, CheckCircle2, Award, 
-  TrendingUp, Calculator, BookOpen, Clock,
-  Users, DollarSign, ShieldCheck, AlertCircle, ChevronRight
+  GraduationCap, Plus, Search, Activity, AlertCircle, 
+  ShieldCheck, X, Save, Loader2, BookOpen
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -16,229 +13,163 @@ const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 export default function FormationsPage() {
   const [formations, setFormations] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  const fetchFormations = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/formations');
-      setFormations(Array.isArray(res.data) ? res.data : []);
-    } catch (err) { 
-      toast.error("Erreur de liaison avec le module GPEC");
-    } finally { 
-      setLoading(false); 
+      const [fRes, uRes] = await Promise.all([
+        apiClient.get('/formations'),
+        apiClient.get('/users')
+      ]);
+      setFormations(fRes.data || []);
+      setUsers(uRes.data || []);
+    } catch (err) {
+      toast.error("ERREUR DE SYNCHRONISATION GPEC");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchFormations(); }, [fetchFormations]);
-
-  // --- ANALYSE DYNAMIQUE DU PLAN DE FORMATION ---
-  const stats = useMemo(() => {
-    const total = formations.length;
-    const completed = formations.filter(f => f.FOR_Status === 'TERMINE').length;
-    const upcoming = formations.filter(f => f.FOR_Status === 'PLANIFIE').length;
-    const expired = formations.filter(f => f.FOR_Expiry && new Date(f.FOR_Expiry) < new Date()).length;
-    
-    return {
-      total,
-      completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-      upcoming,
-      criticalRecycles: expired,
-      investment: total * 1250 // Simulation de coût moyen par session
-    };
-  }, [formations]);
-
-  const getStatusStyle = (status: string, expiry?: string) => {
-    if (expiry && new Date(expiry) < new Date()) 
-        return { label: 'RECYCLAGE REQUIS', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20' };
-    
-    switch (status) {
-      case 'TERMINE': return { label: 'ACQUIS', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' };
-      case 'PLANIFIE': return { label: 'EN ATTENTE', color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' };
-      default: return { label: 'BROUILLON', color: 'text-slate-500', bg: 'bg-slate-500/10', border: 'border-slate-500/20' };
-    }
-  };
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   if (loading) return (
-    <div className="ml-72 flex h-screen items-center justify-center bg-[#0B0F1A]">
-      <div className="flex flex-col items-center gap-4">
-        <GraduationCap className="animate-bounce text-blue-600" size={48} />
-        <span className="text-[10px] font-black uppercase italic tracking-[0.5em] text-blue-500">Chargement de la Matrice GPEC...</span>
-      </div>
+    <div className="ml-72 flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-500 font-black italic uppercase">
+       <Activity className="animate-spin mr-3" size={24} /> INITIALISATION GPEC...
     </div>
   );
 
   return (
-    <div className="h-screen bg-[#0B0F1A] text-white italic font-sans ml-72 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-[#0B0F1A] text-white italic font-sans ml-72 flex flex-col uppercase font-black relative overflow-hidden">
       
-      {/* 🚀 HEADER (10% H) */}
-      <header className="px-10 py-6 border-b border-white/5 flex justify-between items-center bg-[#0B0F1A]/80 backdrop-blur-3xl shrink-0">
+      <style jsx global>{`
+        ::-webkit-scrollbar { display: none !important; }
+        * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+      `}</style>
+
+      <header className="p-8 border-b border-white/5 flex justify-between items-center bg-[#0B0F1A] sticky top-0 z-50">
         <div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">
-            Plan de <span className="text-blue-600">Formation & Compétences</span>
-          </h1>
-          <p className="text-slate-500 font-bold text-[9px] uppercase tracking-[0.4em] mt-2 italic flex items-center gap-2">
-            <ShieldCheck size={12} className="text-emerald-500" /> ISO 9001 §7.2 • Maîtrise du Capital Humain
+          <h1 className="text-3xl tracking-tighter italic font-black uppercase">PLAN <span className="text-blue-600">GPEC</span></h1>
+          <p className="text-slate-500 text-[9px] tracking-[0.4em] flex items-center gap-2 mt-1 italic">
+            <ShieldCheck size={12} className="text-emerald-500" /> ISO 9001 §7.2
           </p>
         </div>
         <div className="flex gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-            <input 
-              type="text" placeholder="RECHERCHER COLLABORATEUR OU TITRE..." 
-              className="bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-6 text-[10px] font-black outline-none w-80 focus:border-blue-600 transition-all uppercase"
-              value={search} onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <button className="bg-blue-600 hover:bg-blue-500 px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] flex items-center gap-3 transition-all shadow-3xl shadow-blue-900/40">
-            <Plus size={18} /> Planifier Session
+          <input 
+            placeholder="RECHERCHER..." 
+            className="bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-[10px] outline-none focus:border-blue-600 w-64 italic font-black"
+            value={search} onChange={(e) => setSearch(e.target.value)}
+          />
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-500 px-8 py-3 rounded-xl text-[10px] flex items-center gap-2 active:scale-95 shadow-2xl transition-all"
+          >
+            <Plus size={16} strokeWidth={3} /> PLANIFIER
           </button>
         </div>
       </header>
 
-      {/* 📊 ANALYTICS GRID (15% H) */}
-      <main className="flex-1 p-8 grid grid-cols-12 grid-rows-6 gap-6 overflow-hidden">
-        
-        <div className="col-span-12 row-span-1 grid grid-cols-4 gap-6">
-          <MetricCard title="Taux d'Exécution" val={`${stats.completionRate}%`} trend="+5%" icon={Activity} color="emerald" formula="Σ(Formations Closes) / Σ(Planifiées)" />
-          <MetricCard title="Recyclages Critiques" val={stats.criticalRecycles} trend="Alerte" icon={AlertCircle} color="red" formula="Habilitations expirées ou < 30j" />
-          <MetricCard title="Sessions à Venir" val={stats.upcoming} trend="Q1/Q2" icon={Clock} color="blue" formula="Sessions avec statut 'PLANIFIE'" />
-          <MetricCard title="Investissement Formation" val={`${stats.investment.toLocaleString()}€`} trend="Budget" icon={DollarSign} color="amber" formula="Coût sessions + Frais annexes" />
-        </div>
-
-        {/* 📋 LISTE DES FORMATIONS (60% W) */}
-        <div className="col-span-8 row-span-5 flex flex-col bg-slate-900/20 border border-white/5 rounded-[3rem] overflow-hidden">
-          <div className="p-6 border-b border-white/5 bg-white/2 flex justify-between items-center">
-            <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-              <BookOpen size={16} className="text-blue-500" /> Suivi Individuel des Formations
-            </h3>
+      <main className="p-10 flex-1 overflow-y-auto">
+        <section className="bg-slate-900/40 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
+          <div className="p-8 border-b border-white/5 bg-white/2 flex items-center gap-3">
+             <BookOpen size={18} className="text-blue-500" />
+             <h3 className="text-[11px] tracking-widest italic uppercase font-black">REGISTRE DES HABILITATIONS</h3>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            <table className="w-full text-left">
-              <thead className="sticky top-0 bg-[#0B0F1A] z-10 border-b border-white/5">
-                <tr className="text-[8px] font-black uppercase text-slate-500 italic">
-                  <th className="p-6">Collaborateur</th>
-                  <th className="p-6">Thématique / Titre</th>
-                  <th className="p-6">Validité</th>
-                  <th className="p-6">Statut</th>
+          <table className="w-full text-left">
+            <thead className="text-[9px] text-slate-600 border-b border-white/5 uppercase italic">
+              <tr>
+                <th className="p-8">COLLABORATEUR</th>
+                <th className="p-8">FORMATION / TITRE</th>
+                <th className="p-8 text-right">STATUT</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {formations.filter(f => (f.FOR_Title || "").toLowerCase().includes(search.toLowerCase())).map((f) => (
+                <tr key={f.FOR_Id} className="hover:bg-blue-600/5 transition-all">
+                  <td className="p-8 font-black">{f.FOR_User?.U_FirstName} {f.FOR_User?.U_LastName}</td>
+                  <td className="p-8 italic uppercase">{f.FOR_Title}</td>
+                  <td className="p-8 text-right font-black text-blue-500">{f.FOR_Status}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {formations.filter(f => f.FOR_Title.toLowerCase().includes(search.toLowerCase())).map((f) => {
-                  const style = getStatusStyle(f.FOR_Status, f.FOR_Expiry);
-                  return (
-                    <tr key={f.FOR_Id} className="hover:bg-blue-600/5 transition-colors group">
-                      <td className="p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center text-blue-500 font-black text-[10px]">
-                            {f.FOR_User?.U_FirstName?.[0]}{f.FOR_User?.U_LastName?.[0]}
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black uppercase">{f.FOR_User?.U_FirstName} {f.FOR_User?.U_LastName}</p>
-                            <p className="text-[8px] text-slate-500 font-bold uppercase">{f.FOR_User?.U_Role}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-6">
-                        <p className="text-[10px] font-black uppercase text-white leading-tight">{f.FOR_Title}</p>
-                        <p className="text-[8px] text-slate-500 font-bold mt-1 uppercase italic">Session du {new Date(f.FOR_Date).toLocaleDateString()}</p>
-                      </td>
-                      <td className="p-6">
-                        <p className="text-[9px] font-black text-slate-300 italic">
-                          {f.FOR_Expiry ? `Expire le ${new Date(f.FOR_Expiry).toLocaleDateString()}` : 'Validité Permanente'}
-                        </p>
-                      </td>
-                      <td className="p-6">
-                        <span className={cn("px-4 py-1.5 rounded-xl text-[8px] font-black border uppercase tracking-widest", style.color, style.bg, style.border)}>
-                          {style.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* 🧠 INTELLIGENCE & CORRELATION (40% W) */}
-        <div className="col-span-4 row-span-5 flex flex-col gap-6 overflow-hidden">
-          
-          {/* Bloc Corrélation Compétences (§7.2) */}
-          <div className="bg-blue-600 p-8 rounded-[3.5rem] relative overflow-hidden group">
-            <div className="absolute -right-10 -bottom-10 text-white/5 rotate-12 group-hover:scale-110 transition-transform duration-1000">
-                <Award size={200} />
-            </div>
-            <div className="relative z-10">
-              <h3 className="text-2xl font-black uppercase italic text-white mb-4 leading-none tracking-tighter">Impact Compétences</h3>
-              <div className="flex justify-between items-end mb-2">
-                <span className="text-[8px] font-black uppercase text-blue-100 italic">Couverture des Postes critiques</span>
-                <span className="text-xl font-black text-white italic">72%</span>
-              </div>
-              <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]" style={{ width: '72%' }} />
-              </div>
-              <p className="mt-6 text-[9px] font-bold text-blue-100 uppercase italic leading-tight opacity-70">
-                La clôture des sessions Q1 augmentera la conformité GPEC de 12 points.
-              </p>
-            </div>
-          </div>
-
-          {/* Dictionnaire de calcul GPEC */}
-          <div className="flex-1 bg-slate-900/20 border border-white/5 p-8 rounded-[3.5rem] flex flex-col overflow-hidden">
-            <h3 className="text-lg font-black uppercase italic mb-6 flex items-center gap-3 text-emerald-500">
-              <Calculator size={20} /> Métriques de Valeur
-            </h3>
-            <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-               <FormulaItem title="ROI Formation" formula="(Gain de Prod / Coût) × 100" desc="Évalue le retour sur investissement des compétences acquises sur la production." />
-               <FormulaItem title="Taux de Rétention" formula="Σ (Comp. Maintenues) / Σ (Requises)" desc="Capacité du SMI à maintenir les habilitations critiques à jour." />
-               <FormulaItem title="Indice de Polyvalence" formula="Σ (Comp. Secondaires) / N" desc="Mesure la capacité de remplacement interne en cas d'absence." />
-            </div>
-          </div>
-
-        </div>
+              ))}
+            </tbody>
+          </table>
+        </section>
       </main>
-    </div>
-  );
-}
 
-// --- SOUS-COMPOSANTS ---
+      {/* 🚀 MODALE DE SAISIE CORRIGÉE */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/98 backdrop-blur-xl z-[9999] flex items-center justify-center p-4">
+          <form 
+            onSubmit={async (e: any) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const data = Object.fromEntries(formData.entries());
+              
+              setLoading(true);
+              const tid = toast.loading("ENREGISTREMENT GPEC...");
+              try {
+                await apiClient.post('/formations', data);
+                toast.success("SESSION PLANIFIÉE", { id: tid });
+                setIsModalOpen(false);
+                fetchData();
+              } catch (err: any) { 
+                toast.error(err.response?.data?.message?.[0] || "ERREUR DE SAISIE", { id: tid }); 
+              } finally { setLoading(false); }
+            }} 
+            className="bg-[#0F172A] w-full max-w-lg rounded-[3rem] border border-white/10 p-12 space-y-8 shadow-4xl"
+          >
+            <div className="flex justify-between items-center border-b border-white/5 pb-6">
+               <h2 className="text-2xl italic font-black uppercase leading-none italic">NOUVELLE <span className="text-blue-600">SESSION</span></h2>
+               <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-red-500 transition-colors"><X size={28}/></button>
+            </div>
 
-function MetricCard({ title, val, trend, icon: Icon, color, formula }: any) {
-  const themes: any = {
-    emerald: 'text-emerald-500 bg-emerald-500/5 border-emerald-500/10',
-    blue: 'text-blue-500 bg-blue-500/5 border-blue-500/10',
-    red: 'text-red-500 bg-red-500/5 border-red-500/20',
-    amber: 'text-amber-500 bg-amber-500/5 border-amber-500/10'
-  };
-  return (
-    <div className="bg-[#0F172A]/40 border border-white/5 p-5 rounded-[2.5rem] flex flex-col justify-between group hover:border-blue-600/30 transition-all relative">
-      <div className="flex justify-between items-start">
-         <div className={cn("p-3 rounded-xl border", themes[color])}><Icon size={18} /></div>
-         <span className="text-[7px] font-black text-slate-700 uppercase tracking-widest">{trend}</span>
-      </div>
-      <div className="mt-4">
-        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 italic leading-none">{title}</p>
-        <p className="text-3xl font-black italic text-white tracking-tighter">{val}</p>
-      </div>
-      <div className="absolute inset-0 bg-blue-600/95 opacity-0 group-hover:opacity-100 transition-all duration-500 rounded-[2.5rem] flex flex-col items-center justify-center p-6 text-center z-20">
-         <Calculator size={18} className="mb-2 text-white" />
-         <p className="text-[8px] font-black uppercase text-blue-100 mb-1 leading-none tracking-widest tracking-widest">GPEC Engine</p>
-         <p className="text-[10px] font-bold text-white uppercase italic leading-tight">{formula}</p>
-      </div>
-    </div>
-  );
-}
+            <div className="space-y-6 text-left font-black italic">
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] text-slate-500 uppercase tracking-widest ml-2">INTITULÉ FORMATION *</label>
+                <input required name="FOR_Title" className="bg-white/5 border border-white/10 p-5 rounded-xl text-[12px] text-white outline-none focus:border-blue-600 uppercase" />
+              </div>
 
-function FormulaItem({ title, formula, desc }: any) {
-  return (
-    <div className="p-4 bg-white/2 border border-white/5 rounded-2xl group hover:border-blue-500/20 transition-all">
-      <h4 className="text-[10px] font-black uppercase italic text-blue-500 mb-2 leading-none">{title}</h4>
-      <div className="bg-black/30 p-2.5 rounded-lg border border-white/5 mb-2">
-        <code className="text-white text-[8px] font-bold tracking-tight">{formula}</code>
-      </div>
-      <p className="text-[8px] text-slate-500 font-bold uppercase italic leading-tight tracking-tight">{desc}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] text-slate-500 uppercase tracking-widest ml-2">COLLABORATEUR *</label>
+                  <select required name="FOR_UserId" className="bg-white/5 border border-white/10 p-5 rounded-xl text-[11px] text-white outline-none cursor-pointer">
+                    <option value="">SÉLECTIONNER</option>
+                    {users.map(u => <option key={u.U_Id} value={u.U_Id} className="bg-[#0F172A]">{u.U_FirstName} {u.U_LastName}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] text-slate-500 uppercase tracking-widest ml-2">DATE PRÉVUE *</label>
+                  <input required name="FOR_Date" type="date" className="bg-white/5 border border-white/10 p-5 rounded-xl text-[11px] text-white" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] text-slate-500 uppercase tracking-widest ml-2">EXPIRATION</label>
+                  <input name="FOR_Expiry" type="date" className="bg-white/5 border border-white/10 p-5 rounded-xl text-[11px] text-white" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[9px] text-slate-500 uppercase tracking-widest ml-2">ORGANISME *</label>
+                  <select required name="FOR_Provider" className="bg-white/5 border border-white/10 p-5 rounded-xl text-[11px] text-white outline-none cursor-pointer">
+                    <option value="INTERNE">INTERNE</option>
+                    <option value="BUREAU VERITAS">BUREAU VERITAS</option>
+                    <option value="APAVE">APAVE</option>
+                    <option value="SGS">SGS</option>
+                    <option value="AUTRE">AUTRE (PRÉCISER EN TITRE)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading} className="w-full bg-blue-600 py-8 rounded-2xl font-black text-[11px] tracking-[0.4em] flex items-center justify-center gap-3 hover:bg-blue-500 transition-all shadow-xl disabled:opacity-50">
+               {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} VALIDER L&apos;INSCRIPTION
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

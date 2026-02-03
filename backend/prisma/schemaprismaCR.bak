@@ -1,4 +1,4 @@
-// ==========================================
+//==========================================
 // CONFIGURATION & DATASOURCE
 // ==========================================
 
@@ -32,54 +32,54 @@ model Tenant {
   T_ContractDuration    Int                @default(24)
   T_TacitRenewal        Boolean            @default(true)
 
-  // Relations 
-  T_Users                     User[]
-  T_Sites                     Site[]
-  T_OrgUnits                  OrgUnit[]
-  T_Processes                 Processus[]
-  T_PAQs                      PAQ[]
-  T_Documents                 Document[]
-  T_Risks                     Risk[]
-  T_Audits                    Audit[]
-  T_NonConformites            NonConformite[]
-  T_Reclamations              Reclamation[]
-  T_Actions                   Action[]
-  T_SSEEvents                 SSEEvent[]
-  T_Causeries                 Causerie[]
-  T_Meetings                  Meeting[]
-  T_Indicators                Indicator[]
-  T_RevueDirections           RevueDirection[]
-  T_ProcessReviews            ProcessReview[]
-  T_Signatures                Signature[]
-  T_AuditLogs                 SecurityAuditLog[]
-  T_Transactions              Transaction[]
-  T_SSEStats                  SSEStats[]
-  T_Preuves                   Preuve[]
-  T_Equipments                Equipment[]
-  T_Competences               Competence[]
-  T_Tiers                     Tier[]
-  T_Formations                Formation[]
-  T_Tickets                   Ticket[]
-  T_Governance                GovernanceActivity[]
-  T_OrgUnitTypes              OrgUnitType[]
-  T_ProcessTypes              ProcessType[]
-  T_RiskTypes                 RiskType[]
-  T_Consumptions              Consumption[]
-  T_Wastes                    Waste[]
-  T_Notifications             Notification[]
-  T_UserHabilitations         UserHabilitation[]
-  T_QualityObjectives         QualityObjective[]
-  T_OrgContexts               OrganizationContext[]
-  T_InterestedParties         InterestedParty[]
-  T_ApprovalWorkflows         ApprovalWorkflow[]
-  T_ChangeLogs                ChangeLog[]
-  T_SenegalLegalRequirements  SenegalLegalRequirement[]
-  T_LegalChecklists           LegalChecklist[]
-  T_ChecklistResponses        ChecklistResponse[]
-  T_RegulatoryRequirements    RegulatoryRequirement[]
-  T_Alerts                    Alert[]
-  T_LegalUpdates              LegalUpdate[]
-  T_ComplianceCalendars       ComplianceCalendar[]
+  // Relations
+  T_Users                    User[]
+  T_Sites                    Site[]
+  T_OrgUnits                 OrgUnit[]
+  T_Processes                Processus[]
+  T_PAQs                     PAQ[]
+  T_Documents                Document[]
+  T_Risks                    Risk[]
+  T_Audits                   Audit[]
+  T_NonConformites           NonConformite[]
+  T_Reclamations             Reclamation[]
+  T_Actions                  Action[]
+  T_SSEEvents                SSEEvent[]
+  T_Causeries                Causerie[]
+  T_Meetings                 Meeting[]
+  T_Indicators               Indicator[]
+  T_RevueDirections          RevueDirection[]
+  T_ProcessReviews           ProcessReview[]
+  T_Signatures               Signature[]
+  T_AuditLogs                SecurityAuditLog[]
+  T_Transactions             Transaction[]
+  T_SSEStats                 SSEStats[]
+  T_Preuves                  Preuve[]
+  T_Equipments               Equipment[]
+  T_Competences              Competence[]
+  T_Tiers                    Tier[]
+  T_Formations               Formation[]
+  T_Tickets                  Ticket[]
+  T_Governance               GovernanceActivity[]
+  T_OrgUnitTypes             OrgUnitType[]
+  T_ProcessTypes             ProcessType[]
+  T_RiskTypes                RiskType[]
+  T_Consumptions             Consumption[]
+  T_Wastes                   Waste[]
+  T_Notifications            Notification[]
+  T_UserHabilitations        UserHabilitation[]
+  T_QualityObjectives        QualityObjective[]
+  T_OrgContexts              OrganizationContext[]
+  T_InterestedParties        InterestedParty[]
+  T_ApprovalWorkflows        ApprovalWorkflow[]
+  T_ChangeLogs               ChangeLog[]
+  T_SenegalLegalRequirements SenegalLegalRequirement[]
+  T_LegalChecklists          LegalChecklist[]
+  T_ChecklistResponses       ChecklistResponse[]
+  T_RegulatoryRequirements   RegulatoryRequirement[]
+  T_Alerts                   Alert[]
+  T_LegalUpdates             LegalUpdate[]
+  T_ComplianceCalendars      ComplianceCalendar[]
 }
 
 // ==========================================
@@ -174,26 +174,26 @@ model User {
   U_OrgUnit   OrgUnit? @relation(fields: [U_OrgUnitId], references: [OU_Id])
 
   // Relations
-  U_PiloteProcesses    Processus[]       @relation("PiloteProcessus")
-  U_CoPiloteProcesses  Processus[]       @relation("CoPiloteProcessus")
-  U_PAQsManaged        PAQ[]             @relation("QualityManagerPAQ")
-  U_AuditsLead         Audit[]           @relation("LeadAuditor")
-  U_ResponsibleActions Action[]          @relation("ResponsibleAction")
-  U_CreatedActions     Action[]          @relation("CreatorAction")
-  U_DetectedNCs        NonConformite[]   @relation("NCDetector")
-  U_ReclamationsOwned  Reclamation[]     @relation("ReclamationOwner")
-  U_ReportedEvents     SSEEvent[]        @relation("EventReporter")
-  U_CreatedEvents      SSEEvent[]        @relation("EventCreator")
-  U_VictimInEvents     SSEEvent[]        @relation("EventVictim")
-  U_CauseriesAnimate   Causerie[]        @relation("AnimateurCauserie")
-  U_CauseriesAttend    Causerie[]        @relation("ParticipantsCauserie")
+  U_PiloteProcesses    Processus[]        @relation("PiloteProcessus")
+  U_CoPiloteProcesses  Processus[]        @relation("CoPiloteProcessus")
+  U_PAQsManaged        PAQ[]              @relation("QualityManagerPAQ")
+  U_AuditsLead         Audit[]            @relation("LeadAuditor")
+  U_ResponsibleActions Action[]           @relation("ResponsibleAction")
+  U_CreatedActions     Action[]           @relation("CreatorAction")
+  U_DetectedNCs        NonConformite[]    @relation("NCDetector")
+  U_ReclamationsOwned  Reclamation[]      @relation("ReclamationOwner")
+  U_ReportedEvents     SSEEvent[]         @relation("EventReporter")
+  U_CreatedEvents      SSEEvent[]         @relation("EventCreator")
+  U_VictimInEvents     SSEEvent[]         @relation("EventVictim")
+  U_CauseriesAnimate   Causerie[]         @relation("AnimateurCauserie")
+  U_CauseriesAttend    Causerie[]         @relation("ParticipantsCauserie")
   U_MeetingAttendees   MeetingAttendee[]
   U_Formations         Formation[]
-  U_DocumentVersions   DocumentVersion[] @relation("VersionCreator")
+  U_DocumentVersions   DocumentVersion[]  @relation("VersionCreator")
   U_Signatures         Signature[]
   U_Competences        UserCompetence[]
   U_SecurityAuditLogs  SecurityAuditLog[]
-  U_Consumptions       Consumption[]     @relation("ConsumptionCreator")
+  U_Consumptions       Consumption[]      @relation("ConsumptionCreator")
   U_Notifications      Notification[]
   U_UserHabilitations  UserHabilitation[]
   U_QualityObjectives  QualityObjective[] @relation("ObjectiveOwner")
@@ -253,19 +253,19 @@ model Processus {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
-  PR_NonConformites     NonConformite[]
-  PR_PAQ               PAQ[]
-  PR_Indicators        Indicator[]
-  PR_Risks             Risk[]
-  PR_Audits            Audit[]
-  PR_Meetings          Meeting[]
-  PR_SSEEvents         SSEEvent[]
-  PR_Documents         Document[]
-  PR_Reclamations      Reclamation[]
-  PR_Reviews           ProcessReview[]
-  PR_QualityObjectives QualityObjective[]
-  PR_CreatedAt         DateTime             @default(now())
-  PR_UpdatedAt         DateTime             @updatedAt
+  PR_NonConformites       NonConformite[]
+  PR_PAQ                  PAQ[]
+  PR_Indicators           Indicator[]
+  PR_Risks                Risk[]
+  PR_Audits               Audit[]
+  PR_Meetings             Meeting[]
+  PR_SSEEvents            SSEEvent[]
+  PR_Documents            Document[]
+  PR_Reclamations         Reclamation[]
+  PR_Reviews              ProcessReview[]
+  PR_QualityObjectives    QualityObjective[]
+  PR_CreatedAt            DateTime             @default(now())
+  PR_UpdatedAt            DateTime             @updatedAt
   PR_GovernanceActivities GovernanceActivity[] @relation("ProcessGovernance")
 
   @@unique([PR_Code, tenantId])
@@ -274,18 +274,18 @@ model Processus {
 }
 
 model Action {
-  ACT_Id           String       @id @default(uuid())
-  ACT_Title        String
-  ACT_Description  String?      @db.Text
-  ACT_Origin       ActionOrigin @default(AUTRE)
-  ACT_Type         ActionType   @default(CORRECTIVE)
-  ACT_Status       ActionStatus @default(A_FAIRE)
-  ACT_Priority     Priority     @default(MEDIUM)
-  ACT_IsActive     Boolean      @default(true)
-  ACT_CreatedAt    DateTime     @default(now())
-  ACT_Deadline     DateTime?
-  ACT_CompletedAt  DateTime?
-  ACT_UpdatedAt    DateTime     @updatedAt
+  ACT_Id          String       @id @default(uuid())
+  ACT_Title       String
+  ACT_Description String?      @db.Text
+  ACT_Origin      ActionOrigin @default(AUTRE)
+  ACT_Type        ActionType   @default(CORRECTIVE)
+  ACT_Status      ActionStatus @default(A_FAIRE)
+  ACT_Priority    Priority     @default(MEDIUM)
+  ACT_IsActive    Boolean      @default(true)
+  ACT_CreatedAt   DateTime     @default(now())
+  ACT_Deadline    DateTime?
+  ACT_CompletedAt DateTime?
+  ACT_UpdatedAt   DateTime     @updatedAt
 
   ACT_ResponsableId String
   ACT_Responsable   User   @relation("ResponsibleAction", fields: [ACT_ResponsableId], references: [U_Id])
@@ -302,8 +302,8 @@ model Action {
   ACT_Audit         Audit?         @relation(fields: [ACT_AuditId], references: [AU_Id])
   ACT_MeetingId     String?
   ACT_Meeting       Meeting?       @relation(fields: [ACT_MeetingId], references: [MG_Id])
-  ACT_SSEEventId     String?
-  ACT_SSEEvent       SSEEvent?      @relation(fields: [ACT_SSEEventId], references: [SSE_Id])
+  ACT_SSEEventId    String?
+  ACT_SSEEvent      SSEEvent?      @relation(fields: [ACT_SSEEventId], references: [SSE_Id])
 
   ACT_RiskId String?
   ACT_Risk   Risk?   @relation("RiskAction", fields: [ACT_RiskId], references: [RS_Id])
@@ -323,7 +323,7 @@ model Action {
 }
 
 // ==========================================
-// RISQUES
+// RISQUES (ISO 9001, 14001, 45001)
 // ==========================================
 
 model Risk {
@@ -351,7 +351,7 @@ model Risk {
   RS_Type               RiskType   @relation(fields: [RS_TypeId], references: [RT_Id])
   RS_ProcessusId        String
   RS_Processus          Processus  @relation(fields: [RS_ProcessusId], references: [PR_Id])
-  RS_Opportunite        String?    @db.Text 
+  RS_Opportunite        String?    @db.Text // ISO 9001 §6.1
   tenantId              String
   tenant                Tenant     @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
   RS_Actions            Action[]   @relation("RiskAction")
@@ -413,13 +413,13 @@ model SSEEvent {
 }
 
 model Causerie {
-  CS_Id           String   @id @default(uuid())
-  CS_Theme        String
-  CS_Date         DateTime @default(now())
+  CS_Id          String   @id @default(uuid())
+  CS_Theme       String
+  CS_Date        DateTime @default(now())
   CS_CompteRendu String?  @db.Text
-  CS_IsActive     Boolean  @default(true)
-  CS_CreatedAt    DateTime @default(now())
-  CS_UpdatedAt    DateTime @updatedAt
+  CS_IsActive    Boolean  @default(true)
+  CS_CreatedAt   DateTime @default(now())
+  CS_UpdatedAt   DateTime @updatedAt
 
   CS_AnimateurId  String
   CS_Animateur    User   @relation("AnimateurCauserie", fields: [CS_AnimateurId], references: [U_Id])
@@ -495,12 +495,12 @@ model DocumentVersion {
 }
 
 model Preuve {
-  PV_Id           String   @id @default(uuid())
+  PV_Id          String   @id @default(uuid())
   PV_Commentaire String?
-  PV_FileUrl      String
-  PV_FileName     String
-  PV_IsActive     Boolean  @default(true)
-  PV_CreatedAt    DateTime @default(now())
+  PV_FileUrl     String
+  PV_FileName    String
+  PV_IsActive    Boolean  @default(true)
+  PV_CreatedAt   DateTime @default(now())
 
   PV_AuditId       String?
   PV_Audit         Audit?         @relation(fields: [PV_AuditId], references: [AU_Id])
@@ -526,7 +526,7 @@ model OrganizationContext {
   OC_Type          ContextType
   OC_Title         String
   OC_Description   String      @db.Text
-  OC_Impact         String?     @db.Text
+  OC_Impact        String?     @db.Text
   OC_ActionsPlanif String?     @db.Text
   OC_ReviewDate    DateTime?
   OC_IsActive      Boolean     @default(true)
@@ -553,16 +553,16 @@ model InterestedParty {
 }
 
 model QualityObjective {
-  QO_Id           String          @id @default(uuid())
-  QO_Title        String
+  QO_Id          String          @id @default(uuid())
+  QO_Title       String
   QO_Description String?         @db.Text
-  QO_Target       String
-  QO_Deadline     DateTime
-  QO_Status       ObjectiveStatus @default(EN_COURS)
-  QO_Progress     Float           @default(0)
-  QO_IsActive     Boolean         @default(true)
-  QO_CreatedAt    DateTime        @default(now())
-  QO_UpdatedAt    DateTime        @updatedAt
+  QO_Target      String
+  QO_Deadline    DateTime
+  QO_Status      ObjectiveStatus @default(EN_COURS)
+  QO_Progress    Float           @default(0)
+  QO_IsActive    Boolean         @default(true)
+  QO_CreatedAt   DateTime        @default(now())
+  QO_UpdatedAt   DateTime        @updatedAt
 
   QO_ProcessusId String?
   QO_Processus   Processus? @relation(fields: [QO_ProcessusId], references: [PR_Id])
@@ -617,13 +617,13 @@ model Indicator {
 }
 
 model IndicatorValue {
-  IV_Id         String   @id @default(uuid())
-  IV_Month      Int
-  IV_Year       Int
-  IV_Actual     Float
-  IV_Status     IVStatus @default(BROUILLON)
-  IV_Comment    String?  @db.Text
-  IV_IsActive   Boolean  @default(true)
+  IV_Id        String   @id @default(uuid())
+  IV_Month     Int
+  IV_Year      Int
+  IV_Actual    Float
+  IV_Status    IVStatus @default(BROUILLON)
+  IV_Comment   String?  @db.Text
+  IV_IsActive  Boolean  @default(true)
   IV_CreatedAt DateTime @default(now())
   IV_UpdatedAt DateTime @updatedAt
 
@@ -659,8 +659,8 @@ model Audit {
 
   AU_Findings       Finding[]
   AU_NonConformites NonConformite[]
-  AU_Preuves         Preuve[]
-  AU_Actions         Action[]
+  AU_Preuves        Preuve[]
+  AU_Actions        Action[]
   AU_Alerts         Alert[]
 }
 
@@ -675,16 +675,16 @@ model Finding {
 }
 
 model NonConformite {
-  NC_Id           String    @id @default(uuid())
-  NC_Libelle      String
-  NC_Description  String    @db.Text
-  NC_Diagnostic   String?   @db.Text
-  NC_Gravite      NCGravity @default(MINEURE)
-  NC_Statut       NCStatus  @default(DETECTION)
-  NC_Source       NCSource  @default(INTERNAL_AUDIT)
-  NC_IsActive     Boolean   @default(true)
-  NC_CreatedAt    DateTime  @default(now())
-  NC_UpdatedAt    DateTime  @updatedAt
+  NC_Id          String    @id @default(uuid())
+  NC_Libelle     String
+  NC_Description String    @db.Text
+  NC_Diagnostic  String?   @db.Text
+  NC_Gravite     NCGravity @default(MINEURE)
+  NC_Statut      NCStatus  @default(DETECTION)
+  NC_Source      NCSource  @default(INTERNAL_AUDIT)
+  NC_IsActive    Boolean   @default(true)
+  NC_CreatedAt   DateTime  @default(now())
+  NC_UpdatedAt   DateTime  @updatedAt
 
   NC_ProcessusId   String?
   NC_Processus     Processus?   @relation(fields: [NC_ProcessusId], references: [PR_Id])
@@ -704,7 +704,7 @@ model NonConformite {
 model Reclamation {
   REC_Id              String            @id @default(uuid())
   REC_Reference       String            @unique
-  REC_Object           String
+  REC_Object          String
   REC_Description     String            @db.Text
   REC_Status          ReclamationStatus @default(NOUVELLE)
   REC_Source          String?           @default("DIRECT")
@@ -737,8 +737,8 @@ model Tier {
   TR_IsActive  Boolean  @default(true)
   TR_UpdatedAt DateTime @updatedAt
 
-  tenantId         String
-  tenant           Tenant        @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
   TR_Reclamations Reclamation[]
 }
 
@@ -763,14 +763,14 @@ model Consumption {
 }
 
 model Waste {
-  WAS_Id         String   @id @default(uuid())
-  WAS_Label      String
-  WAS_Weight     Float
-  WAS_Type       String
+  WAS_Id        String   @id @default(uuid())
+  WAS_Label     String
+  WAS_Weight    Float
+  WAS_Type      String
   WAS_Treatment String
-  WAS_Month      Int
-  WAS_Year       Int
-  WAS_IsActive   Boolean  @default(true)
+  WAS_Month     Int
+  WAS_Year      Int
+  WAS_IsActive  Boolean  @default(true)
   WAS_CreatedAt DateTime @default(now())
 
   WAS_SiteId String
@@ -781,8 +781,8 @@ model Waste {
 
 model SSEStats {
   ST_Id            String   @id @default(uuid())
-  ST_Mois           Int
-  ST_Annee          Int
+  ST_Mois          Int
+  ST_Annee         Int
   ST_NbAccidents   Int
   ST_TauxFrequence Float    @default(0)
   ST_TauxGravite   Float    @default(0)
@@ -813,14 +813,14 @@ model GovernanceActivity {
 }
 
 model Meeting {
-  MG_Id         String        @id @default(uuid())
-  MG_Title      String
-  MG_Date       DateTime
-  MG_Status     MeetingStatus @default(PLANIFIE)
-  MG_Report     String?       @db.Text
-  MG_IsActive   Boolean       @default(true)
-  MG_CreatedAt DateTime       @default(now())
-  MG_UpdatedAt DateTime       @updatedAt
+  MG_Id        String        @id @default(uuid())
+  MG_Title     String
+  MG_Date      DateTime
+  MG_Status    MeetingStatus @default(PLANIFIE)
+  MG_Report    String?       @db.Text
+  MG_IsActive  Boolean       @default(true)
+  MG_CreatedAt DateTime      @default(now())
+  MG_UpdatedAt DateTime      @updatedAt
 
   MG_ProcessId String?
   MG_Processus Processus? @relation(fields: [MG_ProcessId], references: [PR_Id])
@@ -833,12 +833,12 @@ model Meeting {
 }
 
 model MeetingAttendee {
-  MA_Id         String  @id @default(uuid())
+  MA_Id        String  @id @default(uuid())
   MA_MeetingId String
-  MA_UserId     String
-  MA_Present    Boolean @default(false)
-  MA_Meeting    Meeting @relation(fields: [MA_MeetingId], references: [MG_Id], onDelete: Cascade)
-  MA_User       User    @relation(fields: [MA_UserId], references: [U_Id], onDelete: Cascade)
+  MA_UserId    String
+  MA_Present   Boolean @default(false)
+  MA_Meeting   Meeting @relation(fields: [MA_MeetingId], references: [MG_Id], onDelete: Cascade)
+  MA_User      User    @relation(fields: [MA_UserId], references: [U_Id], onDelete: Cascade)
 
   @@unique([MA_MeetingId, MA_UserId])
 }
@@ -885,7 +885,7 @@ model Formation {
   FOR_Date      DateTime
   FOR_Status    String
   FOR_Expiry    DateTime?
-  FOR_Provider  String?   @default("INTERNE")
+  FOR_Provider     String?   @default("INTERNE")
   FOR_IsActive  Boolean   @default(true)
   FOR_UpdatedAt DateTime  @updatedAt
   FOR_UserId    String
@@ -1003,22 +1003,22 @@ model Signature {
 }
 
 model SecurityAuditLog {
-  SAL_Id         String   @id @default(uuid())
-  SAL_Action     String
+  SAL_Id        String   @id @default(uuid())
+  SAL_Action    String
   SAL_Timestamp DateTime @default(now())
-  SAL_UserId     String
-  SAL_User       User     @relation(fields: [SAL_UserId], references: [U_Id])
+  SAL_UserId    String
+  SAL_User      User     @relation(fields: [SAL_UserId], references: [U_Id])
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 }
 
 model Transaction {
-  TX_Id           String            @id @default(uuid())
-  TX_Amount       Float
-  TX_Currency     String            @default("XOF")
-  TX_Reference    String            @unique
-  TX_Status       TransactionStatus @default(EN_COURS)
+  TX_Id            String            @id @default(uuid())
+  TX_Amount        Float
+  TX_Currency      String            @default("XOF")
+  TX_Reference     String            @unique
+  TX_Status        TransactionStatus @default(EN_COURS)
   TX_PaymentMethod PaymentMethod
   TX_IsActive      Boolean           @default(true)
   TX_CreatedAt     DateTime          @default(now())
@@ -1046,18 +1046,17 @@ model Ticket {
 // ==========================================
 // CONFORMITÉ LÉGALE SÉNÉGAL
 // ==========================================
-
 model SenegalLegalRequirement {
   SLR_Id          String    @id @default(uuid())
-  SLR_Category    String 
+  SLR_Category    String // "Travail", "Environnement", "Fiscalité", "Santé Sécurité", "Commerce"
   SLR_Title       String
   SLR_Description String?   @db.Text
-  SLR_Reference   String 
-  SLR_Domain      String? 
-  SLR_Authority   String 
+  SLR_Reference   String // Texte de loi, décret, arrêté (ex: "Code du Travail Sénégalais, Art. 123")
+  SLR_Domain      String? // ENVIRONNEMENT, SOCIAL, FISCAL
+  SLR_Authority   String // "ANSD", "Ministère Travail", "DGID", "MSE", etc.
   SLR_Deadline    DateTime?
-  SLR_Status      String    @default("A_RESPECTER") 
-  SLR_Evidence    String? 
+  SLR_Status      String    @default("A_RESPECTER") // A_RESPECTER, RESPECTEE, NON_CONFORME, EN_COURS
+  SLR_Evidence    String? // Lien vers preuve (document, photo, certificat)
   SLR_Comment     String?   @db.Text
   SLR_IsActive    Boolean   @default(true)
   SLR_CreatedAt   DateTime  @default(now())
@@ -1066,6 +1065,7 @@ model SenegalLegalRequirement {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
+  // Relations
   SLR_Actions Action[]
 
   @@index([tenantId])
@@ -1075,20 +1075,20 @@ model SenegalLegalRequirement {
 }
 
 model LegalChecklist {
-  LC_Id               String              @id @default(uuid())
-  LC_Standard         String 
-  LC_Clause           String 
-  LC_Title            String
-  LC_Description      String?             @db.Text
-  LC_Criteria         String?             @db.Text
-  LC_IsMandatory      Boolean             @default(true)
-  LC_SenegalSpecific  Boolean             @default(false)
-  LC_Reference        String? 
-  LC_IsActive         Boolean             @default(true)
-  LC_CreatedAt        DateTime            @default(now())
-  tenantId            String
-  tenant              Tenant              @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
-  LC_Responses        ChecklistResponse[]
+  LC_Id              String              @id @default(uuid())
+  LC_Standard        String // Ex: "ISO_9001_2015"
+  LC_Clause          String // Ex: "4.1"
+  LC_Title           String
+  LC_Description     String?             @db.Text
+  LC_Criteria        String?             @db.Text
+  LC_IsMandatory     Boolean             @default(true)
+  LC_SenegalSpecific Boolean             @default(false)
+  LC_Reference       String? // Loi sénégalaise
+  LC_IsActive        Boolean             @default(true)
+  LC_CreatedAt       DateTime            @default(now())
+  tenantId           String
+  tenant             Tenant              @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
+  LC_Responses       ChecklistResponse[]
 
   @@index([tenantId])
   @@index([tenantId, LC_Standard])
@@ -1099,8 +1099,8 @@ model ChecklistResponse {
   CR_Id          String         @id @default(uuid())
   CR_ChecklistId String
   CR_Checklist   LegalChecklist @relation(fields: [CR_ChecklistId], references: [LC_Id], onDelete: Cascade)
-  CR_Response    String 
-  CR_Evidence    String? 
+  CR_Response    String // "YES", "NO", "PARTIAL", "NA"
+  CR_Evidence    String? // Lien vers preuve
   CR_Comment     String?        @db.Text
   CR_IsCompliant Boolean        @default(false)
   CR_CreatedAt   DateTime       @default(now())
@@ -1114,22 +1114,26 @@ model ChecklistResponse {
   @@index([tenantId, CR_Response])
 }
 
+// ==========================================
+// ALERTES & ÉCHÉANCES RÉGLEMENTAIRES
+// ==========================================
+
 model RegulatoryRequirement {
   RR_Id             String    @id @default(uuid())
   RR_Title          String
   RR_Description    String    @db.Text
-  RR_Category       String 
-  RR_Type           String 
-  RR_Reference      String 
-  RR_Authority      String 
-  RR_DueDate        DateTime 
-  RR_Frequency      Int? 
-  RR_LastCompliance DateTime? 
-  RR_Status         String    @default("PENDING") 
-  RR_Priority       String    @default("MEDIUM") 
-  RR_EvidenceUrl    String? 
+  RR_Category       String // "Travail", "Environnement", "Fiscalité", "Santé Sécurité", "Commerce"
+  RR_Type           String // "LEGAL", "NORMATIVE", "CONTRACTUAL", "INTERNATIONAL"
+  RR_Reference      String // Texte de loi, décret, norme (ex: "Code Travail Art. 123")
+  RR_Authority      String // "ANSD", "Ministère Travail", "DGID", "INNORPI", "AFNOR"
+  RR_DueDate        DateTime // Date limite de conformité
+  RR_Frequency      Int? // Fréquence en mois (ex: 12 pour annuel, 6 pour semestriel)
+  RR_LastCompliance DateTime? // Dernière date de conformité
+  RR_Status         String    @default("PENDING") // PENDING, COMPLIANT, OVERDUE, EXEMPT
+  RR_Priority       String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  RR_EvidenceUrl    String? // Lien vers preuve de conformité
   RR_Comment        String?   @db.Text
-  RR_IsRecurring    Boolean   @default(false) 
+  RR_IsRecurring    Boolean   @default(false) // Échéance récurrente
   RR_IsActive       Boolean   @default(true)
   RR_CreatedAt      DateTime  @default(now())
   RR_UpdatedAt      DateTime  @updatedAt
@@ -1137,6 +1141,7 @@ model RegulatoryRequirement {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [T_Id], onDelete: Cascade)
 
+  // Relations
   RR_Alerts    Alert[]
   RR_Actions   Action[]
   RR_Documents Document[]
@@ -1149,20 +1154,20 @@ model RegulatoryRequirement {
 }
 
 model Alert {
-  AL_Id             String                 @id @default(uuid())
-  AL_Title          String
-  AL_Message        String                 @db.Text
-  AL_Type           String 
-  AL_Priority       String                 @default("MEDIUM") 
-  AL_Status         String                 @default("UNREAD") 
-  AL_DueDate        DateTime 
-  AL_TriggerDate    DateTime               @default(now()) 
-  AL_ResolveDate    DateTime? 
-  AL_IsPushSent     Boolean                @default(false) 
-  AL_IsEmailSent    Boolean                @default(false) 
-  AL_IsSmsSent      Boolean                @default(false) 
-  AL_IsActive       Boolean                @default(true)
-
+  AL_Id            String                 @id @default(uuid())
+  AL_Title         String
+  AL_Message       String                 @db.Text
+  AL_Type          String // "DEADLINE", "OVERDUE", "REMINDER", "COMPLIANCE", "LEGAL_UPDATE"
+  AL_Priority      String                 @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL, URGENT
+  AL_Status        String                 @default("UNREAD") // UNREAD, READ, ACKNOWLEDGED, RESOLVED
+  AL_DueDate       DateTime // Date de l'échéance associée
+  AL_TriggerDate   DateTime               @default(now()) // Date de déclenchement de l'alerte
+  AL_ResolveDate   DateTime? // Date de résolution
+  AL_IsPushSent    Boolean                @default(false) // Notification push envoyée
+  AL_IsEmailSent   Boolean                @default(false) // Email envoyé
+  AL_IsSmsSent     Boolean                @default(false) // SMS envoyé
+  AL_IsActive      Boolean                @default(true)
+  // Relations
   AL_RequirementId String?
   AL_Requirement   RegulatoryRequirement? @relation(fields: [AL_RequirementId], references: [RR_Id], onDelete: SetNull)
 
@@ -1189,7 +1194,7 @@ model AlertRecipient {
   AR_AlertId String
   AR_UserId  String
   AR_ReadAt  DateTime?
-  AR_Status  String    @default("PENDING") 
+  AR_Status  String    @default("PENDING") // PENDING, READ, ACKNOWLEDGED
 
   alert Alert @relation(fields: [AR_AlertId], references: [AL_Id], onDelete: Cascade)
   user  User  @relation(fields: [AR_UserId], references: [U_Id], onDelete: Cascade)
@@ -1203,11 +1208,11 @@ model LegalUpdate {
   LU_Title           String
   LU_Summary         String    @db.Text
   LU_Content         String    @db.Text
-  LU_Source          String 
+  LU_Source          String // "Journal Officiel", "ANSD", "Ministère", "INNORPI"
   LU_PublicationDate DateTime
   LU_EffectiveDate   DateTime?
-  LU_Category        String 
-  LU_Impact          String 
+  LU_Category        String // "Travail", "Environnement", "Fiscalité", "Commerce"
+  LU_Impact          String // "LOW", "MEDIUM", "HIGH", "CRITICAL"
   LU_IsPublished     Boolean   @default(false)
   LU_PublishedAt     DateTime?
 
@@ -1224,10 +1229,10 @@ model ComplianceCalendar {
   CC_Title       String
   CC_Description String?   @db.Text
   CC_Date        DateTime
-  CC_Type        String 
+  CC_Type        String // "AUDIT", "REVIEW", "TRAINING", "REPORTING", "CERTIFICATION"
   CC_IsMandatory Boolean   @default(true)
   CC_IsRecurring Boolean   @default(false)
-  CC_Frequency   Int? 
+  CC_Frequency   Int? // En mois pour récurrence
   CC_LastDone    DateTime?
   CC_NextDue     DateTime
 

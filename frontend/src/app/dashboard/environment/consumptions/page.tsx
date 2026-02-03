@@ -1,14 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
   Zap, Plus, Search, Download, Calendar, 
-  Droplets, TrendingUp, AlertTriangle, CheckCircle, Target, Trash2
+  Droplets, TrendingUp, AlertTriangle, CheckCircle, Target, Trash2, RefreshCcw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import ConsumptionForm from './ConsumptionForm'; // ✅ Import propre
+import ConsumptionForm from './ConsumptionForm';
 
 export default function ConsumptionManagementPage() {
   const [consumptions, setConsumptions] = useState<any[]>([]);
@@ -21,7 +22,7 @@ export default function ConsumptionManagementPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [consRes, sitesRes] = await Promise.all([
@@ -31,13 +32,13 @@ export default function ConsumptionManagementPage() {
       setConsumptions(consRes.data || []);
       setSites(sitesRes.data || []);
     } catch (error) {
-      toast.error("Erreur de chargement");
+      toast.error("Erreur de synchronisation ISO 14001");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const stats = useMemo(() => {
     const filtered = consumptions.filter(c => 
@@ -61,12 +62,12 @@ export default function ConsumptionManagementPage() {
   }, [consumptions, selectedSite, selectedMonth, selectedYear]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer cet enregistrement ?')) return;
+    if (!confirm('SUPPRIMER CET ENREGISTREMENT DU REGISTRE ?')) return;
     try {
       await apiClient.delete(`/consumptions/${id}`);
-      toast.success('Supprimé');
+      toast.success('DONNÉE SUPPRIMÉE');
       fetchData();
-    } catch (error) { toast.error('Erreur'); }
+    } catch (error) { toast.error('ERREUR DE SUPPRESSION'); }
   };
 
   const filteredConsumptions = consumptions.filter(c => {
@@ -77,60 +78,91 @@ export default function ConsumptionManagementPage() {
     return matchesSearch && matchesType && matchesSite && matchesPeriod;
   });
 
-  if (loading) return <div className="ml-72 h-screen flex items-center justify-center bg-[#0B0F1A] text-amber-500 font-black italic uppercase animate-pulse">Chargement ISO 14001...</div>;
+  if (loading) return (
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+      <RefreshCcw className="animate-spin text-amber-500" size={40} />
+      <p className="text-amber-500 font-black uppercase italic text-[10px] tracking-widest">Calcul des indices environnementaux §9.1.1...</p>
+    </div>
+  );
 
   return (
-    <div className="p-8 bg-[#0B0F1A] min-h-screen ml-72 text-white font-sans uppercase italic font-black">
-      <header className="mb-8 flex justify-between items-end border-b border-white/5 pb-8">
+    <div className="p-10 bg-[#0B0F1A] min-h-screen ml-72 text-white font-sans uppercase italic font-black">
+      <header className="mb-12 flex justify-between items-end border-b border-white/5 pb-10">
         <div>
-          <h1 className="text-4xl tracking-tighter">Suivi <span className="text-amber-400">Consommations</span></h1>
-          <p className="text-slate-500 text-[10px] tracking-widest mt-2 uppercase">Management Énergie §9.1.1</p>
+          <h1 className="text-5xl tracking-tighter leading-none">SUIVI <span className="text-amber-400">CONSOMMATIONS</span></h1>
+          <p className="text-slate-500 text-[11px] tracking-[0.4em] mt-4 uppercase italic">Management Énergie & Ressources • ISO 14001</p>
         </div>
-        <button onClick={() => setIsFormOpen(true)} className="bg-amber-600 px-8 py-4 rounded-2xl text-[10px] shadow-xl flex items-center gap-2 hover:bg-amber-500 transition-all">
-          <Plus size={16} /> NOUVELLE SAISIE
+        <button onClick={() => setIsFormOpen(true)} className="bg-amber-600 px-10 py-5 rounded-3xl text-[11px] shadow-2xl flex items-center gap-3 hover:bg-amber-500 transition-all active:scale-95">
+          <Plus size={20} strokeWidth={3} /> NOUVELLE SAISIE
         </button>
       </header>
 
-      {/* STAT CARDS */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        <StatCard label="Énergie" value={`${stats.totalEnergy} kWh`} icon={<Zap size={20}/>} color="bg-amber-500/10" progress={stats.energyProgress} alert={stats.energyAlert} />
-        <StatCard label="Eau" value={`${stats.totalWater} m³`} icon={<Droplets size={20}/>} color="bg-blue-500/10" progress={stats.waterProgress} alert={stats.waterAlert} />
-        <StatCard label="Coût" value={`${stats.totalCost} XOF`} icon={<TrendingUp size={20}/>} color="bg-emerald-500/10" />
-        <StatCard label="Target" value="10k kWh" icon={<Target size={20}/>} color="bg-purple-500/10" progress={stats.energyProgress} />
+      {/* DASHBOARD SENSORS */}
+      <div className="grid grid-cols-4 gap-6 mb-12">
+        <StatCard label="Énergie" value={`${stats.totalEnergy} kWh`} icon={<Zap size={24}/>} color="bg-amber-500/5" progress={stats.energyProgress} alert={stats.energyAlert} />
+        <StatCard label="Eau" value={`${stats.totalWater} m³`} icon={<Droplets size={24}/>} color="bg-blue-500/5" progress={stats.waterProgress} alert={stats.waterAlert} />
+        <StatCard label="Coût Total" value={`${stats.totalCost.toLocaleString()} XOF`} icon={<TrendingUp size={24}/>} color="bg-emerald-500/5" />
+        <StatCard label="Objectif" value="10k kWh" icon={<Target size={24}/>} color="bg-purple-500/5" progress={stats.energyProgress} />
       </div>
 
-      {/* FILTERS */}
-      <div className="flex gap-4 mb-6 bg-slate-900/40 p-4 rounded-2xl border border-white/5">
-        <input placeholder="Rechercher..." className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 flex-1 outline-none focus:border-amber-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-        <select className="bg-slate-900 border border-white/10 rounded-xl px-4" value={selectedSite} onChange={e => setSelectedSite(e.target.value)}>
-          <option value="ALL">TOUS LES SITES</option>
-          {sites.map(s => <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>)}
+      {/* FILTRES HAUTE LISIBILITÉ */}
+      <div className="flex gap-6 mb-8 bg-slate-900/40 p-6 rounded-[2.5rem] border border-white/5 backdrop-blur-xl">
+        <div className="flex-1 relative">
+           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+           <input placeholder="RECHERCHER SITES OU TYPES..." className="w-full bg-black/20 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-[10px] font-black outline-none focus:border-amber-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        </div>
+        
+        <select className="bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-[10px] font-black outline-none focus:border-amber-500 cursor-pointer" value={selectedSite} onChange={e => setSelectedSite(e.target.value)}>
+          <option value="ALL" className="bg-[#0B0F1A]">TOUS LES SITES</option>
+          {sites.map(s => <option key={s.S_Id} value={s.S_Id} className="bg-[#0B0F1A]">{s.S_Name}</option>)}
         </select>
-        <div className="flex gap-1">
-          <select className="bg-slate-900 border border-white/10 rounded-xl px-2" value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))}>
-            {Array.from({length:12}, (_,i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+
+        <div className="flex gap-2">
+          <select className="bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-[10px] font-black outline-none focus:border-amber-500 cursor-pointer" value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))}>
+            {Array.from({length:12}, (_,i) => <option key={i+1} value={i+1} className="bg-[#0B0F1A]">MOIS {i+1}</option>)}
           </select>
-          <select className="bg-slate-900 border border-white/10 rounded-xl px-2" value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}>
-            {[2026, 2025, 2024].map(y => <option key={y} value={y}>{y}</option>)}
+          <select className="bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-[10px] font-black outline-none focus:border-amber-500 cursor-pointer" value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}>
+            {[2026, 2025, 2024].map(y => <option key={y} value={y} className="bg-[#0B0F1A]">{y}</option>)}
           </select>
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-slate-900/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+      {/* TABLEAU ELITE */}
+      <div className="bg-slate-900/40 border border-white/5 rounded-[3rem] overflow-hidden shadow-3xl backdrop-blur-xl">
         <table className="w-full text-left">
-          <thead className="bg-white/5 text-[9px] text-slate-500 tracking-widest">
-            <tr><th className="p-6">Période / Site</th><th className="p-6">Type</th><th className="p-6">Valeur</th><th className="p-6">Coût</th><th className="p-6 text-right">Actions</th></tr>
+          <thead className="bg-white/5 text-[10px] text-slate-500 tracking-[0.3em]">
+            <tr>
+              <th className="p-8">PÉRIODE / SITE</th>
+              <th className="p-8">TYPE RESSOURCE</th>
+              <th className="p-8">QUANTITÉ MESURÉE</th>
+              <th className="p-8">COÛT ASSOCIÉ</th>
+              <th className="p-8 text-right">ACTION</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {filteredConsumptions.map((c) => (
-              <tr key={c.CON_Id} className="hover:bg-white/5 transition-colors">
-                <td className="p-6"><p className="font-black">{c.CON_Month}/{c.CON_Year}</p><p className="text-[10px] text-slate-500 uppercase">{c.CON_Site?.S_Name}</p></td>
-                <td className="p-6 font-black text-amber-500 uppercase">{c.CON_Type}</td>
-                <td className="p-6 font-black text-xl">{c.CON_Value.toLocaleString()} <span className="text-[10px] text-slate-500">{c.CON_Unit}</span></td>
-                <td className="p-6 font-black text-xl">{c.CON_Cost?.toLocaleString()} <span className="text-[10px] text-slate-500">XOF</span></td>
-                <td className="p-6 text-right">
-                  <button onClick={() => handleDelete(c.CON_Id)} className="text-slate-500 hover:text-red-500 transition-all"><Trash2 size={18}/></button>
+              <tr key={c.CON_Id} className="hover:bg-white/5 transition-all group">
+                <td className="p-8">
+                  <p className="text-sm font-black italic">{c.CON_Month}/{c.CON_Year}</p>
+                  <p className="text-[9px] text-slate-500 uppercase tracking-widest">{c.CON_Site?.S_Name}</p>
+                </td>
+                <td className="p-8">
+                  <span className="bg-amber-500/10 text-amber-500 px-4 py-1.5 rounded-full text-[10px] font-black border border-amber-500/20">{c.CON_Type}</span>
+                </td>
+                <td className="p-8">
+                   <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black">{c.CON_Value.toLocaleString()}</span>
+                      <span className="text-[10px] text-slate-500">{c.CON_Unit}</span>
+                   </div>
+                </td>
+                <td className="p-8">
+                   <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-emerald-500">{c.CON_Cost?.toLocaleString()}</span>
+                      <span className="text-[10px] text-slate-500">XOF</span>
+                   </div>
+                </td>
+                <td className="p-8 text-right">
+                  <button onClick={() => handleDelete(c.CON_Id)} className="p-4 bg-white/5 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={18}/></button>
                 </td>
               </tr>
             ))}
@@ -145,13 +177,17 @@ export default function ConsumptionManagementPage() {
 
 function StatCard({ label, value, icon, color, progress, alert }: any) {
   return (
-    <div className={`${color} border ${alert ? 'border-amber-500 animate-pulse' : 'border-white/5'} rounded-3xl p-6 shadow-inner`}>
-      <div className="flex justify-between mb-4">
-        <div className="p-3 bg-white/5 rounded-xl">{icon}</div>
-        {progress !== undefined && <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden self-center"><div className="h-full bg-amber-500" style={{width: `${progress}%`}}></div></div>}
+    <div className={`${color} border ${alert ? 'border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.2)]' : 'border-white/5'} rounded-[2.5rem] p-8 transition-transform hover:scale-105`}>
+      <div className="flex justify-between items-start mb-6">
+        <div className="p-4 bg-black/20 rounded-2xl text-white">{icon}</div>
+        {progress !== undefined && (
+          <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden self-center border border-white/5">
+            <div className={`h-full ${alert ? 'bg-red-500' : 'bg-amber-500'}`} style={{width: `${progress}%`}}></div>
+          </div>
+        )}
       </div>
-      <p className="text-[8px] text-slate-500 mb-1 tracking-widest uppercase">{label}</p>
-      <p className="text-xl font-black italic tracking-tighter">{value}</p>
+      <p className="text-[10px] text-slate-500 mb-2 tracking-[0.2em] uppercase">{label}</p>
+      <p className="text-3xl font-black italic tracking-tighter leading-none">{value}</p>
     </div>
   );
 }

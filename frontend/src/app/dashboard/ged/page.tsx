@@ -1,266 +1,297 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
-  FileText, Plus, Search, FolderTree, 
-  Download, History, ShieldCheck, Loader2, 
-  Archive, MoreVertical, LayoutGrid, List,
-  Clock, User, Eye, CheckCircle2, AlertCircle,
-  Lock, FileBarChart, Calendar, 
-  ChevronRight, X, QrCode, Share2, FileUp
+  FileText, Plus, Search, Archive, Download, 
+  ShieldCheck, X, Save, Loader2, FileUp, 
+  History, CheckCircle2, Eye, Hash 
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 
-export default function GEDPage() {
-  const [docs, setDocs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ category: 'ALL', status: 'ALL' });
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
-  const fetchDocs = useCallback(async () => {
-    setLoading(true);
+// --- COMPOSANTS DE STYLE (Définis hors du cycle pour éviter "Illegal constructor") ---
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const config: any = {
+    'BROUILLON': 'text-slate-400 border-slate-400/20 bg-slate-400/5',
+    'EN_REVUE': 'text-amber-500 border-amber-500/20 bg-amber-500/5',
+    'APPROUVE': 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5',
+    'ARCHIVE': 'text-red-400 border-red-400/20 bg-red-400/5'
+  };
+  return (
+    <span className={cn("px-4 py-1.5 rounded-full text-[8px] font-black border uppercase italic", config[status] || config.BROUILLON)}>
+      {status?.replace('_', ' ') || 'INCONNU'}
+    </span>
+  );
+};
+
+const MetricCard = ({ title, val, icon: LucideIcon, color }: any) => {
+  const colors: any = {
+    blue: 'text-blue-500 bg-blue-500/5 border-blue-500/10',
+    emerald: 'text-emerald-500 bg-emerald-500/5 border-emerald-500/10',
+    amber: 'text-amber-500 bg-amber-500/5 border-amber-500/10',
+    slate: 'text-slate-500 bg-slate-500/5 border-white/10'
+  };
+
+  return (
+    <div className={cn("p-8 rounded-[2.5rem] border bg-white/2 relative overflow-hidden group hover:border-blue-600 transition-all", colors[color])}>
+      {/* On rend l'icône de manière sécurisée */}
+      {LucideIcon && <LucideIcon className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-all" size={120} />}
+      <div className="flex items-center gap-4 mb-4">
+        <div className={cn("p-3 rounded-xl border", colors[color])}>
+            {LucideIcon && <LucideIcon size={18} />}
+        </div>
+        <p className="text-[9px] text-slate-500 tracking-widest font-black uppercase italic">{title}</p>
+      </div>
+      <p className="text-4xl font-black text-white leading-none tracking-tighter">{val}</p>
+    </div>
+  );
+};
+
+// --- COMPOSANT PRINCIPAL ---
+
+export default function GEDPage() {
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // 1. SYNCHRONISATION REGISTRE
+  const fetchData = useCallback(async () => {
     try {
-      const res = await apiClient.get('/documents/iso');
-      setDocs(Array.isArray(res.data) ? res.data : []);
+      setLoading(true);
+      const res = await apiClient.get('/documents');
+      const rawData = res.data?.documents || res.data || [];
+      setDocuments(Array.isArray(rawData) ? rawData : []);
     } catch (err) {
-      toast.error("Synchronisation GED interrompue (§7.5)");
+      toast.error("SYNCHRONISATION INTERROMPUE");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchDocs(); }, [fetchDocs]);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // 2. RÉFÉRENCE AUTO (SAG-GED-XXX)
+  const nextAutoRef = useMemo(() => {
+    const count = documents.length + 1;
+    return `SAG-GED-${String(count).padStart(3, '0')}`;
+  }, [documents]);
+
+  // 3. KPI & FILTRAGE
+  const stats = useMemo(() => ({
+    total: documents.length,
+    approved: documents.filter(d => d.DOC_Status === 'APPROUVE').length,
+    review: documents.filter(d => d.DOC_Status === 'EN_REVUE').length,
+    archived: documents.filter(d => d.DOC_IsArchived).length
+  }), [documents]);
 
   const filteredDocs = useMemo(() => {
-    return docs.filter(doc => {
-      const matchesSearch = doc.metadata.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          doc.metadata.reference.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCat = filters.category === 'ALL' || doc.metadata.category === filters.category;
-      const matchesStat = filters.status === 'ALL' || doc.status === filters.status;
-      return matchesSearch && matchesCat && matchesStat;
+    return documents.filter(d => {
+      const matchSearch = (d.DOC_Title || "").toLowerCase().includes(search.toLowerCase()) || 
+                          (d.DOC_Reference || "").toLowerCase().includes(search.toLowerCase());
+      const matchCat = categoryFilter === 'ALL' || d.DOC_Category === categoryFilter;
+      return matchSearch && matchCat;
     });
-  }, [docs, searchQuery, filters]);
+  }, [documents, search, categoryFilter]);
 
-  if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-[#0B0F1A] ml-72 font-black italic text-blue-500 uppercase tracking-widest">
-      <Loader2 className="animate-spin mr-3" /> Lecture du Référentiel Documentaire...
-    </div>
-  );
-
-  return (
-    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-8 ml-72 text-white relative">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <header className="flex justify-between items-end border-b border-white/10 pb-8">
-          <div>
-            <h1 className="text-5xl font-black uppercase italic tracking-tighter">
-              Maîtrise <span className="text-blue-500">Documentaire</span>
-            </h1>
-            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] mt-2 italic">
-              ISO 9001:2015 §7.5 Information Documentée
-            </p>
-          </div>
-          <button 
-            onClick={() => setIsUploadModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-black uppercase italic text-xs shadow-xl shadow-blue-500/20 flex items-center gap-3 transition-all active:scale-95"
-          >
-            <Plus size={20} /> Nouveau Document
-          </button>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 bg-white/5 p-4 rounded-3xl border border-white/10">
-          <div className="lg:col-span-2 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input 
-              className="w-full bg-black/20 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-sm font-bold outline-none focus:border-blue-500 transition-all"
-              placeholder="Chercher une référence ou un titre..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <select 
-            className="bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold uppercase outline-none text-slate-400"
-            onChange={e => setFilters({...filters, category: e.target.value})}
-          >
-            <option value="ALL">Toutes Catégories</option>
-            <option value="PROCEDURE">PROCÉDURE</option>
-            <option value="MANUEL">MANUEL</option>
-            <option value="ENREGISTREMENT">ENREGISTREMENT</option>
-          </select>
-          <div className="flex bg-black/20 rounded-xl p-1 border border-white/5">
-            <button onClick={() => setViewMode('grid')} className={`flex-1 flex justify-center py-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-blue-600' : 'text-slate-500'}`}><LayoutGrid size={18}/></button>
-            <button onClick={() => setViewMode('list')} className={`flex-1 flex justify-center py-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-blue-600' : 'text-slate-500'}`}><List size={18}/></button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
-          {filteredDocs.map(doc => (
-            <div 
-              key={doc.DOC_Id} 
-              onClick={() => setSelectedDoc(doc)}
-              className="bg-white/5 border border-white/5 rounded-[2.5rem] p-8 hover:border-blue-500/30 transition-all cursor-pointer group relative overflow-hidden"
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all shadow-lg">
-                  <FileText size={24} />
-                </div>
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{doc.metadata.reference}</span>
-              </div>
-              <h3 className="text-xl font-black uppercase italic leading-tight mb-2 line-clamp-2">{doc.metadata.title}</h3>
-              <div className="flex items-center gap-3 text-[9px] font-bold text-slate-500 uppercase italic">
-                <span className="px-2 py-0.5 bg-white/10 rounded">V{doc.metadata.version}</span>
-                <span>•</span>
-                <span className="text-blue-400">{doc.metadata.author}</span>
-              </div>
-              <div className="mt-8 flex justify-between items-center">
-                <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full border ${
-                  doc.status === 'APPROUVE' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                }`}>
-                  {doc.status}
-                </span>
-                <ChevronRight size={18} className="text-slate-700 group-hover:translate-x-1 group-hover:text-blue-500 transition-all" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {isUploadModalOpen && (
-        <DocumentUploadModal onClose={() => setIsUploadModalOpen(false)} onSuccess={fetchDocs} />
-      )}
-
-      {selectedDoc && (
-        <div className="fixed inset-0 z-100 flex justify-end">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedDoc(null)} />
-          <div className="relative w-full max-w-xl bg-[#0B0F1A] border-l border-white/10 h-full p-10 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto">
-            <button onClick={() => setSelectedDoc(null)} className="absolute top-10 right-10 text-slate-500 hover:text-white"><X size={32}/></button>
-            <div className="mb-10 mt-6">
-              <span className="text-blue-500 font-black uppercase text-[10px] tracking-widest italic">{selectedDoc.metadata.reference}</span>
-              <h2 className="text-4xl font-black uppercase italic mt-2 leading-none">{selectedDoc.metadata.title}</h2>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <InfoItem label="Processus" value={selectedDoc.metadata.processus} />
-                <InfoItem label="Catégorie" value={selectedDoc.metadata.category} />
-                <InfoItem label="Conservation" value={`${selectedDoc.metadata.retentionPeriod} Ans`} />
-                <InfoItem label="Dernière Modif." value={format(new Date(selectedDoc.metadata.modificationDate), 'dd/MM/yyyy')} />
-              </div>
-              <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
-                <h4 className="text-[10px] font-black text-slate-500 uppercase italic">Contrôle de Version (§7.5.3)</h4>
-                <div className="space-y-3 text-xs font-bold uppercase italic">
-                  <p className="flex justify-between">Auteur <span className="text-blue-400">{selectedDoc.metadata.author}</span></p>
-                  <p className="flex justify-between">Status Document <span className="text-emerald-500">{selectedDoc.status}</span></p>
-                </div>
-              </div>
-              <button className="w-full py-5 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black uppercase text-xs italic flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-900/40">
-                <Download size={18} /> Télécharger Version V{selectedDoc.metadata.version}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DocumentUploadModal({ onClose, onSuccess }: any) {
-  const [loading, setLoading] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  
-  // ✅ CLÉS SYNCHRONISÉES AVEC PRISMA
-  const [formData, setFormData] = useState({
-    DOC_Title: '',
-    DOC_Reference: '',
-    DOC_Category: 'PROCEDURE',
-    DOC_Description: '',
-    DOC_ReviewFrequencyMonths: 12
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 4. SOUMISSION & AUTO-REFRESH
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!file) return toast.error("Pièce jointe obligatoire");
+    if (!selectedFile) return toast.error("FICHIER PHYSIQUE REQUIS (§7.5.3)");
 
-    setLoading(true);
-    const data = new FormData();
-    data.append('file', file);
-    data.append('metadata', JSON.stringify(formData));
+    const formData = new FormData(e.currentTarget);
+    formData.append('file', selectedFile);
+    
+    if (!formData.get('DOC_Reference')) {
+      formData.set('DOC_Reference', nextAutoRef);
+    }
 
+    const tid = toast.loading("INDEXATION DANS LE SMI...");
     try {
-      await apiClient.post('/documents/upload-iso', data, {
+      await apiClient.post('/documents', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      toast.success("Certifié & Téléversé");
-      onSuccess();
-      onClose();
+      
+      toast.success("DOCUMENT INDEXÉ AVEC SUCCÈS", { id: tid });
+      setIsModalOpen(false);
+      setSelectedFile(null);
+      await fetchData(); // Force l'affichage immédiat
+
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erreur critique de transmission");
-    } finally {
-      setLoading(false);
+      toast.error(err.response?.data?.message || "ERREUR DE RÉCEPTION", { id: tid });
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-200 flex items-center justify-center p-6">
-      <div className="bg-[#0B0F1A] border border-white/10 p-12 rounded-[3rem] w-full max-w-3xl relative shadow-4xl animate-in zoom-in-95 duration-300 italic font-bold">
-        <button onClick={onClose} className="absolute top-10 right-10 text-slate-500 hover:text-white"><X size={32}/></button>
-        <h2 className="text-4xl font-black uppercase italic mb-8 tracking-tighter">Initialisation <span className="text-blue-600 italic">Documentaire</span></h2>
-        
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <div className="space-y-1">
-              <label className="text-[10px] text-slate-500 uppercase ml-2 italic font-black">Référence Normative</label>
-              <input required className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-xs uppercase outline-none focus:border-blue-500" 
-                value={formData.DOC_Reference} onChange={e => setFormData({...formData, DOC_Reference: e.target.value.toUpperCase()})} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] text-slate-500 uppercase ml-2 italic font-black">Titre (DOC_Title)</label>
-              <input required className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-xs uppercase outline-none focus:border-blue-500" 
-                value={formData.DOC_Title} onChange={e => setFormData({...formData, DOC_Title: e.target.value})} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <select className="bg-white/5 border border-white/10 p-4 rounded-2xl text-[10px] uppercase outline-none" value={formData.DOC_Category} onChange={e => setFormData({...formData, DOC_Category: e.target.value as any})}>
-                <option value="PROCEDURE">PROCÉDURE</option>
-                <option value="MANUEL">MANUEL</option>
-                <option value="ENREGISTREMENT">ENREGISTREMENT</option>
-              </select>
-              <input type="number" className="bg-white/5 border border-white/10 p-4 rounded-2xl text-[10px] uppercase" 
-                value={formData.DOC_ReviewFrequencyMonths} onChange={e => setFormData({...formData, DOC_ReviewFrequencyMonths: parseInt(e.target.value)})} />
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="relative group">
-              <input type="file" id="file-upload" className="hidden" onChange={e => e.target.files && setFile(e.target.files[0])} />
-              <label htmlFor="file-upload" className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-white/10 rounded-3xl hover:border-blue-500 transition-all cursor-pointer">
-                <FileUp size={40} className={file ? "text-emerald-500" : "text-slate-600"} />
-                <p className="text-[10px] font-black uppercase mt-4 text-center">{file ? file.name : "Joindre Fichier ISO"}</p>
-              </label>
-            </div>
-            <textarea className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-xs uppercase h-20 outline-none" placeholder="Notes de révision..." 
-              value={formData.DOC_Description} onChange={e => setFormData({...formData, DOC_Description: e.target.value})} />
-            <button type="submit" disabled={loading} className="w-full py-6 bg-blue-600 rounded-3xl font-black uppercase text-xs italic flex items-center justify-center gap-3">
-              {loading ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={20}/> Valider le Dépôt</>}
-            </button>
-          </div>
-        </form>
-      </div>
+  if (loading && documents.length === 0) return (
+    <div className="ml-72 flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-600 font-black italic uppercase tracking-[0.5em]">
+       <Loader2 className="animate-spin mr-6" size={48} /> NOYAU GED ACTIF...
     </div>
   );
-}
 
-function InfoItem({ label, value }: any) {
   return (
-    <div className="bg-white/2 p-4 rounded-2xl border border-white/5 italic">
-      <p className="text-[8px] text-slate-500 uppercase font-black mb-1">{label}</p>
-      <p className="text-xs font-black text-white uppercase truncate">{value || 'NON DÉFINI'}</p>
+    <div className="min-h-screen bg-[#0B0F1A] text-white italic font-sans ml-72 flex flex-col uppercase font-black overflow-x-hidden relative">
+      <style jsx global>{`::-webkit-scrollbar { display: none !important; }`}</style>
+
+      {/* HEADER COCKPIT */}
+      <header className="p-10 border-b border-white/5 flex justify-between items-center sticky top-0 bg-[#0B0F1A]/95 backdrop-blur-3xl z-40">
+        <div>
+          <h1 className="text-5xl tracking-tighter italic leading-none">SYSTÈME <span className="text-blue-600">GED</span></h1>
+          <p className="text-slate-500 text-[10px] tracking-[0.4em] mt-3 flex items-center gap-2 italic">
+            <ShieldCheck size={14} className="text-emerald-500" /> ISO 9001 §7.5 • MAÎTRISE DOCUMENTAIRE
+          </p>
+        </div>
+        <div className="flex gap-6">
+          <div className="relative w-80">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <input 
+              placeholder="RECHERCHER RÉFÉRENCE OU TITRE..." 
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-[11px] outline-none focus:border-blue-600 transition-all font-black italic uppercase"
+              value={search} onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-500 px-10 py-4 rounded-2xl text-[10px] flex items-center gap-3 transition-all active:scale-95 shadow-3xl shadow-blue-900/40"
+          >
+            <Plus size={20} strokeWidth={3} /> NOUVEAU DOCUMENT
+          </button>
+        </div>
+      </header>
+
+      <main className="p-10 space-y-12 flex-1">
+        
+        {/* KPI SECTION */}
+        <section className="grid grid-cols-4 gap-8">
+          <MetricCard title="Documents" val={stats.total} icon={FileText} color="blue" />
+          <MetricCard title="Approuvés" val={stats.approved} icon={CheckCircle2} color="emerald" />
+          <MetricCard title="En Revue" val={stats.review} icon={History} color="amber" />
+          <MetricCard title="Archivés" val={stats.archived} icon={Archive} color="slate" />
+        </section>
+
+        {/* FILTRES D'AFFICHAGE */}
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {['ALL', 'PROCEDURE', 'MANUEL', 'ENREGISTREMENT', 'CONSIGNE', 'RAPPORT'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={cn(
+                "px-6 py-3 rounded-xl text-[9px] font-black transition-all border whitespace-nowrap uppercase italic",
+                categoryFilter === cat ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-900/40" : "bg-white/5 border-white/10 text-slate-500 hover:border-blue-600"
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* REGISTRE SMI */}
+        <div className="bg-slate-900/20 border border-white/5 rounded-[3.5rem] overflow-hidden backdrop-blur-xl shadow-2xl">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-[10px] text-slate-600 border-b border-white/5 italic font-black uppercase">
+                <th className="p-10">RÉFÉRENCE / TITRE</th>
+                <th className="p-10">PROCHAINE REVUE</th>
+                <th className="p-10">VERSION</th>
+                <th className="p-10">STATUT</th>
+                <th className="p-10 text-right">PILOTAGE</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filteredDocs.map((doc) => (
+                <tr key={doc.DOC_Id} className="hover:bg-blue-600/5 transition-all group animate-in fade-in duration-500">
+                  <td className="p-10">
+                    <p className="text-[10px] text-blue-500 mb-1 font-black">{doc.DOC_Reference}</p>
+                    <p className="text-sm text-white font-black">{doc.DOC_Title}</p>
+                    <p className="text-[9px] text-slate-600 lowercase mt-1 font-bold">{doc.DOC_Category}</p>
+                  </td>
+                  <td className="p-10 text-[10px] text-amber-500/80 font-black">
+                     {doc.DOC_NextReviewDate ? new Date(doc.DOC_NextReviewDate).toLocaleDateString() : '---'}
+                  </td>
+                  <td className="p-10 font-black text-slate-400 text-sm italic">V{doc.DOC_CurrentVersion}</td>
+                  <td className="p-10">
+                    <StatusBadge status={doc.DOC_Status} />
+                  </td>
+                  <td className="p-10 text-right">
+                    <div className="flex justify-end gap-3">
+                      <button className="p-4 bg-white/5 hover:bg-blue-600 transition-all rounded-2xl text-slate-400 hover:text-white"><Eye size={18}/></button>
+                      <button className="p-4 bg-white/5 hover:bg-emerald-600 transition-all rounded-2xl text-slate-400 hover:text-white"><Download size={18}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </main>
+
+      {/* MODALE D'INDEXATION */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6">
+          <form 
+            onSubmit={handleSubmit}
+            className="bg-[#0B0F1A] border border-white/10 rounded-[4rem] w-full max-w-2xl p-12 space-y-8 animate-in zoom-in-95 duration-200"
+          >
+            <div className="flex justify-between items-center border-b border-white/5 pb-10">
+               <h2 className="text-3xl italic">INDEXATION <span className="text-blue-600">SMI</span></h2>
+               <button type="button" onClick={() => setIsModalOpen(false)} className="p-4 hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-all rounded-full"><X size={36}/></button>
+            </div>
+
+            <div className="space-y-6 text-left">
+              <div className="grid grid-cols-2 gap-10">
+                <div className="space-y-3">
+                  <label className="text-[10px] text-slate-500 ml-5 italic">CATÉGORIE *</label>
+                  <select required name="DOC_Category" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-[11px] text-white outline-none focus:border-blue-600 font-black uppercase italic">
+                    <option value="PROCEDURE">PROCÉDURE</option>
+                    <option value="MANUEL">MANUEL QUALITÉ</option>
+                    <option value="ENREGISTREMENT">ENREGISTREMENT</option>
+                  </select>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] text-slate-500 ml-5 italic">RÉFÉRENCE (AUTO)</label>
+                  <div className="relative">
+                    <input name="DOC_Reference" className="w-full bg-blue-600/5 border border-blue-600/20 p-5 rounded-2xl text-[11px] text-blue-400 outline-none font-black uppercase italic" placeholder={nextAutoRef} />
+                    <Hash className="absolute right-5 top-1/2 -translate-y-1/2 text-blue-600/30" size={16} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] text-slate-500 ml-5 italic">TITRE DU DOCUMENT *</label>
+                <input required name="DOC_Title" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-[11px] text-white outline-none focus:border-blue-600 uppercase font-black italic" placeholder="DÉSIGNATION OFFICIELLE..." />
+              </div>
+
+              <div className="relative group mt-6">
+                <label 
+                  htmlFor="ged-upload"
+                  className={cn(
+                    "flex flex-col items-center justify-center border-2 border-dashed rounded-[2.5rem] p-12 transition-all cursor-pointer bg-blue-600/5",
+                    selectedFile ? "border-emerald-500 bg-emerald-500/5" : "border-white/10 hover:border-blue-600"
+                  )}
+                >
+                  <FileUp size={48} className={cn("mb-5 transition-transform group-hover:scale-110", selectedFile ? "text-emerald-500 animate-pulse" : "text-blue-500")} />
+                  <p className="text-[10px] text-slate-400 font-black italic uppercase text-center tracking-widest px-6">
+                    {selectedFile ? `CAPTÉR : ${selectedFile.name}` : "DÉPOSER LE FICHIER PDF / DOCX (§7.5.3)"}
+                  </p>
+                </label>
+                <input id="ged-upload" type="file" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="w-full bg-blue-600 py-8 rounded-[2rem] font-black text-xs tracking-[0.5em] flex items-center justify-center gap-4 hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/30 active:scale-95 italic"
+            >
+              <Save size={24}/> VALIDER L&apos;INDEXATION
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

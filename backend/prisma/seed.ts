@@ -1,221 +1,79 @@
-import { 
-  PrismaClient, ProcessFamily, DocCategory, DocStatus, TierType, Role, 
-  PartyType, ContextType, ObjectiveStatus, PAQStatus, Plan, SubscriptionStatus, 
-  ActionOrigin, ActionType, ActionStatus, Priority, SSEType, MeetingStatus, 
-  IVStatus, ReviewStatus, RiskStatus, GovernanceType, ActivityStatus 
-} from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
-
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-const hashPassword = async (password: string): Promise<string> => {
-  return await bcrypt.hash(password, 10);
-};
-
 async function main() {
-  console.log('🚀 INITIALISATION GÉNÉRALE : QUALISOFT HUB & SAGAM ELECTRONICS\n');
+  console.log('🚀 Connexion au Noyau SAGAM ELECTRONICS...');
 
-  try {
-    // ==========================================
-    // 1. TENANT QUALISOFT (SMI CENTRAL)
-    // ==========================================
-    const qualisoft = await prisma.tenant.upsert({
-      where: { T_Email: 'ab.thiongane@qualisoft.sn' },
-      update: {},
-      create: {
-        T_Id: randomUUID(),
-        T_Name: 'Qualisoft',
-        T_Email: 'ab.thiongane@qualisoft.sn',
-        T_Domain: 'qualisoft.sn',
-        T_Plan: Plan.GROUPE,
-        T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
-        T_Address: 'Villa 247, Cité Cheikh Hann, Dakar, Sénégal',
-        T_CeoName: 'M. Abdoulaye THIONGANE',
-      },
-    });
+  // 1. Récupération du Tenant existant
+  const tenant = await prisma.tenant.findFirst({
+    where: { T_Name: "SAGAM ELECTRONICS" }
+  });
 
-    const qId = qualisoft.T_Id;
+  if (!tenant) {
+    console.error("❌ Erreur : Tenant 'SAGAM ELECTRONICS' introuvable. Vérifiez le nom en base.");
+    return;
+  }
 
-    // Sites Qualisoft
-    const qSite = await prisma.site.upsert({
-      where: { S_Id: 'q-site-hann' },
-      update: {},
-      create: { S_Id: 'q-site-hann', S_Name: 'Dakar - Siège Social (Hann)', S_Country: 'Sénégal', tenantId: qId }
-    });
+  // 2. Récupération de l'administrateur Pierre Ndiaye
+  const admin = await prisma.user.findUnique({
+    where: { U_Email: "pierre.ndiaye@sagam.sn" }
+  });
 
-    // Admin Qualisoft
-    const qAdminPwd = await hashPassword('mohamed1965ab1711@');
-    const qAdmin = await prisma.user.upsert({
-      where: { U_Email: 'ab.thiongane@qualisoft.sn' },
-      update: { U_PasswordHash: qAdminPwd },
-      create: {
-        U_Email: 'ab.thiongane@qualisoft.sn',
-        U_PasswordHash: qAdminPwd,
-        U_FirstName: 'Abdoulaye',
-        U_LastName: 'THIONGANE',
-        U_Role: Role.SUPER_ADMIN,
-        tenantId: qId,
-        U_SiteId: qSite.S_Id,
+  if (!admin) {
+    console.error("❌ Erreur : Utilisateur 'pierre.ndiaye@sagam.sn' introuvable.");
+    return;
+  }
+
+  console.log(`📡 Ciblage : ${tenant.T_Name} | Pilote : ${admin.U_FirstName} ${admin.U_LastName}`);
+
+  // 3. Nettoyage des anciennes formations pour ce tenant (Traçabilité)
+  await prisma.formation.deleteMany({
+    where: { tenantId: tenant.T_Id }
+  });
+
+  // 4. Scénarios de formation 2026
+  const trainingData = [
+    {
+      FOR_Title: "SÉCURITÉ DES SYSTÈMES ÉLECTRONIQUES - AVANCÉ",
+      FOR_Date: new Date('2026-02-15'),
+      FOR_Status: "TERMINE",
+      FOR_Expiry: new Date('2028-02-15'),
+      FOR_Provider: "INTERNE SAGAM",
+    },
+    {
+      FOR_Title: "AUDITEUR INTERNE ISO 9001:2015",
+      FOR_Date: new Date('2026-05-20'),
+      FOR_Status: "PLANIFIE",
+      FOR_Provider: "BUREAU VERITAS",
+    },
+    {
+      FOR_Title: "HABILITATION ÉLECTRIQUE B2V - RECYCLAGE",
+      FOR_Date: new Date('2024-01-10'),
+      FOR_Expiry: new Date('2026-01-10'), // 🔴 EXPIREE (Alerte rouge au tableau de bord)
+      FOR_Status: "TERMINE",
+      FOR_Provider: "APAVE SÉNÉGAL",
+    }
+  ];
+
+  for (const f of trainingData) {
+    await prisma.formation.create({
+      data: {
+        ...f,
+        tenantId: tenant.T_Id,
+        FOR_UserId: admin.U_Id,
+        FOR_IsActive: true
       }
     });
-
-    // Types & Unités Qualisoft
-    const qTypePilot = await prisma.processType.upsert({
-      where: { PT_Label_tenantId: { PT_Label: 'PILOTAGE', tenantId: qId } },
-      update: {},
-      create: { PT_Label: 'PILOTAGE', PT_Family: ProcessFamily.PILOTAGE, tenantId: qId }
-    });
-
-    // 10 Processus Qualisoft (ISO 9001:2015)
-    const qProcesses = [
-      { code: 'PR-QS-01', lib: 'Contexte & Leadership' },
-      { code: 'PR-QS-02', lib: 'Ressources & Compétences' },
-      { code: 'PR-QS-03', lib: 'Relations Clients' },
-      { code: 'PR-QS-04', lib: 'Appro & Fournisseurs' },
-      { code: 'PR-QS-05', lib: 'Production' },
-      { code: 'PR-QS-06', lib: 'Maintenance' },
-      { code: 'PR-QS-07', lib: 'Surveillance & Mesure' },
-      { code: 'PR-QS-08', lib: 'Revues de Direction' },
-      { code: 'PR-QS-09', lib: 'Non-Conformités' },
-      { code: 'PR-QS-10', lib: 'Amélioration Continue' },
-    ];
-
-    for (const p of qProcesses) {
-      await prisma.processus.upsert({
-        where: { PR_Code_tenantId: { PR_Code: p.code, tenantId: qId } },
-        update: {},
-        create: { PR_Code: p.code, PR_Libelle: p.lib, PR_TypeId: qTypePilot.PT_Id, PR_PiloteId: qAdmin.U_Id, tenantId: qId }
-      });
-    }
-
-    // ==========================================
-    // 2. TENANT SAGAM ELECTRONICS (DÉPLOIEMENT)
-    // ==========================================
-    console.log('--- 🛡️ DÉPLOIEMENT SAGAM ELECTRONICS ---');
-
-    const sagamPwd = await hashPassword('sagam@2026');
-    const sagam = await prisma.tenant.upsert({
-      where: { T_Email: 'sagam@sagam.sn' },
-      update: { T_Name: 'SAGAM ELECTRONICS', T_Plan: Plan.ENTREPRISE },
-      create: {
-        T_Id: randomUUID(),
-        T_Name: 'SAGAM ELECTRONICS',
-        T_Email: 'sagam@sagam.sn',
-        T_Domain: 'sagam.sn',
-        T_Plan: Plan.ENTREPRISE,
-        T_SubscriptionStatus: SubscriptionStatus.TRIAL,
-        T_CeoName: 'Directeur Général SAGAM',
-      },
-    });
-
-    const sId = sagam.T_Id;
-
-    const sSite = await prisma.site.upsert({
-      where: { S_Id: 'sagam-dakar-id' },
-      update: {},
-      create: { S_Id: 'sagam-dakar-id', S_Name: 'Siège Social Dakar', tenantId: sId }
-    });
-
-    // 10 Utilisateurs SAGAM
-    const sUsers = [
-      { email: 'sagam@sagam.sn', first: 'PIERRE', last: 'NDIAYE', role: Role.ADMIN },
-      { email: 'm.diouf@sagam.sn', first: 'MARGUERITE', last: 'DIOUF', role: Role.USER },
-      { email: 'omar.mbengue@sagam.sn', first: 'OMAR', last: 'MBENGUE', role: Role.PILOTE },
-      { email: 'thierno.ndiaye@sagam.sn', first: 'THIERNO', last: 'NDIAYE', role: Role.PILOTE },
-      { email: 'lamine.dieng@sagam.sn', first: 'LAMINE', last: 'DIENG', role: Role.PILOTE },
-      { email: 'besset.thiam@sagam.sn', first: 'BESSET', last: 'THIAM', role: Role.PILOTE },
-      { email: 'amadou.dem@sagam.sn', first: 'AMADOU', last: 'DEM', role: Role.PILOTE },
-      { email: 'oumar.ouattara@sagam.sn', first: 'OUMAR', last: 'OUATTARA', role: Role.PILOTE },
-      { email: 'lamine.sao@sagam.sn', first: 'LAMINE', last: 'SAO', role: Role.PILOTE },
-      { email: 'hawa.ndiaye@sagam.sn', first: 'HAWA', last: 'NDIAYE', role: Role.PILOTE },
-    ];
-
-    const sUserMap = new Map();
-    for (const u of sUsers) {
-      const created = await prisma.user.upsert({
-        where: { U_Email: u.email },
-        update: { U_Role: u.role, U_PasswordHash: sagamPwd },
-        create: {
-          U_Email: u.email, U_PasswordHash: sagamPwd, U_FirstName: u.first,
-          U_LastName: u.last, U_Role: u.role, tenantId: sId, U_SiteId: sSite.S_Id
-        }
-      });
-      sUserMap.set(`${u.first} ${u.last}`, created.U_Id);
-    }
-
-    const sPType = await prisma.processType.upsert({
-      where: { PT_Label_tenantId: { PT_Label: 'Métier', tenantId: sId } },
-      update: {},
-      create: { PT_Label: 'Métier', PT_Family: ProcessFamily.OPERATIONNEL, tenantId: sId }
-    });
-
-    const sRType = await prisma.riskType.upsert({
-      where: { RT_Label_tenantId: { RT_Label: 'Opérationnel', tenantId: sId } },
-      update: {},
-      create: { RT_Label: 'Opérationnel', tenantId: sId }
-    });
-
-    // Nettoyage processus SAGAM pour ré-injection propre
-    await prisma.processus.deleteMany({ where: { tenantId: sId } });
-
-    // Les 8 Processus Métiers SAGAM avec KPI et Risques
-    const sProcesses = [
-      { code: 'PSMQ', lib: 'Pilotage Qualité', pilot: 'PIERRE NDIAYE', kpi: 'Conformité', target: 95, risk: 'Ecart stratégique' },
-      { code: 'IT', lib: 'Système IT', pilot: 'THIERNO NDIAYE', kpi: 'Uptime', target: 99.9, risk: 'Cyber-attaque' },
-      { code: 'DCM', lib: 'Commercial & Marketing', pilot: 'OMAR MBENGUE', kpi: 'Conversion', target: 15, risk: 'Perte Client' },
-      { code: 'DE', lib: 'Etudes', pilot: 'BESSET THIAM', kpi: 'Délais', target: 90, risk: 'Erreur Conception' },
-      { code: 'DO', lib: 'Opérations', pilot: 'AMADOU DEM', kpi: 'Productivité', target: 85, risk: 'Panne Machine' },
-      { code: 'DFC', lib: 'Finances', pilot: 'LAMINE DIENG', kpi: 'Trésorerie', target: 100, risk: 'Impayés' },
-      { code: 'RH', lib: 'Ressources Humaines', pilot: 'HAWA NDIAYE', kpi: 'Turnover', target: 5, risk: 'Climat social' },
-      { code: 'AA', lib: 'Appro & Achat', pilot: 'LAMINE SAO', kpi: 'Délai Livr.', target: 98, risk: 'Rupture Stock' },
-    ];
-
-    for (const p of sProcesses) {
-      const pilotId = sUserMap.get(p.pilot);
-      if (!pilotId) continue;
-
-      await prisma.processus.create({
-        data: {
-          PR_Code: p.code,
-          PR_Libelle: p.lib,
-          PR_TypeId: sPType.PT_Id,
-          PR_PiloteId: pilotId,
-          tenantId: sId,
-          PR_Indicators: {
-            create: {
-              IND_Code: `KPI-${p.code}`,
-              IND_Libelle: p.kpi,
-              IND_Unite: '%',
-              IND_Cible: p.target,
-              tenantId: sId,
-              IND_Values: { create: { IV_Month: 1, IV_Year: 2026, IV_Actual: p.target - 2 } }
-            }
-          },
-          PR_Risks: {
-            create: {
-              RS_Libelle: p.risk,
-              RS_TypeId: sRType.RT_Id,
-              RS_Probabilite: 2,
-              RS_Gravite: 3,
-              RS_Score: 6,
-              tenantId: sId
-            }
-          }
-        }
-      });
-    }
-
-    console.log('\n✨ TOUS LES SYSTÈMES SONT EN LIGNE.');
-    console.log('🔑 Qualisoft: ab.thiongane@qualisoft.sn / mohamed1965ab1711@');
-    console.log('🔑 SAGAM: sagam@sagam.sn / sagam@2026');
-
-  } catch (e) {
-    console.error('❌ ERREUR FATALE SEED:', e);
-    throw e;
   }
+
+  console.log('✅ Plan de formation SAGAM ELECTRONICS mis à jour.');
 }
 
 main()
-  .catch((e) => process.exit(1))
-  .finally(async () => await prisma.$disconnect());
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

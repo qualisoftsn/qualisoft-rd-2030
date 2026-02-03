@@ -1,18 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState } from 'react';
 import apiClient from '@/core/api/api-client';
-import { X, Save, Loader2, AlertTriangle, Users, MapPin, Calendar as CalendarIcon } from 'lucide-react';
+import { X, Save, Loader2, AlertTriangle, MapPin, Calendar, ShieldAlert } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-interface IncidentFormProps {
-  onClose: () => void;
-  onSuccess: () => void;
-  sites: any[];
-  users: any[];
-}
-
-export default function IncidentForm({ onClose, onSuccess, sites, users }: IncidentFormProps) {
+export default function IncidentForm({ onClose, onSuccess, sites, users }: any) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     SSE_Type: 'DOMMAGE_MATERIEL',
@@ -22,218 +17,121 @@ export default function IncidentForm({ onClose, onSuccess, sites, users }: Incid
     SSE_AvecArret: false,
     SSE_NbJoursArret: 0,
     SSE_SiteId: sites[0]?.S_Id || '',
-    SSE_ProcessusId: '',
     SSE_ReporterId: '',
     SSE_VictimId: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.SSE_ReporterId) return toast.error("VEUILLEZ SÉLECTIONNER UN REPORTER");
+    
     setLoading(true);
+    const toastId = toast.loading("INDEXATION INCIDENT §10.2...");
+    
     try {
-      // Validation
-      if (!formData.SSE_Lieu.trim()) {
-        toast.error('Le lieu est obligatoire');
-        return;
-      }
-      if (!formData.SSE_Description.trim()) {
-        toast.error('La description est obligatoire');
-        return;
-      }
-      if (formData.SSE_AvecArret && formData.SSE_NbJoursArret <= 0) {
-        toast.error('Le nombre de jours d\'arrêt doit être supérieur à 0');
-        return;
-      }
+      // ✅ CORRECTION CRITIQUE DES TYPES POUR ÉVITER L'ERREUR 400
+      const payload = {
+        ...formData,
+        SSE_NbJoursArret: Number(formData.SSE_NbJoursArret), // Force Number
+        SSE_DateEvent: new Date(formData.SSE_DateEvent).toISOString(), // Force ISO
+        SSE_VictimId: formData.SSE_VictimId || null // Gère l'absence de victime
+      };
 
-      await apiClient.post('/sse-events', formData);
-      toast.success("Incident enregistré avec succès");
+      await apiClient.post('/sse', payload);
+      toast.success("INCIDENT ENREGISTRÉ", { id: toastId });
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error("Erreur création incident:", err);
-      toast.error(err.response?.data?.message || "Erreur lors de l'enregistrement");
+      const msg = err.response?.data?.message || "ERREUR DE VALIDATION";
+      toast.error(Array.isArray(msg) ? msg[0] : msg, { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-100 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-3xl rounded-[3rem] shadow-2xl overflow-hidden border border-white/20">
-        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <h2 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900">
-            Nouvel <span className="text-red-600">Incident Environnemental</span>
-          </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors">
-            <X size={24} className="text-slate-400" />
-          </button>
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-500 flex items-center justify-center p-6 italic font-black uppercase">
+      <div className="bg-[#0F172A] w-full max-w-3xl rounded-[4rem] border border-white/10 p-16 space-y-10 shadow-4xl animate-in zoom-in-95 duration-500 overflow-y-auto max-h-[90vh] scrollbar-hide">
+        
+        <div className="flex justify-between items-start border-b border-white/10 pb-8 text-left">
+          <div>
+            <h2 className="text-4xl tracking-tighter text-white italic uppercase leading-none">DÉCLARATION <span className="text-red-500">INCIDENT</span></h2>
+            <p className="text-[10px] text-slate-500 tracking-[0.3em] mt-3 italic">PROTOCOLE D&apos;URGENCE ISO 14001</p>
+          </div>
+          <ShieldAlert className="text-red-500" size={48} />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Type d'incident</label>
-              <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-red-500 outline-none"
-                value={formData.SSE_Type}
-                onChange={(e) => setFormData({...formData, SSE_Type: e.target.value})}
-                required
-              >
-                <option value="DOMMAGE_MATERIEL">Dommage Matériel Environnemental</option>
-                <option value="SITUATION_DANGEREUSE">Situation Dangereuse (Risque Pollution)</option>
-                <option value="PRESQU_ACCIDENT">Presqu'Accident Environnemental</option>
+        <form onSubmit={handleSubmit} className="space-y-8 text-left">
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase">TYPE D&apos;INCIDENT *</label>
+              <select className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase cursor-pointer"
+                value={formData.SSE_Type} onChange={(e) => setFormData({...formData, SSE_Type: e.target.value})}>
+                <option value="DOMMAGE_MATERIEL" className="bg-[#0F172A]">DOMMAGE MATÉRIEL</option>
+                <option value="POLLUTION" className="bg-[#0F172A]">POLLUTION / DÉVERSEMENT</option>
+                <option value="SITUATION_DANGEREUSE" className="bg-[#0F172A]">SITUATION DANGEREUSE</option>
+                <option value="PRESQU_ACCIDENT" className="bg-[#0F172A]">PRESQU&apos;ACCIDENT</option>
               </select>
             </div>
+            <div className="space-y-3">
+              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase">DATE & HEURE *</label>
+              <input type="datetime-local" required className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic"
+                value={formData.SSE_DateEvent} onChange={(e) => setFormData({...formData, SSE_DateEvent: e.target.value})} />
+            </div>
+          </div>
 
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Date & Heure</label>
-              <div className="relative">
-                <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="datetime-local"
-                  className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 font-bold text-slate-700 outline-none"
-                  value={formData.SSE_DateEvent}
-                  onChange={(e) => setFormData({...formData, SSE_DateEvent: e.target.value})}
-                  required
-                />
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase">LIEU PRÉCIS *</label>
+              <input required className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase"
+                value={formData.SSE_Lieu} onChange={(e) => setFormData({...formData, SSE_Lieu: e.target.value})} placeholder="EX: ZONE DE STOCKAGE" />
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase">SITE CONCERNÉ *</label>
+              <select className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase cursor-pointer"
+                value={formData.SSE_SiteId} onChange={(e) => setFormData({...formData, SSE_SiteId: e.target.value})}>
+                {sites.map((s: { S_Id: React.Key | readonly string[] | null | undefined; S_Name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; }) => <option key={s.S_Id} value={s.S_Id} className="bg-[#0F172A]">{s.S_Name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase">REPORTER (DÉCLARANT) *</label>
+              <select required className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase cursor-pointer"
+                value={formData.SSE_ReporterId} onChange={(e) => setFormData({...formData, SSE_ReporterId: e.target.value})}>
+                <option value="" className="bg-[#0F172A]">SÉLECTIONNER...</option>
+                {users.map((u: { U_Id: React.Key | readonly string[] | null | undefined; U_FirstName: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; U_LastName: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; }) => <option key={u.U_Id} value={u.U_Id} className="bg-[#0F172A]">{u.U_FirstName} {u.U_LastName}</option>)}
+              </select>
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase italic">AVEC ARRÊT DE TRAVAIL ?</label>
+              <div className="flex gap-4">
+                <button type="button" onClick={() => setFormData({...formData, SSE_AvecArret: !formData.SSE_AvecArret})} 
+                  className={`flex-1 p-6 rounded-4xl border transition-all ${formData.SSE_AvecArret ? 'bg-red-600 border-red-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>
+                  {formData.SSE_AvecArret ? 'OUI (CRITIQUE)' : 'NON (MINEUR)'}
+                </button>
+                {formData.SSE_AvecArret && (
+                  <input type="number" className="w-24 bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white text-center font-black"
+                    value={formData.SSE_NbJoursArret} onChange={(e) => setFormData({...formData, SSE_NbJoursArret: parseInt(e.target.value) || 0})} />
+                )}
               </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Lieu Précis</label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text"
-                required
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 font-bold text-slate-700 outline-none"
-                placeholder="Ex: Zone de stockage produits chimiques, Atelier peinture..."
-                value={formData.SSE_Lieu}
-                onChange={(e) => setFormData({...formData, SSE_Lieu: e.target.value})}
-              />
-            </div>
+          <div className="space-y-3">
+            <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase italic">DESCRIPTION DÉTAILLÉE DES FAITS (§10.2)</label>
+            <textarea required className="w-full bg-white/5 border border-white/10 p-8 rounded-[3rem] text-sm text-white outline-none h-40 focus:border-red-500 resize-none font-black italic uppercase leading-relaxed"
+              value={formData.SSE_Description} onChange={(e) => setFormData({...formData, SSE_Description: e.target.value})} placeholder="DÉCRIVEZ L'INCIDENT ET LES MESURES IMMÉDIATES..." />
           </div>
 
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Description Détaillée</label>
-            <textarea 
-              required
-              className="w-full bg-slate-50 border-none rounded-3xl p-5 font-medium text-slate-700 h-40 outline-none"
-              placeholder="Décrivez précisément l'incident : nature du dommage, produits impliqués, impacts potentiels sur l'environnement (sol, eau, air), mesures immédiates prises..."
-              value={formData.SSE_Description}
-              onChange={(e) => setFormData({...formData, SSE_Description: e.target.value})}
-            />
-            <p className="text-[9px] text-slate-500 mt-1 italic">
-              ⚠️ Cette description sera utilisée pour l'analyse des causes et la mise en place d'actions correctives conformément à l'ISO 14001 §10.2
-            </p>
+          <div className="flex flex-col gap-6 pt-6">
+            <button type="submit" disabled={loading} className="w-full bg-red-600 py-8 rounded-[3rem] font-black uppercase text-white shadow-3xl hover:bg-red-500 transition-all flex items-center justify-center gap-4 active:scale-95 italic tracking-widest">
+              {loading ? <Loader2 className="animate-spin" /> : <Save size={24} />}
+              VALIDER LA DÉCLARATION
+            </button>
+            <button type="button" onClick={onClose} className="w-full text-[11px] text-slate-600 text-center hover:text-white transition-colors tracking-[0.5em] font-black italic">ABANDONNER</button>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Site Concerné</label>
-              <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-red-500 outline-none"
-                value={formData.SSE_SiteId}
-                onChange={(e) => setFormData({...formData, SSE_SiteId: e.target.value})}
-                required
-              >
-                {sites.map(site => (
-                  <option key={site.S_Id} value={site.S_Id}>{site.S_Name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Processus Impacté (optionnel)</label>
-              <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none"
-                value={formData.SSE_ProcessusId}
-                onChange={(e) => setFormData({...formData, SSE_ProcessusId: e.target.value})}
-              >
-                <option value="">Aucun processus spécifique</option>
-                {/* Processus seront chargés dynamiquement si nécessaire */}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Reporter</label>
-              <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none"
-                value={formData.SSE_ReporterId}
-                onChange={(e) => setFormData({...formData, SSE_ReporterId: e.target.value})}
-              >
-                <option value="">Sélectionner le reporter</option>
-                {users.map(user => (
-                  <option key={user.U_Id} value={user.U_Id}>
-                    {user.U_FirstName} {user.U_LastName} ({user.U_Email})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Victime (si applicable)</label>
-              <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none"
-                value={formData.SSE_VictimId}
-                onChange={(e) => setFormData({...formData, SSE_VictimId: e.target.value})}
-              >
-                <option value="">Aucune victime</option>
-                {users.map(user => (
-                  <option key={user.U_Id} value={user.U_Id}>
-                    {user.U_FirstName} {user.U_LastName}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 bg-amber-50/50 p-4 rounded-2xl border border-amber-100">
-            <input 
-              type="checkbox"
-              id="avecArret"
-              className="w-6 h-6 rounded-lg text-red-600 focus:ring-red-500 border-amber-200"
-              checked={formData.SSE_AvecArret}
-              onChange={(e) => setFormData({...formData, SSE_AvecArret: e.target.checked})}
-            />
-            <label htmlFor="avecArret" className="font-black italic uppercase text-xs text-amber-800 tracking-tight leading-none">
-              Cet incident a entraîné un arrêt de travail
-            </label>
-            {formData.SSE_AvecArret && (
-              <input 
-                type="number"
-                min="1"
-                className="w-24 bg-white border border-amber-200 rounded-xl p-2 font-bold text-red-600 ml-auto outline-none"
-                placeholder="Jours"
-                value={formData.SSE_NbJoursArret || ''}
-                onChange={(e) => setFormData({...formData, SSE_NbJoursArret: parseInt(e.target.value) || 0})}
-              />
-            )}
-          </div>
-
-          <div className="p-4 bg-red-50/50 border border-red-100 rounded-xl">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-600 mt-1 flex-shrink-0" size={20} />
-              <div>
-                <p className="font-black text-red-800 text-[10px] uppercase tracking-widest mb-1">OBLIGATION RÉGLEMENTAIRE</p>
-                <p className="text-[9px] text-red-700 italic">
-                  Conformément à l'article L.132-3 du Code de l'Environnement, tout incident ayant un impact significatif sur l'environnement doit être déclaré aux autorités compétentes dans les 48 heures. Cochez cette case si l'incident nécessite une déclaration réglementaire.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-red-600 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-            Enregistrer l'Incident Environnemental
-          </button>
         </form>
       </div>
     </div>

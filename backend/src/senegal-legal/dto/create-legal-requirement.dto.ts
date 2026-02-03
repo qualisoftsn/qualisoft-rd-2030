@@ -1,54 +1,39 @@
-import { 
-  IsString, 
-  IsOptional, 
-  IsEnum, 
-  IsDate, 
-  IsBoolean,
-  IsArray,
-  ArrayMinSize
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsNotEmpty, IsOptional, IsISO8601 } from 'class-validator';
 
-export class CreateLegalRequirementDto {
+/**
+ * Data Transfer Object pour la création d'une exigence légale
+ * Assure la conformité des données entrantes avec le schéma Prisma
+ */
+export class CreateRequirementDto {
   @IsString()
+  @IsNotEmpty()
   SLR_Category!: string;
 
   @IsString()
+  @IsNotEmpty()
   SLR_Title!: string;
 
   @IsString()
-  SLR_Description!: string;
+  @IsOptional()
+  SLR_Description?: string;
 
   @IsString()
+  @IsNotEmpty()
   SLR_Reference!: string;
 
   @IsString()
+  @IsNotEmpty()
   SLR_Authority!: string;
 
+  @IsISO8601()
   @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  SLR_Deadline?: Date;
+  SLR_Deadline?: string;
 
-  @IsOptional()
   @IsString()
-  SLR_Status?: string;
-
   @IsOptional()
-  @IsString()
   SLR_Evidence?: string;
 
-  @IsOptional()
   @IsString()
-  SLR_Comment?: string;
-
   @IsOptional()
-  @IsArray()
-  @ArrayMinSize(0)
-  actions?: { 
-    ACT_Title: string; 
-    ACT_Type: string; 
-    ACT_ResponsableId: string;
-    ACT_Deadline?: Date;
-  }[];
+  SLR_Comment?: string;
 }

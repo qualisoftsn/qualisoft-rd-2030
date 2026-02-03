@@ -1,4 +1,4 @@
-import { IsString, IsArray, IsDateString, IsOptional, IsUUID, MinLength } from 'class-validator';
+import { IsString, IsArray, IsDateString, IsOptional, IsUUID, MinLength, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCauserieDto {
@@ -11,10 +11,20 @@ export class CreateCauserieDto {
   @IsDateString()
   CS_Date!: string;
 
-  @ApiProperty({ example: 'Discussion sur les nouveaux bacs de recyclage au site A' })
+  @ApiProperty({ example: 'Discussion sur les nouveaux bacs de recyclage' })
   @IsString()
   @IsOptional()
   CS_CompteRendu?: string;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  @IsOptional()
+  CS_IsActive?: boolean;
+
+  @ApiProperty({ example: 'uuid-animateur' })
+  @IsUUID()
+  @IsOptional()
+  CS_AnimateurId?: string; // Optionnel : si vide, on prend l'utilisateur connecté
 
   @ApiProperty({ example: ['uuid-user-1', 'uuid-user-2'] })
   @IsArray()
