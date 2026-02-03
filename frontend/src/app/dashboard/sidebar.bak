@@ -11,7 +11,6 @@ import {
   LayoutDashboard, Leaf, LineChart, LogOut, Map as MapIcon,
   Network, Presentation, RefreshCw, Settings2, ShieldCheck, Star,
   Target, Terminal, Trash2, Truck, UserCircle, Users, Users2, Workflow,
-  Zap // Ajouté pour le pôle Opérations
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,16 +45,16 @@ export default function Sidebar({
   const [tenantName, setTenantName] = useState<string>("Chargement...");
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>("PLATINE ÉLITE");
 
-  // ÉTAT INITIAL : On active tous les groupes pour la vue d'ensemble
+  // 🔓 ÉTAT INITIAL : On garde ta logique d'ouverture complète pour la vue d'ensemble
   const [expandedGroups, setExpandedGroups] = useState<string[]>([
-    "pole-pilotage", "pole-architecture", "pole-operations", "pole-qualite", "pole-hse", "admin", "superadmin"
+    "ch4_ch5", "ch6", "ch7", "ch8", "ch9_ch10", "certification", "ENV-01", "admin", "superadmin"
   ]);
 
   const userRole = useMemo(() => user?.U_Role?.toUpperCase() || "", [user]);
   const isPilote = userRole === "PILOTE" && !!user.assignedProcessId;
 
   useEffect(() => {
-    // Récupération dynamique du Partenaire
+    // 📡 Récupération dynamique du Partenaire
     apiClient.get("/tenants/current")
       .then((res) => {
         setTenantName(res.data.T_Name);
@@ -86,76 +85,86 @@ export default function Sidebar({
     }
   };
 
-  // LOGIQUE PILOTE (Garde inchangée)
-  const getPath = (defaultPath: string, tab: string) =>
-    isPilote ? `/dashboard/processus/cockpit/${user.assignedProcessId}?tab=${tab}` : defaultPath;
-
   const menuGroups: MenuGroup[] = useMemo(() => {
+    const getPath = (defaultPath: string, tab: string) =>
+      isPilote ? `/dashboard/processus/cockpit/${user.assignedProcessId}?tab=${tab}` : defaultPath;
+
     const baseGroups: MenuGroup[] = [
       {
-        // 1. PÔLE PILOTAGE (Stratégie & Direction)
-        id: "pole-pilotage",
-        label: "📊 PILOTAGE & STRATÉGIE",
-        icon: Activity,
+        id: "ch4_ch5",
+        label: "Context & Leadership",
+        icon: Building,
         items: [
           { title: "Tableau de Bord Certification", path: getPath("/dashboard/tb-certif", "Tableau de Certification"), icon: LayoutDashboard, access: "ALL" },
           { title: "Objectifs SMQ", path: "/dashboard/objectifs", icon: Network, access: "ALL" },
           { title: "Gestion PAQ", path: getPath("/dashboard/paq", "PAQs"), icon: Gavel, access: "ALL" },
-          { title: "Alertes & Echéances", path: getPath("/dashboard/alerts", "Alertes et échéances"), icon: AlertTriangle, access: "ALL" },
+          { title: "Gestion des Actions", path: getPath("/dashboard/actions", "ACTIONS"), icon: Gavel, access: "ALL" },
+          { title: "Alertes & Echéances", path: getPath("/dashboard/alerts", "Alertes et échéances"), icon: Gavel, access: "ALL" },
           { title: "Revues Direction", path: "/dashboard/management-review", icon: Presentation, access: "ADMIN" },
+        ],
+      },
+      {
+        id: "ch6",
+        label: "Planning (§6)",
+        icon: Target,
+        items: [
+          { title: "Objectifs & Kpis", path: getPath("/dashboard/objectifs", "KPI"), icon: LineChart, access: "ALL" },
+          { title: "Gestion des Risques", path: getPath("/dashboard/risks", "RISQUES"), icon: Target, access: "ADMIN" },
           { title: "Instances COPIL", path: "/dashboard/gouvernance/copil", icon: Users2, access: "ADMIN" },
         ],
       },
       {
-        // 2. PÔLE ARCHITECTURE (Système & Risques)
-        id: "pole-architecture",
-        label: "🏗️ ARCHITECTURE & RISQUES",
-        icon: GitBranch,
-        items: [
-          { title: "Cartographie", path: "/dashboard/direction", icon: MapIcon, access: "ALL" },
-          { title: "Fiches Processus", path: "/dashboard/processus", icon: GitBranch, access: "ALL" },
-          { title: "Objectifs & Kpis", path: getPath("/dashboard/objectifs", "KPI"), icon: LineChart, access: "ALL" },
-          { title: "Gestion des Risques", path: getPath("/dashboard/risks", "RISQUES"), icon: Target, access: "ADMIN" },
-        ],
-      },
-      {
-        // 3. PÔLE OPÉRATIONS (Amélioration & Logistique)
-        id: "pole-operations",
-        label: "🚀 OPÉRATIONS & AMÉLIORATION",
-        icon: Zap,
-        items: [
-          { title: "Gestion des Actions", path: getPath("/dashboard/actions", "ACTIONS"), icon: Workflow, access: "ALL" },
-          { title: "Tableau de bord Actions", path: "/dashboard/actions-tab", icon: Workflow, access: "ALL" },
-          { title: "Équipements", path: getPath("/dashboard/equipment", "EQUIPEMENTS"), icon: Building2, access: "ALL" },
-          { title: "Tiers (Fournisseurs-Etats)", path: "/dashboard/tiers", icon: Truck, access: "ALL" },
-          { title: "Réclamations", path: "/dashboard/reclamations", icon: Contact, access: "ALL" },
-        ],
-      },
-      {
-        // 4. PÔLE QUALITÉ (Conformité & Documents)
-        id: "pole-qualite",
-        label: "🛡️ QUALITÉ & DOCUMENTS",
-        icon: ShieldCheck,
-        items: [
-          { title: "GED Qualité", path: getPath("/dashboard/ged", "GED"), icon: FolderOpen, access: "ALL" },
-          { title: "Audits Internes", path: "/dashboard/audits", icon: ClipboardCheck, access: "ADMIN" },
-          { title: "Non-Conformités", path: "/dashboard/non-conformites", icon: AlertTriangle, access: "ALL", badge: 3 },
-          { title: "Bibliothèque", path: "/dashboard/bibliotheque", icon: BookOpen, access: "ALL" },
-          { title: "Checklist ISO 9001", path: "/dashboard/checklists/iso9001", icon: Target, access: "ADMIN" },
-          { title: "Checklist ISO 14001", path: "/dashboard/checklists/iso14001", icon: Leaf, access: "ADMIN" },
-          { title: "Légal Sénégal", path: "/dashboard/senegal-legal", icon: FileText, access: "ADMIN" },
-          { title: "Générateur Rapports", path: "/dashboard/audit-center/report-generator", icon: FileText, access: "ADMIN" },
-        ],
-      },
-      {
-        // 5. PÔLE HSE (Ressources & Sécurité)
-        id: "pole-hse",
-        label: "🌱 HSE & COMPÉTENCES",
+        id: "ch7",
+        label: "Support (§7)",
         icon: HardHat,
         items: [
           { title: "GPEC & Compétences", path: getPath("/dashboard/rh", "RH"), icon: Award, access: "ADMIN" },
           { title: "Dossiers RH", path: "/dashboard/users", icon: UserCircle, access: "ADMIN" },
           { title: "Formations", path: "/dashboard/formations", icon: GraduationCap, access: "ADMIN" },
+          { title: "GED Qualité", path: getPath("/dashboard/ged", "GED"), icon: FolderOpen, access: "ALL" },
+          { title: "Bibliothèque", path: "/dashboard/bibliotheque", icon: BookOpen, access: "ALL" },
+          { title: "Équipements", path: getPath("/dashboard/equipment", "EQUIPEMENTS"), icon: Building2, access: "ALL" },
+        ],
+      },
+      {
+        id: "ch8",
+        label: "Opérations (§8)",
+        icon: Activity,
+        items: [
+          { title: "Cartographie", path: "/dashboard/direction", icon: MapIcon, access: "ALL" },
+          { title: "Fiches Processus", path: "/dashboard/processus", icon: GitBranch, access: "ALL" },
+          { title: "Tableau de bord Actions", path: "/dashboard/actions-tab", icon: Workflow, access: "ALL" },
+          { title: "Tiers (Fournisseurs-Etats)", path: "/dashboard/tiers", icon: Truck, access: "ALL" },
+          { title: "Réclamations", path: "/dashboard/reclamations", icon: Contact, access: "ALL" },
+        ],
+      },
+      {
+        id: "ch9_ch10",
+        label: "Performance (§9-10)",
+        icon: RefreshCw,
+        items: [
+          { title: "Indicateurs (KPI)", path: getPath("/dashboard/indicators", "KPI"), icon: Activity, access: "ALL" },
+          { title: "Audits Internes", path: "/dashboard/audits", icon: ClipboardCheck, access: "ADMIN" },
+          { title: "Non-Conformités", path: "/dashboard/non-conformites", icon: AlertTriangle, access: "ALL", badge: 3 },
+          { title: "Archives", path: "/dashboard/archives", icon: FileSearch, access: "ADMIN" },
+        ],
+      },
+      {
+        id: "certification",
+        label: "Certification",
+        icon: ShieldCheck,
+        items: [
+          { title: "Légal Sénégal", path: "/dashboard/senegal-legal", icon: FileText, access: "ADMIN" },
+          { title: "Checklist ISO 9001", path: "/dashboard/checklists/iso9001", icon: Target, access: "ADMIN" },
+          { title: "Checklist ISO 14001", path: "/dashboard/checklists/iso14001", icon: Leaf, access: "ADMIN" },
+          { title: "Générateur Rapports", path: "/dashboard/audit-center/report-generator", icon: FileText, access: "ADMIN" },
+        ],
+      },
+      {
+        id: "ENV-01",
+        label: "Environnement",
+        icon: Leaf,
+        items: [
           { title: "Cockpit SSE", path: "/dashboard/environment", icon: Activity, access: "ADMIN" },
           { title: "Consommations", path: "/dashboard/environment/consumptions", icon: Workflow, access: "ADMIN" },
           { title: "Déchets", path: "/dashboard/environment/wastes", icon: Trash2, access: "ADMIN" },
@@ -164,9 +173,8 @@ export default function Sidebar({
         ],
       },
       {
-        // 6. ADMIN (Technique)
         id: "admin",
-        label: "⚙️ PARAMÈTRES",
+        label: "Paramètres",
         icon: Settings2,
         items: [
           { title: "Utilisateurs", path: "/dashboard/users", icon: Users, access: "ADMIN" },
@@ -182,7 +190,7 @@ export default function Sidebar({
     if (isSuperAdmin) {
       baseGroups.push({
         id: "superadmin",
-        label: "👑 CONSOLE SOUVERAINE",
+        label: "Console Souveraine",
         icon: Crown,
         items: [
           { title: "Master Console", path: "/dashboard/superadmin/console", icon: Terminal, access: "SUPERADMIN" },
@@ -197,11 +205,11 @@ export default function Sidebar({
   const handleLogout = () => { logout(); window.location.href = "/auth/login"; };
 
   return (
-    <aside className="w-80 h-screen bg-[#0F172A] text-white flex flex-col fixed left-0 top-0 z-40 border-r border-white/5 shadow-2xl font-sans overflow-hidden italic">
+    <aside className="w-80 h-screen bg-[#0F172A] text-white flex flex-col fixed left-0 top-0 z-40 border-r border-white/5 shadow-2xl font-sans overflow-hidden">
       
       {/* --- SECTION BRANDING & LOGO --- */}
       <div className="p-6 shrink-0 border-b border-white/5 bg-[#111A2E] relative overflow-hidden">
-        {/* Décor subtil */}
+        {/* Décor subtil en arrière-plan */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex items-center gap-4 mb-6 relative z-10">
@@ -231,7 +239,7 @@ export default function Sidebar({
           </h2>
         </div>
 
-        {/* ✨ PLAN SOUSCRIT CARD */}
+        {/* ✨ PLAN SOUSCRIT CARD (Améliorée) */}
         <div className="relative overflow-hidden rounded-2xl p-[1px] bg-gradient-to-br from-blue-500/50 to-transparent shadow-inner">
           <div className="relative bg-[#0F172A]/80 backdrop-blur-md rounded-xl p-4">
             <div className="flex items-center gap-3">
@@ -268,7 +276,7 @@ export default function Sidebar({
 
           return (
             <div key={group.id} className="space-y-1">
-              {/* Header du groupe (Style Premium) */}
+              {/* Header du groupe (Style Premium Italic conservé pour l'identité) */}
               <button
                 onClick={() => setExpandedGroups(p => p.includes(group.id) ? p.filter(g => g !== group.id) : [...p, group.id])}
                 className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl hover:bg-white/5 transition-all duration-300 group"
@@ -282,10 +290,11 @@ export default function Sidebar({
                 <ChevronDown size={14} className={`text-slate-600 transition-transform duration-300 ${isExpanded ? "rotate-180 text-blue-400" : ""}`} />
               </button>
 
-              {/* Liste des items */}
+              {/* Liste des items (Typographie améliorée pour la lisibilité) */}
               <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
                 <div className="pl-2 space-y-0.5 border-l border-white/5 ml-4 mt-1">
                   {visibleItems.map((item, idx) => {
+                    // Logique de routage active améliorée
                     const isActive = pathname === item.path || (item.path.includes("/cockpit") && pathname.includes("/cockpit"));
                     
                     return (
@@ -304,7 +313,7 @@ export default function Sidebar({
                         
                         <div className="flex items-center gap-3 overflow-hidden">
                           <item.icon size={15} className={`shrink-0 transition-colors ${isActive ? "text-white" : "text-slate-500 group-hover/item:text-slate-300"}`} />
-                          {/* Typographie améliorée : Majuscule, sans italic pour la lisibilité */}
+                          {/* Retrait de 'italic' ici pour meilleure lecture, conservation 'uppercase' */}
                           <span className="text-[10px] font-bold uppercase tracking-wide truncate leading-none">
                             {item.title}
                           </span>
@@ -334,7 +343,7 @@ export default function Sidebar({
             </div>
             <div className="overflow-hidden">
               <p className="text-[11px] font-bold text-slate-100 truncate leading-none mb-0.5">{user?.U_FirstName} {user?.U_LastName}</p>
-              <p className={`text-[8px] font-bold uppercase tracking-widest ${isSuperAdmin ? "text-amber-500/80" : "text-blue-400/80"}`}>{user?.U_Role}</p>
+              <p className={`text-[8px] font-black uppercase tracking-widest ${isSuperAdmin ? "text-amber-500/80" : "text-blue-400/80"}`}>{user?.U_Role}</p>
             </div>
           </div>
           <button 
