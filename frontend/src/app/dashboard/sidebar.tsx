@@ -232,7 +232,7 @@ export default function Sidebar({
         </div>
 
         {/* ✨ PLAN SOUSCRIT CARD */}
-        <div className="relative overflow-hidden rounded-2xl p-[1px] bg-gradient-to-br from-blue-500/50 to-transparent shadow-inner">
+        <div className="relative overflow-hidden rounded-2xl p-px bg-linear-to-br from-blue-500/50 to-transparent shadow-inner">
           <div className="relative bg-[#0F172A]/80 backdrop-blur-md rounded-xl p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
@@ -242,7 +242,7 @@ export default function Sidebar({
                 <p className="text-[7px] font-black uppercase text-slate-400 tracking-[0.2em] leading-none mb-1 italic">
                   PLAN SOUSCRIT
                 </p>
-                <h2 className="text-[11px] font-black uppercase truncate text-white italic tracking-tight leading-none bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">
+                <h2 className="text-[11px] font-black uppercase truncate italic tracking-tight leading-none bg-clip-text text-transparent bg-linear-to-r from-white to-slate-300">
                   {subscriptionPlan}
                 </h2>
               </div>
@@ -283,7 +283,7 @@ export default function Sidebar({
               </button>
 
               {/* Liste des items */}
-              <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
+              <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? "max-h-125 opacity-100" : "max-h-0 opacity-0"}`}>
                 <div className="pl-2 space-y-0.5 border-l border-white/5 ml-4 mt-1">
                   {visibleItems.map((item, idx) => {
                     const isActive = pathname === item.path || (item.path.includes("/cockpit") && pathname.includes("/cockpit"));
@@ -311,7 +311,7 @@ export default function Sidebar({
                         </div>
 
                         {item.badge && (
-                          <span className="flex items-center justify-center min-w-[18px] h-[18px] bg-red-500/90 backdrop-blur-sm text-white text-[8px] font-bold px-1.5 rounded-full shadow-md border border-red-400/30 animate-pulse">
+                          <span className="flex items-center justify-center min-w-4.5 h-4.5 bg-red-500/90 backdrop-blur-sm text-white text-[8px] font-bold px-1.5 rounded-full shadow-md border border-red-400/30 animate-pulse">
                             {item.badge}
                           </span>
                         )}
@@ -329,7 +329,7 @@ export default function Sidebar({
       <div className="p-5 border-t border-white/5 bg-[#0B1222]">
         <div className="flex items-center justify-between p-3 rounded-2xl bg-linear-to-r from-white/5 to-transparent border border-white/5 hover:border-blue-500/30 transition-all group cursor-default">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black text-white shrink-0 shadow-lg transition-transform group-hover:scale-105 ${isSuperAdmin ? "bg-gradient-to-br from-amber-500 to-amber-700 border border-amber-400/30" : "bg-gradient-to-br from-blue-600 to-blue-800 border border-blue-400/30"}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black text-white shrink-0 shadow-lg transition-transform group-hover:scale-105 ${isSuperAdmin ? "bg-linear-to-br from-amber-500 to-amber-700 border border-amber-400/30" : "bg-linear-to-br from-blue-600 to-blue-800 border border-blue-400/30"}`}>
               {user?.U_FirstName?.[0]}{user?.U_LastName?.[0]}
             </div>
             <div className="overflow-hidden">
