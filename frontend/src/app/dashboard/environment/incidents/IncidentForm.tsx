@@ -90,7 +90,11 @@ export default function IncidentForm({ onClose, onSuccess, sites, users }: any) 
               <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase">SITE CONCERNÉ *</label>
               <select className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase cursor-pointer"
                 value={formData.SSE_SiteId} onChange={(e) => setFormData({...formData, SSE_SiteId: e.target.value})}>
-                {sites.map((s: { S_Id: React.Key | readonly string[] | null | undefined; S_Name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; }) => <option key={s.S_Id} value={s.S_Id} className="bg-[#0F172A]">{s.S_Name}</option>)}
+                {sites.map((s: any) => (
+                  <option key={String(s.S_Id)} value={String(s.S_Id)} className="bg-[#0F172A]">
+                  {String(s.S_Name)}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -101,7 +105,11 @@ export default function IncidentForm({ onClose, onSuccess, sites, users }: any) 
               <select required className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase cursor-pointer"
                 value={formData.SSE_ReporterId} onChange={(e) => setFormData({...formData, SSE_ReporterId: e.target.value})}>
                 <option value="" className="bg-[#0F172A]">SÉLECTIONNER...</option>
-                {users.map((u: { U_Id: React.Key | readonly string[] | null | undefined; U_FirstName: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; U_LastName: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; }) => <option key={u.U_Id} value={u.U_Id} className="bg-[#0F172A]">{u.U_FirstName} {u.U_LastName}</option>)}
+                  {users.map((u: any) => (
+                    <option key={String(u.U_Id)} value={String(u.U_Id)} className="bg-[#0F172A]">
+                      {String(u.U_FirstName)} {String(u.U_LastName)}
+                    </option>
+                  ))}
               </select>
             </div>
             <div className="space-y-3">

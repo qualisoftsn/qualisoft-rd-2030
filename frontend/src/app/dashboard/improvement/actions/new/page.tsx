@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -116,7 +118,7 @@ export default function NewActionPage() {
           Nouvelle <span className="text-blue-500">Action</span>
         </h1>
         <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mb-12">
-          Plan d'Amélioration Continue • Étape {step}/3
+          Plan d&apos;Amélioration Continue • Étape {step}/3
         </p>
 
         <div className="flex gap-4 mb-12">
@@ -136,7 +138,7 @@ export default function NewActionPage() {
             <div className="space-y-6 animate-in fade-in duration-500">
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 block">
-                  Intitulé de l'action *
+                  Intitulé de l&apos;action *
                 </label>
                 <input 
                   required
@@ -255,7 +257,7 @@ export default function NewActionPage() {
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 block flex items-center gap-2">
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 block items-center gap-2">
                     <User size={12} /> Responsable *
                   </label>
                   <select 
@@ -272,7 +274,7 @@ export default function NewActionPage() {
                 </div>
                 
                 <div>
-                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 block flex items-center gap-2">
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 block items-center gap-2">
                     <Calendar size={12} /> Échéance *
                   </label>
                   <input 
@@ -303,9 +305,10 @@ export default function NewActionPage() {
                 <div>
                   <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 block">Plan NC (optionnel)</label>
                   <select 
-                    className="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-sm font-bold outline-none focus:border-blue-500"
-                    value={formData.ACT_PlanId}
-                    onChange={e => setFormData({...formData, ACT_PlanId: e.target.value})}
+                   className="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-sm font-bold outline-none focus:border-blue-500"
+                      // 🟢 On utilise ACT_PAQId à la place de ACT_PlanId
+                      value={formData.ACT_PAQId}
+                      onChange={e => setFormData({...formData, ACT_PAQId: e.target.value})}
                   >
                     <option value="">Aucun plan</option>
                     {plans.map((plan: any) => (
@@ -406,7 +409,7 @@ export default function NewActionPage() {
                 className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2"
               >
                 {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                Créer l'Action
+                Créer l&apos;Action
               </button>
             )}
           </div>

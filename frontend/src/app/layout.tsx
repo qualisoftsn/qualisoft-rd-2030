@@ -1,9 +1,10 @@
+// Fichier : src/app/layout.tsx
 import "./globals.css";
 import Providers from "./providers";
 
 export const metadata = {
-  title: "Qualisoft RD 2030 AT",
-  description: "Système SMQ Elite",
+  title: "Qualisoft ELITE",
+  description: "Pilotage de votre conformité",
 };
 
 export default function RootLayout({
@@ -13,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body>
+      <body className="antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

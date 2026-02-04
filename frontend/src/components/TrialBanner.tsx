@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
@@ -6,6 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Clock, AlertTriangle, Zap, X } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
 
+// --- INTERFACES ---
 interface TrialData {
   daysLeft: number;
   hoursLeft: number;
@@ -13,29 +15,42 @@ interface TrialData {
   subscriptionStatus: 'TRIAL' | 'ACTIVE' | 'EXPIRED';
 }
 
-export default function TrialBanner() {
+interface TrialBannerProps {
+  user: any; 
+  isSuperAdmin: boolean;
+}
+
+export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
+  // --- ÉTATS ---
   const [trialData, setTrialData] = useState<TrialData | null>(null);
   const [isVisible, setIsVisible] = useState(true);
   const [loading, setLoading] = useState(true);
+  
   const router = useRouter();
   const pathname = usePathname();
 
+  // --- LOGIQUE DE DÉTECTION ---
+  const isTrialAccount = user?.tenantId === 'ESSAI';
+
   useEffect(() => {
-    // Vérifier si on est sur une page trial ou dashboard
-    if (pathname.startsWith('/essai')) return;
+    // 1. Ne rien faire si on est sur une page spécifique à l'essai ou si c'est un SuperAdmin
+    if (pathname.startsWith('/essai') || isSuperAdmin) {
+      setLoading(false);
+      return;
+    }
 
     const checkTrialStatus = async () => {
       try {
-        // Appel API pour vérifier le statut du tenant courant
+        // 2. Appel API pour vérifier le statut réel du tenant Qualisoft
         const res = await apiClient.get('/tenant/trial-status');
         setTrialData(res.data);
         
-        // Si expiré, redirection forcée
+        // 3. Redirection forcée si expiré
         if (res.data.isExpired) {
           router.push('/essai/expire');
         }
       } catch (err) {
-        // Pas en mode trial ou non connecté
+        // Pas en mode trial ou erreur de connexion
         setTrialData(null);
       } finally {
         setLoading(false);
@@ -43,15 +58,40 @@ export default function TrialBanner() {
     };
 
     checkTrialStatus();
-    // Rafraîchir toutes les heures
+
+    // 4. Rafraîchir toutes les heures pour la précision du décompte
     const interval = setInterval(checkTrialStatus, 3600000);
     return () => clearInterval(interval);
-  }, [pathname, router]);
+  }, [pathname, router, isSuperAdmin]);
 
-  if (loading || !trialData || trialData.subscriptionStatus !== 'TRIAL' || !isVisible) {
+  // --- CONDITIONS D'AFFICHAGE ---
+  // On ne montre rien si : 
+  // - On charge encore
+  // - Ce n'est pas un compte d'essai (et pas un admin qui surveille)
+  // - L'utilisateur a fermé la bannière (isVisible = false)
+  // - Le statut n'est pas explicitement 'TRIAL'
+  if (loading || !isVisible || (!isTrialAccount && !isSuperAdmin)) {
     return null;
   }
 
+  // Si on est SuperAdmin mais qu'il n'y a pas de données de trial, on montre une version simplifiée
+  if (isSuperAdmin && !trialData) {
+    return (
+      <div className="fixed top-0 left-0 right-0 z-100 bg-linear-to-r from-amber-500 to-amber-700 text-white h-10 flex items-center justify-center px-4 shadow-lg border-b border-white/10 italic">
+        <div className="flex items-center gap-3">
+          <CrownIcon size={16} />
+          <p className="text-[11px] font-black uppercase tracking-widest">
+            Mode Super Administrateur Qualisoft — Accès Illimité
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si pas de données de trial du tout, on sort
+  if (!trialData || trialData.subscriptionStatus !== 'TRIAL') return null;
+
+  // --- CALCULS VISUELS ---
   const isCritical = trialData.daysLeft <= 3;
   const isWarning = trialData.daysLeft <= 7;
 
@@ -96,7 +136,7 @@ export default function TrialBanner() {
 
             {isCritical && (
               <span className="hidden md:inline text-[10px] text-red-400 font-black uppercase animate-pulse">
-                • Vos données seront supprimées dans {trialData.hoursLeft}h
+                • Sauvegardez vos données Qualisoft avant expiration
               </span>
             )}
           </div>
@@ -123,7 +163,7 @@ export default function TrialBanner() {
         </div>
       </div>
 
-      {/* Barre de progression visuelle */}
+      {/* Barre de progression visuelle (sur 14 jours de base) */}
       <div className="h-0.5 w-full bg-slate-800">
         <div 
           className={`h-full transition-all duration-1000 ${
@@ -135,5 +175,14 @@ export default function TrialBanner() {
         />
       </div>
     </div>
+  );
+}
+
+// Composant icône interne pour l'admin
+function CrownIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+    </svg>
   );
 }

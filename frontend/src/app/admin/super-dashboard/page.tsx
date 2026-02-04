@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-//* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+// 1. "use client" en tout premier
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -17,6 +19,9 @@ import {
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
+// 2. Configuration dynamique
+export const dynamic = 'force-dynamic';
+
 // --- TYPES DE VUES SPA ---
 type SovereignView = "MATRIX" | "TENANT_EDIT" | "USER_CRUD";
 
@@ -24,6 +29,9 @@ export default function SovereignDashboard() {
   const router = useRouter();
   const { user, setLogin } = useAuthStore();
   
+  // 🟢 3. PROTECTION BUILD : État pour vérifier si on est sur le navigateur
+  const [isMounted, setIsMounted] = useState(false);
+
   // States de navigation SPA
   const [view, setView] = useState<SovereignView>("MATRIX");
   const [activeTenant, setActiveTenant] = useState<any>(null);
@@ -33,6 +41,11 @@ export default function SovereignDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // 🟢 4. EFFET DE MONTAGE : On active l'affichage seulement une fois côté client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // 📡 CHARGEMENT DES DONNÉES SOUVERAINES
   const fetchTenants = useCallback(async () => {
     try {
@@ -40,15 +53,17 @@ export default function SovereignDashboard() {
       const res = await apiClient.get("/admin/super-admin/tenants");
       setTenants(res.data || []);
     } catch (err) {
-      toast.error("Échec de synchronisation au Noyau");
+       console.error("Erreur sync noyaux");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchTenants(); }, [fetchTenants]);
+  useEffect(() => { 
+    if (isMounted) fetchTenants(); 
+  }, [fetchTenants, isMounted]);
 
-  // 🚀 ACTION : IMPERSONATION (Bascule contextuelle)
+  // 🚀 ACTION : IMPERSONATION
   const handleImpersonate = async (tenantId: string) => {
     try {
       toast.loading("Transfert d'autorité...", { id: 'auth' });
@@ -85,6 +100,17 @@ export default function SovereignDashboard() {
       toast.error("Erreur lors de la suppression");
     }
   };
+
+  // 🟢 5. BARRIÈRE DE SÉCURITÉ :
+  // Si on n'est pas encore monté (Build Server) OU si l'user n'est pas chargé, on n'affiche rien.
+  // Cela empêche la Sidebar de lire "assignedProcessId" sur null.
+  if (!isMounted || !user) {
+    return (
+        <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center">
+            <Loader2 className="animate-spin text-blue-500" size={40} />
+        </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[#0B0F1A] overflow-hidden">

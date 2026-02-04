@@ -1,18 +1,25 @@
+//* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import { getServerSession } from '@/core/lib/auth';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/core/lib/auth";
 import prisma from '@/core/lib/prisma';
 import { differenceInDays, differenceInHours } from 'date-fns';
 
 export async function GET() {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    // 🟢 CORRECTION 1 : Vérification stricte que l'user existe
+    if (!session || !session.user) {
+     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
+    // 🟢 CORRECTION 2 : Typage explicite pour accéder à 'tenantId'
+    const user = session.user as any;
+
     const tenant = await prisma.tenant.findUnique({
-      where: { T_Id: session.user.tenantId },
+      where: { T_Id: user.tenantId },
       select: {
         T_SubscriptionStatus: true,
         T_SubscriptionEndDate: true,
@@ -49,6 +56,7 @@ export async function GET() {
     });
 
   } catch (error) {
+    console.error("Erreur API Trial Status:", error); // Ajout d'un log pour t'aider au cas où
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import Sidebar from './sidebar';
-import TrialBanner from './TrialBanner'; 
+import TrialBanner from '@/components/TrialBanner'; 
 import { 
   Search, ShieldCheck, Bell, Crown, 
   LayoutGrid, Home, HelpCircle, LogOut, 

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -184,7 +186,7 @@ export default function ISO14001ChecklistPage() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <div className="flex items-center gap-4 mb-4">
-              <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-4 rounded-2xl shadow-lg shadow-green-500/20">
+              <div className="bg-linear-to-br from-green-600 to-emerald-700 p-4 rounded-2xl shadow-lg shadow-green-500/20">
                 <Leaf size={40} className="text-white" />
               </div>
               <div>
@@ -231,7 +233,7 @@ export default function ISO14001ChecklistPage() {
           <div className="flex gap-4">
             <button 
               onClick={handleGenerateReport}
-              className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg"
+              className="bg-linear-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg"
             >
               <Download size={18} /> Rapport Environnemental
             </button>
@@ -260,7 +262,7 @@ export default function ISO14001ChecklistPage() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none min-w-[180px]"
+            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none min-w-45"
           >
             <option value="ALL">Tous les statuts</option>
             <option value="COMPLIANT">Conforme (Oui)</option>
@@ -299,7 +301,7 @@ export default function ISO14001ChecklistPage() {
       </div>
 
       {/* PROGRESSION GLOBALE */}
-      <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/20 rounded-3xl p-6 mb-10">
+      <div className="bg-linear-to-r from-green-900/30 to-emerald-900/30 border border-green-500/20 rounded-3xl p-6 mb-10">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-xl font-black">Performance Environnementale Globale</h2>
@@ -315,7 +317,7 @@ export default function ISO14001ChecklistPage() {
         
         <div className="w-full bg-white/5 rounded-full h-4 overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-500"
+            className="h-full bg-linear-to-r from-green-500 to-emerald-500 transition-all duration-500"
             style={{ width: `${stats?.complianceRate || 0}%` }}
           ></div>
         </div>
@@ -352,7 +354,7 @@ export default function ISO14001ChecklistPage() {
             <section key={group.id} className="bg-slate-900/40 border border-white/5 rounded-3xl overflow-hidden">
               <button
                 onClick={() => setExpandedSection(isExpanded ? null : group.id)}
-                className="w-full p-6 text-left bg-gradient-to-r hover:from-slate-800 hover:to-slate-900 transition-all"
+                className="w-full p-6 text-left bg-linear-to-r hover:from-slate-800 hover:to-slate-900 transition-all"
                 style={{ 
                   background: isExpanded ? `linear-gradient(90deg, ${group.color.replace('from-', 'rgb(').replace(' to-', ',')})` : 'transparent'
                 }}
@@ -367,7 +369,7 @@ export default function ISO14001ChecklistPage() {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 text-[10px] font-black">
                       <Leaf className="text-green-500" size={16} />
-                      <span>{items.filter(i => i.response?.CR_IsCompliant).length}</span>
+                     <span>{items.filter((i: any) => i.response?.CR_IsCompliant).length}</span>
                       <span className="text-slate-500">/</span>
                       <span>{items.length}</span>
                     </div>
@@ -375,7 +377,7 @@ export default function ISO14001ChecklistPage() {
                       <div 
                         className="h-full bg-green-500" 
                         style={{ 
-                          width: `${Math.round((items.filter(i => i.response?.CR_IsCompliant).length / items.length) * 100)}%` 
+                          width: `${Math.round((items.filter((i: { response: { CR_IsCompliant: any; }; }) => i.response?.CR_IsCompliant).length / items.length) * 100)}%` 
                         }}
                       ></div>
                     </div>
@@ -401,7 +403,7 @@ export default function ISO14001ChecklistPage() {
                           {/* COLONNE 1: EXIGENCE */}
                           <div className="lg:col-span-2">
                             <div className="flex items-start gap-3 mb-3">
-                              <span className="text-[10px] font-black bg-green-500/20 text-green-300 px-2 py-0.5 rounded flex-shrink-0">
+                              <span className="text-[10px] font-black bg-green-500/20 text-green-300 px-2 py-0.5 rounded shrink-0">
                                 {item.LC_Clause}
                               </span>
                               <div className="flex-1">
@@ -420,7 +422,7 @@ export default function ISO14001ChecklistPage() {
                             
                             <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
                               <p className="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-2">
-                                <FileText size={14} className="text-green-500" /> Critère d'évaluation
+                                <FileText size={14} className="text-green-500" /> Critère d&apos;évaluation
                               </p>
                               <p className="text-[11px] text-slate-300">{item.LC_Criteria}</p>
                             </div>
@@ -463,7 +465,7 @@ export default function ISO14001ChecklistPage() {
                             </div>
                             
                             <div>
-                              <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block flex items-center gap-2">
+                              <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block items-center gap-2">
                                 <UploadCloud size={14} className="text-green-500" /> Preuve environnementale
                               </label>
                               {hasEvidence ? (
@@ -501,7 +503,7 @@ export default function ISO14001ChecklistPage() {
                                 value={response?.CR_Comment || ''}
                                 onChange={(e) => handleCommentChange(item.LC_Id, e.target.value)}
                                 placeholder="Décrivez les actions mises en place ou à prévoir..."
-                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none min-h-[60px]"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none min-h-15"
                               />
                             </div>
                             
@@ -527,7 +529,7 @@ export default function ISO14001ChecklistPage() {
       </div>
 
       {/* ENGAGEMENTS SÉNÉGAL */}
-      <section className="mt-10 bg-gradient-to-r from-amber-900/20 to-green-900/20 border border-amber-500/20 rounded-3xl p-8">
+      <section className="mt-10 bg-linear-to-r from-amber-900/20 to-green-900/20 border border-amber-500/20 rounded-3xl p-8">
         <h2 className="text-2xl font-black mb-4 flex items-center gap-3 text-green-400">
           <Users size={28} /> Engagements Réglementaires Sénégalais
         </h2>
@@ -555,7 +557,7 @@ export default function ISO14001ChecklistPage() {
 
       <footer className="mt-12 pt-8 border-t border-white/5 text-center">
         <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em]">
-          Qualisoft SMI • Checklist Conformité ISO 14001:2015 • Conforme au Code de l'Environnement Sénégal
+          Qualisoft SMI • Checklist Conformité ISO 14001:2015 • Conforme au Code de l&apos;Environnement Sénégal
         </p>
         <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em] mt-1">
           Aspects Environnementaux • Objectifs • Conformité Légale • Évaluation des Performances

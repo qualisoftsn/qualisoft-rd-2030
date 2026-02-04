@@ -1,0 +1,103 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+//* eslint-disable @typescript-eslint/no-unused-vars */
+import { NextResponse } from 'next/server';
+import { randomInt } from 'crypto';
+import { addMinutes } from 'date-fns';
+
+// 🟢 CORRECTION 1 : Import de l'instance Prisma (Obligatoire)
+// Assurez-vous que le fichier src/core/lib/prisma.ts existe
+import prisma from '@/core/lib/prisma'; 
+
+// 🟢 CORRECTION 2 : Import du service Email 
+// (Vérifiez bien la casse du dossier 'core/services')
+import { sendEmail } from '@/core/services/email'; 
+
+export async function POST(request: Request) {
+  try {
+    const { email } = await request.json();
+    
+    // 1. Validation de l'email
+    if (!email || !email.includes('@')) {
+      return NextResponse.json({ message: 'Email invalide' }, { status: 400 });
+    }
+    
+    // 🟢 CORRECTION 3 : Log de debug pour voir ce qui se passe sur OVH/Docker
+    console.log(`[TRIAL] Demande reçue pour : ${email}`);
+
+    // // 2. Vérification si déjà un trial actif
+    // const existingTrial = await prisma.findFirst({
+    //   where: { 
+    //     email, 
+    //     status: 'ACTIVE',
+    //     expiresAt: { gt: new Date() }
+    //   }
+    
+    
+    // if (existingTrial) {
+    //   // Renvoyer juste un nouveau code si trial actif
+    //   const code = randomInt(100000, 999999).toString();
+      
+    //   await prisma.trialCode.create({
+    //     data: {
+    //       trialId: existingTrial.id,
+    //       code,
+    //       expiresAt: addMinutes(new Date(), 15)
+    //     }
+    //   });
+      
+      await sendEmail({
+        to: email,
+        subject: 'Votre code d\'accès Qualisoft (14 jours)',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 40px; border-radius: 20px;">
+            <h1 style="color: #2563eb; font-style: italic;">QUALISOFT <span style="font-weight: 100;">SMI</span></h1>
+            <h2 style="color: #1f2937;">Accès Essai 14 Jours</h2>
+            <p style="color: #4b5563;">Utilisez le code ci-dessous pour accéder à votre espace :</p>
+            <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 25px; background: #eff6ff; border-radius: 12px; margin: 25px 0; text-align: center; color: #1e40af; border: 1px dashed #3b82f6;">
+              20256
+            </div>
+            <p style="color: #6b7280; font-size: 12px; font-style: italic;">Ce code est valide 15 minutes. Ne le partagez pas.</p>
+          </div>`
+      });
+      
+      return NextResponse.json({ message: 'Code renvoyé' });
+    }
+    
+    // 3. Création d'une vérification pour nouveau trial
+    //const code = randomInt(100000, 999999).toString();
+    
+    // Stockage en base (Prisma utilisé ici)
+    await prisma.trialVerification.create({
+      data: {
+        email,
+        code,
+        expiresAt: addMinutes(new Date(), 15),
+        ipAddress: request.headers.get('x-forwarded-for') || 'unknown'
+      }
+    });
+    
+    await sendEmail({
+      to: email,
+      subject: 'Code d\'accès Qualisoft - Essai 14 jours',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 40px; border-radius: 20px;">
+          <h1 style="color: #2563eb; font-style: italic;">QUALISOFT <span style="font-weight: 100;">SMI</span></h1>
+          <p style="color: #4b5563;">Bienvenue ! Voici votre code pour démarrer votre essai de 14 jours :</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 25px; background: #eff6ff; border-radius: 12px; margin: 25px 0; text-align: center; color: #1e40af; border: 1px dashed #3b82f6;">
+            ${code}
+          </div>
+          <p style="color: #6b7280; font-size: 12px;">Équipe Qualisoft - Support SMI</p>
+        </div>`
+    });
+    
+    return NextResponse.json({ message: 'Code envoyé' });
+    
+  } catch (error: any) {
+    // 🟢 CORRECTION 4 : Log de l'erreur réelle pour le débug Docker
+    console.error("[TRIAL_ERROR]", error);
+    return NextResponse.json(
+      { message: 'Erreur lors de la génération du code', details: error.message }, 
+      { status: 500 }
+    );
+  }
+}

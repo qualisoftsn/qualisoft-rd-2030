@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -5,7 +7,8 @@ import apiClient from '@/core/api/api-client';
 import { 
   ShieldCheck, Target, CheckCircle, XCircle, AlertTriangle, 
   Download, Save, UploadCloud, FileText, Clock, TrendingUp,
-  ChevronDown, ChevronRight, Search, Filter, Plus
+  ChevronDown, ChevronRight, Search, Filter, Plus,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -185,7 +188,7 @@ export default function ISO9001ChecklistPage() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <div className="flex items-center gap-4 mb-4">
-              <div className="bg-gradient-to-br from-blue-600 to-cyan-700 p-4 rounded-2xl shadow-lg shadow-blue-500/20">
+              <div className="bg-linear-to-br from-blue-600 to-cyan-700 p-4 rounded-2xl shadow-lg shadow-blue-500/20">
                 <ShieldCheck size={40} className="text-white" />
               </div>
               <div>
@@ -232,7 +235,7 @@ export default function ISO9001ChecklistPage() {
           <div className="flex gap-4">
             <button 
               onClick={handleGenerateReport}
-              className="bg-gradient-to-r from-blue-600 to-cyan-700 hover:from-blue-700 hover:to-cyan-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg"
+              className="bg-linear-to-r from-blue-600 to-cyan-700 hover:from-blue-700 hover:to-cyan-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg"
             >
               <Download size={18} /> Générer Rapport PDF
             </button>
@@ -261,7 +264,7 @@ export default function ISO9001ChecklistPage() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none min-w-[180px]"
+            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none min-w-45"
           >
             <option value="ALL">Tous les statuts</option>
             <option value="COMPLIANT">Conforme (Oui)</option>
@@ -272,7 +275,7 @@ export default function ISO9001ChecklistPage() {
       </header>
 
       {/* PROGRESSION GLOBALE */}
-      <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border border-blue-500/20 rounded-3xl p-6 mb-10">
+      <div className="bg-linear-to-r from-blue-900/30 to-cyan-900/30 border border-blue-500/20 rounded-3xl p-6 mb-10">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-xl font-black">Progression Globale de la Conformité</h2>
@@ -288,7 +291,7 @@ export default function ISO9001ChecklistPage() {
         
         <div className="w-full bg-white/5 rounded-full h-4 overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
+            className="h-full bg-linear-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
             style={{ width: `${stats?.complianceRate || 0}%` }}
           ></div>
         </div>
@@ -325,7 +328,7 @@ export default function ISO9001ChecklistPage() {
             <section key={group.id} className="bg-slate-900/40 border border-white/5 rounded-3xl overflow-hidden">
               <button
                 onClick={() => setExpandedSection(isExpanded ? null : group.id)}
-                className="w-full p-6 text-left bg-gradient-to-r hover:from-slate-800 hover:to-slate-900 transition-all"
+                className="w-full p-6 text-left bg-linear-to-r hover:from-slate-800 hover:to-slate-900 transition-all"
                 style={{ 
                   background: isExpanded ? `linear-gradient(90deg, ${group.color.replace('from-', 'rgb(').replace(' to-', ',')})` : 'transparent'
                 }}
@@ -340,7 +343,7 @@ export default function ISO9001ChecklistPage() {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 text-[10px] font-black">
                       <CheckCircle className="text-emerald-500" size={16} />
-                      <span>{items.filter(i => i.response?.CR_IsCompliant).length}</span>
+                      <span>{items.filter((i: { response: { CR_IsCompliant: any; }; }) => i.response?.CR_IsCompliant).length}</span>
                       <span className="text-slate-500">/</span>
                       <span>{items.length}</span>
                     </div>
@@ -348,7 +351,7 @@ export default function ISO9001ChecklistPage() {
                       <div 
                         className="h-full bg-emerald-500" 
                         style={{ 
-                          width: `${Math.round((items.filter(i => i.response?.CR_IsCompliant).length / items.length) * 100)}%` 
+                          width: `${Math.round((items.filter((i: { response: { CR_IsCompliant: any; }; }) => i.response?.CR_IsCompliant).length / items.length) * 100)}%` 
                         }}
                       ></div>
                     </div>
@@ -373,7 +376,7 @@ export default function ISO9001ChecklistPage() {
                           {/* COLONNE 1: EXIGENCE */}
                           <div className="lg:col-span-2">
                             <div className="flex items-start gap-3 mb-3">
-                              <span className="text-[10px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded flex-shrink-0">
+                              <span className="text-[10px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded shrink-0">
                                 {item.LC_Clause}
                               </span>
                               <h3 className="font-black text-lg">{item.LC_Title}</h3>
@@ -385,7 +388,7 @@ export default function ISO9001ChecklistPage() {
                             
                             <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
                               <p className="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-2">
-                                <FileText size={14} className="text-blue-500" /> Critère d'évaluation
+                                <FileText size={14} className="text-blue-500" /> Critère d&apos;évaluation
                               </p>
                               <p className="text-[11px] text-slate-300">{item.LC_Criteria}</p>
                             </div>
@@ -428,7 +431,7 @@ export default function ISO9001ChecklistPage() {
                             </div>
                             
                             <div>
-                              <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block flex items-center gap-2">
+                              <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block items-center gap-2">
                                 <UploadCloud size={14} className="text-blue-500" /> Preuve de conformité
                               </label>
                               {hasEvidence ? (
@@ -466,7 +469,7 @@ export default function ISO9001ChecklistPage() {
                                 value={response?.CR_Comment || ''}
                                 onChange={(e) => handleCommentChange(item.LC_Id, e.target.value)}
                                 placeholder="Ajoutez des commentaires ou observations..."
-                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none min-h-[60px]"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none min-h-15"
                               />
                             </div>
                             
@@ -493,7 +496,7 @@ export default function ISO9001ChecklistPage() {
 
       {/* RECOMMANDATIONS */}
       {stats && stats.nonCompliant > 0 && (
-        <section className="mt-10 bg-gradient-to-r from-amber-900/30 to-red-900/30 border border-amber-500/20 rounded-3xl p-8">
+        <section className="mt-10 bg-linear-to-r from-amber-900/30 to-red-900/30 border border-amber-500/20 rounded-3xl p-8">
           <h2 className="text-2xl font-black mb-4 flex items-center gap-3 text-amber-400">
             <AlertTriangle size={28} /> Recommandations Prioritaires
           </h2>
@@ -564,7 +567,7 @@ function RecommendationItem({ priority, title, description }: any) {
   return (
     <div className={`${config.bg} border border-current/30 rounded-xl p-4`}>
       <div className="flex items-start gap-3">
-        <div className={`flex-shrink-0 ${config.color} font-black text-[10px] uppercase tracking-widest px-2 py-0.5 rounded`}>
+        <div className={`shrink-0 ${config.color} font-black text-[10px] uppercase tracking-widest px-2 py-0.5 rounded`}>
           {priority}
         </div>
         <div>
@@ -576,4 +579,4 @@ function RecommendationItem({ priority, title, description }: any) {
   );
 }
 
-import { RefreshCw } from 'lucide-react';
+//import { RefreshCw } from 'lucide-react';

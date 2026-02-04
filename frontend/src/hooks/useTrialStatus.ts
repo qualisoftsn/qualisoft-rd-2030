@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { differenceInDays, parseISO, startOfDay } from 'date-fns';
@@ -9,9 +10,12 @@ export function useTrialStatus() {
   const [phase, setPhase] = useState<'ACTIVE' | 'WARNING' | 'CRITICAL' | 'EXPIRED'>('ACTIVE');
 
   useEffect(() => {
-    if (!user?.U_Tenant) return;
+    // 🟢 CORRECTION : On caste 'user' en 'any' pour accéder à U_Tenant sans erreur TS
+    const currentUser = user as any;
 
-    const tenant = user.U_Tenant;
+    if (!currentUser?.U_Tenant) return;
+
+    const tenant = currentUser.U_Tenant;
     const status = tenant.T_SubscriptionStatus;
     
     if (status === 'EXPIRED') {
@@ -63,5 +67,13 @@ export function useTrialStatus() {
     }
   };
 
-  return { isReadOnly, daysLeft, phase, isTrial: user?.U_Tenant?.T_SubscriptionStatus === 'TRIAL' };
+  // 🟢 CORRECTION : On caste aussi ici pour le return
+  const currentUser = user as any;
+
+  return { 
+    isReadOnly, 
+    daysLeft, 
+    phase, 
+    isTrial: currentUser?.U_Tenant?.T_SubscriptionStatus === 'TRIAL' 
+  };
 }
