@@ -29,15 +29,19 @@ export class ReclamationsController {
   @Get()
   @ApiOperation({ summary: 'Liste du registre des réclamations client' })
   async findAll(@Req() req: any, @Query('processusId') pid?: string) {
-    // req.user est injecté par le JwtAuthGuard
-    return this.reclamationsService.findAll(req.user.tenantId, pid);
+    try {
+      // req.user est injecté par le JwtAuthGuard
+      return await this.reclamationsService.findAll(req.user.tenantId, pid);
+    } catch (error) {
+      this.logger.error(`Erreur findAll: ${error.message}`);
+      return { data: [] }; // Sécurité anti-crash Frontend
+    }
   }
 
   @Post()
   @ApiOperation({ summary: 'Enregistrer une nouvelle réclamation' })
   async create(@Body() dto: CreateReclamationDto, @Req() req: any) {
-    this.logger.log(`Création réclamation par l'utilisateur ${req.user.U_Id}`);
-    // Utilisation du DTO typé pour activer la validation automatique
+    this.logger.log(`Création réclamation - User: ${req.user.U_Id}`);
     return this.reclamationsService.create(dto, req.user.tenantId, req.user.U_Id);
   }
 
@@ -48,7 +52,6 @@ export class ReclamationsController {
     @Body() dto: UpdateReclamationDto, 
     @Req() req: any
   ) {
-    this.logger.log(`Mise à jour réclamation ${id} - Tenant: ${req.user.tenantId}`);
     return this.reclamationsService.update(id, req.user.tenantId, dto);
   }
 

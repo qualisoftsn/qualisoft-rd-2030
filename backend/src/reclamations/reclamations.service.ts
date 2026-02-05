@@ -23,13 +23,16 @@ export class ReclamationsService {
       orderBy: { REC_CreatedAt: 'desc' }
     });
 
-    return recs.map(r => ({
+    const formattedRecs = recs.map(r => ({
       ...r,
       processusLibelle: r.REC_Processus?.PR_Libelle || "NON ASSIGNÉ",
       processusCode: r.REC_Processus?.PR_Code || "SMI",
       tierName: r.REC_Tier?.TR_Name || "Client Inconnu",
       ownerName: r.REC_Owner ? `${r.REC_Owner.U_FirstName} ${r.REC_Owner.U_LastName}` : "Non assigné"
     }));
+
+    // ✅ Crucial : On retourne un objet contenant le tableau dans "data"
+    return { data: formattedRecs || [] };
   }
 
   async create(dto: CreateReclamationDto, tenantId: string, userId: string) {
@@ -63,14 +66,12 @@ export class ReclamationsService {
     
     if (!existing) throw new NotFoundException("Réclamation introuvable.");
 
-    // ✅ Nettoyage des données pour Prisma
     const { ...updateData }: any = dto;
     
     if (updateData.REC_Deadline) {
       updateData.REC_Deadline = new Date(updateData.REC_Deadline);
     }
 
-    // Logique métier automatique §10.2
     if (updateData.REC_SolutionProposed && existing.REC_Status === 'ACTION_EN_COURS') {
       updateData.REC_Status = 'TRAITEE';
     }
