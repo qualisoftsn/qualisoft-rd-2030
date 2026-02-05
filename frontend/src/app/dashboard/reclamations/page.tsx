@@ -35,7 +35,7 @@ export default function ReclamationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const API_BASE_URL = "https://elite.qualisoft.sn:3000";
+  const API_BASE_URL = "https://elite.qualisoft.sn:3001";
 
   const fetchData = useCallback(async () => {
     try {

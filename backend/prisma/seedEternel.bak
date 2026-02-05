@@ -38,14 +38,14 @@ async function seedMasterAdmin() {
       U_FirstName: 'Abdoulaye',
       U_LastName: 'THIONGANE',
       U_PasswordHash: hashedPassword, // Permet la réinitialisation automatique si perdu
-      U_Role: 'ADMIN',
+      U_Role: 'SUPER_ADMIN',
     },
     create: {
       U_FirstName: 'Abdoulaye',
       U_LastName: 'THIONGANE',
       U_Email: masterEmail,
       U_PasswordHash: hashedPassword,
-      U_Role: 'ADMIN',
+      U_Role: 'SUPER_ADMIN',
       tenantId: qualisoftTenant.T_Id,
     },
   });
