@@ -1,77 +1,61 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
+
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('🚀 Connexion au Noyau SAGAM ELECTRONICS...');
+async function seedMasterAdmin() {
+  console.log('🛡️  Synchronisation du Noyau Master Qualisoft...');
 
-  // 1. Récupération du Tenant existant
-  const tenant = await prisma.tenant.findFirst({
-    where: { T_Name: "SAGAM ELECTRONICS" }
-  });
+  const masterEmail = 'ab.thiongane@qualisoft.sn';
+  const hashedPassword = await bcrypt.hash('mohamed1965ab1711@', 10);
 
-  if (!tenant) {
-    console.error("❌ Erreur : Tenant 'SAGAM ELECTRONICS' introuvable. Vérifiez le nom en base.");
-    return;
-  }
-
-  // 2. Récupération de l'administrateur Pierre Ndiaye
-  const admin = await prisma.user.findUnique({
-    where: { U_Email: "pierre.ndiaye@sagam.sn" }
-  });
-
-  if (!admin) {
-    console.error("❌ Erreur : Utilisateur 'pierre.ndiaye@sagam.sn' introuvable.");
-    return;
-  }
-
-  console.log(`📡 Ciblage : ${tenant.T_Name} | Pilote : ${admin.U_FirstName} ${admin.U_LastName}`);
-
-  // 3. Nettoyage des anciennes formations pour ce tenant (Traçabilité)
-  await prisma.formation.deleteMany({
-    where: { tenantId: tenant.T_Id }
-  });
-
-  // 4. Scénarios de formation 2026
-  const trainingData = [
-    {
-      FOR_Title: "SÉCURITÉ DES SYSTÈMES ÉLECTRONIQUES - AVANCÉ",
-      FOR_Date: new Date('2026-02-15'),
-      FOR_Status: "TERMINE",
-      FOR_Expiry: new Date('2028-02-15'),
-      FOR_Provider: "INTERNE SAGAM",
+  // 1. GARANTIE DU TENANT MASTER (QUALISOFT CORPORATE)
+  const qualisoftTenant = await prisma.tenant.upsert({
+    where: { T_Email: masterEmail },
+    update: {
+      T_Name: 'QUALISOFT CORPORATE',
+      T_Domain: 'qualisoft.sn',
+      T_SubscriptionStatus: 'ACTIVE',
+      T_IsActive: true,
+      T_Plan: 'GROUPE',
     },
-    {
-      FOR_Title: "AUDITEUR INTERNE ISO 9001:2015",
-      FOR_Date: new Date('2026-05-20'),
-      FOR_Status: "PLANIFIE",
-      FOR_Provider: "BUREAU VERITAS",
+    create: {
+      T_Name: 'QUALISOFT CORPORATE',
+      T_Email: masterEmail,
+      T_Domain: 'qualisoft.sn',
+      T_SubscriptionStatus: 'ACTIVE',
+      T_IsActive: true,
+      T_Plan: 'GROUPE',
+      T_ContractDuration: 99,
+      T_TacitRenewal: true,
     },
-    {
-      FOR_Title: "HABILITATION ÉLECTRIQUE B2V - RECYCLAGE",
-      FOR_Date: new Date('2024-01-10'),
-      FOR_Expiry: new Date('2026-01-10'), // 🔴 EXPIREE (Alerte rouge au tableau de bord)
-      FOR_Status: "TERMINE",
-      FOR_Provider: "APAVE SÉNÉGAL",
-    }
-  ];
+  });
 
-  for (const f of trainingData) {
-    await prisma.formation.create({
-      data: {
-        ...f,
-        tenantId: tenant.T_Id,
-        FOR_UserId: admin.U_Id,
-        FOR_IsActive: true
-      }
-    });
-  }
+  // 2. GARANTIE DE L'ADMINISTRATEUR UNIVERSEL
+  const masterAdmin = await prisma.user.upsert({
+    where: { U_Email: masterEmail },
+    update: {
+      U_FirstName: 'Abdoulaye',
+      U_LastName: 'THIONGANE',
+      U_PasswordHash: hashedPassword, // Permet la réinitialisation automatique si perdu
+      U_Role: 'SUPER_ADMIN',
+    },
+    create: {
+      U_FirstName: 'Abdoulaye',
+      U_LastName: 'THIONGANE',
+      U_Email: masterEmail,
+      U_PasswordHash: hashedPassword,
+      U_Role: 'SUPER_ADMIN',
+      tenantId: qualisoftTenant.T_Id,
+    },
+  });
 
-  console.log('✅ Plan de formation SAGAM ELECTRONICS mis à jour.');
+  console.log(`✅ Noyau Master Scellé : ${masterAdmin.U_Email}`);
 }
 
-main()
+seedMasterAdmin()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Erreur de déploiement Master :', e);
     process.exit(1);
   })
   .finally(async () => {
