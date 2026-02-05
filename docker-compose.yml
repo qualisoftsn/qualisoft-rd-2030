@@ -1,15 +1,15 @@
 services:
-  # --- 1. BASE DE DONNÉES (POSTGRESQL) ---
+  # --- 1. BASE DE DONNÉES ---
   db:
     image: postgres:16-alpine
     container_name: qualisoft_db
-    restart: unless-stopped # Reste allumé sauf si tu l'arrêtes
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password123
+      - POSTGRES_PASSWORD=password
       - POSTGRES_DB=qualisoft_db
     ports:
-      - "5544:5432" # Accès local : localhost:5544
+      - "5544:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -20,27 +20,26 @@ services:
     networks:
       - qualisoft_network
 
-  # --- 2. CACHE (REDIS) ---
+  # --- 2. CACHE ---
   redis:
     image: redis:7-alpine
     container_name: qualisoft_redis
-    restart: "no" # En dev, on ne veut pas de surprises
+    restart: "no"
     ports:
       - "6379:6379"
     networks:
       - qualisoft_network
 
-  # --- 3. BACKEND (NOYAU QUALISOFT) ---
+  # --- 3. BACKEND ---
   backend:
     build: 
       context: ./backend
       dockerfile: Dockerfile
     container_name: qualisoft-backend
-    # 🛡️ SÉCURITÉ : Pas de redémarrage automatique en cas d'erreur de port
-    restart: "no" 
+    restart: unless-stopped # Changé pour la stabilité
     environment:
       - DATABASE_URL=postgresql://postgres:password123@db:5432/qualisoft_db?schema=public
-      - NODE_ENV=development
+      - NODE_ENV=production # Passé en production
       - PORT=9000
     ports:
       - "9000:9000"
@@ -55,18 +54,21 @@ services:
     networks:
       - qualisoft_network
 
-  # --- 4. FRONTEND (INTERFACE UTILISATEUR) ---
+  # --- 4. FRONTEND ---
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # 🔥 CRUCIAL : On injecte l'URL publique pendant le BUILD
+        - NEXT_PUBLIC_API_URL=https://elite.qualisoft.sn/api
     container_name: qualisoft-frontend
-    restart: "no"
+    restart: unless-stopped
     ports:
       - "3001:3001"
     environment:
-      # ✅ Crucial : Le navigateur doit pointer sur localhost
-      - NEXT_PUBLIC_API_URL=http://localhost:9000/api
+      # On le remet ici aussi par sécurité pour le runtime
+      - NEXT_PUBLIC_API_URL=https://elite.qualisoft.sn/api
     depends_on:
       - backend
     networks:
