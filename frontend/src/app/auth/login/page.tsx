@@ -264,7 +264,7 @@ export default function LoginPage() {
           {step === "SELECT_TYPE" && (
             <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
               <h2 className="text-center text-sm font-black uppercase text-slate-400 tracking-widest mb-8">
-                Bienvenu sur votre plateforme de conformité
+                Bienvenu sur votre plateforme de conformité ISO 9001 - 14001 - 27001
               </h2>
 
               <button
