@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=password123
       - POSTGRES_DB=qualisoft_db
     ports:
       - "5544:5432"
