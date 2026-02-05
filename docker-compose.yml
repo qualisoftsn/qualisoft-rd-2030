@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password123
+      - POSTGRES_PASSWORD=qualipass2026
       - POSTGRES_DB=qualisoft_db
     ports:
       - "5544:5432"
@@ -38,7 +38,7 @@ services:
     container_name: qualisoft-backend
     restart: unless-stopped # Changé pour la stabilité
     environment:
-      - DATABASE_URL=postgresql://postgres:password123@db:5432/qualisoft_db?schema=public
+      - DATABASE_URL=postgresql://postgres:qualipass2026@db:5432/qualisoft_db?schema=public
       - NODE_ENV=production # Passé en production
       - PORT=9000
     ports:
