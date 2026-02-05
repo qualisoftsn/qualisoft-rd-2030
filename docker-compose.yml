@@ -41,6 +41,11 @@ services:
       - DATABASE_URL=postgresql://postgres:qualipass2026@db:5432/qualisoft_db?schema=public
       - NODE_ENV=production # Passé en production
       - PORT=9000
+      - JWT_SECRET=QualisoftEliteSecret2026_SecureKey # Pour signer tes tokens de connexion
+      - MAIL_USER=ab.thiongane@qualisoft.sn # Email d'envoi (ex: Gmail, Outlook)
+      - MAIL_PASS=wwralsbrpvhweasa # Mot de passe d'application (pas le mot de passe normal !)
+
+
     ports:
       - "9000:9000"
     depends_on:
