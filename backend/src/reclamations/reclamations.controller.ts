@@ -30,11 +30,10 @@ export class ReclamationsController {
   @ApiOperation({ summary: 'Liste du registre des réclamations client' })
   async findAll(@Req() req: any, @Query('processusId') pid?: string) {
     try {
-      // req.user est injecté par le JwtAuthGuard
       return await this.reclamationsService.findAll(req.user.tenantId, pid);
-    } catch (error) {
-      this.logger.error(`Erreur findAll: ${error.message}`);
-      return { data: [] }; // Sécurité anti-crash Frontend
+    } catch (error: any) {
+      this.logger.error(`Erreur findAll: ${error?.message || error}`);
+      return { data: [] }; 
     }
   }
 
