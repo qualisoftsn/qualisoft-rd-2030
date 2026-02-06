@@ -279,7 +279,7 @@ export default function SovereignDashboard() {
                <div className="flex flex-col">
                   <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.3em]">Status Cluster</span>
                   <span className="text-[10px] font-black text-emerald-500 uppercase italic flex items-center gap-2">
-                    <Activity size={10} /> Dakar-Guediawaye : Synchronisé
+                    <Activity size={10} /> Dakar : Synchronisé
                   </span>
                </div>
                <div className="w-px h-10 bg-white/5" />
@@ -288,7 +288,7 @@ export default function SovereignDashboard() {
                   <span className="text-[10px] font-black text-white uppercase italic">{tenants.length} Noeuds Actifs</span>
                </div>
             </div>
-            <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] italic">Qualisoft Orchestrator v2.6 • Sovereign Engine</p>
+            <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] italic">Qualisoft Elite v1.5 • AT/2026</p>
         </footer>
       </div>
     </div>

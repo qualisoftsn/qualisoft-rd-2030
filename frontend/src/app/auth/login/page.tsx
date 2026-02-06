@@ -264,7 +264,7 @@ export default function LoginPage() {
           {step === "SELECT_TYPE" && (
             <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
               <h2 className="text-center text-sm font-black uppercase text-slate-400 tracking-widest mb-8">
-                Bienvenu sur votre plateforme de conformité ISO 9001 - 14001 - 27001
+                Bienvenu - Qualisoft Elite - Conformité ISO 9001 - 14001 - 27001
               </h2>
 
               <button
@@ -343,7 +343,7 @@ export default function LoginPage() {
                       Votre Organisation
                     </h3>
                     <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
-                      Sélectionnez votre entreprise dans la liste
+                      Sélectionnez votre entreprise
                     </p>
                   </div>
 
@@ -536,7 +536,7 @@ export default function LoginPage() {
               </button>
               <div>
                 <h3 className="text-3xl font-black uppercase italic text-slate-900 tracking-tighter mb-2">
-                  Essai Elite
+                  QS Elite ESSAI
                 </h3>
                 <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
                   14 jours d&apos;accès complet • Sans engagement
@@ -595,7 +595,7 @@ export default function LoginPage() {
           <div className="pt-8 border-t border-slate-100 flex flex-col items-center gap-3">
             <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <Crown size={12} className="text-amber-400" />
-              Qualisoft Multi-Tenant Core v2.0
+              Qualisoft Multi-Tenant SaaS v1.5
             </div>
           </div>
         </div>
@@ -624,8 +624,8 @@ export default function LoginPage() {
           </h3>
 
           <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] leading-relaxed max-w-sm mx-auto">
-            Gouvernance, Risques et Conformité propulsés par Qualisoft Votre
-            partenaire IT
+            Gouvernance, Risques et Conformité - Qualisoft 
+            Partenaire IT
           </p>
 
           <div className="flex justify-center gap-4 pt-8">

@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -9,16 +6,28 @@ import Sidebar from './sidebar';
 import TrialBanner from '@/components/TrialBanner'; 
 import { 
   Search, ShieldCheck, Bell, Crown, 
-  LayoutGrid, Home, HelpCircle, LogOut, 
-  Settings, ChevronLeft, Zap, Info
+  LayoutGrid, Home, LogOut, 
+  Settings, Zap, Info, LucideIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Toaster } from 'react-hot-toast';
+
+// --- DEFINITION DES TYPES ---
+
+// Interface pour sécuriser les props de la SlimNav
+interface SlimNavItemProps {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  active: boolean;
+  isSuperAdmin: boolean;
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, token, logout } = useAuthStore();
+  
+  // Protection Hydratation (Évite les erreurs serveur/client mismatch)
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -27,9 +36,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const SUPER_ADMIN_EMAIL = "ab.thiongane@qualisoft.sn";
 
+  // 🛡️ Calcul sécurisé du statut Super Admin
   const isSuperAdmin = useMemo(() => {
     if (!user) return false;
-    const masterAccess = typeof window !== 'undefined' ? localStorage.getItem('master_access') === 'true' : false;
+    
+    // Vérification sécurisée du localStorage (uniquement côté client)
+    const masterAccess = typeof window !== 'undefined' 
+      ? localStorage.getItem('master_access') === 'true' 
+      : false;
+
     return (
       user.U_Email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ||
       user.U_Role?.toUpperCase() === "SUPER_ADMIN" ||
@@ -37,11 +52,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }, [user]);
 
+  // 🛡️ Calcul sécurisé des initiales (Gestion des cas null/undefined)
   const initials = useMemo(() => {
     if (!user) return "QS";
     if (user.U_FirstName && user.U_LastName) {
       return `${user.U_FirstName[0]}${user.U_LastName[0]}`.toUpperCase();
     }
+    // Fallback sur l'email ou "QS" par défaut
     return user.U_Email?.[0]?.toUpperCase() || "QS";
   }, [user]);
 
@@ -53,6 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
+  // 1. Écran de chargement (Hydratation)
   if (!hasMounted) {
     return (
       <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center">
@@ -61,12 +79,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
+  // 2. Barrière d'Authentification (Empêche le crash des enfants si user est null)
   if (!user || !token) {
     return (
       <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center font-sans italic">
         <div className="text-center">
           <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mb-6">Authentification Requise</p>
-          <Link href="/auth/login" className="px-10 py-4 bg-blue-600 rounded-2xl text-white text-[10px] font-black uppercase shadow-2xl shadow-blue-900/40">
+          <Link href="/auth/login" className="px-10 py-4 bg-blue-600 rounded-2xl text-white text-[10px] font-black uppercase shadow-2xl shadow-blue-900/40 hover:bg-blue-500 transition-colors">
             Reconnexion
           </Link>
         </div>
@@ -78,6 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="h-screen bg-[#0B0F1A] flex italic selection:bg-blue-600/30 font-sans overflow-hidden">
       
       {/* ⬅️ SIDEBAR GAUCHE (FIXE) */}
+      {/* On passe "user" qui est garanti non-null grâce au if(!user) ci-dessus */}
       <Sidebar user={user} isSuperAdmin={isSuperAdmin} />
 
       {/* 🚀 CONTENEUR CENTRAL (FLUIDE) */}
@@ -102,7 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {isSuperAdmin && (
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full">
                 <Crown size={12} className="text-amber-500" />
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Sovereign</span>
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Souverain</span>
               </div>
             )}
 
@@ -135,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           
           <footer className="py-12 border-t border-white/5 flex justify-between items-center opacity-30 mt-20">
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Qualisoft Elite RD 2026</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Qualisoft Elite RD</p>
             <div className="flex items-center gap-3">
               <ShieldCheck size={12} className={isSuperAdmin ? "text-amber-500" : "text-blue-500"} />
               <span className="text-[8px] font-black text-slate-400 uppercase italic">
@@ -173,7 +193,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <button className="w-12 h-12 rounded-2xl bg-white/5 text-slate-600 flex items-center justify-center hover:text-blue-400 transition-all group relative">
                 <Info size={20} />
                 <div className="absolute right-24 bg-[#0F172A] border border-white/10 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                    <p className="text-[9px] font-black uppercase text-slate-400 italic">Support SMI</p>
+                    <p className="text-[9px] font-black uppercase text-slate-400 italic">Support QS</p>
                 </div>
             </button>
             <button 
@@ -192,9 +212,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-// --- SOUS-COMPOSANT SLIM-NAV ITEM ---
+// --- SOUS-COMPOSANT SLIM-NAV ITEM (TYPÉ STRICTEMENT) ---
 
-function SlimNavItem({ href, icon: Icon, label, active, isSuperAdmin }: any) {
+function SlimNavItem({ href, icon: Icon, label, active, isSuperAdmin }: SlimNavItemProps) {
     return (
         <Link 
             href={href} 
