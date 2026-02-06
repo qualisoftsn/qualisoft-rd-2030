@@ -6,15 +6,11 @@ import { UpdateReclamationDto } from './dto/update-reclamation.dto';
 @Injectable()
 export class ReclamationsService {
   private readonly logger = new Logger(ReclamationsService.name);
-
   constructor(private prisma: PrismaService) {}
 
   async findAll(tenantId: string, REC_ProcessusId?: string) {
-    const recs = await this.prisma.reclamation.findMany({
-      where: { 
-        tenantId, 
-        ...(REC_ProcessusId && { REC_ProcessusId }) 
-      },
+    const data = await this.prisma.reclamation.findMany({
+      where: { tenantId, ...(REC_ProcessusId && { REC_ProcessusId }) },
       include: {
         REC_Tier: { select: { TR_Name: true } },
         REC_Processus: { select: { PR_Libelle: true, PR_Code: true } },
@@ -22,92 +18,59 @@ export class ReclamationsService {
       },
       orderBy: { REC_CreatedAt: 'desc' }
     });
-
-    const formattedRecs = recs.map(r => ({
-      ...r,
-      processusLibelle: r.REC_Processus?.PR_Libelle || "NON ASSIGNÉ",
-      processusCode: r.REC_Processus?.PR_Code || "SMI",
-      tierName: r.REC_Tier?.TR_Name || "Client Inconnu",
-      ownerName: r.REC_Owner ? `${r.REC_Owner.U_FirstName} ${r.REC_Owner.U_LastName}` : "Non assigné"
-    }));
-
-    // ✅ Crucial : On retourne un objet contenant le tableau dans "data"
-    return { data: formattedRecs || [] };
+    return { data };
   }
 
   async create(dto: CreateReclamationDto, tenantId: string, userId: string) {
     const year = new Date().getFullYear();
     const count = await this.prisma.reclamation.count({ where: { tenantId } });
-    const reference = `REC-${year}-${(count + 1).toString().padStart(4, '0')}`;
-
+    
     return this.prisma.reclamation.create({
       data: {
-        REC_Reference: reference,
-        REC_Object: dto.REC_Object,
-        REC_Description: dto.REC_Description,
-        REC_Source: dto.REC_Source || 'DIRECT',
-        REC_Gravity: dto.REC_Gravity || 'MEDIUM',
-        REC_TierId: dto.REC_TierId,
-        REC_ProcessusId: dto.REC_ProcessusId || null,
+        ...dto,
+        REC_Reference: `REC-${year}-${(count + 1).toString().padStart(4, '0')}`,
         REC_OwnerId: userId,
-        tenantId: tenantId,
+        tenantId,
         REC_Status: 'NOUVELLE',
         REC_DateReceipt: new Date(),
-        REC_Deadline: dto.REC_Deadline ? new Date(dto.REC_Deadline) : null,
       },
       include: { REC_Tier: true, REC_Processus: true }
     });
   }
 
   async update(id: string, tenantId: string, dto: UpdateReclamationDto) {
-    const existing = await this.prisma.reclamation.findFirst({ 
-      where: { REC_Id: id, tenantId } 
-    });
-    
+    const existing = await this.prisma.reclamation.findFirst({ where: { REC_Id: id, tenantId } });
     if (!existing) throw new NotFoundException("Réclamation introuvable.");
 
-    const { ...updateData }: any = dto;
-    
-    if (updateData.REC_Deadline) {
-      updateData.REC_Deadline = new Date(updateData.REC_Deadline);
-    }
+    // Transition automatique vers TRAITEE si une solution est apportée
+    const status = (dto.REC_SolutionProposed && existing.REC_Status === 'ACTION_EN_COURS') 
+                   ? 'TRAITEE' : dto.REC_Status;
 
-    if (updateData.REC_SolutionProposed && existing.REC_Status === 'ACTION_EN_COURS') {
-      updateData.REC_Status = 'TRAITEE';
-    }
-
-    try {
-      return await this.prisma.reclamation.update({
-        where: { REC_Id: id },
-        data: {
-          ...updateData,
-          REC_UpdatedAt: new Date()
-        },
-        include: { REC_Tier: true, REC_Processus: true }
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Erreur Prisma Update: ${errorMessage}`);
-      throw new BadRequestException("Données invalides pour la mise à jour.");
-    }
+    return this.prisma.reclamation.update({
+      where: { REC_Id: id },
+      data: { ...dto, REC_Status: status },
+      include: { REC_Tier: true, REC_Processus: true }
+    });
   }
 
   async linkToPAQ(recId: string, userId: string, tenantId: string) {
-    const rec = await this.prisma.reclamation.findUnique({ where: { REC_Id: recId } });
-    if (!rec || rec.tenantId !== tenantId) throw new NotFoundException("Réclamation introuvable.");
-    if (!rec.REC_ProcessusId) throw new BadRequestException("Veuillez assigner un processus.");
+    const rec = await this.prisma.reclamation.findFirst({ 
+        where: { REC_Id: recId, tenantId },
+        include: { REC_Processus: true }
+    });
+    
+    if (!rec?.REC_ProcessusId) throw new BadRequestException("Processus requis pour liaison PAQ.");
 
     const paq = await this.prisma.pAQ.findFirst({
-      where: { PAQ_ProcessusId: rec.REC_ProcessusId, tenantId, PAQ_Year: new Date().getFullYear() },
-      orderBy: { PAQ_Year: 'desc' }
+      where: { PAQ_ProcessusId: rec.REC_ProcessusId, tenantId, PAQ_Year: new Date().getFullYear() }
     });
 
-    if (!paq) throw new BadRequestException("Aucun PAQ ouvert pour ce processus.");
+    if (!paq) throw new BadRequestException(`Aucun PAQ ${new Date().getFullYear()} trouvé pour ce processus.`);
 
     return this.prisma.$transaction(async (tx) => {
       const action = await tx.action.create({
         data: {
-          ACT_Title: `[RECLAMATION] ${rec.REC_Reference} : ${rec.REC_Object}`,
+          ACT_Title: `[REC] ${rec.REC_Reference} : ${rec.REC_Object}`,
           ACT_Description: rec.REC_Description,
           ACT_Origin: 'RECLAMATION',
           ACT_Status: 'A_FAIRE',
@@ -115,7 +78,7 @@ export class ReclamationsService {
           ACT_ReclamationId: rec.REC_Id,
           ACT_ResponsableId: userId,
           ACT_CreatorId: userId,
-          tenantId: tenantId,
+          tenantId,
         }
       });
 
@@ -129,8 +92,7 @@ export class ReclamationsService {
   }
 
   async remove(id: string, tenantId: string) {
-    const existing = await this.prisma.reclamation.findFirst({ where: { REC_Id: id, tenantId } });
-    if (!existing) throw new NotFoundException("Réclamation introuvable.");
-    return this.prisma.reclamation.delete({ where: { REC_Id: id } });
+    await this.prisma.reclamation.deleteMany({ where: { REC_Id: id, tenantId } });
+    return { success: true };
   }
 }
