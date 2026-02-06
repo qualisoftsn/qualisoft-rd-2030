@@ -2,33 +2,37 @@ import { IsString, IsNotEmpty, IsOptional, IsEnum, IsUUID, IsDate } from 'class-
 import { Type } from 'class-transformer';
 import { Priority } from '@prisma/client';
 
+/**
+ * DTO de création de Réclamation (§8.2 ISO 9001)
+ * Validation stricte des entrées pour garantir l'intégrité des données Qualisoft
+ */
 export class CreateReclamationDto {
-  @IsString() 
-  @IsNotEmpty() 
-  REC_Object!: string; // 👈 Le "!" dit à TS : "Cette valeur sera injectée"
+  @IsString()
+  @IsNotEmpty()
+  REC_Object!: string; // 🛡️ Le "!" corrige l'erreur TS2564
 
-  @IsString() 
-  @IsNotEmpty() 
-  REC_Description!: string; // 👈 Ici aussi
+  @IsString()
+  @IsNotEmpty()
+  REC_Description!: string;
 
-  @IsUUID() 
-  @IsNotEmpty() 
-  REC_TierId!: string; // 👈 Et ici
+  @IsUUID()
+  @IsNotEmpty()
+  REC_TierId!: string;
 
-  @IsUUID() 
-  @IsOptional() 
+  @IsUUID()
+  @IsOptional()
   REC_ProcessusId?: string;
 
-  @IsEnum(Priority) 
-  @IsOptional() 
-  REC_Gravity?: Priority;
-
-  @IsOptional() 
-  @IsString() 
-  REC_Source?: string;
+  @IsEnum(Priority)
+  @IsOptional()
+  REC_Gravity?: Priority = Priority.MEDIUM;
 
   @IsOptional()
-  @Type(() => Date)
+  @IsString()
+  REC_Source?: string = 'DIRECT';
+
+  @IsOptional()
+  @Type(() => Date) // 🔄 Convertit automatiquement la string ISO en objet Date JS
   @IsDate()
   REC_Deadline?: Date;
 }
