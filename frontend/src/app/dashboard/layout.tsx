@@ -12,9 +12,16 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-// --- DEFINITION DES TYPES ---
+// --- INTERFACES & TYPES (Sécurité TypeScript) ---
 
-// Interface pour sécuriser les props de la SlimNav
+interface User {
+  U_FirstName?: string;
+  U_LastName?: string;
+  U_Email?: string;
+  U_Role?: string;
+  [key: string]: any; // Permet d'autres propriétés comme assignedProcessId sans crasher
+}
+
 interface SlimNavItemProps {
   href: string;
   icon: LucideIcon;
@@ -23,24 +30,25 @@ interface SlimNavItemProps {
   isSuperAdmin: boolean;
 }
 
+// --- LAYOUT PRINCIPAL ---
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, token, logout } = useAuthStore();
-  
-  // Protection Hydratation (Évite les erreurs serveur/client mismatch)
   const [hasMounted, setHasMounted] = useState(false);
 
+  // Protection Hydratation
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
   const SUPER_ADMIN_EMAIL = "ab.thiongane@qualisoft.sn";
 
-  // 🛡️ Calcul sécurisé du statut Super Admin
+  // Calcul Sécurisé du statut Super Admin
   const isSuperAdmin = useMemo(() => {
     if (!user) return false;
     
-    // Vérification sécurisée du localStorage (uniquement côté client)
+    // Vérification locale sécurisée
     const masterAccess = typeof window !== 'undefined' 
       ? localStorage.getItem('master_access') === 'true' 
       : false;
@@ -52,13 +60,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }, [user]);
 
-  // 🛡️ Calcul sécurisé des initiales (Gestion des cas null/undefined)
+  // Initiales avec Fallback
   const initials = useMemo(() => {
     if (!user) return "QS";
     if (user.U_FirstName && user.U_LastName) {
       return `${user.U_FirstName[0]}${user.U_LastName[0]}`.toUpperCase();
     }
-    // Fallback sur l'email ou "QS" par défaut
     return user.U_Email?.[0]?.toUpperCase() || "QS";
   }, [user]);
 
@@ -79,14 +86,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // 2. Barrière d'Authentification (Empêche le crash des enfants si user est null)
+  // 2. Barrière de Sécurité (Redirection si non connecté)
+  // On vérifie user ET token pour être sûr
   if (!user || !token) {
     return (
       <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center font-sans italic">
         <div className="text-center">
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mb-6">Authentification Requise</p>
-          <Link href="/auth/login" className="px-10 py-4 bg-blue-600 rounded-2xl text-white text-[10px] font-black uppercase shadow-2xl shadow-blue-900/40 hover:bg-blue-500 transition-colors">
-            Reconnexion
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mb-6">Session Expirée</p>
+          <Link 
+            href="/auth/login" 
+            className="px-10 py-4 bg-blue-600 rounded-2xl text-white text-[10px] font-black uppercase shadow-2xl shadow-blue-900/40 hover:bg-blue-500 transition-all"
+          >
+            Se reconnecter
           </Link>
         </div>
       </div>
@@ -97,8 +108,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="h-screen bg-[#0B0F1A] flex italic selection:bg-blue-600/30 font-sans overflow-hidden">
       
       {/* ⬅️ SIDEBAR GAUCHE (FIXE) */}
-      {/* On passe "user" qui est garanti non-null grâce au if(!user) ci-dessus */}
-      <Sidebar user={user} isSuperAdmin={isSuperAdmin} />
+      {/* On passe une copie sécurisée de l'user pour éviter les mutations */}
+      <Sidebar user={{...user}} isSuperAdmin={isSuperAdmin} />
 
       {/* 🚀 CONTENEUR CENTRAL (FLUIDE) */}
       <div className="flex-1 flex flex-col pl-72 pr-20 min-w-0 relative">
@@ -122,7 +133,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {isSuperAdmin && (
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full">
                 <Crown size={12} className="text-amber-500" />
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Souverain</span>
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Sovereign</span>
               </div>
             )}
 
@@ -134,10 +145,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex items-center gap-4 group cursor-pointer border-l border-white/10 pl-8 transition-opacity hover:opacity-80">
               <div className="text-right hidden xl:block text-white">
                 <p className="text-xs font-black uppercase tracking-tight italic leading-none">
-                  {user.U_FirstName} {user.U_LastName}
+                  {user.U_FirstName || 'Utilisateur'} {user.U_LastName || ''}
                 </p>
                 <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1.5 ${isSuperAdmin ? 'text-amber-500' : 'text-blue-500'}`}>
-                  {user.U_Role}
+                  {user.U_Role || 'MEMBRE'}
                 </p>
               </div>
               
@@ -148,14 +159,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* 📄 MAIN CONTENT (SCROLLABLE) */}
+        {/* 📄 MAIN CONTENT */}
         <main className="flex-1 relative overflow-y-auto p-10 custom-scrollbar bg-[#0B0F1A]">
           <div className="max-w-400 mx-auto animate-in fade-in duration-700">
             {children}
           </div>
           
           <footer className="py-12 border-t border-white/5 flex justify-between items-center opacity-30 mt-20">
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Qualisoft Elite RD</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em]">Qualisoft Elite RD 2026</p>
             <div className="flex items-center gap-3">
               <ShieldCheck size={12} className={isSuperAdmin ? "text-amber-500" : "text-blue-500"} />
               <span className="text-[8px] font-black text-slate-400 uppercase italic">
@@ -166,10 +177,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
 
-      {/* ➡️ SLIM-NAV DROITE (FIXE) */}
+      {/* ➡️ SLIM-NAV DROITE */}
       <nav className="w-20 h-screen bg-[#0F172A] border-l border-white/5 flex flex-col items-center py-8 gap-8 fixed right-0 top-0 z-50">
-        
-        {/* LOGO MINI / HUB ACCES */}
         <Link href="/dashboard/menu" className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group ${pathname === '/dashboard/menu' ? 'bg-blue-600 text-white shadow-xl shadow-blue-900/40' : 'bg-white/5 text-slate-500 hover:text-white hover:bg-white/10'}`}>
           <LayoutGrid size={22} className="group-hover:scale-110 transition-transform" />
           <div className="absolute right-24 bg-[#0F172A] border border-white/10 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
@@ -179,7 +188,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="w-8 h-px bg-white/5" />
 
-        {/* QUICK ACTIONS */}
         <div className="flex flex-col gap-6">
             <SlimNavItem href="/dashboard" icon={Home} label="Cockpit" active={pathname === '/dashboard'} isSuperAdmin={isSuperAdmin} />
             <SlimNavItem href="/dashboard/objectifs" icon={Zap} label="KPIs" active={pathname === '/dashboard/objectifs'} isSuperAdmin={isSuperAdmin} />
@@ -188,18 +196,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="flex-1" />
 
-        {/* BOTTOM ACTIONS */}
         <div className="flex flex-col gap-6 mb-4">
             <button className="w-12 h-12 rounded-2xl bg-white/5 text-slate-600 flex items-center justify-center hover:text-blue-400 transition-all group relative">
                 <Info size={20} />
                 <div className="absolute right-24 bg-[#0F172A] border border-white/10 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                    <p className="text-[9px] font-black uppercase text-slate-400 italic">Support QS</p>
+                    <p className="text-[9px] font-black uppercase text-slate-400 italic">Support SMI</p>
                 </div>
             </button>
-            <button 
-                onClick={handleLogout}
-                className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all group relative"
-            >
+            <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all group relative">
                 <LogOut size={20} />
                 <div className="absolute right-24 bg-[#0B0F1A] border border-red-500/20 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                     <p className="text-[9px] font-black uppercase text-red-500 italic">Déconnexion</p>
@@ -207,28 +211,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
         </div>
       </nav>
-
     </div>
   );
 }
 
-// --- SOUS-COMPOSANT SLIM-NAV ITEM (TYPÉ STRICTEMENT) ---
-
 function SlimNavItem({ href, icon: Icon, label, active, isSuperAdmin }: SlimNavItemProps) {
     return (
-        <Link 
-            href={href} 
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group relative ${active ? (isSuperAdmin ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-900/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-900/20') : 'bg-white/5 text-slate-500 hover:text-white hover:bg-white/10'}`}
-        >
+        <Link href={href} className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group relative ${active ? (isSuperAdmin ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-900/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-900/20') : 'bg-white/5 text-slate-500 hover:text-white hover:bg-white/10'}`}>
             <Icon size={20} />
             <div className="absolute right-24 bg-[#0F172A] border border-white/10 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                 <p className={`text-[9px] font-black uppercase italic tracking-widest ${active ? (isSuperAdmin ? 'text-amber-500' : 'text-blue-500') : 'text-slate-400'}`}>
                     {label}
                 </p>
             </div>
-            {active && (
-                <div className={`absolute -left-1 w-1 h-6 rounded-full ${isSuperAdmin ? 'bg-amber-500' : 'bg-blue-600'}`} />
-            )}
+            {active && <div className={`absolute -left-1 w-1 h-6 rounded-full ${isSuperAdmin ? 'bg-amber-500' : 'bg-blue-600'}`} />}
         </Link>
     );
 }
