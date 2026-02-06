@@ -7,8 +7,8 @@ export interface PlanDetail {
 }
 
 export const PLANS_DATA: PlanDetail[] = [
-  { id: Plan.EMERGENCE, name: 'Émergence', rawPrice: 25000 },
-  { id: Plan.CROISSANCE, name: 'Croissance', rawPrice: 75000 },
-  { id: Plan.ENTREPRISE, name: 'Entreprise', rawPrice: 125000 },
-  { id: Plan.GROUPE, name: 'Groupe Élite', rawPrice: 250000 },
+  { id: Plan.EMERGENCE, name: 'Émergence', rawPrice: 55000 },
+  { id: Plan.CROISSANCE, name: 'Croissance', rawPrice: 105000 },
+  { id: Plan.ENTREPRISE, name: 'Entreprise', rawPrice: 175000 },
+  { id: Plan.GROUPE, name: 'Groupe Élite', rawPrice: 350000 },
 ];
