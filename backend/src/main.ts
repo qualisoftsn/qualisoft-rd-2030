@@ -12,21 +12,19 @@ import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   const logger = new Logger('Qualisoft-Bootstrap');
   
-  // 🏛️ Création de l'application avec le moteur Express (indispensable pour les assets statiques)
+  // 🏛️ Création de l'application avec le moteur Express
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
 
   // 🌍 ROUTAGE : Préfixe global pour toutes les routes API
-  // Toutes les routes seront accessibles sous /api (ex: /api/reclamations)
   app.setGlobalPrefix('api');
 
   // 🛡️ SÉCURITÉ & VALIDATION : Protection des entrées (§8.4)
-  // Utilisation de class-validator et class-transformer pour le typage fort
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,               // Sécurité : Supprime les propriétés non définies dans les DTOs
-      forbidNonWhitelisted: false,   // Flexibilité : Nettoie l'objet sans bloquer la requête
-      transform: true,               // DX : Conversion automatique des types (ex: "1" -> 1)
+      whitelist: true,
+      forbidNonWhitelisted: false,
+      transform: true,
       transformOptions: { 
         enableImplicitConversion: true 
       },
@@ -34,20 +32,18 @@ async function bootstrap() {
   );
 
   // 📂 RESSOURCES : Gestion des fichiers statiques (Uploads/Preuves/Logo)
-  // Maîtrise de l'information documentée (§7.5)
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
-    index: false, // Sécurité : Empêche l'exploration des dossiers
+    index: false,
   });
 
   // 🔐 CORS : Configuration pour écosystème Multi-Tenant
-  // Autorisation des origines de développement et de production
   app.enableCors({
     origin: [
       'http://localhost:3000',
       'http://localhost:3001',
       'https://elite.qualisoft.sn',
-      'https://qualisoft.sn' // Ajouté par précaution pour la vitrine
+      'https://qualisoft.sn'
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
@@ -55,17 +51,17 @@ async function bootstrap() {
       'Content-Type', 
       'Accept', 
       'Authorization', 
-      'x-tenant-id', // Header vital pour l'isolation des données SAGAM
+      'x-tenant-id', 
       'X-Tenant-ID'
     ],
   });
 
-  // 📡 DÉPLOIEMENT : Extraction du Port depuis ConfigService (Priorité au .env)
+  // 📡 DÉPLOIEMENT : Extraction du Port depuis ConfigService
   const port = configService.get<number>('PORT') || 9000;
   
-  await app.listen(port);
+  // On écoute sur 0.0.0.0 pour garantir l'accès via le réseau Docker
+  await app.listen(port, '0.0.0.0');
   
-  // 📜 LOGS DE SORTIE : Statut de la souveraineté numérique
   logger.log(`--------------------------------------------------------`);
   logger.log(`🚀 QUALISOFT ELITE BACKEND : OPÉRATIONNEL (2026)`);
   logger.log(`📡 API BASE URL            : http://localhost:${port}/api`);

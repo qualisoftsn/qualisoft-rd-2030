@@ -1,3 +1,5 @@
+# version: '3.8'
+
 services:
   # --- 1. BASE DE DONNÉES ---
   db:
@@ -36,16 +38,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: qualisoft-backend
-    restart: unless-stopped # Changé pour la stabilité
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgresql://postgres:qualipass2026@db:5432/qualisoft_db?schema=public
-      - NODE_ENV=production # Passé en production
+      - NODE_ENV=development
       - PORT=9000
-      - JWT_SECRET=QualisoftEliteSecret2026_SecureKey # Pour signer tes tokens de connexion
-      - MAIL_USER=ab.thiongane@qualisoft.sn # Email d'envoi (ex: Gmail, Outlook)
-      - MAIL_PASS=wwralsbrpvhweasa # Mot de passe d'application (pas le mot de passe normal !)
-
-
+      - JWT_SECRET=QUALISOFT_SECRET_KEY_SUPER_SECURE_2026_ELITE
     ports:
       - "9000:9000"
     depends_on:
@@ -65,15 +63,14 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # 🔥 CRUCIAL : On injecte l'URL publique pendant le BUILD
-        - NEXT_PUBLIC_API_URL=https://elite.qualisoft.sn/api
+        - NEXT_PUBLIC_API_URL=http://localhost:9000/api
     container_name: qualisoft-frontend
     restart: unless-stopped
     ports:
       - "3001:3001"
     environment:
-      # On le remet ici aussi par sécurité pour le runtime
-      - NEXT_PUBLIC_API_URL=https://elite.qualisoft.sn/api
+      - NEXT_PUBLIC_API_URL=http://localhost:9000/api
+      - NEXTAUTH_URL=http://localhost:3001
     depends_on:
       - backend
     networks:
