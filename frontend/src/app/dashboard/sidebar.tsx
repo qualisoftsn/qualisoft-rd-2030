@@ -90,37 +90,119 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
         label: "📊 PILOTAGE & STRATÉGIE",
         icon: Activity,
         items: [
-          { title: "Dashboard SMI", path: getPath("/dashboard/admin_rq", "General"), icon: LayoutDashboard, access: "ALL" },
+          { title: "Cockpit de Direction", path: getPath("/dashboard/admin_rq", "General"), icon: LayoutDashboard, access: "ALL" },
           { title: "Objectifs SMQ", path: "/dashboard/objectifs", icon: Network, access: "ALL" },
-          { title: "Indicateurs KPI", path: "/dashboard/kpi", icon: BarChart, access: "MANAGER" },
+          { title: "Organisation", path: "/dashboard/organization", icon: FileText, access: "ALL" },
+          { title: "Indicateurs de Performance", path: "/dashboard/indicators", icon: BarChart, access: "MANAGER" },
+          { title: "Cartographie des Processus", path: "/dashboard/processus", icon: BarChart, access: "MANAGER" },
+          { title: "Statistiques", path: "/dashboard/stats", icon: FileText, access: "ALL" },
         ],
       },
       {
-        id: "smi-core",
-        label: "🛡️ CŒUR DU SYSTÈME",
+        id: "smi-core1",
+        label: "🛡️ GESTION DES RISQUES",
         icon: ShieldAlert,
         items: [
-          { title: "Actions Correctives", path: "/dashboard/actions", icon: Zap, access: "ALL" },
-          { title: "Non-Conformités", path: "/dashboard/non-conformites", icon: AlertTriangle, access: "ALL" },
-          { title: "Gestion Documentaire", path: "/dashboard/ged", icon: FileText, access: "ALL" },
+          { title: "Registre des Risques", path: "/dashboard/risks", icon: Zap, access: "ALL" },
+          { title: "Notifications", path: "/dashboard/notifications", icon: FileText, access: "ALL" },
+          { title: "Aspects Environnementaux", path: "/dashboard/environment", icon: AlertTriangle, access: "ALL" },
+          { title: "Conformité Légale", path: "/dashboard/ged", icon: FileText, access: "ALL" },
         ],
       },
       {
-        id: "pole-audit",
-        label: "🔍 AUDITS & INSPECTIONS",
-        icon: ClipboardCheck,
+        id: "smi-core2",
+        label: "🛡️ OPERATIONS & SECURITE",
+        icon: ShieldAlert,
         items: [
-          { title: "Audit Center", path: "/dashboard/audit-center", icon: ClipboardCheck, access: "MANAGER" },
-          { title: "Rapports d'Audit", path: "/dashboard/audits/reports", icon: FileText, access: "MANAGER" },
+          { title: "Gestion Documentaire", path: "/dashboard/ged", icon: Zap, access: "ALL" },
+          { title: "Actifs & Assets", path: "/dashboard/equipment", icon: AlertTriangle, access: "ALL" },
+          { title: "Tiers - Partenaires", path: "/dashboard/tiers", icon: FileText, access: "ALL" },
+          { title: "Plan de Continuité - PCA", path: "/dashboard/process-review", icon: FileText, access: "ALL" },
         ],
       },
+      {
+        id: "smi-core3",
+        label: "🛡️ EVALUATION & PERFORMANCE",
+        icon: ShieldAlert,
+        items: [
+          { title: "Centre d'Audits", path: "/dashboard/audit-center", icon: Zap, access: "ALL" },
+          { title: "Gouvernance", path: "/dashboard/gouvernance", icon: Zap, access: "ALL" },
+          { title: "Direction - pilotage", path: "/dashboard/direction", icon: FileText, access: "ALL" },
+          { title: "Enquêtes & Satisfaction", path: "/dashboard/enquetes", icon: AlertTriangle, access: "ALL" },
+          { title: "Revue de Direction", path: "/dashboard/management-review", icon: FileText, access: "ALL" },
+          { title: "COPIL - Préparation", path: "/dashboard/gouvernance/copil", icon: FileText, access: "ALL" },
+        ],
+      },
+
+      {
+        id: "pole-audit",
+        label: "🔍 AMELIORATION CONTINUE",
+        icon: ClipboardCheck,
+        items: [
+          { title: "Actions Correctives - CAPA", path: "/dashboard/actions", icon: ClipboardCheck, access: "MANAGER" },
+          { title: "Non-Conformités", path: "/dashboard/non-conformites", icon: FileText, access: "MANAGER" },
+          { title: "Réclamations", path: "/dashboard/reclamations", icon: Zap, access: "ALL" },
+          { title: "PAQ", path: "/dashboard/paq", icon: Zap, access: "ALL" },
+          { title: "Innovation & Suggestions", path: "/dashboard/continuous-improvement", icon: FileText, access: "MANAGER" },
+        ],
+      },
+
+      {
+        id: "smi-core4",
+        label: "🛡️ ENVIRONNEMENT & SECURITE",
+        icon: ShieldAlert,
+        items: [
+          { title: "Causeries", path: "/dashboard/sse/causeries", icon: Zap, access: "ALL" },
+          { title: "Incidents", path: "/dashboard/environment/incidents", icon: FileText, access: "ALL" },
+          { title: "Consommations", path: "/dashboard/environment/consumptions", icon: FileText, access: "ALL" },
+          { title: "Gestion des déchets", path: "/dashboard/environment/wastes", icon: FileText, access: "ALL" },
+          { title: "Analyses", path: "/dashboard/analytics", icon: Zap, access: "ALL" },
+          { title: "Planning", path: "/dashboard/gouvernance/planning", icon: Zap, access: "ALL" },
+          { title: "Sessions", path: "/dashboard/gouvernance/sessions", icon: Zap, access: "ALL" },
+          { title: "Rapports", path: "/dashboard/sse/report", icon: AlertTriangle, access: "ALL" },
+          
+        ],
+      },
+      {
+        id: "smi-core5",
+        label: "🛡️ FORMATIONS & COMPETENCES",
+        icon: ShieldAlert,
+        items: [
+          { title: "Ressources humaines", path: "/dashboard/rh", icon: Zap, access: "ALL" },
+          { title: "Formations", path: "/dashboard/formations", icon: Zap, access: "ALL" },
+          { title: "Conformité", path: "/dashboard/gouvernance/compliance", icon: Zap, access: "ALL" },
+          { title: "Certifications", path: "/dashboard/tb-certif", icon: Zap, access: "ALL" },
+          { title: "Exigences", path: "/dashboard/requirements", icon: AlertTriangle, access: "ALL" },
+          
+        ],
+      },
+
+      {
+        id: "smi-core6",
+        label: "🛡️ SENEGAL LEGAL",
+        icon: ShieldAlert,
+        items: [
+          { title: "Légal", path: "/dashboard/senegal-legal", icon: Zap, access: "ALL" },
+          { title: "ISO 9001", path: "/dashboard/checklists/iso9001", icon: Zap, access: "ALL" },
+          { title: "ISO 14001", path: "/dashboard/checklists/iso14001", icon: FileText, access: "ALL" },
+          { title: "Certifications", path: "/dashboard/tb-certif", icon: Zap, access: "ALL" },
+          { title: "Actifs & Assets", path: "/dashboard/equipment", icon: AlertTriangle, access: "ALL" },
+          { title: "Plan de Continuité - PCA", path: "/dashboard/organization", icon: FileText, access: "ALL" },
+        ],
+      },
+
       {
         id: "admin",
         label: "⚙️ CONFIGURATION",
         icon: Settings2,
         items: [
+          { title: "Sites", path: "/dashboard/sites", icon: Zap, access: "ALL" },
+          { title: "Types d'unités", path: "/dashboard/org-units-type", icon: Zap, access: "ALL" },
+          { title: "Unités organiques", path: "/dashboard/org-units", icon: Zap, access: "ALL" },
+          { title: "Types de processus", path: "/dashboard/processus-type", icon: Zap, access: "ALL" },
+          { title: "Processus", path: "/dashboard/processus", icon: Zap, access: "ALL" },
           { title: "Collaborateurs", path: "/dashboard/users", icon: Users, access: "ADMIN" },
-          { title: "Paramètres Nœud", path: "/dashboard/settings", icon: Settings2, access: "ADMIN" },
+          { title: "Paramètres Nœud", path: "/dashboard/admin/setup", icon: Settings2, access: "ADMIN" },
         ],
       },
     ];
@@ -132,6 +214,10 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
         icon: Crown,
         items: [
           { title: "Matrix Dashboard", path: "/admin/matrix", icon: Terminal, access: "SUPERADMIN" },
+          { title: "Console", path: "/dashboard/superadmin/console", icon: FileText, access: "SUPERADMIN" },
+          { title: "Sécurité", path: "/dashboard/superadmin/security", icon: FileText, access: "SUPERADMIN" },
+          { title: "Clientéle", path: "/dashboard/superadmin/tenants", icon: FileText, access: "SUPERADMIN" },
+          { title: "Transactions", path: "/dashboard/superadmin/transactions", icon: FileText, access: "SUPERADMIN" },
           { title: "Provisioning", path: "/admin/provisioning", icon: Database, access: "SUPERADMIN" },
         ],
       });
