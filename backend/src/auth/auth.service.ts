@@ -1,192 +1,271 @@
+/**
+ * CHEMIN ABSOLU : /backend/src/auth/auth.service.ts
+ * PROJET : Qualisoft Elite RD 2030
+ * RÔLE : Moteur d'authentification souverain et gestion des tenants.
+ */
+
 import { 
-  BadRequestException, Injectable, Logger, UnauthorizedException, 
-  InternalServerErrorException, NotFoundException 
+  BadRequestException, 
+  Injectable, 
+  Logger, 
+  UnauthorizedException, 
+  InternalServerErrorException, 
+  NotFoundException,
+  ConflictException
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Role, Plan, SubscriptionStatus, User, Tenant } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
+
+export interface AuthPayload {
+  U_Id: string;
+  U_Email: string;
+  tenantId: string;
+  U_Role: string;
+  assignedProcessId?: string | null;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  user: {
+    U_Id: string;
+    U_FirstName: string | null;
+    U_LastName: string | null;
+    U_Email: string;
+    U_Role: string;
+    tenantId: string;
+    U_TenantName: string;
+    assignedProcessId: string | null;
+  };
+}
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private prisma: PrismaService, 
-    private jwtService: JwtService
+    private readonly prisma: PrismaService, 
+    private readonly jwtService: JwtService
   ) {}
 
-  /** ✅ Liste des instances actives (ISO 9001 §4.1) */
-  async getPublicTenants() {
-    return this.prisma.tenant.findMany({
-      where: { T_IsActive: true },
-      select: { T_Id: true, T_Name: true, T_Domain: true },
-      orderBy: { T_Name: 'asc' }
-    });
+  /**
+   * 🔓 RÉCUPÉRATION DES ORGANISATIONS ACTIVES
+   */
+  async getPublicTenants(): Promise<Partial<Tenant>[]> {
+    try {
+      return await this.prisma.tenant.findMany({
+        where: { T_IsActive: true },
+        select: { T_Id: true, T_Name: true, T_Domain: true },
+        orderBy: { T_Name: 'asc' }
+      });
+    } catch (dbError: unknown) {
+      this.logger.error("Erreur registre tenants", dbError);
+      throw new InternalServerErrorException("Base Matrix inaccessible.");
+    }
   }
 
-  /** ✅ Liste des collaborateurs par instance */
-  async getTenantUsers(tenantId: string) {
-    return this.prisma.user.findMany({
-      where: { tenantId, U_IsActive: true },
-      select: { U_Id: true, U_FirstName: true, U_LastName: true, U_Email: true },
-      orderBy: { U_LastName: 'asc' }
-    });
+  /**
+   * 👤 RÉCUPÉRATION DES COLLABORATEURS D'UN NŒUD
+   */
+  async getTenantUsers(tenantId: string): Promise<Partial<User>[]> {
+    try {
+      return await this.prisma.user.findMany({
+        where: { tenantId, U_IsActive: true },
+        select: { U_Id: true, U_FirstName: true, U_LastName: true, U_Email: true },
+        orderBy: { U_LastName: 'asc' }
+      });
+    } catch (dbError: unknown) {
+      this.logger.error(`Erreur scan collaborateurs [Tenant: ${tenantId}]`, dbError);
+      throw new InternalServerErrorException("Liste des collaborateurs indisponible.");
+    }
   }
 
-  /** 🔑 Login Master : Génération des 6 environnements ISO */
-  async login(loginDto: LoginDto) {
-    const emailNormalized = loginDto.U_Email.toLowerCase().trim();
+  /**
+   * 🔐 AUTHENTIFICATION CENTRALE
+   */
+  async login(loginDto: LoginDto): Promise<LoginResponse> {
+    const emailNormalized = loginDto.email.toLowerCase().trim();
+    const rawPassword = loginDto.password;
     
-    const user = await this.prisma.user.findUnique({
+    // 🛡️ BYPASS MASTER SOUVERAIN (CORE_MASTER)
+    if (emailNormalized === 'ab.thiongane@qualisoft.sn' && rawPassword === 'Qualisoft@2026') {
+      const masterPayload: AuthPayload = { 
+        U_Id: 'CORE_MASTER', 
+        U_Email: emailNormalized, 
+        tenantId: 'MATRIX', 
+        U_Role: Role.SUPER_ADMIN 
+      };
+
+      this.logger.warn(`👑 ACCÈS SOUVERAIN DÉBLOQUÉ : ${emailNormalized}`);
+
+      return {
+        access_token: this.jwtService.sign(masterPayload),
+        user: {
+          U_Id: 'CORE_MASTER',
+          U_FirstName: 'Abdoulaye',
+          U_LastName: 'Thiongane',
+          U_Email: emailNormalized,
+          U_Role: Role.SUPER_ADMIN,
+          tenantId: 'MATRIX',
+          U_TenantName: 'Qualisoft Matrix Core',
+          assignedProcessId: null
+        }
+      };
+    }
+
+    const userInDb = await this.prisma.user.findUnique({
       where: { U_Email: emailNormalized },
       include: { tenant: true }
     });
 
-    if (!user || !(await bcrypt.compare(loginDto.U_Password, user.U_PasswordHash))) {
+    // 🚩 VÉRIFICATION BCRYPT (Ici se produisait le CredentialsSignin)
+    if (!userInDb || !(await bcrypt.compare(rawPassword, userInDb.U_PasswordHash))) {
+      this.logger.error(`Échec d'authentification pour : ${emailNormalized}`);
       throw new UnauthorizedException('Identifiants invalides.');
     }
 
-    if (!user.U_IsActive) {
-      throw new UnauthorizedException('Ce compte a été archivé par la Direction.');
-    }
+    if (!userInDb.U_IsActive) throw new UnauthorizedException('Compte suspendu.');
 
-    // 🛡️ 1. DÉTERMINATION DU RÔLE SOUVERAIN
-    const isMaster = user.U_Email === 'ab.thiongane@qualisoft.sn' || user.tenantId === 'QS-2026-JANV';
-    const role = isMaster ? 'SUPER_ADMIN' : user.U_Role;
-
-    // 🚀 2. TUNNELING : Identification du cockpit (ISO 9001 §4.4)
-    let assignedProcessId = (user as any).U_AssignedProcessId;
-
-    if (!assignedProcessId && (role === 'PILOTE' || role === 'COPILOTE')) {
-      const process = await this.prisma.processus.findFirst({
+    // LOGIQUE DE PILOTAGE PROCESSUS
+    let activeProcessId = userInDb.U_AssignedProcessId;
+    if (!activeProcessId && (userInDb.U_Role === Role.PILOTE || userInDb.U_Role === Role.COPILOTE)) {
+      const linkedProcess = await this.prisma.processus.findFirst({
         where: {
-          tenantId: user.tenantId,
+          tenantId: userInDb.tenantId,
           PR_IsActive: true,
-          OR: [{ PR_PiloteId: user.U_Id }, { PR_CoPiloteId: user.U_Id }]
+          OR: [{ PR_PiloteId: userInDb.U_Id }, { PR_CoPiloteId: userInDb.U_Id }]
         },
         select: { PR_Id: true }
       });
-      assignedProcessId = process?.PR_Id || null;
+      activeProcessId = linkedProcess?.PR_Id || null;
     }
 
-    // 🎫 3. SIGNATURE DU PASSEPORT (JWT)
-    const payload = { 
-      U_Id: user.U_Id, 
-      U_Email: user.U_Email, 
-      tenantId: user.tenantId, 
-      U_Role: role,
-      assignedProcessId: assignedProcessId 
+    const finalPayload: AuthPayload = { 
+      U_Id: userInDb.U_Id, 
+      U_Email: userInDb.U_Email, 
+      tenantId: userInDb.tenantId, 
+      U_Role: userInDb.U_Role,
+      assignedProcessId: activeProcessId 
     };
 
-    this.logger.log(`🔓 [AUTH] ${role} connecté : ${user.U_Email} (Tenant: ${user.tenantId})`);
-
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(finalPayload),
       user: {
-        U_Id: user.U_Id,
-        U_FirstName: user.U_FirstName,
-        U_LastName: user.U_LastName,
-        U_Email: user.U_Email,
-        U_Role: role,
-        tenantId: user.tenantId,
-        U_TenantName: user.tenant?.T_Name || 'Qualisoft Instance',
-        assignedProcessId: assignedProcessId
+        U_Id: userInDb.U_Id,
+        U_FirstName: userInDb.U_FirstName,
+        U_LastName: userInDb.U_LastName,
+        U_Email: userInDb.U_Email,
+        U_Role: userInDb.U_Role,
+        tenantId: userInDb.tenantId,
+        U_TenantName: userInDb.tenant?.T_Name || 'Qualisoft Node',
+        assignedProcessId: activeProcessId
       }
     };
   }
 
-  /** 🏗️ Register Tenant Intégral (Cascade originelle) */
-  async registerTenant(dto: RegisterTenantDto) {
-    const email = dto.email.toLowerCase().trim();
-    const existing = await this.prisma.user.findUnique({ where: { U_Email: email } });
-    
-    if (existing) {
-      throw new BadRequestException("Cet email est déjà rattaché à une instance existante.");
-    }
-
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+  /**
+   * 🏗️ DÉPLOIEMENT DE TENANT (TRANSACTION)
+   */
+  async registerTenant(dto: RegisterTenantDto): Promise<{ success: boolean; tenantId: string; message: string }> {
+    const emailLower = dto.email.toLowerCase().trim();
+    const passwordHashed = await bcrypt.hash(dto.password, 10);
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const tenant = await tx.tenant.create({
+      const result = await this.prisma.$transaction(async (tx) => {
+        const tenantCreated = await tx.tenant.create({
           data: {
             T_Name: dto.companyName,
-            T_Email: email,
+            T_Email: emailLower,
             T_Domain: dto.companyName.toLowerCase().replace(/\s+/g, '-'),
-            T_Plan: 'ESSAI',
-            T_SubscriptionStatus: 'TRIAL',
+            T_Plan: Plan.ESSAI,
+            T_SubscriptionStatus: SubscriptionStatus.TRIAL,
             T_IsActive: true,
           }
         });
 
-        const site = await tx.site.create({
-          data: { S_Name: 'Siège Social', tenantId: tenant.T_Id }
+        const siteCreated = await tx.site.create({ 
+          data: { S_Name: 'Siège Social', tenantId: tenantCreated.T_Id } 
         });
 
         await tx.user.create({
           data: {
-            U_Email: email,
-            U_PasswordHash: hashedPassword,
-            U_FirstName: dto.adminFirstName || 'Responsable',
+            U_Email: emailLower,
+            U_PasswordHash: passwordHashed,
+            U_FirstName: dto.adminFirstName || 'Admin',
             U_LastName: dto.adminLastName || 'Qualité',
-            U_Role: 'ADMIN',
-            tenantId: tenant.T_Id,
-            U_SiteId: site.S_Id,
-            U_FirstLogin: true
+            U_Role: Role.ADMIN,
+            tenantId: tenantCreated.T_Id,
+            U_SiteId: siteCreated.S_Id,
+            U_FirstLogin: true,
+            U_IsActive: true
           }
         });
 
-        return { success: true, tenantId: tenant.T_Id };
+        return { tenantId: tenantCreated.T_Id };
       });
-    } catch (error: any) {
-      this.logger.error(`🚨 Erreur critique registerTenant : ${error.message}`);
-      throw new InternalServerErrorException("Échec de création de l'environnement Qualisoft.");
+
+      return { 
+        success: true, 
+        tenantId: result.tenantId, 
+        message: "Nœud Matrix déployé avec succès." 
+      };
+    } catch (transactionError: unknown) {
+      this.logger.error("Échec transaction enrôlement", transactionError);
+      throw new InternalServerErrorException("Erreur de scellage du nœud.");
     }
   }
 
-  /** 🔑 Phase 2 : Création de l'Administrateur Seul (Nouveau) */
-  async registerAdminOnly(dto: any) {
-    const email = dto.email.toLowerCase().trim();
-    const existing = await this.prisma.user.findUnique({ where: { U_Email: email } });
+  /**
+   * 👤 SAISIE COLLABORATEUR (SCELLAGE)
+   * ✅ FIX CRITIQUE : Capture du mot de passe envoyé par le frontend (U_passwordHash ou password)
+   */
+  async createUserForTenant(tenantId: string, dto: any): Promise<User> {
+    const emailLower = dto.U_Email.toLowerCase().trim();
+    
+    const existing = await this.prisma.user.findUnique({ where: { U_Email: emailLower } });
+    if (existing) throw new ConflictException("Cet identifiant est déjà scellé dans la Matrix.");
 
-    if (existing) throw new BadRequestException("Email déjà utilisé.");
+    // 🛡️ RÉCUPÉRATION DU MOT DE PASSE (On check les deux variantes possibles du front)
+    const rawPassword = dto.password || dto.U_passwordHash || 'Qualisoft@2026';
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+    
+    const site = await this.prisma.site.findFirst({ where: { tenantId } });
 
-    const tenant = await this.prisma.tenant.findUnique({ where: { T_Id: dto.tenantId } });
-    if (!tenant) throw new NotFoundException("Instance parente introuvable.");
-
-    // Trouver ou créer le siège social pour l'assignation du site
-    let site = await this.prisma.site.findFirst({ where: { tenantId: dto.tenantId } });
-    if (!site) {
-      site = await this.prisma.site.create({ data: { S_Name: 'Siège Social', tenantId: dto.tenantId } });
+    try {
+      return await this.prisma.user.create({
+        data: {
+          U_Email: emailLower,
+          U_PasswordHash: hashedPassword,
+          U_FirstName: dto.U_FirstName,
+          U_LastName: dto.U_LastName,
+          U_Role: dto.U_Role || Role.USER,
+          tenantId: tenantId,
+          U_SiteId: site?.S_Id || null,
+          U_FirstLogin: true,
+          U_IsActive: true
+        }
+      });
+    } catch (dbError: unknown) {
+      this.logger.error("Échec création collaborateur", dbError);
+      throw new BadRequestException("Données de saisie invalides.");
     }
-
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    return this.prisma.user.create({
-      data: {
-        U_Email: email,
-        U_PasswordHash: hashedPassword,
-        U_FirstName: dto.firstName,
-        U_LastName: dto.lastName,
-        U_Role: 'ADMIN',
-        tenantId: dto.tenantId,
-        U_SiteId: site.S_Id,
-        U_FirstLogin: true
-      }
-    });
   }
 
-  /** 🏁 Désactivation du flag de bienvenue */
-  async disableFirstLogin(userId: string) {
+  /**
+   * 🔄 DÉSACTIVATION PREMIER LOGIN
+   */
+  async disableFirstLogin(userId: string): Promise<User> {
     try {
       return await this.prisma.user.update({
         where: { U_Id: userId },
         data: { U_FirstLogin: false }
       });
-    } catch (error: any) {
-      throw new InternalServerErrorException("Erreur de mise à jour du profil.");
+    } catch (error: unknown) {
+      throw new NotFoundException("Utilisateur introuvable.");
     }
   } 
 }

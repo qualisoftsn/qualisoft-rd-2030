@@ -1,10 +1,15 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 export class LoginDto {
-  @IsEmail({}, { message: 'L\'adresse email U_Email doit être valide' })
-  U_Email!: string;
+  @IsEmail({}, { message: 'Format email invalide.' })
+  @IsNotEmpty({ message: "L'email est requis." })
+  email!: string; // ✅ Aligné sur ta charge utile
 
   @IsString()
-  @MinLength(6, { message: 'Le mot de passe U_Password doit contenir au moins 6 caractères' })
-  U_Password!: string;
+  @IsNotEmpty({ message: 'Le mot de passe est requis.' })
+  password!: string; // ✅ Aligné sur ta charge utile
+
+  @IsString()
+  @IsOptional()
+  tenantId?: string;
 }

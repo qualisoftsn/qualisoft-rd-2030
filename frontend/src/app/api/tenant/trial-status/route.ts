@@ -1,62 +1,58 @@
-//* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * CHEMIN ABSOLU : /src/app/api/tenant/trial-status/route.ts
+ * PROJET : Qualisoft Elite (Frontend)
+ * RÔLE : Calcul du statut d'essai basé sur le Schema Prisma réel (Zéro Hallucination)
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/core/lib/auth";
-import prisma from '@/core/lib/prisma';
+import { authOptions } from "../../../../lib/auth";
+import prisma from '../../../../lib/prisma';
 import { differenceInDays, differenceInHours } from 'date-fns';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
-    // 🟢 CORRECTION 1 : Vérification stricte que l'user existe
-    if (!session || !session.user) {
-     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+    if (!session?.user?.tenantId) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
-    // 🟢 CORRECTION 2 : Typage explicite pour accéder à 'tenantId'
-    const user = session.user as any;
-
+    // 🛡️ REQUÊTE STRICTE SELON TON SCHEMA.PRISMA
     const tenant = await prisma.tenant.findUnique({
-      where: { T_Id: user.tenantId },
+      where: { T_Id: session.user.tenantId },
       select: {
-        T_SubscriptionStatus: true,
-        T_SubscriptionEndDate: true,
-        T_Name: true
+        T_SubscriptionStatus: true, // Remplace T_IsTrial
+        T_SubscriptionEndDate: true, // Remplace T_TrialEndsAt
+        T_Name: true,
+        T_Plan: true
       }
     });
 
     if (!tenant) {
-      return NextResponse.json({ error: 'Tenant non trouvé' }, { status: 404 });
+      return NextResponse.json({ error: "Tenant introuvable" }, { status: 404 });
     }
 
-    if (tenant.T_SubscriptionStatus !== 'TRIAL') {
-      return NextResponse.json({ 
-        subscriptionStatus: tenant.T_SubscriptionStatus,
-        isTrial: false 
-      });
-    }
-
-    const endDate = tenant.T_SubscriptionEndDate || new Date();
+    // 🧠 LOGIQUE MÉTIER : Déduction du statut d'essai
+    const isTrial = tenant.T_SubscriptionStatus === 'TRIAL';
     const now = new Date();
-    
-    const daysLeft = differenceInDays(endDate, now);
-    const hoursLeft = differenceInHours(endDate, now);
-    const isExpired = daysLeft < 0;
+    // Si pas de date de fin définie, on met une date par défaut ou null
+    const trialEnd = tenant.T_SubscriptionEndDate ? new Date(tenant.T_SubscriptionEndDate) : new Date();
+
+    const daysRemaining = differenceInDays(trialEnd, now);
+    const hoursRemaining = differenceInHours(trialEnd, now);
 
     return NextResponse.json({
-      subscriptionStatus: 'TRIAL',
-      isTrial: true,
-      daysLeft: Math.max(0, daysLeft),
-      hoursLeft: Math.max(0, hoursLeft),
-      isExpired,
-      endDate: tenant.T_SubscriptionEndDate,
-      tenantName: tenant.T_Name
+      isTrial: isTrial,
+      daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
+      hoursRemaining: hoursRemaining > 0 ? hoursRemaining : 0,
+      isExpired: now > trialEnd && isTrial,
+      tenantName: tenant.T_Name,
+      plan: tenant.T_Plan
     });
 
   } catch (error) {
-    console.error("Erreur API Trial Status:", error); // Ajout d'un log pour t'aider au cas où
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    console.error("🚨 [Trial-Status] Erreur:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

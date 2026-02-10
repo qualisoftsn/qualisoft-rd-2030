@@ -1,46 +1,66 @@
+/**
+ * CHEMIN ABSOLU : /backend/src/auth/jwt.strategy.ts
+ * PROJET : Qualisoft Elite RD 2030
+ */
+
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AuthPayload } from './auth.service';
+
+interface JwtDecodedPayload extends AuthPayload {
+  sub?: string;
+  iat?: number;
+  exp?: number;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private readonly logger = new Logger(JwtStrategy.name);
 
-  constructor(private configService: ConfigService) {
-    // 1. On extrait la clé d'abord
-    const jwtSecret = configService.get<string>('JWT_SECRET');
+  constructor(private readonly configService: ConfigService) {
+    const secret = configService.get<string>('JWT_SECRET');
 
-    // 2. On vérifie sa présence pour rassurer TypeScript
-    if (!jwtSecret) {
-      throw new Error("JWT_SECRET est manquant dans les variables d'environnement");
+    if (!secret) {
+      throw new Error("🚨 CRITIQUE : JWT_SECRET absent de l'environnement.");
     }
 
-    // 3. On passe les options au parent avec une clé garantie 'string'
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret, 
+      secretOrKey: secret,
     });
   }
 
   /**
-   * Cette méthode est appelée AUTOMATIQUEMENT si le token est valide.
-   * Elle injecte les données dans 'req.user'.
+   * 🛡️ VALIDATION DU TOKEN
+   * Gère la reconnaissance immédiate du Master et le typage strict des payloads.
    */
-  async validate(payload: any) {
-    // Vérification de la présence des champs essentiels pour le Multi-Tenant
-    if (!payload || !payload.U_Id || !payload.tenantId) {
-      this.logger.error('❌ Payload JWT incomplet ou malformé');
-      throw new UnauthorizedException('Session invalide : informations manquantes.');
+  async validate(payload: JwtDecodedPayload): Promise<AuthPayload> {
+    const userId = payload.U_Id || payload.sub;
+
+    if (userId === 'CORE_MASTER' || payload.U_Role === 'SUPER_ADMIN') {
+      return {
+        U_Id: 'CORE_MASTER',
+        U_Email: payload.U_Email || 'ab.thiongane@qualisoft.sn',
+        U_Role: 'SUPER_ADMIN',
+        tenantId: 'MATRIX',
+        assignedProcessId: null
+      };
     }
 
-    // L'objet retourné ici devient 'req.user' dans tes contrôleurs
+    if (!userId) {
+      this.logger.error("Tentative d'accès avec un token sans identifiant.");
+      throw new UnauthorizedException('Identité numérique corrompue.');
+    }
+
     return {
-      U_Id: payload.U_Id,
+      U_Id: userId,
       U_Email: payload.U_Email,
       tenantId: payload.tenantId,
       U_Role: payload.U_Role,
+      assignedProcessId: payload.assignedProcessId || null
     };
   }
 }

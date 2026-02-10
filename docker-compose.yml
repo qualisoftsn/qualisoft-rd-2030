@@ -1,7 +1,8 @@
-# version: '3.8'
+# PROJET : Qualisoft Elite RD 2030
+# STRATÉGIE : Build Séquentiel & Contrôle de la RAM (Souveraineté des Ressources)
 
 services:
-  # --- 1. BASE DE DONNÉES ---
+  # 🗄️ BASE DE DONNÉES (Souveraineté des Données)
   db:
     image: postgres:16-alpine
     container_name: qualisoft_db
@@ -22,63 +23,72 @@ services:
     networks:
       - qualisoft_network
 
-  # --- 2. CACHE ---
+  # ⚡ CACHE & SESSIONS
   redis:
     image: redis:7-alpine
     container_name: qualisoft_redis
-    restart: "no"
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
     networks:
       - qualisoft_network
 
-  # --- 3. BACKEND ---
+  # 🧠 NOYAU API (NestJS)
   backend:
     build: 
       context: ./backend
       dockerfile: Dockerfile
     container_name: qualisoft-backend
     restart: unless-stopped
+    # 🛡️ BRIDAGE DE LA RAM POUR LE BACKEND
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     environment:
-      - DATABASE_URL=postgresql://postgres:qualipass2026@db:5432/qualisoft_db?schema=public
+      - DATABASE_URL=postgresql://postgres:qualipass2026@qualisoft_db:5432/qualisoft_db?schema=public
       - NODE_ENV=development
       - PORT=9000
-      - JWT_SECRET=QUALISOFT_SECRET_KEY_SUPER_SECURE_2026_ELITE
+      - JWT_SECRET=QUALISOFT_2026_SECRET
+      - FRONTEND_URL=http://localhost:3001
     ports:
       - "9000:9000"
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_started
-    volumes:
-      - ./backend/uploads:/app/uploads
-      - ./backend/backups:/app/backups
     networks:
       - qualisoft_network
 
-  # --- 4. FRONTEND ---
+  # 💻 COCKPIT (Next.js)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=http://localhost:9000/api
     container_name: qualisoft-frontend
     restart: unless-stopped
+    # 🛡️ BRIDAGE DE LA RAM POUR LE FRONTEND (Crucial pour Next.js 16/Turbopack)
+    deploy:
+      resources:
+        limits:
+          memory: 4G
     ports:
       - "3001:3001"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:9000/api
+      - INTERNAL_API_URL=http://qualisoft-backend:9000/api
       - NEXTAUTH_URL=http://localhost:3001
+      - NEXTAUTH_SECRET=QUALISOFT_2026_SECRET
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      db:
+        condition: service_healthy
     networks:
       - qualisoft_network
 
+# 🌐 RÉSEAU SÉCURISÉ
 networks:
   qualisoft_network:
     driver: bridge
 
+# 💾 PERSISTANCE
 volumes:
   postgres_data:

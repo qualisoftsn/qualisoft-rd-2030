@@ -1,103 +1,106 @@
+/**
+ * CHEMIN ABSOLU : /backend/src/auth/auth.controller.ts
+ * PROJET : Qualisoft Elite RD 2030
+ * RÔLE : Pilotage des flux d'accès (Public & Privé) et validation des sessions.
+ */
+
 import { 
-  BadRequestException, Body, ClassSerializerInterceptor, 
-  Controller, Get, HttpCode, HttpStatus, Logger, Param, Patch, Post, 
-  UseInterceptors, UseGuards 
+  Controller, 
+  Get, 
+  Post, 
+  Patch, 
+  Param, 
+  Body, 
+  HttpCode, 
+  HttpStatus, 
+  Logger 
 } from '@nestjs/common';
-import { Public } from '../common/decorators/public.decorator';
-import { AuthService } from './auth.service';
-import { ContactService } from './contact.service';
+import { 
+  AuthService, 
+  LoginResponse 
+} from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
-import { InviteDto } from './dto/invite.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { SovereignGuard } from '../common/guards/sovereign.guard';
+import { User, Tenant } from '@prisma/client';
+import { Public } from './decorators/public.decorator'; // ✅ IMPORT SOUVERAIN
 
 @Controller('auth')
-@UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
-  private readonly logger = new Logger('AuthController');
-  
-  constructor(
-    private readonly authService: AuthService, 
-    private readonly contactService: ContactService
-  ) {}
+  private readonly logger = new Logger(AuthController.name);
 
-  /** * 📜 ISO 9001 §4.1 : Compréhension de l'organisme et de son contexte 
-   * Récupère les instances actives pour le portail de connexion Qualisoft.
+  constructor(private readonly authService: AuthService) {}
+
+  /**
+   * 🔓 REGISTRE PUBLIC DES TENANTS
+   * Utilisé par le Portail Entreprise pour charger la liste des organisations.
    */
-  @Public()
-  @Get('tenants/public')
+  @Public() 
+  @Get('public/tenants')
   @HttpCode(HttpStatus.OK)
-  async getPublicTenants() {
-    return this.authService.getPublicTenants();
+  async getPublicTenants(): Promise<Partial<Tenant>[]> {
+    this.logger.log("🔍 Accès public : Scan des organisations actives.");
+    return await this.authService.getPublicTenants();
   }
 
-  /** * 👥 Récupération des profils par instance 
-   * Utilisé pour la sélection du collaborateur lors du "Tunneling" initial.
+  /**
+   * 🔓 REGISTRE PUBLIC DES COLLABORATEURS
+   * Utilisé par le Login Cascade pour l'identification par nœud.
    */
   @Public()
-  @Get('tenants/:id/users')
+  @Get('public/tenants/:tenantId/users')
   @HttpCode(HttpStatus.OK)
-  async getTenantUsers(@Param('id') id: string) {
-    this.logger.log(`[AUTH] Fetching users for tenant: ${id}`);
-    return this.authService.getTenantUsers(id);
+  async getPublicUsers(@Param('tenantId') tenantId: string): Promise<Partial<User>[]> {
+    this.logger.log(`🔍 Accès public : Scan des citoyens pour le nœud : ${tenantId}`);
+    return await this.authService.getTenantUsers(tenantId);
   }
 
-  /** * 🔑 Login Centralisé 
-   * Authentification et génération du token JWT avec injection du assignedProcessId.
+  /**
+   * 🔐 AUTHENTIFICATION (LOGIN)
+   * Bypass Master inclus dans le service.
    */
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto): Promise<LoginResponse> {
+    this.logger.log(`🔑 Tentative d'accès sécurisé pour : ${loginDto.email}`);
+    return await this.authService.login(loginDto);
   }
 
-  /** * 🏗️ Création d'Instance (Phase 1 ou Inscription Directe)
-   * Processus d'auto-inscription sécurisé pour les nouveaux clients Qualisoft.
+  /**
+   * 🏗️ ENRÔLEMENT DE TENANT (PROVISIONING)
+   * Création d'une nouvelle instance Matrix.
    */
   @Public()
   @Post('register-tenant')
   @HttpCode(HttpStatus.CREATED)
-  async registerTenant(@Body() registerDto: RegisterTenantDto) {
-    this.logger.warn(`[AUTH] New Tenant Registration attempt: ${registerDto.companyName}`);
-    return this.authService.registerTenant(registerDto);
+  async registerTenant(
+    @Body() registerDto: RegisterTenantDto
+  ): Promise<{ success: boolean; tenantId: string; message: string }> {
+    this.logger.warn(`🏗️ Requête d'enrôlement Matrix pour : ${registerDto.companyName}`);
+    return await this.authService.registerTenant(registerDto);
   }
 
-  /** * 🔐 Phase 2 : Déploiement Administrateur (§7.1.2)
-   * Permet d'assigner un compte ADMIN à un Tenant déjà existant.
-   * Note: En production, cette route devrait être protégée par SovereignGuard.
+  /**
+   * 🖋️ CRÉATION DE COLLABORATEUR (ADMIN)
+   * Route protégée : nécessite une session active.
    */
-  @Public() 
-  @Post('register-admin-only')
+  @Post('tenants/:tenantId/users')
   @HttpCode(HttpStatus.CREATED)
-  async registerAdminOnly(@Body() adminDto: any) {
-    this.logger.log(`[AUTH] Assigning new ADMIN to tenant ID: ${adminDto.tenantId}`);
-    return this.authService.registerAdminOnly(adminDto);
+  async createUserInTenant(
+    @Param('tenantId') tenantId: string, 
+    @Body() userData: any
+  ): Promise<User> {
+    this.logger.log(`🖋️ Scellage d'un collaborateur pour le nœud : ${tenantId}`);
+    return await this.authService.createUserForTenant(tenantId, userData);
   }
 
-  /** * 🏁 Finalisation de Première Connexion 
-   * Double protection : JWT pour l'identité + Sovereign pour l'autorité.
+  /**
+   * 🔄 VALIDATION DE PREMIÈRE CONNEXION
    */
-  @UseGuards(JwtAuthGuard, SovereignGuard)
-  @Patch('disable-first-login/:id')
+  @Patch('disable-first-login/:userId')
   @HttpCode(HttpStatus.OK)
-  async disableFirstLogin(@Param('id') id: string) {
-    this.logger.log(`[AUTH] Disabling first-login flag for user: ${id}`);
-    return this.authService.disableFirstLogin(id);
-  }
-
-  /** * 📩 Demande d'Invitation (Prospects)
-   * Canal de capture pour les futurs clients Qualisoft.
-   */
-  @Public()
-  @Post('invite')
-  @HttpCode(HttpStatus.OK)
-  async invite(@Body() inviteDto: InviteDto) {
-    if (!inviteDto.email || !inviteDto.company) {
-      this.logger.error(`[AUTH] Invalid invite request from: ${inviteDto.email}`);
-      throw new BadRequestException("Champs requis manquants pour la demande d'invitation.");
-    }
-    return this.contactService.sendInviteRequest(inviteDto);
+  async disableFirstLogin(@Param('userId') userId: string): Promise<User> {
+    this.logger.log(`🔄 Mise à jour du scellé FirstLogin pour : ${userId}`);
+    return await this.authService.disableFirstLogin(userId);
   }
 }

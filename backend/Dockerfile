@@ -1,50 +1,57 @@
-# --- STAGE 1 : BUILD ---
-FROM node:20-bullseye AS builder
+# CHEMIN ABSOLU : /backend/Dockerfile
+# PROJET : Qualisoft Elite RD 2030 (Backend)
+# RÔLE : Build Multi-Stage et Runtime Production
+
+# --- ÉTAPE 1 : COMPILATION (BUILDER) ---
+FROM node:20-alpine AS builder
+
+# Installation des dépendances système pour les modules natifs (bcrypt, prisma)
+RUN apk update && apk upgrade && \
+    apk add --no-cache python3 make g++ libc6-compat openssl
 
 WORKDIR /app
 
-# Installation des dépendances système nécessaires pour Prisma et le build
-RUN apt-get update && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
+# ✅ SOLUTION : Ignorer le téléchargement de Chromium pour Puppeteer
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+# Optionnel : Si vous utilisez Prisma avec des moteurs spécifiques
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
-# Installation des dépendances Node
+# Injection des manifestes de dépendances
 COPY package*.json ./
-# Utilisation de legacy-peer-deps pour éviter les conflits de versions NestJS
+
+# Installation propre des dépendances avec gestion des peers
 RUN npm install --legacy-peer-deps
 
-# Copie de tout le code source (incluant le dossier prisma)
+# Copie du code source et génération du client Prisma Elite
 COPY . .
-
-# Génération du client Prisma (Indispensable pour que le backend comprenne la BDD)
 RUN npx prisma generate
 
-# Build de l'application NestJS
+# Build du moteur NestJS
 RUN npm run build
 
-# --- STAGE 2 : PRODUCTION (Runtime) ---
-FROM node:20-bullseye
-
+# --- ÉTAPE 2 : ENVIRONNEMENT D'EXÉCUTION (RUNTIME) ---
+FROM node:20-alpine
 WORKDIR /app
 
-# Installation d'OpenSSL et du client PostgreSQL (utile pour les scripts de backup)
-RUN apt-get update && apt-get install -y openssl libssl-dev postgresql-client && rm -rf /var/lib/apt/lists/*
+# Dépendances critiques pour Prisma et la communication PostgreSQL
+RUN apk update && apk upgrade && \
+    apk add --no-cache postgresql-client openssl libc6-compat
 
-# Récupération des fichiers construits depuis le Stage 1
+# Configuration de l'environnement
+ENV NODE_ENV=production
+
+# Récupération sélective des artefacts de build pour minimiser le poids de l'image
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/public ./public
 
-# Création des dossiers persistants pour les uploads et backups
-RUN mkdir -p uploads backups && chmod -R 777 uploads backups
+# Création des répertoires persistants pour les fichiers Qualisoft
+RUN mkdir -p uploads backups
 
-# Configuration des variables d'environnement
-ENV NODE_ENV=production
-
-# Exposition du port (Doit correspondre à ton main.ts)
+# Port de communication du Backend
 EXPOSE 9000
 
-# 🟢 CORRECTION MAJEURE ICI :
-# On remplace 'migrate deploy' par 'db push --accept-data-loss'
-# Cela force la mise à jour de la base de données et résout l'erreur P3005
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main"]
+# Démarrage avec synchronisation automatique du schéma
+# L'option --accept-data-loss est maintenue selon ta configuration initiale
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main.js"]

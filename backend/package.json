@@ -17,20 +17,21 @@
     "start:dev": "node --dns-result-order=ipv4first node_modules/@nestjs/cli/bin/nest.js start --watch",
     "start:debug": "nest start --debug --watch",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "prisma:generate": "npx prisma generate",
-    "prisma:push": "npx prisma db push",
-    "prisma:migrate": "npx prisma migrate dev",
-    "prisma:studio": "npx prisma studio",
-    "seed": "npx prisma db seed",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "seed": "prisma db seed",
+    "db:init": "npm run prisma:generate && npm run prisma:push && npm run seed",
     "demo:clean": "ts-node prisma/cleanup-demo.ts",
-    "demo:reset": "npm run demo:clean && npx prisma db seed",
+    "demo:reset": "npm run demo:clean && npm run seed",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r ts-node/register -r jest-config.js jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "preinstall": "node -e \"if(!process.version.startsWith('v20')){console.error('\\x1b[31m[!] ERREUR CRITIQUE : Qualisoft nécessite Node 20 LTS. Veuillez utiliser NVM.\\x1b[0m');process.exit(1)}\"",
-    "deploy": "npx prisma migrate deploy && npx prisma db seed",
+    "preinstall": "node -e \"if(!process.version.startsWith('v20')){console.error('\\x1b[31m[!] ERREUR CRITIQUE : Qualisoft nécessite Node 20 LTS.\\x1b[0m');process.exit(1)}\"",
+    "deploy": "prisma migrate deploy && prisma db seed",
     "start:prod": "npm run deploy && node dist/main"
   },
   "dependencies": {
@@ -52,6 +53,7 @@
     "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "cookie-parser": "^1.4.7",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
     "form-data": "^4.0.5",
@@ -66,10 +68,12 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.0.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^4.17.17",
     "@types/jest": "^29.5.2",
     "@types/multer": "^2.0.0",
@@ -114,6 +118,6 @@
     "testEnvironment": "node"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "npx tsx prisma/seed.ts"
   }
 }

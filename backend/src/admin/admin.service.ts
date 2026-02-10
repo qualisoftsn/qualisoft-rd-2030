@@ -35,20 +35,18 @@ export class AdminService {
   ) {}
 
   // --- GESTION DES TENANTS (POUR SUPER-ADMIN) ---
-
-  async findAllTenants(): Promise<Tenant[]> {
-    try {
-      return await this.prisma.tenant.findMany({
-        include: {
-          _count: { select: { T_Users: true, T_Sites: true } }
+async findAllTenants() {
+  return this.prisma.tenant.findMany({
+    include: {
+      _count: {
+        select: {
+          T_Users: true,  // Important pour l'affichage des "Citoyens"
+          T_Sites: true,
         },
-        orderBy: { T_CreatedAt: 'desc' }
-      });
-    } catch (error: any) {
-      this.logger.error(`Erreur lors de l'extraction de la Matrix : ${error.message}`);
-      throw new InternalServerErrorException("Erreur de base de données lors du scan des instances.");
-    }
-  }
+      },
+    },
+  });
+}
 
   async getTenantById(T_Id: string): Promise<Tenant> {
     const tenant = await this.prisma.tenant.findUnique({ 

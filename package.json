@@ -1,10 +1,26 @@
 {
+  "name": "qualisoft-root",
+  "version": "1.0.0",
+  "description": "Qualisoft ERP - Orchestrateur de l'Architecture Elite MS RD 2030",
+  "author": "Abdoulaye THIONGANE / Qualisoft",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0 <21.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev:all": "concurrently \"npm run start:dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "preinstall": "node -e \"if(!process.version.startsWith('v20')){console.error('\\x1b[31m[!] ERREUR CRITIQUE : Qualisoft nécessite Node 20 LTS.\\x1b[0m');process.exit(1)}\""
+  },
   "dependencies": {
     "axios": "^1.13.2",
     "form-data": "^4.0.5",
     "nodemailer": "^7.0.12"
   },
   "devDependencies": {
-    "@types/nodemailer": "^7.0.5"
+    "@jest/globals": "^30.2.0",
+    "@types/nodemailer": "^7.0.5",
+    "concurrently": "^9.1.0"
   }
 }

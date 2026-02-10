@@ -1,24 +1,24 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Patch, 
-  Delete, 
-  Body, 
-  Param, 
-  UseGuards, 
-  Logger, 
-  HttpStatus, 
-  HttpCode, 
-  HttpException, 
-  InternalServerErrorException,
-  NotFoundException,
+import {
   BadRequestException,
-  UnauthorizedException 
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpException,
+  HttpStatus,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  UnauthorizedException,
+  UseGuards
 } from '@nestjs/common';
+import { ProvisioningService } from '../admin-matrix/provisioning.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MasterGuard } from '../auth/guards/master.guard';
-import { ProvisioningService } from './provisioning.service';
 import { AdminService } from './admin.service';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
@@ -47,23 +47,37 @@ export class SuperAdminController {
     }
   }
 
+  /**
+   * INITIALISATION D'UN NOUVEAU CLIENT (EX: SAGAM)
+   * Mise à jour conforme au schéma multi-admin Qualisoft RD 2030
+   */
   @Post('activate-tenant')
   @HttpCode(HttpStatus.CREATED)
-  async activateTenant(@Body() data: { companyName: string; adminEmail: string; domain: string }) {
-    if (!data.companyName || !data.adminEmail) {
-      throw new BadRequestException("Données incomplètes.");
+  async activateTenant(@Body() data: { 
+    companyName: string; 
+    admin1Email: string; 
+    admin2Email: string; 
+    domain: string 
+  }) {
+    // Validation stricte des données de provisioning
+    if (!data.companyName || !data.admin1Email || !data.admin2Email || !data.domain) {
+      throw new BadRequestException("Données de provisioning incomplètes (Emails ou Domaine manquants).");
     }
+
     try {
+      this.logger.log(`🚀 Lancement du déploiement pour le domaine : ${data.domain}`);
+      
       return await this.provisioningService.initializeNewClient({
         companyName: data.companyName,
-        adminEmail: data.adminEmail,
+        admin1Email: data.admin1Email,
+        admin2Email: data.admin2Email,
         domain: data.domain,
-        defaultPassword: "qs@20252030"
+        defaultPassword: "qs@20252030" // Mot de passe d'initialisation par défaut
       });
     } catch (error: any) {
-      this.logger.error(`Échec du déploiement [${data.companyName}]: ${error.message}`);
+      this.logger.error(`❌ Échec du déploiement [${data.companyName}]: ${error.message}`);
       throw new HttpException(
-        error.message || "Erreur provisioning", 
+        error.message || "Erreur lors de la phase de provisioning", 
         error.status || HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
