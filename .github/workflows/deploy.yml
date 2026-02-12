@@ -1,4 +1,4 @@
-name: Deploy Qualisoft to Production
+name: Deploy Qualisoft Elite to Production
 
 on:
   push:
@@ -9,19 +9,27 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Connexion SSH et Mise à jour
+      - name: Connexion SSH et Mise à jour Stratégique
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          # Augmenter le timeout peut aider sur les VPS OVH lors de gros builds
+          command_timeout: 30m 
           script: |
+            # 1. Accès au répertoire racine du projet
             cd /app/qualisoft/qualisoft-rd-2030
+            
+            # 2. Synchronisation du code source
             git pull origin main
             
-            # 1. On force la reconstruction du bon service (qualisoft-ui)
-            # On utilise --force-recreate pour être sûr que la 404 disparaisse
-            docker compose up -d --build --force-recreate qualisoft-ui
+            # 3. Reconstruction séquentielle des 3 piliers (Elite SMI + Vitrine + API)
+            # ATTENTION : On remplace 'qualisoft-ui' par les noms réels du nouveau docker-compose
+            docker compose up -d --build --force-recreate frontend backend vitrine
             
-            # 2. Nettoyage des images inutiles pour ne pas saturer le serveur OVH
-            docker image prune -f
+            # 4. Synchronisation de la base de données (Prisma Migration)
+            docker exec qualisoft-backend npx prisma migrate deploy
+            
+            # 5. Nettoyage drastique pour préserver l'espace disque du VPS
+            docker image prune -af
