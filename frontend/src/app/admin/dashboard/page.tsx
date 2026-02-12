@@ -45,7 +45,7 @@ export default function MatrixDashboard() {
    */
   const fetchTenants = useCallback(async (): Promise<void> => {
     try {
-      const { data } = await apiClient.get<TenantMatrix[]>("/admin/matrix/tenants");
+      const { data } = await apiClient.get<TenantMatrix[]>("/admin/matrix/deploy");
       setTenants(data);
     } catch (exception: unknown) {
       const axiosError = exception as AxiosError<ApiErrorResponse>;

@@ -52,12 +52,12 @@ export interface PublicUser { U_Id: string; U_Email: string; U_FirstName: string
 export const matrixApi = {
   
   getTenants: async (): Promise<TenantDetails[]> => {
-    const res = await apiClient.get<TenantDetails[]>('/admin/matrix/tenants');
+    const res = await apiClient.get<TenantDetails[]>('/admin/matrix');
     return res.data;
   },
 
   getDetails: async (id: string): Promise<TenantDetails> => {
-    const res = await apiClient.get<TenantDetails>(`/admin/matrix/details/${id}`);
+    const res = await apiClient.get<TenantDetails>(`/admin/matrix/${id}`);
     return res.data;
   },
 
@@ -74,18 +74,18 @@ export const matrixApi = {
 
   // 🖋️ Gestion Collaborateurs
   createUser: async (tenantId: string, userData: any): Promise<UserMatrixEntry> => {
-    const res = await apiClient.post<UserMatrixEntry>(`/admin/matrix/tenants/${tenantId}/users`, userData);
+    const res = await apiClient.post<UserMatrixEntry>(`/admin/matrix/${tenantId}/users`, userData);
     return res.data;
   },
 
   // ✅ ACCÈS PUBLICS (LOGIN CASCADE)
   getPublicTenants: async (): Promise<PublicTenant[]> => {
-    const res = await apiClient.get<PublicTenant[]>('/admin/matrix/public/tenants');
+    const res = await apiClient.get<PublicTenant[]>('/admin/matrix');
     return res.data;
   },
 
   getPublicTenantUsers: async (tenantId: string): Promise<PublicUser[]> => {
-    const res = await apiClient.get<PublicUser[]>(`/admin/matrix/public/tenants/${tenantId}/users`);
+    const res = await apiClient.get<PublicUser[]>(`/admin/matrix/${tenantId}/users`);
     return res.data;
   }
 };
