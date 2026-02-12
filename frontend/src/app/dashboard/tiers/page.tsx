@@ -91,7 +91,7 @@ export default function TiersPage() {
       {/* HEADER CENTRÉ */}
       <header className="mb-12 border-b border-white/5 pb-8 flex justify-between items-end w-full max-w-7xl">
         <div className="text-left">
-          <h1 className="text-5xl font-black uppercase tracking-tighter italic leading-none">Intelligence <span className="text-blue-500">Tiers</span></h1>
+          <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">Intelligence <span className="text-blue-500">Tiers</span></h1>
           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-3 italic">Pilotage des Parties Intéressées</p>
         </div>
         <button 

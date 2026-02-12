@@ -198,7 +198,7 @@ export default function RiskGridPage() {
       <header className="mb-8 border-b border-white/5 pb-8">
         <div className="flex justify-between items-start mb-10">
           <div>
-            <h1 className="text-6xl font-black uppercase italic tracking-tighter leading-none">
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
               Management <span className="text-red-600">des Risques</span>
             </h1>
             <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-3 italic">

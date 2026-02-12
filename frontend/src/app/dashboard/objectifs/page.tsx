@@ -89,7 +89,7 @@ export default function QualityObjectivesPage() {
       <header className="sticky top-0 z-40 bg-[#0B0F1A]/95 backdrop-blur-3xl border-b border-white/5 px-12 py-10">
         <div className="flex justify-between items-end mb-10">
           <div>
-            <h1 className="text-7xl font-black uppercase tracking-tighter italic leading-none">
+            <h1 className="text-3xl font-black uppercase tracking-tighter italic leading-none">
               Pilotage <span className="text-blue-600">Objectifs</span>
             </h1>
             <p className="text-slate-500 text-[10px] font-black uppercase mt-4 tracking-[0.5em] italic">

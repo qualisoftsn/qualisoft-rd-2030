@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -130,7 +131,7 @@ export default function GEDPage() {
 
   if (loading && documents.length === 0) return (
     <div className="ml-72 flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-600 font-black italic uppercase tracking-[0.5em]">
-       <Loader2 className="animate-spin mr-6" size={48} /> NOYAU GED ACTIF...
+       <Loader2 className="animate-spin mr-6" size={35} /> NOYAU GED ACTIF...
     </div>
   );
 
@@ -141,7 +142,7 @@ export default function GEDPage() {
       {/* HEADER COCKPIT */}
       <header className="p-10 border-b border-white/5 flex justify-between items-center sticky top-0 bg-[#0B0F1A]/95 backdrop-blur-3xl z-40">
         <div>
-          <h1 className="text-5xl tracking-tighter italic leading-none">SYSTÈME <span className="text-blue-600">GED</span></h1>
+          <h1 className="text-4xl tracking-tighter italic leading-none">SYSTÈME <span className="text-blue-600">GED</span></h1>
           <p className="text-slate-500 text-[10px] tracking-[0.4em] mt-3 flex items-center gap-2 italic">
             <ShieldCheck size={14} className="text-emerald-500" /> ISO 9001 §7.5 • MAÎTRISE DOCUMENTAIRE
           </p>
@@ -232,7 +233,7 @@ export default function GEDPage() {
 
       {/* MODALE D'INDEXATION */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-100 bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6">
           <form 
             onSubmit={handleSubmit}
             className="bg-[#0B0F1A] border border-white/10 rounded-[4rem] w-full max-w-2xl p-12 space-y-8 animate-in zoom-in-95 duration-200"
@@ -285,7 +286,7 @@ export default function GEDPage() {
 
             <button 
               type="submit" 
-              className="w-full bg-blue-600 py-8 rounded-[2rem] font-black text-xs tracking-[0.5em] flex items-center justify-center gap-4 hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/30 active:scale-95 italic"
+              className="w-full bg-blue-600 py-8 rounded-4xl font-black text-xs tracking-[0.5em] flex items-center justify-center gap-4 hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/30 active:scale-95 italic"
             >
               <Save size={24}/> VALIDER L&apos;INDEXATION
             </button>

@@ -22,7 +22,7 @@ export default function TiersPage() {
     <div className="flex-1 bg-[#0B0F1A] min-h-screen p-10 ml-72 text-white font-sans italic text-left">
       <header className="flex justify-between items-end mb-12 border-b border-white/5 pb-10">
         <div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter">Gestion <span className="text-blue-500">Tiers</span></h1>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter">Gestion <span className="text-blue-500">Tiers</span></h1>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-4">Partenaires, Clients & Fournisseurs</p>
         </div>
         <button className="bg-blue-600 px-8 py-4 rounded-2xl font-black uppercase italic text-xs shadow-xl flex items-center gap-3 transition-all hover:bg-blue-500">

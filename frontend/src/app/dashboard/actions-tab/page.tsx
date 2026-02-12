@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -48,7 +49,7 @@ export default function ActionsHubPage() {
       
       <header className="p-10 border-b border-white/5 flex justify-between items-center bg-[#0B0F1A]/95 backdrop-blur-md z-40 shrink-0">
         <div>
-          <h1 className="text-5xl tracking-tighter leading-none italic">NOYAU <span className="text-blue-600">ACTIONS</span></h1>
+          <h1 className="text-4xl tracking-tighter leading-none italic">NOYAU <span className="text-blue-600">ACTIONS</span></h1>
           <p className="text-slate-500 text-[10px] tracking-[0.4em] mt-3 italic flex items-center gap-2">
             <Target size={14} className="text-blue-500" /> PLAN D&apos;ACTIONS QUALITÉ • §10.2
           </p>

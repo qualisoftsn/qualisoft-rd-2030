@@ -375,7 +375,7 @@ export default function ExecutiveDashboard() {
           </div>
           
           <div className="flex items-center gap-4 flex-wrap">
-            <h1 className="text-4xl lg:text-6xl font-black uppercase italic tracking-tighter leading-none text-white">
+            <h1 className="text-4xl lg:text-3xl font-black uppercase italic tracking-tighter leading-none text-white">
               Cockpit <span className="text-blue-500">
                 {isSuperAdmin ? 'Souverain' : 'Stratégique'}
               </span>
@@ -716,7 +716,7 @@ function KPICard({ title, value, trend, icon: Icon, color, subtitle, href }: KPI
         </div>
         
         <div className="relative">
-          <p className={`text-4xl lg:text-5xl font-black italic text-white tracking-tighter ${c.text} transition-colors`}>
+          <p className={`text-4xl lg:text-35xl font-black italic text-white tracking-tighter ${c.text} transition-colors`}>
             {value}
           </p>
           <p className="text-sm font-black uppercase text-slate-300 mt-2 tracking-wide truncate">{title}</p>

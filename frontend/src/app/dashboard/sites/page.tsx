@@ -86,7 +86,7 @@ export default function SitesPage() {
       {/* HEADER */}
       <div>
         <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 flex items-center gap-3">
-          <MapPin className="text-blue-600" size={32} /> Sites & Implantations
+          <MapPin className="text-blue-600" size={30} /> Sites & Implantations
         </h1>
         <p className="text-slate-500 font-medium">Gestion géographique des pôles d&apos;activité de l&apos;organisation.</p>
       </div>

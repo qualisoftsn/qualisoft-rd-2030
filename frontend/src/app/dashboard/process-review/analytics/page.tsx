@@ -48,7 +48,7 @@ export default function ReviewAnalyticsPage() {
           >
             <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform"/> Retour à l&apos;historique
           </button>
-          <h1 className="text-5xl font-black uppercase tracking-tighter italic leading-none">
+          <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">
             Intelligence <span className="text-blue-600">Décisionnelle</span>
           </h1>
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em] mt-4 flex items-center gap-2">

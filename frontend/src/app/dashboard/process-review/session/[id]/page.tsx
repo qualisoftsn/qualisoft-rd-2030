@@ -101,7 +101,7 @@ export default function RevueSessionPage({ params }: { params: Promise<{ id: str
           <button onClick={() => router.push('/dashboard/process-review')} className="text-slate-500 flex items-center gap-2 uppercase font-black text-[9px] hover:text-white transition-all">
             <ArrowLeft size={14}/> Historique des revues
           </button>
-          <h1 className="text-6xl font-black uppercase tracking-tighter italic leading-none">
+          <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">
             Revue <span className="text-blue-600 font-black">Mensuelle</span>
           </h1>
           <div className="flex items-center gap-4 mt-2">

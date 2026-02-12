@@ -55,7 +55,7 @@ export default function MasterCommandCenter() {
       <header className="flex justify-between items-end border-b border-white/5 pb-8 shrink-0">
         <div>
           <div className="flex items-center gap-2 text-blue-400 mb-2 font-black uppercase tracking-[0.4em] text-[10px]"><ShieldCheck size={16}/> Control Tower</div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter text-white">Master <span className="text-blue-600">Command</span></h1>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter text-white">Master <span className="text-blue-600">Command</span></h1>
         </div>
         <div className="flex gap-4 bg-white/5 p-1.5 rounded-2xl border border-white/10">
           <button onClick={() => setView('FINANCE')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${view === 'FINANCE' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>Finance</button>

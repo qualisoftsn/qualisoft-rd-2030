@@ -79,7 +79,7 @@ export default function SettingsSitesPage() {
             <ArrowLeft size={20}/>
           </button>
           <div>
-            <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
               Gestion des <span className="text-blue-500">Sites</span>
             </h1>
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2 italic">

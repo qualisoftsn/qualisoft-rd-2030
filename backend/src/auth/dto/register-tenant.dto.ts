@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
 
 export class RegisterTenantDto {
   @IsString()
@@ -11,13 +11,14 @@ export class RegisterTenantDto {
 
   @IsString()
   @IsNotEmpty()
-  adminFirstName!: string; // 👈 Corrigé selon ta capture Payload
+  adminFirstName!: string;
 
   @IsString()
   @IsNotEmpty()
-  adminLastName!: string;  // 👈 Corrigé selon ta capture Payload
+  adminLastName!: string;
 
   @IsEmail()
+  @IsNotEmpty()
   email!: string;
 
   @IsString()

@@ -43,7 +43,7 @@ export default function ActionsPage() {
       {/* HEADER ACTIONS */}
       <header className="flex justify-between items-end mb-12">
         <div>
-          <h1 className="text-5xl font-black uppercase tracking-tighter italic leading-none">
+          <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">
             Actions <span className="text-blue-600 font-black">Correctives</span>
           </h1>
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em] mt-4">

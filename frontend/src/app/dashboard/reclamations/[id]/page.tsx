@@ -131,7 +131,7 @@ export default function ReclamationsPage() {
       {/* HEADER */}
       <header className="mb-10 flex justify-between items-end border-b border-white/5 pb-8 no-print">
         <div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter">Pilotage <span className="text-blue-500">Réclamations</span></h1>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter">Pilotage <span className="text-blue-500">Réclamations</span></h1>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-2 italic">Excellence SMI — ISO 10002 : Satisfaction Client</p>
         </div>
         <div className="flex gap-4">

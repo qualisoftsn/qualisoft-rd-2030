@@ -1,7 +1,9 @@
 /**
- * 🏛️ APP MODULE : CŒUR DU SYSTÈME QUALISOFT ELITE
- * RÔLE : Orchestrateur principal. Il charge la configuration, la sécurité, 
- * et assemble tous les modules fonctionnels et techniques.
+ * 🏛️ APP MODULE : NOYAU CENTRAL QUALISOFT ELITE RD 2030
+ * --------------------------------------------------------------------------
+ * RÔLE : Orchestrateur Suprême du Système.
+ * FONCTION : Centralisation de l'Infrastructure, Sécurité Multi-Tenant,
+ * et Pilotage des Modules Métiers (SMI & HSE).
  */
 
 import { Module } from '@nestjs/common';
@@ -11,50 +13,36 @@ import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 
-// ==================================================================================
-// 1️⃣ INFRASTRUCTURE & NOYAU TECHNIQUE
-// ==================================================================================
+// --- 1. INFRASTRUCTURE & NOYAU TECHNIQUE ---
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { PkiModule } from './pki/pki.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { StatsModule } from './modules/stats/stats.module';
-import { ArchivesModule } from './archives/archives.module'; // Chambre forte (Zéro suppression)
+import { ArchivesModule } from './archives/archives.module'; 
 import { GenericCrudModule } from './common/generic-crud.module';
 
-// ==================================================================================
-// 2️⃣ SOUVERAINETÉ, IDENTITÉ & SÉCURITÉ (IAM)
-// ==================================================================================
+// --- 2. IAM : IDENTITÉ & SOUVERAINETÉ ---
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TenantsModule } from './tenants/tenants.module';
-import { AdminMatrixModule } from './admin-matrix/admin-matrix.module'; // ✅ REMPLACE L'ANCIEN AdminModule
-import { MatrixModule } from './matrix/matrix.module'; // ✅ ACCÈS PUBLIC
+import { AdminMatrixModule } from './admin-matrix/admin-matrix.module'; 
+import { MatrixModule } from './matrix/matrix.module'; 
 
-// --- 🛡️ GARDES DE SÉCURITÉ (GUARDS) ---
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { RolesGuard } from './auth/guards/roles.guard';
-import { SubscriptionGuard } from './auth/guards/subscription.guard';
-
-// ==================================================================================
-// 3️⃣ ADMINISTRATION FONCTIONNELLE, SITES & FINANCES
-// ==================================================================================
+// --- 3. STRUCTURE, FINANCES & SITES ---
 import { SitesModule } from './sites/sites.module';
 import { OrgUnitsModule } from './org-units/org-units.module';
 import { OrgUnitTypesModule } from './org-unit-types/org-unit-types.module';
 import { GouvernanceModule } from './gouvernance/gouvernance.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
-import { SettingsController } from './settings/settings.controller';
 
-// ==================================================================================
-// 4️⃣ SMI CORE (ISO 9001 - LE CYCLE QUALITÉ)
-// ==================================================================================
+// --- 4. SMI CORE : ISO 9001 (Le Cycle Qualité) ---
 import { SmiModule } from './smi/smi.module';
 import { ProcessusModule } from './processus/processus.module';
 import { ProcessusTypeModule } from './processus-type/processus-type.module';
 import { ActionsModule } from './actions/actions.module';
-import { ActionsTabModule } from './actions-tab/actions-tab.module'; // Hub de pilotage
+import { ActionsTabModule } from './actions-tab/actions-tab.module';
 import { AuditsModule } from './audits/audits.module';
 import { NonConformiteModule } from './non-conformites/non-conformites.module';
 import { PaqModule } from './paq/paq.module';
@@ -68,9 +56,7 @@ import { CopilModule } from './copil/copil.module';
 import { RisksModule } from './risks/risks.module';
 import { WorkflowModule } from './workflows/workflow.module';
 
-// ==================================================================================
-// 5️⃣ SMI SPÉCIALISÉ (SST, ENVIRONNEMENT, JURIDIQUE)
-// ==================================================================================
+// --- 5. SMI SPÉCIALISÉ : HSE (ISO 14001 / 45001) ---
 import { SseModule } from './sse/sse.module';
 import { SSEEventsModule } from './sse-events/sse-events.module';
 import { EnvironmentModule } from './environment/environment.module';
@@ -80,11 +66,9 @@ import { AnalysesModule } from './analyses/analyses.module';
 import { ExpositionModule } from './exposition/exposition.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { CauseriesModule } from './causeries/causeries.module';
-import { SenegalLegalModule } from './senegal-legal/senegal-legal.module'; // Conformité locale
+import { SenegalLegalModule } from './senegal-legal/senegal-legal.module';
 
-// ==================================================================================
-// 6️⃣ CAPITAL HUMAIN & RESSOURCES
-// ==================================================================================
+// --- 6. CAPITAL HUMAIN & RESSOURCES ---
 import { CompetencesModule } from './competences/competences.module';
 import { FormationsModule } from './formations/formations.module';
 import { EquipmentModule } from './equipment/equipment.module';
@@ -92,42 +76,46 @@ import { MeetingsModule } from './meetings/meetings.module';
 import { PartiesInteresseesModule } from './parties-interessees/parties-interessees.module';
 import { ServicesModule } from './services/services.module';
 
-// ==================================================================================
-// 7️⃣ CONTRÔLEURS & SERVICES GLOBAUX
-// ==================================================================================
+// --- 7. CONTRÔLEURS & SERVICES GLOBAUX ---
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health/health.controller';
 import { UploadController } from './common/upload.controller';
+import { SettingsController } from './settings/settings.controller';
 import { ContactService } from './auth/contact.service';
+
+// --- 🛡️ GARDES DE SÉCURITÉ (GUARDS) ---
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
+import { SubscriptionGuard } from './auth/guards/subscription.guard';
 
 @Module({
   imports: [
-    // 🌍 CONFIGURATION GLOBALE
+    // 🌍 CONFIGURATION ET TÂCHES DE FOND
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: join(process.cwd(), '.env'),
     }),
-    ScheduleModule.forRoot(), // Moteur de tâches planifiées (Cron)
+    ScheduleModule.forRoot(), 
     
-    // 🧱 INFRASTRUCTURE
+    // 🧱 COUCHE INFRASTRUCTURE (Base de données et Utilitaires)
     PrismaModule,
     CommonModule,
     PkiModule,
     NotificationsModule,
     StatsModule,
     MulterModule.register({
-      dest: './uploads', // Stockage temporaire avant transfert S3/MinIO ou Local
+      dest: './uploads', 
     }),
 
-    // 🔑 IAM & SOUVERAINETÉ (Ordre critique)
+    // 🔑 COUCHE IAM & MULTI-TENANCY (Le rempart)
     AuthModule,
     UsersModule,
     TenantsModule,
-    AdminMatrixModule, // ✅ Module Super-Admin (Provisioning, Impersonation)
-    MatrixModule,      // ✅ Module Public (Login Selectors)
+    AdminMatrixModule, // Gestion Super-Admin (Impersonation)
+    MatrixModule,      // Accès Publics (Login Selectors)
 
-    // 🏢 STRUCTURE & FINANCE
+    // 🏢 COUCHE ADMINISTRATIVE
     SitesModule,
     OrgUnitsModule,
     OrgUnitTypesModule,
@@ -136,7 +124,7 @@ import { ContactService } from './auth/contact.service';
     TransactionsModule,
     GenericCrudModule,
 
-    // 🛠️ MÉTIER : QUALITÉ (ISO 9001)
+    // 🛠️ COUCHE MÉTIER : QUALITÉ (Le Cycle PDCA)
     SmiModule,
     ProcessusModule,
     ProcessusTypeModule,
@@ -156,7 +144,7 @@ import { ContactService } from './auth/contact.service';
     RisksModule,
     WorkflowModule,
 
-    // 🌿 MÉTIER : HSE & JURIDIQUE (ISO 14001 / 45001)
+    // 🌿 COUCHE MÉTIER : HSE & LÉGAL (Conformité Environnementale & SST)
     SseModule,
     SSEEventsModule,
     EnvironmentModule,
@@ -168,7 +156,7 @@ import { ContactService } from './auth/contact.service';
     CauseriesModule,
     SenegalLegalModule,
 
-    // 👥 MÉTIER : RESSOURCES
+    // 👥 COUCHE RESSOURCES (L'humain et le matériel)
     CompetencesModule,
     FormationsModule,
     EquipmentModule,
@@ -186,18 +174,21 @@ import { ContactService } from './auth/contact.service';
     AppService,
     ContactService,
 
-    // 🛡️ SYSTÈME DE PROTECTION GLOBAL (Séquence d'exécution stricte)
+    /**
+     * 🛡️ BOUCLIER DE SÉCURITÉ GLOBAL
+     * L'ordre des gardes est CRITIQUE. NestJS les exécute dans l'ordre de déclaration.
+     */
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard, // 1. Authentification : "Qui es-tu ?"
+      useClass: JwtAuthGuard, // Étape 1 : Vérification d'Identité ("Qui es-tu ?")
     },
     {
       provide: APP_GUARD,
-      useClass: SubscriptionGuard, // 2. Licence : "Ton instance est-elle active/payée ?"
+      useClass: SubscriptionGuard, // Étape 2 : Vérification de Licence ("As-tu payé ton droit d'entrée ?")
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard, // 3. Autorisation : "As-tu le droit d'être ici ?"
+      useClass: RolesGuard, // Étape 3 : Vérification de Permissions ("As-tu le droit de toucher à ça ?")
     },
   ],
 })

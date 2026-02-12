@@ -220,7 +220,7 @@ export default function NewUserPage() {
       {/* HEADER DE QUALIFICATION */}
       <header className="mb-12 border-b border-white/5 pb-10 flex justify-between items-end">
         <div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter italic leading-none">
+          <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">
             Nouvelle <span className="text-blue-500">Habilitation</span>
           </h1>
           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.5em] mt-4 italic">

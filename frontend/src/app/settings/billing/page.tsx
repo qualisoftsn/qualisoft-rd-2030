@@ -106,7 +106,7 @@ export default function BillingPage() {
             <Landmark size={18} />
             <span className="text-[11px] font-black uppercase tracking-[0.5em]">Bureautique Financière Qualisoft</span>
           </div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter text-white leading-none">
+          <h1 className="text-4xl font-black uppercase tracking-tighter text-white leading-none">
             Gestion de <span className="text-blue-600">Licence</span>
           </h1>
           <p className="text-slate-500 text-xs mt-4 font-bold uppercase tracking-widest italic">

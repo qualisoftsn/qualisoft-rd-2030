@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
-  Plus, X, Save, Trash2, Loader2, RefreshCcw, 
-  Settings2, Search, Users, Award, ShieldAlert
-} from 'lucide-react';
+  Plus, Loader2, 
+  Settings2, Search} from 'lucide-react';
 
 // --- INTERFACES ---
 interface UserCompetence { UC_UserId: string; UC_CompetenceId: string; UC_NiveauActuel: number; }
@@ -129,7 +130,7 @@ export default function RHMasterHubPage() {
           <div className="flex items-center gap-3 text-blue-500 mb-3 font-black uppercase tracking-[0.5em] text-[10px]">
             <Settings2 size={16} /> Hub Management RH
           </div>
-          <h1 className="text-6xl font-black uppercase italic tracking-tighter">RH <span className="text-blue-600">Master Hub</span></h1>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter">RH <span className="text-blue-600">Master Hub</span></h1>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 px-8 py-5 rounded-4xl font-black uppercase text-xs shadow-2xl flex items-center gap-3 active:scale-95 transition-all">
           <Plus size={18} strokeWidth={3} /> Nouveau Document
@@ -143,7 +144,7 @@ export default function RHMasterHubPage() {
         ))}
       </div>
 
-      <div className="bg-slate-900/30 border border-white/5 rounded-[3.5rem] overflow-hidden shadow-3xl backdrop-blur-xl min-h-[500px]">
+      <div className="bg-slate-900/30 border border-white/5 rounded-[3.5rem] overflow-hidden shadow-3xl backdrop-blur-xl min-h-125">
         <div className="p-8 border-b border-white/5 flex items-center gap-4">
           <Search size={16} className="text-slate-500" />
           <input type="text" placeholder="RECHERCHER DANS LE NOYAU..." className="bg-transparent outline-none font-black uppercase text-[10px] w-full" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -201,7 +202,7 @@ export default function RHMasterHubPage() {
 
       {/* MODAL SIMPLIFIÉ */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-100 flex items-center justify-center p-4">
           <div className="bg-[#0F172A] border border-white/10 w-full max-w-md rounded-[3rem] p-12 shadow-3xl">
             <h2 className="text-2xl font-black uppercase italic mb-10 text-blue-500">Ajouter <span className="text-white">{activeView}</span></h2>
             <form onSubmit={handleSave} className="space-y-6">

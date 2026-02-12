@@ -75,7 +75,7 @@ export function DashboardView() {
               <Zap size={12} fill="currentColor" />
               <span>Système de Monitoring Actif</span>
             </div>
-            <h1 className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter italic">
+            <h1 className="text-4xl lg:text-3xl font-black text-slate-900 tracking-tighter italic">
               Intelligence <span className="text-blue-600 not-italic">Dashboard</span>
             </h1>
           </div>

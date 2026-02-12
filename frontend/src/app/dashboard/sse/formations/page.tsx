@@ -69,7 +69,7 @@ export default function FormationsPage() {
       {/* HEADER */}
       <header className="mb-12 flex justify-between items-end">
         <div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
             Compétences <span className="text-orange-500">& Sécurité</span>
           </h1>
           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] mt-3 italic">

@@ -16,7 +16,7 @@ export default function GovernanceExcellence() {
     <div className="ml-72 p-10 bg-[#0B0F1A] min-h-screen text-white italic text-left font-sans">
       <header className="mb-12 border-b border-white/5 pb-10 flex justify-between items-end">
         <div>
-          <h1 className="text-7xl font-black uppercase italic tracking-tighter leading-none">
+          <h1 className="text-3xl font-black uppercase italic tracking-tighter leading-none">
             Gouvernance <span className="text-blue-500 text-8xl block">Souveraine</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-6 italic">

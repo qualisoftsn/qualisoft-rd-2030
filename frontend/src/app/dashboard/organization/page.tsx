@@ -1,23 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Building2, Users, MapPin, GitGraph, ArrowUpRight, 
   AlertTriangle, CheckCircle2, TrendingUp, Activity,
-  Plus, Layers, Briefcase, Target, AlertCircle,
+  Plus, Layers, Target, AlertCircle,
   ChevronRight, BarChart3, Globe, ShieldCheck,
-  Clock, FolderTree, UserCircle
+  Clock, FolderTree, UserCircle, LucideIcon
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// Types mockés (à remplacer par vos vrais appels API)
+// --- INTERFACES SCELLÉES ---
 interface OrgStats {
   totalUnits: number;
   totalSites: number;
   totalUsers: number;
   unitsByType: { type: string; count: number; color: string }[];
-  coverageRate: number; // % d'unités avec pilote assigné
+  coverageRate: number; // % d'unités avec pilote/responsable assigné
   recentChanges: number;
   alerts: Alert[];
 }
@@ -43,67 +43,73 @@ export default function OrganizationDashboard() {
     alerts: []
   });
 
-  // Simulation de chargement des données (remplacer par vos appels API réels)
+  // 🛰️ PROTOCOLE DE SYNCHRONISATION (Mocké pour le build, prêt pour API)
   useEffect(() => {
     const fetchDashboardData = async () => {
-      setLoading(true);
-      // Simulation données - remplacer par : await apiClient.get('/organization/dashboard')
-      setTimeout(() => {
-        setStats({
-          totalUnits: 12,
-          totalSites: 3,
-          totalUsers: 47,
-          coverageRate: 85,
-          recentChanges: 4,
-          unitsByType: [
-            { type: 'Directions', count: 4, color: 'bg-blue-500' },
-            { type: 'Départements', count: 5, color: 'bg-emerald-500' },
-            { type: 'Services', count: 2, color: 'bg-amber-500' },
-            { type: 'Cellules', count: 1, color: 'bg-purple-500' }
-          ],
-          alerts: [
-            {
-              id: '1',
-              type: 'warning',
-              message: 'Unité sans responsable identifié',
-              unit: 'Service Maintenance',
-              action: 'Assigner un pilote'
-            },
-            {
-              id: '2',
-              type: 'danger',
-              message: 'Site sans unité rattachée',
-              unit: 'Site de Thiès',
-              action: 'Créer une unité'
-            },
-            {
-              id: '3',
-              type: 'info',
-              message: 'Mise à jour structurelle requise',
-              unit: 'Direction Qualité',
-              action: 'Revoir la fiche'
-            }
-          ]
-        });
+      try {
+        setLoading(true);
+        // Simulation d'appel : await apiClient.get('/organization/dashboard')
+        setTimeout(() => {
+          setStats({
+            totalUnits: 12,
+            totalSites: 3,
+            totalUsers: 47,
+            coverageRate: 85,
+            recentChanges: 4,
+            unitsByType: [
+              { type: 'Directions', count: 4, color: 'bg-blue-600' },
+              { type: 'Départements', count: 5, color: 'bg-emerald-600' },
+              { type: 'Services', count: 2, color: 'bg-amber-600' },
+              { type: 'Cellules', count: 1, color: 'bg-purple-600' }
+            ],
+            alerts: [
+              {
+                id: '1',
+                type: 'warning',
+                message: 'Unité sans responsable identifié (SMI non scellé)',
+                unit: 'Service Maintenance',
+                action: 'Assigner un pilote'
+              },
+              {
+                id: '2',
+                type: 'danger',
+                message: 'Site sans unité rattachée (Zone morte)',
+                unit: 'Site de Thiès',
+                action: 'Créer une unité'
+              },
+              {
+                id: '3',
+                type: 'info',
+                message: 'Mise à jour structurelle requise par la Direction',
+                unit: 'Direction Qualité',
+                action: 'Revoir la fiche'
+              }
+            ]
+          });
+          setLoading(false);
+        }, 800);
+      } catch (error) {
+        console.error("Erreur Sync Organisation:", error);
         setLoading(false);
-      }, 800);
+      }
     };
     fetchDashboardData();
   }, []);
 
-  // Calculs dérivés
+  // 🏥 CALCUL DE LA SANTÉ ORGANISATIONNELLE (Logique ISO)
   const globalHealth = useMemo(() => {
+    if (stats.totalUnits === 0) return 0;
     const score = Math.round((stats.coverageRate + (stats.totalUsers > 0 ? 100 : 0)) / 2);
     return score;
   }, [stats]);
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="text-center space-y-4">
+      <div className="flex h-screen items-center justify-center bg-slate-50 italic">
+        <div className="text-center space-y-6">
           <Activity className="animate-spin text-blue-600 mx-auto" size={48} />
-          <p className="text-[10px] font-black uppercase text-slate-400 italic tracking-[0.4em]">
-            Analyse de la structure organisationnelle...
+          <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.5em]">
+            Scan de l&apos;architecture Matrix en cours...
           </p>
         </div>
       </div>
@@ -111,110 +117,80 @@ export default function OrganizationDashboard() {
   }
 
   return (
-    <div className="p-6 lg:p-10 space-y-8 bg-slate-50 min-h-screen italic font-sans text-left pb-20">
+    <div className="p-6 lg:p-10 space-y-10 bg-slate-50 min-h-screen italic font-sans text-left pb-24 selection:bg-blue-100">
       
-      {/* HEADER */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div className="space-y-2">
-          <h1 className="text-5xl font-black uppercase tracking-tighter text-slate-900 leading-none">
-            Structure <span className="text-blue-600">Organisationnelle</span>
+      {/* 🔝 HEADER DÉCISIONNEL */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-8">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+             <span className="px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-600/20 text-blue-600 text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                <Clock size={12} /> {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+             </span>
+             <span className="px-4 py-1.5 rounded-full bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
+                Structure Certifiée ISO
+             </span>
+          </div>
+          <h1 className="text-5xl lg:text-4xl font-black uppercase tracking-tighter text-slate-900 leading-none">
+            Architecture <span className="text-blue-600">SMI</span>
           </h1>
-          <p className="text-slate-500 font-medium text-sm max-w-2xl">
-            Tableau de bord de pilotage de l'architecture SMI, couverture des responsabilités et cartographie des sites.
-          </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <Link 
             href="/dashboard/organization/chart"
-            className="px-6 py-4 bg-white border border-slate-200 rounded-2xl text-slate-700 font-black uppercase text-[11px] tracking-widest shadow-sm hover:border-blue-300 hover:text-blue-600 transition-all flex items-center gap-2"
+            className="px-8 py-5 bg-white border border-slate-200 rounded-3xl text-slate-900 font-black uppercase text-[11px] tracking-widest shadow-sm hover:border-blue-600 hover:text-blue-600 transition-all flex items-center gap-3 group"
           >
-            <GitGraph size={16} /> Voir l'organigramme
+            <GitGraph size={18} className="group-hover:rotate-12 transition-transform" /> Organigramme
           </Link>
           <button 
             onClick={() => router.push('/dashboard/organization/units/new')}
-            className="px-6 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-xl transition-all flex items-center gap-2"
+            className="px-8 py-5 bg-slate-900 text-white rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-2xl hover:bg-blue-600 transition-all flex items-center gap-3 border-none cursor-pointer"
           >
-            <Plus size={16} /> Nouvelle Unité
+            <Plus size={18} /> Nouvelle Unité
           </button>
         </div>
       </div>
 
-      {/* KPIs CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard 
-          icon={Building2}
-          label="Unités Organiques"
-          value={stats.totalUnits}
-          trend="+2 ce mois"
-          trendUp={true}
-          color="blue"
-          subtext="Activement pilotées"
-        />
-        <KPICard 
-          icon={MapPin}
-          label="Sites Géographiques"
-          value={stats.totalSites}
-          trend="Couverture nationale"
-          trendUp={true}
-          color="emerald"
-          subtext="Implantations physiques"
-        />
-        <KPICard 
-          icon={Users}
-          label="Collaborateurs"
-          value={stats.totalUsers}
-          trend="Rattachés"
-          trendUp={true}
-          color="amber"
-          subtext="Dans la structure SMI"
-        />
-        <KPICard 
-          icon={Target}
-          label="Taux de Conformité"
-          value={`${stats.coverageRate}%`}
-          trend={stats.coverageRate >= 90 ? "Optimal" : "À améliorer"}
-          trendUp={stats.coverageRate >= 90}
-          color="purple"
-          subtext="Unités avec pilote assigné"
-        />
+      {/* 📊 KPI GRID : LES PILIERS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <KPICard icon={Building2} label="Unités Organiques" value={stats.totalUnits} trend="+2 Actives" trendUp={true} color="blue" subtext="Niveaux hiérarchiques" />
+        <KPICard icon={MapPin} label="Sites Gérés" value={stats.totalSites} trend="Couverture 100%" trendUp={true} color="emerald" subtext="Implantations physiques" />
+        <KPICard icon={Users} label="Citoyens" value={stats.totalUsers} trend="Rattachés" trendUp={true} color="amber" subtext="Inscrits dans le SMI" />
+        <KPICard icon={Target} label="Conformité" value={`${stats.coverageRate}%`} trend={stats.coverageRate >= 85 ? "Stable" : "Alerte"} trendUp={stats.coverageRate >= 85} color="purple" subtext="Unités avec leadership" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         
-        {/* COLONNE GAUCHE : RÉPARTITION & CARTOGRAPHIE */}
-        <div className="lg:col-span-2 space-y-8">
+        {/* 🏛️ COLONNE GAUCHE : DISTRIBUTION ET SITES */}
+        <div className="lg:col-span-2 space-y-10">
           
-          {/* DISTRIBUTION PAR TYPE */}
-          <div className="bg-white rounded-[40px] p-8 shadow-xl border border-slate-100">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-xl font-black uppercase italic text-slate-900 tracking-tight flex items-center gap-3">
-                  <Layers className="text-blue-600" size={24} />
-                  Répartition Hiérarchique
-                </h2>
-                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mt-1">
-                  Distribution des unités par niveau de responsabilité
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
-                <BarChart3 className="text-blue-600" size={24} />
-              </div>
+          {/* RÉPARTITION HIÉRARCHIQUE */}
+          <div className="bg-white rounded-[4rem] p-10 shadow-2xl border border-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none text-slate-900"><BarChart3 size={200} /></div>
+            
+            <div className="relative z-10 mb-10">
+              <h2 className="text-3xl font-black uppercase italic text-slate-900 tracking-tighter flex items-center gap-4">
+                <Layers className="text-blue-600" size={32} />
+                Pyramide Structurelle
+              </h2>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] mt-2">
+                Poids des responsabilités par type d&apos;unité organique
+              </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-8 relative z-10">
               {stats.unitsByType.map((item, idx) => (
                 <div key={idx} className="group">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-bold text-slate-700 uppercase italic flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${item.color}`} />
+                  <div className="flex justify-between items-end mb-3">
+                    <span className="text-[11px] font-black text-slate-900 uppercase italic flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full ${item.color} shadow-lg shadow-black/10`} />
                       {item.type}
                     </span>
-                    <span className="text-lg font-black text-slate-900 italic">{item.count}</span>
+                    <span className="text-2xl font-black text-slate-900 italic leading-none">{item.count}</span>
                   </div>
-                  <div className="h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
+                  <div className="h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-50 p-1">
                     <div 
-                      className={`h-full ${item.color} transition-all duration-1000 ease-out rounded-full opacity-80 group-hover:opacity-100`}
+                      className={`h-full ${item.color} transition-all duration-1000 ease-out rounded-full shadow-inner`}
                       style={{ width: `${(item.count / stats.totalUnits) * 100}%` }}
                     />
                   </div>
@@ -222,22 +198,22 @@ export default function OrganizationDashboard() {
               ))}
             </div>
 
-            <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400">
-                <CheckCircle2 size={14} className="text-emerald-500" />
-                Profondeur max : 4 niveaux
+            <div className="mt-12 pt-8 border-t border-slate-50 flex justify-between items-center">
+              <div className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-400">
+                <ShieldCheck size={16} className="text-emerald-500" />
+                Intégrité du SMI : Opérationnelle
               </div>
               <button 
                 onClick={() => router.push('/dashboard/organization/chart')}
-                className="text-blue-600 text-[10px] font-black uppercase tracking-widest hover:underline flex items-center gap-1"
+                className="text-blue-600 text-[10px] font-black uppercase tracking-widest hover:translate-x-1 transition-transform flex items-center gap-2 border-none bg-transparent cursor-pointer"
               >
-                Explorer la hiérarchie <ChevronRight size={14} />
+                Inspecter l&apos;arbre <ChevronRight size={14} />
               </button>
             </div>
           </div>
 
-          {/* CARTOGRAPHIE DES SITES */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* MAPPING DES SITES (3-COL GRID) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               { name: 'Siège Social', location: 'Dakar', units: 8, users: 32, status: 'actif' },
               { name: 'Site de Thiès', location: 'Thiès', units: 2, users: 8, status: 'warning' },
@@ -245,29 +221,29 @@ export default function OrganizationDashboard() {
             ].map((site, idx) => (
               <div 
                 key={idx} 
-                className="bg-white rounded-[35px] p-6 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer"
+                className="bg-white rounded-[2.5rem] p-8 border border-white shadow-xl hover:shadow-2xl hover:border-blue-600/20 transition-all group cursor-pointer"
                 onClick={() => router.push(`/dashboard/sites/${idx + 1}`)}
               >
-                <div className="flex justify-between items-start mb-4">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-                    site.status === 'actif' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                <div className="flex justify-between items-start mb-6">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                    site.status === 'actif' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
                   }`}>
-                    <Building2 size={20} />
+                    <Building2 size={24} />
                   </div>
-                  {site.status === 'warning' && <AlertTriangle size={16} className="text-amber-500" />}
+                  {site.status === 'warning' && <AlertTriangle size={18} className="text-amber-500 animate-pulse" />}
                 </div>
-                <h3 className="text-lg font-black uppercase italic text-slate-900 mb-1">{site.name}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase mb-4 flex items-center gap-1">
-                  <MapPin size={10} /> {site.location}
+                <h3 className="text-xl font-black uppercase italic text-slate-900 mb-2 leading-tight">{site.name}</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-6 flex items-center gap-2">
+                  <MapPin size={12} className="text-blue-600" /> {site.location}
                 </p>
-                <div className="flex gap-4 pt-4 border-t border-slate-50">
-                  <div>
-                    <span className="text-xs font-black text-slate-900 block">{site.units}</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase">Unités</span>
+                <div className="flex gap-6 pt-6 border-t border-slate-50">
+                  <div className="text-center">
+                    <span className="text-sm font-black text-slate-900 block">{site.units}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Unités</span>
                   </div>
-                  <div>
-                    <span className="text-xs font-black text-slate-900 block">{site.users}</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase">Staff</span>
+                  <div className="text-center">
+                    <span className="text-sm font-black text-slate-900 block">{site.users}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Staff</span>
                   </div>
                 </div>
               </div>
@@ -275,141 +251,131 @@ export default function OrganizationDashboard() {
           </div>
         </div>
 
-        {/* COLONNE DROITE : ALERTES & ACTIONS */}
-        <div className="space-y-8">
+        {/* ⚖️ COLONNE DROITE : SANTÉ ET ALERTES */}
+        <div className="space-y-10">
           
-          {/* SANTÉ GLOBALE */}
-          <div className="bg-slate-900 rounded-[40px] p-8 text-white relative overflow-hidden shadow-2xl">
-            <div className="absolute -right-10 -top-10 text-white/5">
-              <ShieldCheck size={200} />
+          {/* CARTE SCORE DE SANTÉ */}
+          <div className="bg-slate-900 rounded-[4rem] p-10 text-white relative overflow-hidden shadow-2xl group">
+            <div className="absolute -right-16 -top-16 text-white/5 group-hover:rotate-12 transition-transform duration-700">
+              <ShieldCheck size={300} />
             </div>
             
             <div className="relative z-10">
-              <h3 className="text-[11px] font-black uppercase mb-2 tracking-[0.3em] text-slate-400">
+              <h3 className="text-[10px] font-black uppercase mb-4 tracking-[0.4em] text-slate-400 italic">
                 Santé Organisationnelle
               </h3>
-              <div className="flex items-end gap-2 mb-4">
-                <span className="text-6xl font-black italic tracking-tighter">
+              <div className="flex items-end gap-3 mb-8">
+                <span className="text-3xl font-black italic tracking-tighter">
                   {globalHealth}%
                 </span>
-                <span className="text-sm font-bold text-emerald-400 mb-2 flex items-center gap-1">
-                  <TrendingUp size={14} /> Stable
+                <span className="text-xs font-black text-emerald-400 mb-4 flex items-center gap-1 uppercase">
+                  <TrendingUp size={16} /> Optimal
                 </span>
               </div>
               
-              <div className="h-3 bg-white/10 rounded-full overflow-hidden mb-6">
+              <div className="h-4 bg-white/10 rounded-full overflow-hidden mb-8 p-1 border border-white/5">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-1000"
+                  className="h-full bg-linear-to-r from-blue-600 to-emerald-500 rounded-full transition-all duration-1000"
                   style={{ width: `${globalHealth}%` }}
                 />
               </div>
 
-              <div className="space-y-3 text-[10px] font-bold uppercase tracking-wide">
-                <div className="flex justify-between items-center py-2 border-b border-white/10">
-                  <span className="text-slate-400">Couverte SMI</span>
+              <div className="space-y-4 text-[10px] font-black uppercase tracking-widest">
+                <div className="flex justify-between items-center py-3 border-b border-white/10">
+                  <span className="text-slate-400 italic">Leadership Scellé</span>
                   <span className="text-emerald-400">{stats.coverageRate}%</span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-white/10">
-                  <span className="text-slate-400">Sites actifs</span>
+                <div className="flex justify-between items-center py-3 border-b border-white/10">
+                  <span className="text-slate-400 italic">Maillage Sites</span>
                   <span className="text-blue-400">100%</span>
                 </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-slate-400">Màj récentes</span>
-                  <span className="text-amber-400">{stats.recentChanges} changements</span>
+                <div className="flex justify-between items-center py-3">
+                  <span className="text-slate-400 italic">Flux de Modification</span>
+                  <span className="text-amber-400">+{stats.recentChanges}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ALERTES & ANOMALIES */}
-          <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-black uppercase italic text-slate-900 flex items-center gap-2">
-                <AlertCircle className="text-red-500" size={22} />
-                Points d'Attention
+          {/* REGISTRE DES ANOMALIES STRUCTURELLES */}
+          <div className="bg-white rounded-[4rem] p-10 border border-slate-100 shadow-2xl">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-xl font-black uppercase italic text-slate-900 flex items-center gap-3 tracking-tighter">
+                <AlertCircle className="text-rose-600" size={24} />
+                Anomalies Matrix
               </h3>
-              <span className="bg-red-100 text-red-700 text-[10px] font-black px-3 py-1 rounded-full">
-                {stats.alerts.length} alertes
+              <span className="bg-rose-100 text-rose-700 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase">
+                {stats.alerts.length} Alertes
               </span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               {stats.alerts.map((alert) => (
                 <div 
                   key={alert.id} 
-                  className={`p-5 rounded-3xl border-l-4 ${
-                    alert.type === 'danger' ? 'bg-red-50 border-red-500' :
-                    alert.type === 'warning' ? 'bg-amber-50 border-amber-500' :
-                    'bg-blue-50 border-blue-500'
+                  className={`p-6 rounded-4xl border-l-8 shadow-sm transition-all hover:scale-[1.02] ${
+                    alert.type === 'danger' ? 'bg-rose-50 border-rose-600' :
+                    alert.type === 'warning' ? 'bg-amber-50 border-amber-600' :
+                    'bg-blue-50 border-blue-600'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md ${
-                      alert.type === 'danger' ? 'bg-red-200 text-red-800' :
-                      alert.type === 'warning' ? 'bg-amber-200 text-amber-800' :
-                      'bg-blue-200 text-blue-800'
+                  <div className="flex justify-between items-start mb-3">
+                    <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${
+                      alert.type === 'danger' ? 'bg-rose-200 text-rose-900' :
+                      alert.type === 'warning' ? 'bg-amber-200 text-amber-900' :
+                      'bg-blue-200 text-blue-900'
                     }`}>
-                      {alert.type === 'danger' ? 'Critique' : alert.type === 'warning' ? 'Attention' : 'Info'}
+                      {alert.type === 'danger' ? 'Critique' : alert.type === 'warning' ? 'Alerte' : 'Info'}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">{alert.unit}</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{alert.unit}</span>
                   </div>
-                  <p className="text-sm font-bold text-slate-800 italic mb-3 leading-snug">
+                  <p className="text-sm font-black text-slate-800 italic mb-4 leading-tight uppercase">
                     {alert.message}
                   </p>
-                  <button className="text-[9px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-all">
-                    {alert.action} <ArrowUpRight size={12} />
+                  <button className="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900 flex items-center gap-2 transition-all border-none bg-transparent cursor-pointer">
+                    {alert.action} <ArrowUpRight size={14} />
                   </button>
                 </div>
               ))}
             </div>
 
             {stats.alerts.length === 0 && (
-              <div className="py-12 text-center text-slate-400">
-                <CheckCircle2 size={48} className="mx-auto mb-4 text-emerald-400" />
-                <p className="text-[11px] font-black uppercase italic">Aucune anomalie détectée</p>
+              <div className="py-16 text-center">
+                <CheckCircle2 size={64} className="mx-auto mb-6 text-emerald-400 opacity-50" />
+                <p className="text-[11px] font-black uppercase italic text-slate-400 tracking-widest">Architecture Scellée & Stable</p>
               </div>
             )}
           </div>
 
-          {/* ACCÈS RAPIDE */}
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-[40px] p-8 text-white shadow-xl">
-            <h3 className="text-[11px] font-black uppercase mb-6 tracking-[0.3em] text-blue-100">
-              Actions Rapides
+          {/* ACCÈS RAPIDES SOUVERAINS */}
+          <div className="bg-linear-to-br from-blue-700 to-blue-900 rounded-[4rem] p-10 text-white shadow-2xl">
+            <h3 className="text-[11px] font-black uppercase mb-8 tracking-[0.4em] text-blue-200 italic text-center">
+              Commandes Souveraines
             </h3>
-            <div className="space-y-3">
-              <QuickAction 
-                icon={Plus}
-                label="Créer une unité"
-                onClick={() => router.push('/dashboard/organization/units/new')}
-              />
-              <QuickAction 
-                icon={UserCircle}
-                label="Affecter des collaborateurs"
-                onClick={() => router.push('/dashboard/users/assign')}
-              />
-              <QuickAction 
-                icon={Globe}
-                label="Gérer les sites"
-                onClick={() => router.push('/dashboard/sites')}
-              />
-              <QuickAction 
-                icon={FolderTree}
-                label="Modifier la hiérarchie"
-                onClick={() => router.push('/dashboard/organization/chart')}
-              />
+            <div className="space-y-4">
+              <QuickAction icon={Plus} label="Sceller une Unité" onClick={() => router.push('/dashboard/organization/units/new')} />
+              <QuickAction icon={UserCircle} label="Enrôler des Citoyens" onClick={() => router.push('/dashboard/users/assign')} />
+              <QuickAction icon={Globe} label="Déployer un Site" onClick={() => router.push('/dashboard/sites')} />
+              <QuickAction icon={FolderTree} label="Rectifier l&apos;Organigramme" onClick={() => router.push('/dashboard/organization/chart')} />
             </div>
           </div>
 
         </div>
       </div>
+
+      <footer className="mt-20 pt-10 border-t border-slate-200 text-center">
+        <p className="text-[9px] font-black uppercase tracking-[0.6em] text-slate-300 italic">
+          Qualisoft Elite Sovereign Infrastructure — Protocol v2.4.2 — 2026
+        </p>
+      </footer>
     </div>
   );
 }
 
-// Sub-components
+// --- SOUS-COMPOSANTS ---
 
 function KPICard({ icon: Icon, label, value, trend, trendUp, color, subtext }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: string | number;
   trend: string;
@@ -418,50 +384,50 @@ function KPICard({ icon: Icon, label, value, trend, trendUp, color, subtext }: {
   subtext: string;
 }) {
   const colors = {
-    blue: 'bg-blue-50 text-blue-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
-    amber: 'bg-amber-50 text-amber-600',
-    purple: 'bg-purple-50 text-purple-600'
+    blue: 'text-blue-600 bg-blue-50/50',
+    emerald: 'text-emerald-600 bg-emerald-50/50',
+    amber: 'text-amber-600 bg-amber-50/50',
+    purple: 'text-purple-600 bg-purple-50/50'
   };
 
   return (
-    <div className="bg-white rounded-[35px] p-6 shadow-xl border border-slate-100 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
-      <div className="flex justify-between items-start mb-4">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${colors[color]} group-hover:scale-110 transition-transform`}>
-          <Icon size={28} />
+    <div className="bg-white rounded-[3rem] p-8 shadow-xl border border-white hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group">
+      <div className="flex justify-between items-start mb-6">
+        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center ${colors[color]} group-hover:scale-110 transition-transform duration-500`}>
+          <Icon size={32} />
         </div>
-        <div className={`flex items-center gap-1 text-[10px] font-black uppercase px-3 py-1.5 rounded-full ${
-          trendUp ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+        <div className={`flex items-center gap-2 text-[9px] font-black uppercase px-3 py-1.5 rounded-full ${
+          trendUp ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
         }`}>
           {trendUp ? <TrendingUp size={12} /> : <AlertCircle size={12} />}
           {trend}
         </div>
       </div>
       
-      <div className="space-y-1">
-        <p className="text-4xl font-black text-slate-900 italic tracking-tighter">{value}</p>
-        <p className="text-sm font-bold text-slate-700 uppercase italic">{label}</p>
-        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{subtext}</p>
+      <div className="space-y-2">
+        <p className="text-5xl font-black text-slate-900 italic tracking-tighter leading-none">{value}</p>
+        <p className="text-xs font-black text-slate-900 uppercase italic tracking-tight">{label}</p>
+        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{subtext}</p>
       </div>
     </div>
   );
 }
 
 function QuickAction({ icon: Icon, label, onClick }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   onClick: () => void;
 }) {
   return (
     <button 
       onClick={onClick}
-      className="w-full p-4 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center gap-3 transition-all group text-left border border-white/10 hover:border-white/30"
+      className="w-full p-5 bg-white/5 hover:bg-white/10 rounded-2xl flex items-center gap-4 transition-all group text-left border border-white/5 hover:border-white/20 outline-none cursor-pointer"
     >
-      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white group-hover:text-blue-600 transition-all">
+      <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
         <Icon size={20} />
       </div>
-      <span className="text-sm font-bold uppercase italic">{label}</span>
-      <ChevronRight size={16} className="ml-auto opacity-50 group-hover:translate-x-1 transition-transform" />
+      <span className="text-[11px] font-black uppercase italic tracking-widest text-white group-hover:translate-x-1 transition-transform">{label}</span>
+      <ChevronRight size={16} className="ml-auto opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
     </button>
   );
 }

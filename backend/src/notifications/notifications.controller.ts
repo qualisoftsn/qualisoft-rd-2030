@@ -5,24 +5,29 @@ import {
   Body, 
   Patch, 
   Param, 
-  Query, 
+  UseGuards, 
+  Request, 
   HttpCode, 
-  HttpStatus 
+  HttpStatus,
+  ForbiddenException
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // 🛡️ Assure-toi du chemin
 
 /**
- * 🛰️ CONTROLLER NOTIFICATIONS - QUALISOFT ELITE
- * Gère le flux d'alertes en temps réel entre le Noyau PostgreSQL et l'interface.
+ * 🛰️ CONTROLLER NOTIFICATIONS - QUALISOFT ELITE (PROD READY)
+ * Sécurisé par JWT.
  */
 @Controller('notifications')
+@UseGuards(JwtAuthGuard) // 🔒 TOUTES les routes sont protégées
 export class NotificationsController {
+  
   constructor(private readonly notificationsService: NotificationsService) {}
 
   /**
-   * 🚀 CRÉATION : ENREGISTREMENT D'UNE NOUVELLE ALERTE
-   * @route POST /api/notifications
+   * 🚀 CRÉATION (Interne ou via API)
+   * Peut être appelée par d'autres services.
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -37,27 +42,38 @@ export class NotificationsController {
   }
 
   /**
-   * 📥 RÉCUPÉRATION : LISTE DES ALERTES ACTIVES (NON LUES)
-   * @route GET /api/notifications/:userId?tenantId=...
+   * 📥 RÉCUPÉRATION : FLUX PERSONNEL
+   * @route GET /api/notifications/me
+   * Le Frontend appelle "me", le Backend déduit l'ID du Token.
    */
-  @Get(':userId')
-  async getMyNotifs(
-    @Param('userId') userId: string, 
-    @Query('tenantId') tenantId: string
-  ) {
+  @Get('me')
+  async getMyNotifs(@Request() req) {
+    const userId = req.user.userId; // 👈 Extrait du Token (SÉCURISÉ)
+    const tenantId = req.user.tenantId; // Optionnel si tu filtres par tenant
+
+    // On délègue au service sans exposer d'ID dans l'URL
     return this.notificationsService.getMyNotifications(userId, tenantId);
   }
 
   /**
-   * ✅ ACQUITTEMENT : MARQUER UNE ALERTE COMME TRAITÉE
+   * ✅ ACQUITTEMENT TOTAL (NETTOYAGE)
+   * @route PATCH /api/notifications/read-all
+   */
+  @Patch('read-all')
+  async markAllAsRead(@Request() req) {
+    const userId = req.user.userId;
+    return this.notificationsService.markAllAsRead(userId);
+  }
+
+  /**
+   * ✅ ACQUITTEMENT UNITAIRE
    * @route PATCH /api/notifications/:id/read
    */
   @Patch(':id/read')
-  async markRead(
-    @Param('id') id: string, 
-    @Body('userId') userId: string
-  ) {
-    // On passe le userId pour sécuriser l'acquittement (Seul le destinataire peut acquitter)
+  async markRead(@Param('id') id: string, @Request() req) {
+    const userId = req.user.userId;
+    
+    // Le service doit vérifier que la notif appartient bien à cet userId
     return this.notificationsService.markAsRead(id, userId);
   }
 }

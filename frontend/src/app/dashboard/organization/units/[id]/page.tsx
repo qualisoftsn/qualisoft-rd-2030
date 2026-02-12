@@ -1,12 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
-  Building2, Users, ArrowLeft, ShieldCheck, Mail, 
+  Building2, Users, ArrowLeft, ShieldCheck, 
   MapPin, ChevronRight, Activity, Target, AlertCircle,
-  GitGraph, Calendar, Phone, FolderTree, ExternalLink,
-  UserCircle, TrendingUp, Briefcase
+  Calendar, FolderTree, ExternalLink,
+  Briefcase
 } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
 import Link from 'next/link';
@@ -121,7 +122,7 @@ export default function UnitDetailPage() {
         <div className="bg-white rounded-[50px] p-16 text-center border border-slate-100 shadow-xl max-w-md">
           <AlertCircle size={64} className="mx-auto mb-6 text-red-500" />
           <h1 className="text-2xl font-black uppercase italic text-slate-900 mb-3">Unité introuvable</h1>
-          <p className="text-slate-500 mb-8">Cette unité organisationnelle n'existe pas ou a été archivée.</p>
+          <p className="text-slate-500 mb-8">Cette unité organisationnelle n&apos;existe pas ou a été archivée.</p>
           <Link 
             href="/dashboard/organization/chart"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all"
@@ -145,14 +146,14 @@ export default function UnitDetailPage() {
           <>
             <button 
               onClick={() => router.push(`/dashboard/organization/units/${unit.OU_Parent!.OU_Id}`)}
-              className="hover:text-blue-600 transition-colors truncate max-w-[150px]"
+              className="hover:text-blue-600 transition-colors truncate max-w-37.5"
             >
               {unit.OU_Parent.OU_Name}
             </button>
             <ChevronRight size={14} />
           </>
         )}
-        <span className="text-slate-900 truncate max-w-[200px]">{unit.OU_Name}</span>
+        <span className="text-slate-900 truncate max-w-50">{unit.OU_Name}</span>
       </div>
 
       {/* HEADER : IDENTITÉ */}
@@ -179,7 +180,7 @@ export default function UnitDetailPage() {
                 )}
               </div>
               
-              <h1 className="text-4xl lg:text-6xl font-black uppercase italic tracking-tighter text-slate-900 leading-none">
+              <h1 className="text-4xl lg:text-3xl font-black uppercase italic tracking-tighter text-slate-900 leading-none">
                   {unit.OU_Name}
               </h1>
               
@@ -319,7 +320,7 @@ export default function UnitDetailPage() {
                   </p>
                   <div className="flex flex-wrap gap-3 pt-4">
                     <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-white/10">
-                      <span className="text-blue-300 block text-[8px] mb-1">Champ d'action</span>
+                      <span className="text-blue-300 block text-[8px] mb-1">Champ d&apos;action</span>
                       Opérationnel
                     </div>
                     <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-white/10">

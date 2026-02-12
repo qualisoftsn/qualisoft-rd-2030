@@ -19,17 +19,17 @@ export default function CertificationDashboardPage() {
   const [activeTab, setActiveTab] = useState<'QUALITY' | 'ENVIRONMENT' | 'GLOBAL'>('GLOBAL');
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
-  // Données de certification simulées (à remplacer par API réelle)
+  // --- 1. SYNCHRONISATION DES DONNÉES DE CERTIFICATION ---
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // TODO: Remplacer par appel API réel vers /api/certification/status
+        // Simulation de la liaison avec le Noyau Master Certification
         const mockData = await generateMockCertificationData();
         setCertificationData(mockData);
       } catch (error) {
-        console.error('Erreur chargement dashboard certification:', error);
-        toast.error('Erreur lors du chargement des données de certification');
+        console.error('Erreur liaison Matrix Certification:', error);
+        toast.error('Échec de synchronisation du statut de certification');
       } finally {
         setLoading(false);
       }
@@ -39,84 +39,57 @@ export default function CertificationDashboardPage() {
 
   if (loading || !certificationData) {
     return (
-      <div className="ml-72 h-screen flex items-center justify-center bg-[#0B0F1A]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-6"></div>
-          <p className="text-slate-500 font-black uppercase italic text-[10px] tracking-widest">
-            Chargement du Tableau de Bord de Certification ISO...
-          </p>
+      <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-6">
+        <div className="relative">
+           <div className="w-20 h-20 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
+           <ShieldCheck size={32} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500/50" />
         </div>
+        <p className="text-slate-500 font-black uppercase italic text-[10px] tracking-[0.5em] animate-pulse">
+          Audit en temps réel des référentiels ISO...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="ml-72 min-h-screen bg-[#0B0F1A] text-white font-sans p-8">
-      {/* HEADER STRATÉGIQUE */}
+    <div className="ml-72 min-h-screen bg-[#0B0F1A] text-white font-sans p-8 italic selection:bg-blue-600/30">
+      
+      {/* 🚀 HEADER STRATÉGIQUE §9.1 ISO 9001 */}
       <header className="mb-10 border-b border-white/5 pb-8">
         <div className="flex justify-between items-start mb-6">
-          <div>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-linear-to-br from-blue-600 to-emerald-600 p-4 rounded-2xl shadow-lg shadow-blue-500/20">
+          <div className="space-y-4">
+            <div className="flex items-center gap-5">
+              <div className="bg-linear-to-br from-blue-600 to-emerald-600 p-5 rounded-4xl shadow-2xl shadow-blue-500/20">
                 <ShieldCheck size={40} className="text-white" />
               </div>
               <div>
-                <h1 className="text-6xl font-black uppercase italic tracking-tighter">
-                  Tableau de <span className="text-blue-500">Bord</span> Certification
+                <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
+                  Tableau de <span className="text-blue-600">Bord</span> Certification
                 </h1>
-                <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-2 italic">
-                  ISO 9001:2015 • ISO 14001:2015 • Conformité Réglementaire Sénégal
+                <p className="text-slate-500 font-bold text-[11px] uppercase tracking-[0.4em] mt-3 italic">
+                  ISO 9001:2015 • ISO 14001:2015 • Conformité Légale Sénégal
                 </p>
               </div>
             </div>
             
-            <div className="flex gap-3 mt-4">
-              <CertificationBadge 
-                standard="ISO 9001" 
-                status={certificationData.iso9001.status} 
-                progress={certificationData.iso9001.progress}
-                nextStep={certificationData.iso9001.nextStep}
-              />
-              <CertificationBadge 
-                standard="ISO 14001" 
-                status={certificationData.iso14001.status} 
-                progress={certificationData.iso14001.progress}
-                nextStep={certificationData.iso14001.nextStep}
-              />
-              <CertificationBadge 
-                standard="LÉGAL SÉNÉGAL" 
-                status={certificationData.legal.status} 
-                progress={certificationData.legal.progress}
-                nextStep={certificationData.legal.nextStep}
-              />
+            <div className="flex gap-4 mt-6">
+              <CertificationBadge standard="ISO 9001" status={certificationData.iso9001.status} progress={certificationData.iso9001.progress} nextStep={certificationData.iso9001.nextStep} />
+              <CertificationBadge standard="ISO 14001" status={certificationData.iso14001.status} progress={certificationData.iso14001.progress} nextStep={certificationData.iso14001.nextStep} />
+              <CertificationBadge standard="LÉGAL SÉNÉGAL" status={certificationData.legal.status} progress={certificationData.legal.progress} nextStep={certificationData.legal.nextStep} />
             </div>
           </div>
           
           <div className="flex gap-4">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg">
-              <FileText size={18} /> Rapport Certification
-            </button>
-            <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg">
-              <Download size={18} /> Export Audit
-            </button>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg">
-              <Plus size={18} /> Plan d&apos;Actions
-            </button>
+            <button className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-5 rounded-3xl font-black uppercase text-[10px] flex items-center gap-3 transition-all shadow-xl border-none cursor-pointer"><FileText size={18} /> Rapport Certification</button>
+            <button className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-5 rounded-3xl font-black uppercase text-[10px] flex items-center gap-3 transition-all shadow-xl border-none cursor-pointer"><Download size={18} /> Export Audit</button>
+            <button className="bg-purple-600 hover:bg-purple-500 text-white px-8 py-5 rounded-3xl font-black uppercase text-[10px] flex items-center gap-3 transition-all shadow-xl border-none cursor-pointer"><Plus size={18} /> Plan d&apos;Actions</button>
           </div>
         </div>
 
-        {/* NAVIGATION PAR NORME */}
-        <div className="flex bg-slate-900/50 border border-white/10 rounded-2xl p-1 w-fit">
+        {/* 🧭 NAVIGATION PAR NORME */}
+        <div className="flex bg-slate-900/50 border border-white/10 rounded-3xl p-1.5 w-fit backdrop-blur-md">
           {(['GLOBAL', 'QUALITY', 'ENVIRONMENT'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeTab === tab 
-                  ? 'bg-white text-slate-900 shadow-md shadow-blue-500/20' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all rounded-xl border-none cursor-pointer ${activeTab === tab ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-500 hover:text-white'}`}>
               {tab === 'GLOBAL' && 'Vue Globale'}
               {tab === 'QUALITY' && 'ISO 9001:2015'}
               {tab === 'ENVIRONMENT' && 'ISO 14001:2015'}
@@ -125,295 +98,174 @@ export default function CertificationDashboardPage() {
         </div>
       </header>
 
-      {/* SECTION 1: MATURITÉ CERTIFICATION */}
-      <section className="mb-10">
-        <SectionHeader 
-          title="Niveau de Maturité Certification" 
-          icon={<BarChart3 className="text-blue-500" />}
-          description="Évaluation globale de la conformité aux exigences des normes"
-        />
+      {/* 📊 SECTION 1: MATURITÉ ET CONFORMITÉ (§10 ISO) */}
+      <section className="mb-12">
+        <SectionHeader title="Maturité du SMI Elite" icon={<BarChart3 className="text-blue-500" />} description="Évaluation dynamique des exigences normatives et réglementaires" />
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <MaturityCard 
-            title="ISO 9001:2015" 
-            score={certificationData.iso9001.maturityScore}
-            status={certificationData.iso9001.status}
-            requirementsMet={certificationData.iso9001.requirementsMet}
-            totalRequirements={certificationData.iso9001.totalRequirements}
-            color="from-blue-500 to-cyan-600"
-          />
-          
-          <MaturityCard 
-            title="ISO 14001:2015" 
-            score={certificationData.iso14001.maturityScore}
-            status={certificationData.iso14001.status}
-            requirementsMet={certificationData.iso14001.requirementsMet}
-            totalRequirements={certificationData.iso14001.totalRequirements}
-            color="from-green-500 to-emerald-600"
-          />
-          
-          <MaturityCard 
-            title="Conformité Légale Sénégal" 
-            score={certificationData.legal.maturityScore}
-            status={certificationData.legal.status}
-            requirementsMet={certificationData.legal.requirementsMet}
-            totalRequirements={certificationData.legal.totalRequirements}
-            color="from-amber-500 to-orange-600"
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+          <MaturityCard title="Qualité ISO 9001" score={certificationData.iso9001.maturityScore} status={certificationData.iso9001.status} requirementsMet={certificationData.iso9001.requirementsMet} totalRequirements={certificationData.iso9001.totalRequirements} color="from-blue-600 to-blue-800" />
+          <MaturityCard title="Environnement ISO 14001" score={certificationData.iso14001.maturityScore} status={certificationData.iso14001.status} requirementsMet={certificationData.iso14001.requirementsMet} totalRequirements={certificationData.iso14001.totalRequirements} color="from-emerald-600 to-emerald-800" />
+          <MaturityCard title="Réglementation Sénégal" score={certificationData.legal.maturityScore} status={certificationData.legal.status} requirementsMet={certificationData.legal.requirementsMet} totalRequirements={certificationData.legal.totalRequirements} color="from-amber-600 to-amber-800" />
         </div>
 
-        {/* DÉTAIL PAR CLAUSE */}
-        <div className="bg-slate-900/40 border border-white/5 rounded-3xl p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-black uppercase">Détail par Clause de Norme</h3>
-            <div className="flex gap-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase">Filtre:</span>
-              <select className="bg-white/5 border border-white/10 rounded-xl px-3 py-1 text-[10px] font-black uppercase text-white">
-                <option>ISO 9001:2015</option>
-                <option>ISO 14001:2015</option>
-                <option>Toutes les normes</option>
-              </select>
-            </div>
+        <div className="bg-slate-900/40 border border-white/5 rounded-[3.5rem] p-10 backdrop-blur-3xl shadow-2xl">
+          <div className="flex justify-between items-center mb-10">
+            <h3 className="text-2xl font-black uppercase tracking-tighter">Analyse Détaillée par Clause</h3>
+            <select className="bg-black/20 border border-white/10 rounded-2xl px-6 py-3 text-[10px] font-black uppercase text-white italic cursor-pointer outline-none">
+              <option>ISO 9001:2015</option>
+              <option>ISO 14001:2015</option>
+              <option>Multi-référentiels</option>
+            </select>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-5">
             {certificationData.clauseCompliance.map((clause: any) => (
-              <ClauseComplianceCard 
-                key={clause.id}
-                clause={clause}
-                onExpand={() => setExpandedSection(expandedSection === clause.id ? null : clause.id)}
-                isExpanded={expandedSection === clause.id}
-              />
+              <ClauseComplianceCard key={clause.id} clause={clause} onExpand={() => setExpandedSection(expandedSection === clause.id ? null : clause.id)} isExpanded={expandedSection === clause.id} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* SECTION 2: INDICATEURS CRITIQUES */}
-      <section className="mb-10">
-        <SectionHeader 
-          title="Indicateurs Clés de Performance (KPI)" 
-          icon={<TrendingUp className="text-emerald-500" />}
-          description="Suivi des performances qualité et environnementales"
-        />
+      {/* 📈 SECTION 2: PERFORMANCE DÉCISIONNELLE */}
+      <section className="mb-12">
+        <SectionHeader title="Indicateurs de Performance (KPI)" icon={<TrendingUp className="text-emerald-500" />} description="Pilotage des processus clés et impacts environnementaux" />
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <KpiDashboard 
-            title="Performance Qualité ISO 9001" 
-            kpis={certificationData.qualityKpis}
-            icon={<Target className="text-blue-500" />}
-          />
-          
-          <KpiDashboard 
-            title="Performance Environnementale ISO 14001" 
-            kpis={certificationData.environmentKpis}
-            icon={<Leaf className="text-green-500" />}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <KpiDashboard title="Performance Qualité" kpis={certificationData.qualityKpis} icon={<Target className="text-blue-500" />} />
+          <KpiDashboard title="Performance Environnementale" kpis={certificationData.environmentKpis} icon={<Leaf className="text-emerald-500" />} />
         </div>
       </section>
 
-      {/* SECTION 3: ACTIONS PRIORITAIRES */}
-      <section className="mb-10">
-        <SectionHeader 
-          title="Actions Prioritaires pour Certification" 
-          icon={<AlertTriangle className="text-amber-500" />}
-          description="Éléments critiques à traiter pour atteindre la certification"
-        />
+      {/* ⚠️ SECTION 3: MITIGATION DES RISQUES CERTIFICATION */}
+      <section className="mb-12">
+        <SectionHeader title="Actions Prioritaires Audit" icon={<AlertTriangle className="text-amber-500" />} description="Traitement des non-conformités et opportunités critiques" />
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PriorityActions 
-            title="Actions ISO 9001" 
-            actions={certificationData.priorityActions.quality}
-            color="bg-blue-500/10 border-blue-500/20"
-          />
-          
-          <PriorityActions 
-            title="Actions ISO 14001" 
-            actions={certificationData.priorityActions.environment}
-            color="bg-green-500/10 border-green-500/20"
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <PriorityActions title="Levée de Gaps ISO 9001" actions={certificationData.priorityActions.quality} color="bg-blue-600/5 border-blue-600/10" />
+          <PriorityActions title="Levée de Gaps ISO 14001" actions={certificationData.priorityActions.environment} color="bg-emerald-600/5 border-emerald-600/10" />
         </div>
       </section>
 
-      {/* SECTION 4: CALENDRIER CERTIFICATION */}
-      <section className="mb-10">
-        <SectionHeader 
-          title="Calendrier du Processus de Certification" 
-          icon={<Calendar className="text-purple-500" />}
-          description="Échéances clés et prochaines étapes"
-        />
-        
+      {/* 📅 SECTION 4: TRAJECTOIRE CERTIFICATION */}
+      <section className="mb-12">
+        <SectionHeader title="Chronologie du Processus" icon={<Calendar className="text-purple-500" />} description="Suivi des jalons d'audit et décisions de certification" />
         <CertificationTimeline events={certificationData.timeline} />
       </section>
 
-      {/* SECTION 5: RESSOURCES & DOCUMENTATION */}
+      {/* 📂 SECTION 5: MASTER DOCUMENTS */}
       <section>
-        <SectionHeader 
-          title="Documentation de Certification" 
-          icon={<FileText className="text-slate-500" />}
-          description="Documents essentiels pour l'audit de certification"
-        />
-        
+        <SectionHeader title="Bibliothèque de Preuves Audit" icon={<FileText className="text-slate-500" />} description="Documentation scellée pour l'examen des auditeurs" />
         <DocumentationLibrary documents={certificationData.documentation} />
       </section>
 
-      <footer className="mt-12 pt-8 border-t border-white/5 text-center">
-        <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em]">
-          Qualisoft SMI • Plateforme de Certification ISO 9001 & ISO 14001 • Conformité Réglementaire Sénégal
-        </p>
-        <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em] mt-2">
-          ANSD • Ministère de l&apos;Environnement • INNORPI • AFNOR International
-        </p>
+      <footer className="mt-20 pt-10 border-t border-white/5 text-center space-y-3">
+        <p className="text-[10px] font-black text-slate-600 uppercase italic tracking-[0.5em]">Qualisoft SMI Elite • Système de Management Intégré • RD 2026</p>
+        <p className="text-[9px] font-bold text-slate-700 uppercase italic tracking-[0.3em]">ANSD • Ministère de l&apos;Environnement Sénégal • INNORPI • AFNOR INTERNATIONAL</p>
       </footer>
     </div>
   );
 }
 
-// ========================
-// COMPOSANTS RÉUTILISABLES
-// ========================
+// --- SOUS-COMPOSANTS RÉUTILISABLES ---
 
 function CertificationBadge({ standard, status, progress, nextStep }: any) {
-  const getStatusColor = () => {
-    if (status === 'CERTIFIED') return 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400';
-    if (status === 'IN_PROGRESS') return 'bg-blue-500/20 border-blue-500/30 text-blue-400';
-    if (status === 'GAP_ANALYSIS') return 'bg-amber-500/20 border-amber-500/30 text-amber-400';
-    return 'bg-slate-500/20 border-white/10 text-slate-400';
-  };
-
+  const themes: any = { CERTIFIED: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400', IN_PROGRESS: 'bg-blue-500/10 border-blue-500/20 text-blue-400', GAP_ANALYSIS: 'bg-amber-500/10 border-amber-500/20 text-amber-400' };
   return (
-    <div className={`p-4 rounded-2xl border ${getStatusColor()}`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[8px] font-black uppercase tracking-widest">{standard}</span>
-        <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div 
-            className={`h-full rounded-full ${
-              status === 'CERTIFIED' ? 'bg-emerald-500' :
-              status === 'IN_PROGRESS' ? 'bg-blue-500' : 'bg-amber-500'
-            }`} 
-            style={{ width: `${progress}%` }}
-          ></div>
+    <div className={`p-5 rounded-3xl border backdrop-blur-sm ${themes[status] || 'bg-slate-500/10 border-white/10 text-slate-400'}`}>
+      <div className="flex items-center justify-between mb-3 gap-6">
+        <span className="text-[9px] font-black uppercase tracking-[0.2em] italic">{standard}</span>
+        <div className="w-20 h-2 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-full bg-current rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
         </div>
       </div>
-      <p className="text-lg font-black">{progress}%</p>
-      <p className="text-[9px] mt-1 text-white/70 italic line-clamp-1">{nextStep}</p>
+      <p className="text-2xl font-black italic tracking-tighter leading-none">{progress}%</p>
+      <p className="text-[9px] mt-2 font-bold opacity-60 italic line-clamp-1">{nextStep}</p>
     </div>
   );
 }
 
 function MaturityCard({ title, score, status, requirementsMet, totalRequirements, color }: any) {
   return (
-    <div className={`bg-linear-to-br ${color} p-6 rounded-3xl`}>
-      <h3 className="text-xl font-black mb-4">{title}</h3>
-      <div className="flex items-end justify-between mb-6">
-        <div className="text-5xl font-black">{score}</div>
-        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-          status === 'EXCELLENT' ? 'bg-white/20 text-white' :
-          status === 'BON' ? 'bg-white/30 text-white' : 'bg-white/40 text-white'
-        }`}>
-          {status}
-        </span>
+    <div className={`bg-linear-to-br ${color} p-8 rounded-[3rem] shadow-2xl group hover:scale-105 transition-all duration-500`}>
+      <h3 className="text-2xl font-black uppercase italic mb-6 tracking-tight group-hover:translate-x-2 transition-transform">{title}</h3>
+      <div className="flex items-end justify-between mb-8">
+        <div className="text-3xl font-black tracking-tighter italic leading-none">{score}</div>
+        <span className="px-4 py-2 rounded-2xl bg-white/20 text-white text-[10px] font-black uppercase italic backdrop-blur-md">Status: {status}</span>
       </div>
-      <div className="space-y-2">
-        <div className="flex justify-between text-[10px] font-black">
-          <span>Exigences conformes</span>
+      <div className="space-y-3">
+        <div className="flex justify-between text-[11px] font-black italic tracking-widest uppercase">
+          <span>Conformité Exigences</span>
           <span>{requirementsMet}/{totalRequirements}</span>
         </div>
-        <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
-          <div 
-            className="h-full bg-white rounded-full" 
-            style={{ width: `${(requirementsMet / totalRequirements) * 100}%` }}
-          ></div>
+        <div className="w-full bg-black/20 rounded-full h-3 overflow-hidden shadow-inner">
+          <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${(requirementsMet / totalRequirements) * 100}%` }} />
         </div>
       </div>
-      <button className="mt-4 w-full bg-white/10 hover:bg-white/20 text-white font-black py-2 rounded-xl transition-colors text-[10px] uppercase tracking-widest">
-        Détails de conformité
-      </button>
+      <button className="mt-8 w-full bg-white/10 hover:bg-white text-white hover:text-black font-black py-4 rounded-2xl transition-all text-[10px] uppercase tracking-[0.2em] border-none cursor-pointer italic shadow-lg">Détails Conformité</button>
     </div>
   );
 }
 
 function ClauseComplianceCard({ clause, onExpand, isExpanded }: any) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-      <button 
-        onClick={onExpand} 
-        className="w-full p-5 text-left flex justify-between items-center hover:bg-white/10 transition-colors"
-      >
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-[10px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">
-              {clause.standard} §{clause.number}
-            </span>
-            <h4 className="font-black">{clause.title}</h4>
+    <div className="bg-white/5 border border-white/5 rounded-4xl overflow-hidden hover:border-white/10 transition-all shadow-xl">
+      <button onClick={onExpand} className="w-full p-8 text-left flex justify-between items-center hover:bg-white/5 transition-colors border-none bg-transparent cursor-pointer">
+        <div className="space-y-2">
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-black bg-blue-600/20 text-blue-400 px-3 py-1.5 rounded-xl border border-blue-600/20 italic tracking-widest">{clause.standard} §{clause.number}</span>
+            <h4 className="text-lg font-black uppercase italic tracking-tight">{clause.title}</h4>
           </div>
-          <p className="text-[10px] text-slate-400 mt-1 line-clamp-1">{clause.description}</p>
+          <p className="text-[11px] text-slate-500 italic line-clamp-1">{clause.description}</p>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full ${
-                  clause.compliance >= 90 ? 'bg-emerald-500' :
-                  clause.compliance >= 70 ? 'bg-blue-500' : 'bg-amber-500'
-                }`} 
-                style={{ width: `${clause.compliance}%` }}
-              ></div>
+        <div className="flex items-center gap-10">
+          <div className="flex items-center gap-4">
+            <div className="w-32 h-2.5 bg-black/20 rounded-full overflow-hidden shadow-inner">
+              <div className={`h-full rounded-full transition-all duration-700 ${clause.compliance >= 90 ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : clause.compliance >= 70 ? 'bg-blue-500 shadow-[0_0_10px_#3b82f6]' : 'bg-amber-500'}`} style={{ width: `${clause.compliance}%` }} />
             </div>
-            <span className="text-[10px] font-black">{clause.compliance}%</span>
+            <span className="text-xl font-black italic tracking-tighter w-12 text-right">{clause.compliance}%</span>
           </div>
-          <ChevronDown 
-            className={`text-slate-500 transition-transform duration-300 ${
-              isExpanded ? 'rotate-180' : ''
-            }`} 
-            size={20} 
-          />
+          <ChevronDown className={`text-slate-600 transition-transform duration-500 ${isExpanded ? 'rotate-180' : ''}`} size={24} />
         </div>
       </button>
       
       {isExpanded && (
-        <div className="p-6 bg-slate-900/30 border-t border-white/5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <h5 className="text-[10px] font-black uppercase text-slate-500 mb-2">Éléments Conformes</h5>
-              <ul className="space-y-2">
+        <div className="p-10 bg-black/20 border-t border-white/5 animate-in slide-in-from-top-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div className="space-y-5">
+              <h5 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] flex items-center gap-2 italic"><CheckCircle size={14} className="text-emerald-500" /> Preuves de Conformité</h5>
+              <ul className="space-y-3">
                 {clause.compliantItems.map((item: string, idx: number) => (
-                  <li key={idx} className="flex items-center gap-2 text-[10px]">
-                    <CheckCircle className="text-emerald-500" size={14} />
-                    <span>{item}</span>
+                  <li key={idx} className="flex items-start gap-3 text-[11px] font-bold italic leading-snug">
+                    <ChevronRight className="text-emerald-500 mt-0.5" size={12} />
+                    <span className="text-slate-200">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            
-            <div>
-              <h5 className="text-[10px] font-black uppercase text-slate-500 mb-2">Écarts Identifiés</h5>
-              <ul className="space-y-2">
+            <div className="space-y-5">
+              <h5 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] flex items-center gap-2 italic"><AlertTriangle size={14} className="text-amber-500" /> Écarts Détectés</h5>
+              <ul className="space-y-3">
                 {clause.gaps.map((gap: any, idx: number) => (
-                  <li key={idx} className="flex items-start gap-2 text-[10px]">
-                    <AlertTriangle className="text-amber-500 mt-0.5 shrink-0" size={14} />
-                    <span className="text-amber-400">{gap.description}</span>
-                    <span className="ml-auto bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[8px] font-black">
-                      {gap.priority}
-                    </span>
+                  <li key={idx} className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl space-y-2">
+                    <div className="flex justify-between items-start">
+                       <span className="text-[11px] font-black text-amber-400 italic flex-1">{gap.description}</span>
+                       <span className="text-[8px] font-black bg-amber-500 text-black px-2 py-0.5 rounded-full italic">{gap.priority}</span>
+                    </div>
                   </li>
                 ))}
               </ul>
             </div>
-            
-            <div>
-              <h5 className="text-[10px] font-black uppercase text-slate-500 mb-2">Actions Recommandées</h5>
-              <ul className="space-y-2">
+            <div className="space-y-5">
+              <h5 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] flex items-center gap-2 italic"><Plus size={14} className="text-blue-500" /> Actions de Levée</h5>
+              <ul className="space-y-3">
                 {clause.recommendedActions.map((action: string, idx: number) => (
-                  <li key={idx} className="flex items-center gap-2 text-[10px] text-blue-400">
-                    <Plus className="text-blue-500" size={14} />
+                  <li key={idx} className="flex items-start gap-3 text-[11px] font-bold text-blue-400 italic">
+                    <Zap className="mt-0.5 shrink-0" size={12} />
                     <span>{action}</span>
                   </li>
                 ))}
               </ul>
-              <button className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2 rounded-xl transition-colors text-[10px] uppercase">
-                Générer Plan d&apos;Actions
-              </button>
+              <button className="mt-5 w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all text-[10px] uppercase italic border-none cursor-pointer shadow-lg">Générer Plan d&apos;Actions</button>
             </div>
           </div>
         </div>
@@ -424,33 +276,28 @@ function ClauseComplianceCard({ clause, onExpand, isExpanded }: any) {
 
 function KpiDashboard({ title, kpis, icon }: any) {
   return (
-    <div className="bg-slate-900/40 border border-white/5 rounded-3xl p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-white/5 rounded-lg">{icon}</div>
-        <h3 className="text-xl font-black">{title}</h3>
+    <div className="bg-slate-900/40 border border-white/5 rounded-[3.5rem] p-10 backdrop-blur-2xl shadow-xl">
+      <div className="flex items-center gap-5 mb-10">
+        <div className="p-4 bg-white/5 rounded-2xl border border-white/5 shadow-inner">{icon}</div>
+        <h3 className="text-2xl font-black uppercase italic tracking-tighter">{title}</h3>
       </div>
-      
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-6">
         {kpis.map((kpi: any, idx: number) => (
-          <div key={idx} className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="flex justify-between items-start mb-2">
+          <div key={idx} className="bg-white/5 border border-white/5 rounded-4xl p-6 hover:bg-white/10 transition-all group shadow-md">
+            <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-[9px] font-black uppercase text-slate-500">{kpi.label}</p>
-                <p className="text-2xl font-black mt-1">{kpi.value}</p>
+                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest italic">{kpi.label}</p>
+                <p className="text-3xl font-black italic tracking-tighter mt-1 group-hover:text-blue-400 transition-colors">{kpi.value}</p>
               </div>
-              <div className={`p-2 rounded-full ${
-                kpi.trend > 0 ? 'bg-emerald-500/20 text-emerald-400' : 
-                kpi.trend < 0 ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'
-              }`}>
-                {kpi.trend > 0 ? <TrendingUp size={16} /> : kpi.trend < 0 ? <TrendingUp size={16} className="rotate-180" /> : <Clock size={16} />}
+              <div className={`p-3 rounded-2xl shadow-inner ${kpi.trend > 0 ? 'bg-emerald-500/10 text-emerald-400' : kpi.trend < 0 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-500/10 text-slate-400'}`}>
+                {kpi.trend > 0 ? <TrendingUp size={20} /> : kpi.trend < 0 ? <TrendingUp size={20} className="rotate-180" /> : <Clock size={20} />}
               </div>
             </div>
-            <p className="text-[9px] text-slate-500 mt-1">{kpi.description}</p>
+            <p className="text-[10px] text-slate-500 font-bold italic line-clamp-1">{kpi.description}</p>
             {kpi.alert && (
-              <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <p className="text-[8px] text-amber-400 flex items-center gap-1">
-                  <AlertTriangle size={12} /> {kpi.alert}
-                </p>
+              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3 animate-pulse">
+                <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                <p className="text-[9px] text-amber-400 font-black italic uppercase leading-none">{kpi.alert}</p>
               </div>
             )}
           </div>
@@ -462,42 +309,21 @@ function KpiDashboard({ title, kpis, icon }: any) {
 
 function PriorityActions({ title, actions, color }: any) {
   return (
-    <div className={`rounded-3xl p-6 ${color}`}>
-      <h3 className="text-xl font-black mb-4 flex items-center gap-2">
-        <AlertTriangle className="text-amber-400" /> {title}
-      </h3>
-      
-      <div className="space-y-3">
+    <div className={`rounded-[3.5rem] p-10 border ${color} shadow-2xl backdrop-blur-md`}>
+      <h3 className="text-2xl font-black uppercase italic mb-8 flex items-center gap-4 tracking-tighter"><AlertTriangle className="text-amber-500" /> {title}</h3>
+      <div className="space-y-4">
         {actions.map((action: any, idx: number) => (
-          <div 
-            key={idx} 
-            className="bg-white/10 border border-white/20 rounded-xl p-4 hover:bg-white/15 transition-colors"
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h4 className="font-black text-white">{action.title}</h4>
-              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-                action.priority === 'CRITICAL' ? 'bg-red-500/30 text-red-300 border border-red-500/40' :
-                action.priority === 'HIGH' ? 'bg-amber-500/30 text-amber-300 border border-amber-500/40' :
-                'bg-blue-500/30 text-blue-300 border border-blue-500/40'
-              }`}>
-                {action.priority}
-              </span>
+          <div key={idx} className="bg-black/20 border border-white/5 rounded-4xl p-6 hover:bg-black/40 transition-all group shadow-xl relative overflow-hidden">
+            <div className="flex justify-between items-start mb-4">
+              <h4 className="text-md font-black uppercase italic text-white group-hover:text-blue-400 transition-colors leading-tight max-w-[70%]">{action.title}</h4>
+              <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase italic tracking-widest border ${action.priority === 'CRITICAL' ? 'bg-rose-600/10 text-rose-500 border-rose-600/20' : 'bg-blue-600/10 text-blue-400 border-blue-600/20'}`}>{action.priority}</span>
             </div>
-            <p className="text-[10px] text-slate-300 mb-2">{action.description}</p>
-            <div className="flex items-center justify-between text-[9px] text-slate-400">
-              <span className="flex items-center gap-1">
-                <Users size={14} /> {action.responsible}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock size={14} /> {action.deadline}
-              </span>
-              <span className="flex items-center gap-1">
-                <FileText size={14} /> {action.status}
-              </span>
+            <p className="text-[11px] text-slate-400 font-bold italic mb-6 leading-relaxed line-clamp-2">{action.description}</p>
+            <div className="flex items-center justify-between pt-5 border-t border-white/5 text-[10px] font-black text-slate-500 uppercase italic tracking-tighter">
+              <span className="flex items-center gap-2"><Users size={14} className="text-blue-500" /> {action.responsible}</span>
+              <span className="flex items-center gap-2"><Clock size={14} className="text-amber-500" /> {action.deadline}</span>
+              <span className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5 text-blue-400">{action.status}</span>
             </div>
-            <button className="mt-3 w-full bg-white/20 hover:bg-white/30 text-white font-black py-2 rounded-lg transition-colors text-[10px] uppercase">
-              Traiter cette action
-            </button>
           </div>
         ))}
       </div>
@@ -507,44 +333,33 @@ function PriorityActions({ title, actions, color }: any) {
 
 function CertificationTimeline({ events }: any) {
   return (
-    <div className="bg-slate-900/40 border border-white/5 rounded-3xl p-6">
-      <div className="relative pl-8 border-l-2 border-blue-500/30">
+    <div className="bg-slate-900/40 border border-white/5 rounded-[4rem] p-12 backdrop-blur-3xl shadow-2xl">
+      <div className="relative pl-12 border-l-4 border-blue-600/20 space-y-12 py-4">
         {events.map((event: any, idx: number) => (
-          <div key={idx} className="mb-8 relative">
-            <div className="absolute -left-5 w-3 h-3 rounded-full border-4 border-blue-500 bg-slate-900"></div>
-            <div className="ml-4">
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="font-black text-lg">{event.title}</h4>
-                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-                  event.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-300' :
-                  event.status === 'IN_PROGRESS' ? 'bg-blue-500/20 text-blue-300' :
-                  event.status === 'UPCOMING' ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-500/20 text-slate-300'
-                }`}>
-                  {event.status}
-                </span>
+          <div key={idx} className="relative animate-in slide-in-from-left-10 duration-700">
+            <div className="absolute -left-13.5 w-6 h-6 rounded-full border-4 border-[#0B0F1A] bg-blue-600 shadow-[0_0_20px_#2563eb]" />
+            <div className="bg-white/5 border border-white/5 p-8 rounded-[2.5rem] hover:bg-white/10 transition-all shadow-xl group">
+              <div className="flex justify-between items-start mb-5">
+                <div>
+                   <h4 className="text-2xl font-black uppercase italic tracking-tighter group-hover:text-blue-400 transition-colors">{event.title}</h4>
+                   <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mt-2">{event.description}</p>
+                </div>
+                <span className={`px-5 py-2 rounded-2xl text-[10px] font-black uppercase italic tracking-widest border ${event.status === 'COMPLETED' ? 'bg-emerald-600/10 text-emerald-400 border-emerald-600/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-blue-600/10 text-blue-400 border-blue-600/20 animate-pulse'}`}>{event.status}</span>
               </div>
-              <p className="text-[10px] text-slate-400 mb-2">{event.description}</p>
-              <div className="flex items-center gap-4 text-[9px] text-slate-500">
-                <span className="flex items-center gap-1">
-                  <Calendar size={14} /> {event.date}
-                </span>
-                {event.responsible && (
-                  <span className="flex items-center gap-1">
-                    <Users size={14} /> {event.responsible}
-                  </span>
-                )}
+              <div className="flex items-center gap-8 text-[11px] font-black text-slate-600 uppercase italic mb-8 border-b border-white/5 pb-5">
+                <span className="flex items-center gap-3"><Calendar size={18} className="text-blue-500" /> Échéance : {event.date}</span>
+                <span className="flex items-center gap-3"><Users size={18} className="text-purple-500" /> Pilote : {event.responsible}</span>
               </div>
               {event.deliverables && (
-                <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-lg">
-                  <p className="text-[9px] font-black uppercase text-slate-500 mb-2">Livrables:</p>
-                  <ul className="space-y-1 text-[10px] text-slate-400">
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] flex items-center gap-2"><Recycle size={14} className="text-emerald-500" /> Livrables Critiques Audit :</p>
+                  <div className="flex flex-wrap gap-3">
                     {event.deliverables.map((deliverable: string, dIdx: number) => (
-                      <li key={dIdx} className="flex items-start gap-2">
-                        <ChevronRight size={14} className="text-blue-500 mt-1 shrink-0" />
-                        <span>{deliverable}</span>
-                      </li>
+                      <span key={dIdx} className="bg-black/40 border border-white/5 px-5 py-2.5 rounded-2xl text-[10px] font-bold italic text-slate-300 shadow-md">
+                        {deliverable}
+                      </span>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
             </div>
@@ -557,61 +372,36 @@ function CertificationTimeline({ events }: any) {
 
 function DocumentationLibrary({ documents }: any) {
   return (
-    <div className="bg-slate-900/40 border border-white/5 rounded-3xl p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-black">Bibliothèque de Documents de Certification</h3>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-          <input 
-            type="text" 
-            placeholder="Rechercher un document..." 
-            className="bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-white focus:border-blue-500 outline-none text-[10px] font-black uppercase"
-          />
+    <div className="bg-slate-900/40 border border-white/5 rounded-[4rem] p-12 backdrop-blur-3xl shadow-2xl overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-8">
+        <h3 className="text-3xl font-black uppercase italic tracking-tighter">Référentiel de Preuves Audit</h3>
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={24} />
+          <input type="text" placeholder="RECHERCHER UN DOCUMENT SCELLÉ..." className="w-full bg-black/20 border border-white/10 rounded-3xl pl-16 pr-8 py-5 text-white focus:border-blue-600 outline-none text-[11px] font-black uppercase italic shadow-inner" />
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {documents.map((doc: any, idx: number) => (
-          <div 
-            key={idx} 
-            className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-blue-500/30 transition-colors cursor-pointer"
-          >
-            <div className="flex items-start gap-3 mb-3">
-              <div className={`p-2 rounded-lg ${
-                doc.category === 'MANUAL' ? 'bg-blue-500/20 text-blue-400' :
-                doc.category === 'PROCEDURE' ? 'bg-emerald-500/20 text-emerald-400' :
-                doc.category === 'RECORD' ? 'bg-amber-500/20 text-amber-400' : 'bg-purple-500/20 text-purple-400'
-              }`}>
-                <FileText size={24} />
+          <div key={idx} className="bg-white/5 border border-white/5 rounded-[2.5rem] p-8 hover:border-blue-600/30 hover:bg-white/10 transition-all cursor-pointer group shadow-xl">
+            <div className="flex items-start gap-5 mb-6">
+              <div className={`p-4 rounded-2xl shadow-inner ${doc.category === 'MANUAL' ? 'bg-blue-600/10 text-blue-400 border border-blue-600/20' : doc.category === 'PROCEDURE' ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-600/20' : 'bg-amber-600/10 text-amber-400 border border-amber-600/20'}`}>
+                <FileText size={32} />
               </div>
-              <div className="flex-1">
-                <h4 className="font-black text-white line-clamp-1">{doc.title}</h4>
-                <p className="text-[9px] text-slate-400 mt-1">{doc.description}</p>
+              <div className="flex-1 space-y-2">
+                <h4 className="text-lg font-black text-white group-hover:text-blue-400 transition-colors uppercase italic tracking-tight line-clamp-1">{doc.title}</h4>
+                <p className="text-[10px] text-slate-500 font-bold italic line-clamp-2 leading-relaxed">{doc.description}</p>
               </div>
             </div>
             
-            <div className="flex items-center justify-between text-[9px] text-slate-500 mt-3 pt-3 border-t border-white/5">
-              <span className="flex items-center gap-1">
-                <Users size={12} /> {doc.owner}
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar size={12} /> {doc.lastUpdate}
-              </span>
-              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${
-                doc.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300' :
-                doc.status === 'DRAFT' ? 'bg-blue-500/20 text-blue-300' : 'bg-amber-500/20 text-amber-300'
-              }`}>
-                {doc.status}
-              </span>
+            <div className="flex items-center justify-between text-[10px] font-black text-slate-600 uppercase italic pt-6 border-t border-white/5 mb-6">
+              <span className="flex items-center gap-2"><Users size={14} /> Pilote: {doc.owner}</span>
+              <span className="flex items-center gap-2"><Calendar size={14} /> MAJ: {doc.lastUpdate}</span>
             </div>
             
-            <div className="mt-3 flex gap-2">
-              <button className="flex-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-black py-1.5 rounded-lg transition-colors text-[9px] uppercase">
-                Télécharger
-              </button>
-              <button className="flex-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-black py-1.5 rounded-lg transition-colors text-[9px] uppercase">
-                Versionner
-              </button>
+            <div className="flex gap-3">
+              <button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all text-[10px] uppercase italic border-none cursor-pointer shadow-lg">Visualiser</button>
+              <button className="bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white px-5 rounded-2xl transition-all border border-white/5 cursor-pointer"><Download size={18} /></button>
             </div>
           </div>
         ))}
@@ -622,216 +412,55 @@ function DocumentationLibrary({ documents }: any) {
 
 function SectionHeader({ title, icon, description }: any) {
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 bg-white/5 rounded-lg">{icon}</div>
-        <h2 className="text-3xl font-black uppercase tracking-tighter">{title}</h2>
+    <div className="mb-8 animate-in slide-in-from-left-5 duration-500">
+      <div className="flex items-center gap-5 mb-3">
+        <div className="p-3 bg-white/5 rounded-2xl border border-white/10 shadow-inner">{icon}</div>
+        <h2 className="text-4xl font-black uppercase italic tracking-tighter">{title}</h2>
       </div>
-      <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest italic">
-        {description}
-      </p>
+      <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.4em] italic ml-1">{description}</p>
     </div>
   );
 }
 
-// ========================
-// DONNÉES MOCK POUR DÉMO
-// ========================
+// --- GÉNÉRATEUR DE DONNÉES MOCK (RD 2026) ---
 
 async function generateMockCertificationData() {
   return {
-    iso9001: {
-      status: 'IN_PROGRESS',
-      progress: 78,
-      maturityScore: 78,
-      requirementsMet: 89,
-      totalRequirements: 114,
-      nextStep: 'Finaliser revue de direction Q3'
-    },
-    iso14001: {
-      status: 'GAP_ANALYSIS',
-      progress: 65,
-      maturityScore: 65,
-      requirementsMet: 68,
-      totalRequirements: 105,
-      nextStep: 'Mettre en place suivi consommations'
-    },
-    legal: {
-      status: 'IN_PROGRESS',
-      progress: 82,
-      maturityScore: 82,
-      requirementsMet: 28,
-      totalRequirements: 34,
-      nextStep: 'Mettre à jour registre déchets dangereux'
-    },
+    iso9001: { status: 'IN_PROGRESS', progress: 78, maturityScore: 78, requirementsMet: 89, totalRequirements: 114, nextStep: 'Validation de la revue de direction Q1 2026' },
+    iso14001: { status: 'GAP_ANALYSIS', progress: 65, maturityScore: 65, requirementsMet: 68, totalRequirements: 105, nextStep: 'Finalisation du registre des aspects environnementaux' },
+    legal: { status: 'IN_PROGRESS', progress: 82, maturityScore: 82, requirementsMet: 28, totalRequirements: 34, nextStep: 'Dépôt du rapport annuel au Ministère' },
     clauseCompliance: [
-      {
-        id: '4.1',
-        standard: 'ISO 9001',
-        number: '4.1',
-        title: 'Compréhension de l\'organisation',
-        description: 'Déterminer les enjeux internes et externes pertinents',
-        compliance: 95,
-        compliantItems: [
-          'Cartographie parties intéressées complète',
-          'Analyse SWOT actualisée',
-          'Registre des risques organisationnels'
-        ],
-        gaps: [
-          { description: 'Veille réglementaire non formalisée', priority: 'MOYENNE' }
-        ],
-        recommendedActions: [
-          'Mettre en place une veille réglementaire mensuelle',
-          'Documenter les impacts des changements contextuels'
-        ]
-      },
-      {
-        id: '6.1',
-        standard: 'ISO 14001',
-        number: '6.1',
-        title: 'Actions pour traiter les risques',
-        description: 'Déterminer les aspects environnementaux significatifs',
-        compliance: 70,
-        compliantItems: [
-          'Identification aspects environnementaux',
-          'Évaluation impacts environnementaux'
-        ],
-        gaps: [
-          { description: 'Objectifs environnementaux non définis', priority: 'ÉLEVÉE' },
-          { description: 'Plan d\'actions incomplet', priority: 'CRITIQUE' }
-        ],
-        recommendedActions: [
-          'Définir 3 objectifs environnementaux annuels',
-          'Attribuer des responsables et délais',
-          'Mettre en place suivi indicateurs'
-        ]
-      }
+      { id: '4.1', standard: 'ISO 9001', number: '4.1', title: 'Contexte de l\'organisation', description: 'Identification des enjeux internes et externes critiques', compliance: 95, compliantItems: ['Analyse SWOT Matrix v2.6', 'Cartographie des parties intéressées dynamique', 'Registre des risques stratégiques scellé'], gaps: [{ description: 'Veille réglementaire ISO non automatisée', priority: 'MOYENNE' }], recommendedActions: ['Activer le module Intelligence Réglementaire', 'Documenter l\'impact du climat local sur les opérations'] },
+      { id: '6.1', standard: 'ISO 14001', number: '6.1', title: 'Actions face aux risques', description: 'Détermination des aspects environnementaux significatifs (AES)', compliance: 70, compliantItems: ['Inventaire des flux énergétiques', 'Calculateur carbone Scope 1/2 opérationnel'], gaps: [{ description: 'Objectifs de réduction eau non formalisés', priority: 'ÉLEVÉE' }, { description: 'Absence de plan de secours environnemental sur site B', priority: 'CRITIQUE' }], recommendedActions: ['Définir les KPIs de réduction d\'eau 2026', 'Attribuer les budgets de mitigation HSE', 'Simuler un incident environnemental majeur'] }
     ],
     qualityKpis: [
-      { label: 'Taux de conformité produits', value: '98.7%', trend: 2, description: 'Objectif: ≥ 98%' },
-      { label: 'Réclamations clients', value: '3', trend: -1, description: 'Objectif: ≤ 5/mois', alert: 'En hausse de 33% ce mois' },
-      { label: 'Actions correctives ouvertes', value: '7', trend: 0, description: 'Délai moyen: 14 jours' },
-      { label: 'Audits internes réalisés', value: '8/12', trend: 1, description: 'Planning annuel' }
+      { label: 'Indice Conformité Produit', value: '98.7%', trend: 2, description: 'Objectif Qualisoft: ≥ 98%' },
+      { label: 'Incidence Clients', value: '3', trend: -1, description: 'Seuil critique: 5/mois', alert: 'Hausse anormale sur le secteur Nord' },
+      { label: 'Vitesse Levée NC', value: '14j', trend: 1, description: 'Délai moyen de traitement' },
+      { label: 'Efficacité Audits', value: '92%', trend: 1, description: 'Taux de levée des actions d\'audit' }
     ],
     environmentKpis: [
-      { label: 'Consommation énergétique', value: '8,450 kWh', trend: -2, description: 'Objectif: -5% annuel' },
-      { label: 'Taux de recyclage', value: '72%', trend: 3, description: 'Objectif: ≥ 75%' },
-      { label: 'Déchets dangereux', value: '120 kg', trend: 0, description: 'Stockage conforme' },
-      { label: 'Incidents environnementaux', value: '1', trend: -1, description: 'Zéro incident critique' }
+      { label: 'Intensité Énergétique', value: '8,45 MWh', trend: -2, description: 'Optimisation continue en cours' },
+      { label: 'Taux Recyclage Global', value: '72%', trend: 3, description: 'Cible 2026: 75%' },
+      { label: 'Consommation Eau / FTE', value: '12 L', trend: 0, description: 'Stable sur 3 mois' },
+      { label: 'Zero Incident Majeur', value: '100%', trend: 1, description: 'Status Conformité Totale' }
     ],
     priorityActions: {
       quality: [
-        {
-          title: 'Finaliser procédure gestion non-conformités',
-          description: 'Documenter le processus de traitement des écarts qualité',
-          priority: 'CRITICAL',
-          responsible: 'Responsable Qualité',
-          deadline: '15/11/2024',
-          status: 'En retard'
-        },
-        {
-          title: 'Organiser revue de direction Q3',
-          description: 'Préparer les indicateurs et décisions pour la revue',
-          priority: 'HIGH',
-          responsible: 'DG',
-          deadline: '30/11/2024',
-          status: 'À planifier'
-        }
+        { title: 'Scellage de la procédure NC', description: 'Intégrer le flux d\'approbation automatisé pour les non-conformités process.', priority: 'CRITICAL', responsible: 'RQ Master', deadline: '20/02/2026', status: 'À DÉMARRER' },
+        { title: 'Revue Direction Q1', description: 'Préparer les data-viz pour l\'arbitrage budgétaire de la direction.', priority: 'HIGH', responsible: 'DG / RQ', deadline: '05/03/2026', status: 'EN COURS' }
       ],
       environment: [
-        {
-          title: 'Mettre en place suivi consommations énergie',
-          description: 'Installer compteurs et tableau de bord mensuel',
-          priority: 'HIGH',
-          responsible: 'Responsable HSE',
-          deadline: '10/12/2024',
-          status: 'En cours'
-        },
-        {
-          title: 'Définir objectifs environnementaux 2025',
-          description: 'Fixer 3 objectifs SMART avec indicateurs de suivi',
-          priority: 'MEDIUM',
-          responsible: 'DG',
-          deadline: '15/12/2024',
-          status: 'À démarrer'
-        }
+        { title: 'Monitoring Capteurs Énergie', description: 'Liaison temps réel entre les compteurs et l\'API Analytics Qualisoft.', priority: 'HIGH', responsible: 'Lead HSE', deadline: '15/03/2026', status: 'TESTS' }
       ]
     },
     timeline: [
-      {
-        title: 'Audit interne qualité',
-        description: 'Audit processus production et supply chain',
-        date: '05/11/2024',
-        status: 'COMPLETED',
-        responsible: 'Auditeur Interne',
-        deliverables: [
-          'Rapport d\'audit',
-          'Plan d\'actions correctives',
-          'Clôture des non-conformités'
-        ]
-      },
-      {
-        title: 'Revue de direction Q3',
-        description: 'Analyse performance SMQ et décisions stratégiques',
-        date: '25/11/2024',
-        status: 'IN_PROGRESS',
-        responsible: 'Direction Générale',
-        deliverables: [
-          'Rapport de revue',
-          'Décisions et actions',
-          'Mise à jour objectifs qualité'
-        ]
-      },
-      {
-        title: 'Préparation audit certification',
-        description: 'Simulation audit et vérification conformité',
-        date: '10/01/2025',
-        status: 'UPCOMING',
-        responsible: 'Responsable Qualité',
-        deliverables: [
-          'Checklist préparation audit',
-          'Dossier de preuves',
-          'Formation équipe audit'
-        ]
-      },
-      {
-        title: 'Audit certification ISO 9001',
-        description: 'Audit stage 1 avec organisme certificateur',
-        date: '15/02/2025',
-        status: 'UPCOMING',
-        responsible: 'Direction Générale',
-        deliverables: [
-          'Rapport d\'audit',
-          'Plan d\'actions préalables',
-          'Décision certification'
-        ]
-      }
+      { title: 'Audit à Blanc Qualité', description: 'Simulation complète avant audit de certification AFNOR.', date: '12/03/2026', status: 'UPCOMING', responsible: 'Expert Externe', deliverables: ['Rapport de conformité §10', 'Liste des écarts critiques'] },
+      { title: 'Audit Étape 1 ISO 14001', description: 'Vérification documentaire par l\'organisme certificateur.', date: '25/04/2026', status: 'UPCOMING', responsible: 'Direction', deliverables: ['Dossier AES', 'Politique Environnementale'] }
     ],
     documentation: [
-      { 
-        title: 'Manuel Qualité', 
-        description: 'Politique qualité et périmètre SMQ', 
-        category: 'MANUAL', 
-        owner: 'RQ', 
-        lastUpdate: '15/10/2024', 
-        status: 'APPROVED' 
-      },
-      { 
-        title: 'Procédure Gestion Documents', 
-        description: 'Contrôle et diffusion documents qualité', 
-        category: 'PROCEDURE', 
-        owner: 'RQ', 
-        lastUpdate: '20/10/2024', 
-        status: 'APPROVED' 
-      },
-      { 
-        title: 'Registre Aspects Environnementaux', 
-        description: 'Identification et évaluation impacts', 
-        category: 'RECORD', 
-        owner: 'HSE', 
-        lastUpdate: '05/11/2024', 
-        status: 'DRAFT' 
-      }
+      { title: 'Manuel SMI Intégré', description: 'Cadre normatif unifié ISO 9001 & 14001 v2.6', category: 'MANUAL', owner: 'RQ', lastUpdate: '10/01/2026', status: 'APPROVED' },
+      { title: 'Registre AES Sénégal', description: 'Analyse des impacts environnementaux site Dakar/Thiès', category: 'RECORD', owner: 'HSE', lastUpdate: '05/02/2026', status: 'DRAFT' }
     ]
   };
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
@@ -178,7 +179,7 @@ export default function ActionDetailPage() {
                 <textarea 
                   value={editData.ACT_Description || ''}
                   onChange={(e) => setEditData({...editData, ACT_Description: e.target.value})}
-                  className="w-full bg-slate-950 border border-white/10 rounded-2xl p-6 text-sm font-bold text-slate-300 outline-none focus:border-blue-500 min-h-[120px]"
+                  className="w-full bg-slate-950 border border-white/10 rounded-2xl p-6 text-sm font-bold text-slate-300 outline-none focus:border-blue-500 min-h-30"
                   placeholder="Description..."
                 />
               ) : (
@@ -209,7 +210,7 @@ export default function ActionDetailPage() {
               ))}
             </div>
 
-            <div className="bg-slate-900/40 border border-white/5 rounded-[3rem] p-8 rounded-tl-none min-h-[400px]">
+            <div className="bg-slate-900/40 border border-white/5 rounded-[3rem] p-8 rounded-tl-none min-h-100">
               {activeTab === 'tasks' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center mb-6">

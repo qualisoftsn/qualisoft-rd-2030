@@ -124,7 +124,7 @@ export default function LoginPage() {
             <div className="inline-flex items-center justify-center w-24 h-24 bg-slate-900 rounded-[2.5rem] mb-8 shadow-2xl">
               <ShieldCheck className="text-blue-500" size={48} />
             </div>
-            <h1 className="text-5xl font-black text-slate-900 uppercase tracking-tighter italic">QUALI<span className="text-blue-600">SOFT</span></h1>
+            <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">QUALI<span className="text-blue-600">SOFT</span></h1>
             <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.5em] mt-4">Elite RD 2030</p>
           </div>
 
@@ -139,7 +139,7 @@ export default function LoginPage() {
                     <p className="text-xl font-black uppercase">Master Console</p>
                   </div>
                 </div>
-                <ChevronRight size={24} className="text-slate-600" />
+                <ChevronRight size={20} className="text-slate-600" />
               </button>
 
               <button onClick={() => setMode("TENANT_PORTAL")} className="w-full bg-white text-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 flex items-center justify-between cursor-pointer hover:border-blue-600 transition-all">

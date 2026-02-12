@@ -178,10 +178,10 @@ export default function EnvironmentDashboardPage() {
         <div>
           <div className="flex items-center gap-4 mb-3">
             <div className="bg-linear-to-br from-green-500 to-emerald-600 p-3 rounded-2xl shadow-lg shadow-green-500/20">
-              <Leaf size={32} className="text-white" />
+              <Leaf size={25} className="text-white" />
             </div>
             <div>
-              <h1 className="text-5xl font-black uppercase italic tracking-tighter">
+              <h1 className="text-4xl font-black uppercase italic tracking-tighter">
                 Management <span className="text-green-400">Environnemental</span>
               </h1>
               <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-1 italic">

@@ -108,7 +108,7 @@ export default function SettingsPage() {
           <div className="flex items-center gap-3 text-blue-500 mb-3 font-black uppercase tracking-[0.5em] text-[10px]">
             <Activity size={16} /> System Configuration Hub
           </div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
             Paramètres <span className="text-blue-500">SMI</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-4">

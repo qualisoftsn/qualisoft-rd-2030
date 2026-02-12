@@ -79,7 +79,7 @@ export default function ReclamationsPage() {
       <main className="flex-1 ml-72 p-10 text-white italic overflow-y-auto h-screen">
         <header className="mb-10 flex justify-between items-end border-b border-white/5 pb-8">
           <div>
-            <h1 className="text-5xl font-black uppercase tracking-tighter italic">Pilotage <span className="text-blue-500">Réclamations</span></h1>
+            <h1 className="text-4xl font-black uppercase tracking-tighter italic">Pilotage <span className="text-blue-500">Réclamations</span></h1>
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-2 italic">Management ISO 10002</p>
           </div>
           <div className="flex gap-4">

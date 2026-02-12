@@ -58,7 +58,7 @@ export default function CauseriesSSEPage() {
       
       <header className="mb-12 flex justify-between items-end border-b border-white/5 pb-10">
         <div>
-          <h1 className="text-5xl tracking-tighter italic leading-none">CAUSERIES <span className="text-blue-500">SÉCURITÉ</span></h1>
+          <h1 className="text-4xl tracking-tighter italic leading-none">CAUSERIES <span className="text-blue-500">SÉCURITÉ</span></h1>
           <p className="text-slate-500 text-[11px] tracking-[0.4em] mt-4 italic uppercase">ISO 45001 §7.3 • CULTURE PRÉVENTIVE</p>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 px-10 py-5 rounded-3xl text-[11px] shadow-2xl flex items-center gap-3 hover:bg-blue-500 transition-all active:scale-95 group">

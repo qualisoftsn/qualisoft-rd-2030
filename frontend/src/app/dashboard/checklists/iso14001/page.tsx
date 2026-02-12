@@ -190,7 +190,7 @@ export default function ISO14001ChecklistPage() {
                 <Leaf size={40} className="text-white" />
               </div>
               <div>
-                <h1 className="text-6xl font-black uppercase italic tracking-tighter">
+                <h1 className="text-4xl font-black uppercase italic tracking-tighter">
                   Checklist <span className="text-green-500">ISO 14001:2015</span>
                 </h1>
                 <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-2 italic">

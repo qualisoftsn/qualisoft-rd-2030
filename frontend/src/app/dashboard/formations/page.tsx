@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
-  GraduationCap, Plus, Search, Activity, AlertCircle, 
+  Plus, Activity, 
   ShieldCheck, X, Save, Loader2, BookOpen
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -101,7 +102,7 @@ export default function FormationsPage() {
 
       {/* 🚀 MODALE DE SAISIE CORRIGÉE */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/98 backdrop-blur-xl z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/98 backdrop-blur-xl z-9999 flex items-center justify-center p-4">
           <form 
             onSubmit={async (e: any) => {
               e.preventDefault();
@@ -122,7 +123,7 @@ export default function FormationsPage() {
             className="bg-[#0F172A] w-full max-w-lg rounded-[3rem] border border-white/10 p-12 space-y-8 shadow-4xl"
           >
             <div className="flex justify-between items-center border-b border-white/5 pb-6">
-               <h2 className="text-2xl italic font-black uppercase leading-none italic">NOUVELLE <span className="text-blue-600">SESSION</span></h2>
+               <h2 className="text-2xl italic font-black uppercase leading-none">NOUVELLE <span className="text-blue-600">SESSION</span></h2>
                <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-red-500 transition-colors"><X size={28}/></button>
             </div>
 

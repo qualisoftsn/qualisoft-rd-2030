@@ -1,43 +1,34 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
-import { Plus, Edit3, Save, X, Loader2, Target, ShieldCheck, Layers } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { Plus, Edit3, Save, X, Loader2, Target, ShieldCheck, Layers, GitBranch, ArrowUpRight } from 'lucide-react';
+import { toast } from 'sonner';
+import Link from 'next/link';
 
 export default function ProcessusPage() {
   const [items, setItems] = useState<any[]>([]);
   const [collaborateurs, setCollaborateurs] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selected, setSelected] = useState<any>(null);
-
-  // État local du formulaire pour une validation réactive
-  const [formData, setFormData] = useState({
-    PR_Code: '',
-    PR_Libelle: '',
-    PR_TypeId: '',
-    PR_PiloteId: ''
-  });
+  const [formData, setFormData] = useState({ PR_Code: '', PR_Libelle: '', PR_TypeId: '', PR_PiloteId: '' });
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
       const [resP, resU, resT] = await Promise.all([
         apiClient.get('/processus'),
-        apiClient.get('/gouvernance/auditors'), 
-        apiClient.get('/processus-types') // Aligné sur le contrôleur NestJS
+        apiClient.get('/users'), 
+        apiClient.get('/processus-types')
       ]);
-
-      setItems(Array.isArray(resP.data) ? resP.data : []);
-      setCollaborateurs(Array.isArray(resU.data) ? resU.data : []);
-      setTypes(Array.isArray(resT.data) ? resT.data : []);
+      setItems(resP.data);
+      setCollaborateurs(resU.data);
+      setTypes(resT.data);
     } catch (e) {
-      toast.error("Erreur de synchronisation (§4.4)");
+      toast.error("Erreur de synchronisation Matrix");
     } finally {
       setLoading(false);
     }
@@ -45,208 +36,107 @@ export default function ProcessusPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Synchronisation du formulaire lors de la sélection
-  useEffect(() => {
-    if (selected) {
-      setFormData({
-        PR_Code: selected.PR_Code || '',
-        PR_Libelle: selected.PR_Libelle || '',
-        PR_TypeId: selected.PR_TypeId || '',
-        PR_PiloteId: selected.PR_PiloteId || ''
-      });
-    } else {
-      setFormData({ PR_Code: '', PR_Libelle: '', PR_TypeId: '', PR_PiloteId: '' });
-    }
-  }, [selected]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-
     try {
-      if (selected?.PR_Id) {
-        // Mode ÉDITION
+      if (selected) {
         await apiClient.patch(`/processus/${selected.PR_Id}`, formData);
-        toast.success("Mise à jour du processus validée");
+        toast.success("Mise à jour validée");
       } else {
-        // Mode CRÉATION
         await apiClient.post('/processus', formData);
-        toast.success("Nouveau processus intégré à la cartographie");
+        toast.success("Nouveau processus intégré");
       }
       setIsModalOpen(false);
       loadData();
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Échec de l'enregistrement technique";
-      toast.error(msg);
-    } finally {
-      setSubmitting(false);
+    } catch (err) {
+      toast.error("Échec de l'enregistrement");
     }
   };
 
   if (loading) return (
-    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] text-blue-500 italic">
-      <Loader2 className="animate-spin mb-4" size={48} />
-      <span className="font-black uppercase tracking-widest text-xs">Lecture du SMI en cours...</span>
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A]">
+      <Loader2 className="animate-spin text-blue-500 mb-6" size={50} />
+      <span className="text-blue-500 font-black uppercase tracking-[0.4em] text-[10px]">SMI CORE PROTOCOL...</span>
     </div>
   );
 
   return (
-    <div className="p-10 bg-[#0B0F1A] min-h-screen ml-72 text-white text-left font-sans italic">
-      <header className="mb-12 flex justify-between items-end border-b border-white/5 pb-8">
+    <div className="p-12 bg-[#0B0F1A] min-h-screen ml-72 text-white italic text-left">
+      <header className="mb-16 flex justify-between items-end border-b border-white/5 pb-10">
         <div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter italic">
-            Cartographie <span className="text-blue-600">SMI</span>
+          <h1 className="text-3xl font-black uppercase tracking-tighter italic leading-none">
+            CARTOGRAPHIE <span className="text-blue-600">SMI</span>
           </h1>
-          <p className="text-slate-500 font-bold text-[10px] uppercase mt-3 tracking-[0.3em]">
-            ISO 9001 §4.4 : {items.length} Processus opérationnels
-          </p>
+          <p className="text-slate-500 font-bold text-[10px] uppercase mt-4 tracking-[0.5em]">ISO 9001 §4.4 • GOUVERNANCE OPÉRATIONNELLE</p>
         </div>
-        <button 
-          onClick={() => { setSelected(null); setIsModalOpen(true); }} 
-          className="bg-blue-600 hover:bg-blue-500 transition-all px-10 py-5 rounded-3xl font-black uppercase text-xs flex items-center gap-3 shadow-2xl shadow-blue-900/20"
-        >
-          <Plus size={18} /> Nouveau Processus
+        <button onClick={() => { setSelected(null); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-white hover:text-slate-900 px-10 py-6 rounded-2xl font-black uppercase text-xs transition-all shadow-2xl border-none cursor-pointer">
+          <Plus size={20} className="inline mr-2" /> AJOUTER UN PROCESSUS
         </button>
       </header>
 
-      {/* TABLEAU DE BORD DES PROCESSUS */}
-      <div className="bg-slate-900/40 border border-white/10 rounded-[3rem] overflow-hidden backdrop-blur-md">
-        <table className="w-full text-left">
-          <thead className="bg-white/5 text-[9px] font-black uppercase text-slate-500 tracking-widest">
-            <tr>
-              <th className="px-8 py-6">Code ID</th>
-              <th className="px-8 py-6">Désignation Processus</th>
-              <th className="px-8 py-6">Pilote Responsable</th>
-              <th className="px-8 py-6 text-right pr-12">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5 font-bold">
-            {items.map((pr) => (
-              <tr key={pr.PR_Id} className="hover:bg-white/2 transition-colors">
-                <td className="px-8 py-6">
-                  <span className="px-3 py-1 bg-blue-600/10 text-blue-500 border border-blue-600/20 rounded-lg text-xs font-black uppercase">
-                    {pr.PR_Code}
-                  </span>
-                </td>
-                <td className="px-8 py-6">
-                  <h4 className="text-lg font-black uppercase leading-none mb-1">{pr.PR_Libelle}</h4>
-                  <div className="flex items-center gap-2 text-[8px] text-slate-500 uppercase">
-                    <Layers size={10} /> {pr.PR_Type?.PT_Label || 'Type non défini'}
-                  </div>
-                </td>
-                <td className="px-8 py-6">
-                  <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-300">
-                    <ShieldCheck size={14} className="text-blue-600" />
-                    {pr.PR_Pilote?.U_FirstName} {pr.PR_Pilote?.U_LastName}
-                  </div>
-                </td>
-                <td className="px-8 py-6 text-right pr-12">
-                   <button 
-                     onClick={() => { setSelected(pr); setIsModalOpen(true); }} 
-                     className="p-3 bg-white/5 rounded-xl hover:bg-blue-600 hover:text-white transition-all text-slate-400"
-                   >
-                     <Edit3 size={16}/>
-                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* MODAL : CONFIGURATION DU PROCESSUS (§4.4) */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-100 flex items-center justify-center p-6">
-          <div className="bg-[#0B0F1A] border border-white/10 p-12 md:p-16 rounded-[4rem] w-full max-w-2xl relative shadow-4xl animate-in zoom-in-95 duration-300">
-            <button 
-              type="button" 
-              onClick={() => setIsModalOpen(false)} 
-              className="absolute top-10 right-10 text-slate-500 hover:text-white transition-colors"
-            >
-              <X size={32}/>
-            </button>
-
-            <div className="mb-12">
-              <h2 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
-                Config. <span className="text-blue-600 italic">SMI</span>
-              </h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase mt-2 tracking-widest">
-                {selected ? 'Modification du processus existant' : 'Initialisation d\'un nouveau processus métier'}
-              </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {items.map((pr) => (
+          <div key={pr.PR_Id} className="bg-slate-900/40 border border-white/5 p-10 rounded-[3.5rem] group hover:border-blue-500/40 transition-all flex flex-col justify-between min-h-80 shadow-2xl relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 text-white/5 group-hover:text-blue-500/5 transition-colors">
+                <GitBranch size={160} />
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-600 uppercase ml-4 italic">Identification du code</label>
-                  <input 
-                    value={formData.PR_Code} 
-                    onChange={e => setFormData({...formData, PR_Code: e.target.value.toUpperCase()})}
-                    placeholder="EX: PR-01" 
-                    className="w-full p-6 bg-white/5 border border-white/10 rounded-3xl text-xs font-black uppercase outline-none focus:border-blue-600 transition-all" 
-                    required 
-                  />
+            
+            <div className="relative z-10">
+              <div className="flex justify-between items-center mb-6">
+                <span className="px-4 py-1.5 bg-blue-600/10 text-blue-500 border border-blue-600/20 rounded-xl text-[10px] font-black uppercase italic tracking-widest">{pr.PR_Code}</span>
+                <button onClick={() => { setSelected(pr); setFormData({PR_Code: pr.PR_Code, PR_Libelle: pr.PR_Libelle, PR_TypeId: pr.PR_TypeId, PR_PiloteId: pr.PR_PiloteId}); setIsModalOpen(true); }} className="text-slate-600 hover:text-white bg-transparent border-none cursor-pointer"><Edit3 size={18} /></button>
+              </div>
+              <h4 className="text-3xl font-black uppercase italic leading-tight tracking-tighter mb-4 group-hover:text-blue-400 transition-colors">{pr.PR_Libelle}</h4>
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-6 italic">{pr.PR_Type?.PT_Label || 'FAMILLE NON DÉFINIE'}</p>
+              
+              <div className="flex items-center gap-3 bg-white/2 p-4 rounded-2xl border border-white/5">
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-black text-blue-500 text-xs">
+                    {pr.PR_Pilote?.U_FirstName?.[0]}{pr.PR_Pilote?.U_LastName?.[0]}
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-600 uppercase ml-4 italic">Désignation officielle (§4.4)</label>
-                  <input 
-                    value={formData.PR_Libelle} 
-                    onChange={e => setFormData({...formData, PR_Libelle: e.target.value})}
-                    placeholder="DÉSIGNATION DU PROCESSUS" 
-                    className="w-full p-6 bg-white/5 border border-white/10 rounded-3xl text-xs font-black uppercase outline-none focus:border-blue-600 transition-all" 
-                    required 
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-600 uppercase ml-4 italic">Famille de processus</label>
-                  <select 
-                    value={formData.PR_TypeId} 
-                    onChange={e => setFormData({...formData, PR_TypeId: e.target.value})}
-                    className="w-full p-6 bg-white/5 border border-white/10 rounded-3xl text-xs font-black uppercase outline-none focus:border-blue-600 transition-all appearance-none cursor-pointer" 
-                    required
-                  >
-                    <option value="">-- TYPE ISO 9001 --</option>
-                    {types.map(t => <option key={t.PT_Id} value={t.PT_Id}>{t.PT_Label}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-600 uppercase ml-4 italic">Pilote du processus (Titulaire)</label>
-                  <select 
-                    value={formData.PR_PiloteId} 
-                    onChange={e => setFormData({...formData, PR_PiloteId: e.target.value})}
-                    className="w-full p-6 bg-white/5 border border-blue-600/30 rounded-3xl text-xs font-black uppercase text-blue-400 outline-none focus:border-blue-600 transition-all appearance-none cursor-pointer" 
-                    required
-                  >
-                    <option value="">-- CHOISIR LE PILOTE --</option>
-                    {collaborateurs.map(u => (
-                      <option key={u.U_Id} value={u.U_Id}>
-                        {u.U_FirstName} {u.U_LastName}
-                      </option>
-                    ))}
-                  </select>
+                <div>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">PILOTE TITULAIRE</p>
+                    <p className="text-xs font-black uppercase italic text-slate-200">{pr.PR_Pilote?.U_FirstName} {pr.PR_Pilote?.U_LastName}</p>
                 </div>
               </div>
+            </div>
 
-              <button 
-                type="submit" 
-                disabled={submitting}
-                className="w-full py-8 bg-blue-600 hover:bg-blue-500 rounded-4xl font-black uppercase text-xs flex items-center justify-center gap-4 transition-all shadow-xl shadow-blue-900/40 mt-6"
-              >
-                {submitting ? (
-                  <Loader2 className="animate-spin" size={20} />
-                ) : (
-                  <>
-                    <Save size={20}/> 
-                    {selected ? 'Valider les modifications' : 'Inscrire à la cartographie'}
-                  </>
-                )}
+            <Link href={`/dashboard/processus/cockpit/${pr.PR_Id}`} className="mt-8 flex justify-between items-center bg-blue-600 text-white p-6 rounded-2xl font-black uppercase italic text-[10px] tracking-widest hover:bg-white hover:text-slate-900 transition-all no-underline shadow-xl relative z-10">
+                OUVRIR LE COCKPIT <ArrowUpRight size={18} />
+            </Link>
+          </div>
+        ))}
+      </div>
+
+      {isModalOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-100" onClick={() => setIsModalOpen(false)} />
+          <div className="fixed top-0 right-0 h-full w-137.5 bg-[#0F172A] z-110 p-16 animate-in slide-in-from-right duration-500 italic text-left border-l border-white/10 overflow-y-auto">
+            <h2 className="text-5xl font-black uppercase italic tracking-tighter mb-12 border-b border-white/5 pb-8">CONFIG. <span className="text-blue-600">SMI</span></h2>
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Code ID (Radicale)</label>
+              <input value={formData.PR_Code} onChange={e => setFormData({...formData, PR_Code: e.target.value.toUpperCase()})} placeholder="EX: PR-MAINTENANCE" className="w-full p-6 bg-slate-900 border border-white/10 rounded-2xl text-sm font-black uppercase italic outline-none focus:border-blue-600" required /></div>
+              
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Libellé du Processus</label>
+              <input value={formData.PR_Libelle} onChange={e => setFormData({...formData, PR_Libelle: e.target.value})} placeholder="DÉSIGNATION" className="w-full p-6 bg-slate-900 border border-white/10 rounded-2xl text-sm font-black uppercase italic outline-none focus:border-blue-600" required /></div>
+
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Famille ISO 9001</label>
+              <select value={formData.PR_TypeId} onChange={e => setFormData({...formData, PR_TypeId: e.target.value})} className="w-full p-6 bg-slate-900 border border-white/10 rounded-2xl text-[10px] font-black uppercase italic outline-none">
+                <option value="">SÉLECTIONNER</option>
+                {types.map(t => <option key={t.PT_Id} value={t.PT_Id}>{t.PT_Label}</option>)}
+              </select></div>
+
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Pilote Titulaire</label>
+              <select value={formData.PR_PiloteId} onChange={e => setFormData({...formData, PR_PiloteId: e.target.value})} className="w-full p-6 bg-slate-900 border border-white/10 rounded-2xl text-[10px] font-black uppercase italic outline-none">
+                <option value="">CHOISIR LE RESPONSABLE</option>
+                {collaborateurs.map(u => <option key={u.U_Id} value={u.U_Id}>{u.U_FirstName} {u.U_LastName}</option>)}
+              </select></div>
+
+              <button type="submit" className="w-full py-8 bg-blue-600 rounded-3xl font-black uppercase text-xs transition-all shadow-2xl border-none cursor-pointer mt-6 hover:bg-white hover:text-slate-900">
+                SCELLER DANS LA CARTOGRAPHIE
               </button>
             </form>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

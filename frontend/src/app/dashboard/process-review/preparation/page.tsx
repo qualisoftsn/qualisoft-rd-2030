@@ -70,7 +70,7 @@ export default function PreparationRevue() {
   return (
     <div className="ml-72 p-12 bg-[#0B0F1A] min-h-screen text-white italic font-sans text-left">
       <header className="mb-16">
-        <h1 className="text-7xl font-black uppercase italic tracking-tighter">
+        <h1 className="text-3xl font-black uppercase italic tracking-tighter">
           Scan <span className="text-blue-600">Performance</span>
         </h1>
         <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-4">

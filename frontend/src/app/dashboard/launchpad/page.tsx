@@ -30,8 +30,8 @@ export default function PilotLaunchpad() {
       
       {/* 👋 WELCOME SECTION */}
       <header className="mb-12">
-        <h1 className="text-5xl font-black uppercase tracking-tighter italic flex items-center gap-4">
-          <Rocket className="text-blue-500" size={48} /> Launchpad <span className="text-blue-500">Pilote</span>
+        <h1 className="text-4xl font-black uppercase tracking-tighter italic flex items-center gap-4">
+          <Rocket className="text-blue-500" size={35} /> Launchpad <span className="text-blue-500">Pilote</span>
         </h1>
         <p className="text-slate-500 font-bold text-xs uppercase tracking-[0.4em] mt-4 italic">
           Focus Opérationnel • Qualisoft Elite 2026

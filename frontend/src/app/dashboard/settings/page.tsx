@@ -158,7 +158,7 @@ export default function BillingPage() {
       {/* HEADER : IDENTITÉ DE L'INSTANCE */}
       <header className="mb-12 border-b border-white/5 pb-10 flex justify-between items-end max-w-7xl mx-auto w-full">
         <div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
             Gestion <span className="text-blue-500">Licence</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-4 italic">

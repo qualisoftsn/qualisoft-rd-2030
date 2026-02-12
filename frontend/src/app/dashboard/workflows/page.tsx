@@ -41,7 +41,7 @@ export default function WorkflowsPage() {
       {/* 🚀 HEADER STRATÉGIQUE */}
       <header className="flex justify-between items-end mb-12 border-b border-white/5 pb-8">
         <div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter italic leading-none">
+          <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">
             Noyau <span className="text-blue-600">Workflows</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-4 italic">

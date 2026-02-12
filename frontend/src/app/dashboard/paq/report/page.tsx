@@ -44,7 +44,7 @@ export default function PAQPage() {
         {/* HEADER AVEC BOUTONS D'ACTION */}
         <header className="flex justify-between items-end border-b border-white/5 pb-8">
           <div>
-            <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
               PLAN D&apos;ACTIONS <span className="text-blue-500">QUALITÉ</span>
             </h1>
             <p className="text-blue-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-3 italic">

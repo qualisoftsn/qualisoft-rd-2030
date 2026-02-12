@@ -91,7 +91,7 @@ export default function SuperAdminSecurityPage() {
           <div className="flex items-center gap-3 text-red-500 mb-3 font-black uppercase tracking-[0.5em] text-[10px]">
             <Terminal size={16} /> Restricted Area &bull; Qualisoft Master Guard
           </div>
-          <h1 className="text-7xl font-black uppercase italic tracking-tighter leading-none">Global <span className="text-blue-600">Security</span></h1>
+          <h1 className="text-3xl font-black uppercase italic tracking-tighter leading-none">Global <span className="text-blue-600">Security</span></h1>
         </div>
         <div className="flex gap-2 bg-white/5 p-2 rounded-[2rem] border border-white/10 shadow-2xl backdrop-blur-md">
           {(['OVERVIEW', 'TENANTS', 'BACKUPS', 'AUDIT_TRAIL'] as SecurityTab[]).map((t) => (
@@ -103,10 +103,10 @@ export default function SuperAdminSecurityPage() {
       </header>
 
       {/* ZONE DE DONNÉES SÉCURISÉE */}
-      <div className="bg-slate-900/40 border border-white/5 rounded-[4.5rem] min-h-[650px] backdrop-blur-3xl overflow-hidden shadow-3xl">
+      <div className="bg-slate-900/40 border border-white/5 rounded-[4.5rem] min-h-162.5 backdrop-blur-3xl overflow-hidden shadow-3xl">
         
         {loading ? (
-          <div className="flex h-[600px] flex-col items-center justify-center font-black uppercase text-blue-500 text-[10px] tracking-[0.5em] animate-pulse">
+          <div className="flex h-150 flex-col items-center justify-center font-black uppercase text-blue-500 text-[10px] tracking-[0.5em] animate-pulse">
             <RefreshCcw className="animate-spin mb-4" size={40} /> Synchronisation du Noyau...
           </div>
         ) : (

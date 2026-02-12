@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -272,11 +273,11 @@ export default function PilotageKPIPage() {
       {/* Header Principal */}
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end border-b border-white/5 pb-10 mb-12 gap-6">
         <div>
-          <h1 className="text-6xl lg:text-8xl font-black uppercase italic tracking-tighter leading-none mb-6">
+          <h1 className="text-4xl lg:text-38xl font-black uppercase italic tracking-tighter leading-none mb-6">
             Pilotage <span className="text-blue-600">KPI</span>
           </h1>
           <div className="flex items-center gap-6 flex-wrap">
-            <div className="flex items-center gap-3 bg-white/5 px-6 py-3 rounded-[2rem] border border-white/5">
+            <div className="flex items-center gap-3 bg-white/5 px-6 py-3 rounded-4xl border border-white/5">
               <Calendar size={16} className="text-blue-500" />
               <span className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-300">
                 Période active : {targetPeriod.month}/{targetPeriod.year}
@@ -284,14 +285,14 @@ export default function PilotageKPIPage() {
             </div>
             
             {targetPeriod.isEditable ? (
-              <div className="flex items-center gap-2 bg-emerald-500/10 px-6 py-3 rounded-[2rem] border border-emerald-500/20 text-emerald-400 animate-pulse">
+              <div className="flex items-center gap-2 bg-emerald-500/10 px-6 py-3 rounded-4xl border border-emerald-500/20 text-emerald-400 animate-pulse">
                 <Unlock size={16} />
                 <span className="text-[10px] font-black uppercase tracking-widest">
                   Fenêtre de saisie ouverte ({targetPeriod.daysLeft}j restants)
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 bg-amber-500/10 px-6 py-3 rounded-[2rem] border border-amber-500/20 text-amber-400">
+              <div className="flex items-center gap-2 bg-amber-500/10 px-6 py-3 rounded-4xl border border-amber-500/20 text-amber-400">
                 <Lock size={16} />
                 <span className="text-[10px] font-black uppercase tracking-widest">
                   Saisie verrouillée (Prochaine : 1-10 du mois prochain)
@@ -303,7 +304,7 @@ export default function PilotageKPIPage() {
         
         <div className="flex items-center gap-4">
           {isAdmin && (
-            <div className="flex items-center gap-2 bg-blue-600/10 px-6 py-3 rounded-[2rem] border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase italic tracking-widest shadow-inner">
+            <div className="flex items-center gap-2 bg-blue-600/10 px-6 py-3 rounded-4xl border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase italic tracking-widest shadow-inner">
               <ShieldCheck size={16}/> Mode Responsable Qualité
             </div>
           )}
@@ -334,7 +335,7 @@ export default function PilotageKPIPage() {
         <select 
           value={selectedProcess}
           onChange={(e) => setSelectedProcess(e.target.value)}
-          className="bg-black/50 border border-white/10 rounded-[2rem] px-6 py-3 text-sm font-bold italic text-white focus:border-blue-500 outline-none transition-all hover:border-white/20"
+          className="bg-black/50 border border-white/10 rounded-4xl px-6 py-3 text-sm font-bold italic text-white focus:border-blue-500 outline-none transition-all hover:border-white/20"
         >
           <option value="all">Tous les processus</option>
           {processes.map(p => (
@@ -364,10 +365,10 @@ export default function PilotageKPIPage() {
           return (
             <section key={process.PR_Id} className="bg-slate-900/30 border border-white/5 rounded-[4rem] overflow-hidden shadow-2xl shadow-black/50">
               {/* Header du Processus */}
-              <div className="p-10 border-b border-white/5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-gradient-to-r from-blue-900/10 via-transparent to-transparent">
+              <div className="p-10 border-b border-white/5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-linear-to-r from-blue-900/10 via-transparent to-transparent">
                 <div>
                   <div className="flex items-center gap-4 mb-3">
-                    <div className="w-14 h-14 bg-blue-600 rounded-[2rem] flex items-center justify-center shadow-lg shadow-blue-900/50">
+                    <div className="w-14 h-14 bg-blue-600 rounded-4xl flex items-center justify-center shadow-lg shadow-blue-900/50">
                       <BarChart3 size={28} className="text-white" />
                     </div>
                     <div>
@@ -450,7 +451,7 @@ export default function PilotageKPIPage() {
                             <button
                               onClick={() => handleOpenModal(indicator, process)}
                               disabled={!editable && !isAdmin}
-                              className={`flex items-center gap-2 px-6 py-3 rounded-[2rem] font-black uppercase text-[10px] italic transition-all border ${
+                              className={`flex items-center gap-2 px-6 py-3 rounded-4xl font-black uppercase text-[10px] italic transition-all border ${
                                 editable || isAdmin
                                   ? 'bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white border-blue-500/30' 
                                   : 'bg-slate-800/50 text-slate-600 border-slate-700 cursor-not-allowed'
@@ -467,7 +468,7 @@ export default function PilotageKPIPage() {
 
                   // Mode Grid (Cartes)
                   return (
-                    <div key={indicator.IND_Id} className="bg-black/20 border border-white/5 rounded-[3rem] p-8 hover:border-blue-500/30 hover:bg-white/[0.02] transition-all group relative overflow-hidden flex flex-col">
+                    <div key={indicator.IND_Id} className="bg-black/20 border border-white/5 rounded-[3rem] p-8 hover:border-blue-500/30 hover:bg-white/2 transition-all group relative overflow-hidden flex flex-col">
                       {/* Bandeau Status */}
                       <div className="absolute top-0 right-0 p-6">
                         <div className={`px-4 py-2 rounded-2xl text-[9px] font-black uppercase italic tracking-widest border backdrop-blur-md flex items-center gap-2 ${statusConfig.color}`}>
@@ -493,7 +494,7 @@ export default function PilotageKPIPage() {
                       <span className="text-[9px] font-bold text-slate-400 uppercase">{indicator.IND_Unite}</span>
                     </div>
                     
-                    <div className={`text-6xl font-black italic mb-2 ${actual !== undefined && actual !== null ? getPerformanceColor(actual, indicator.IND_Cible) : 'text-slate-700'}`}>
+                    <div className={`text-4xl font-black italic mb-2 ${actual !== undefined && actual !== null ? getPerformanceColor(actual, indicator.IND_Cible) : 'text-slate-700'}`}>
                       {actual !== undefined && actual !== null ? actual : '--'}
                     </div>
                     
@@ -507,14 +508,14 @@ export default function PilotageKPIPage() {
 
                   {/* Métriques Secondaires */}
                   <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-white/5 rounded-[2rem] p-5 border border-white/5">
+                    <div className="bg-white/5 rounded-4xl p-5 border border-white/5">
                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">Objectif</span>
                       <div className="flex items-center gap-2 text-emerald-400 font-black italic text-lg">
                         <Target size={16} />
                         {indicator.IND_Cible}
                       </div>
                     </div>
-                    <div className="bg-white/5 rounded-[2rem] p-5 border border-white/5">
+                    <div className="bg-white/5 rounded-4xl p-5 border border-white/5">
                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">Fréquence</span>
                       <div className="flex items-center gap-2 text-slate-300 font-bold text-sm italic">
                         <Clock size={16} className="text-blue-400" />
@@ -544,7 +545,7 @@ export default function PilotageKPIPage() {
                   {indicator.currentValue?.IV_Comment && (
                     <div className="mt-4 p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
                       <p className="text-[10px] text-amber-200/70 italic line-clamp-2">
-                        "{indicator.currentValue.IV_Comment}"
+                        &quot;{indicator.currentValue.IV_Comment}&quot;
                       </p>
                     </div>
                   )}
@@ -563,7 +564,7 @@ export default function PilotageKPIPage() {
       <div className="bg-slate-900 border border-white/10 w-full max-w-4xl rounded-[4rem] shadow-2xl overflow-hidden my-8">
         
         {/* Header Modal */}
-        <div className="p-10 border-b border-white/10 flex justify-between items-start bg-gradient-to-r from-blue-900/20 to-transparent">
+        <div className="p-10 border-b border-white/10 flex justify-between items-start bg-linear-to-r from-blue-900/20 to-transparent">
           <div>
             <div className="flex items-center gap-4 mb-4">
               <span className="px-4 py-1.5 bg-blue-600/20 text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-500/30">
@@ -655,7 +656,7 @@ export default function PilotageKPIPage() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   disabled={!canEdit(selectedIndicator, activeProcess) && !isAdmin}
-                  className="w-full bg-black/40 border-2 border-white/10 rounded-[3rem] p-10 text-center text-7xl font-black italic outline-none focus:border-blue-600 transition-all text-white placeholder:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-black/40 border-2 border-white/10 rounded-[3rem] p-10 text-center text-3xl font-black italic outline-none focus:border-blue-600 transition-all text-white placeholder:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="0.00"
                 />
                 {inputValue && (
@@ -697,7 +698,7 @@ export default function PilotageKPIPage() {
                   <button
                     onClick={handleSaveValue}
                     disabled={submitting}
-                    className="flex-[2] py-6 rounded-[2.5rem] bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-[11px] font-black uppercase italic shadow-2xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] hover:shadow-blue-900/50"
+                    className="flex-2 py-6 rounded-[2.5rem] bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-[11px] font-black uppercase italic shadow-2xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] hover:shadow-blue-900/50"
                   >
                     {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                     Enregistrer
@@ -724,7 +725,7 @@ export default function PilotageKPIPage() {
                     {selectedIndicator.history?.map((val) => (
                       <div key={val.IV_Id} className="flex items-center justify-between p-6 bg-black/20 rounded-[2.5rem] border border-white/5 hover:border-white/10 transition-all group">
                         <div className="flex items-center gap-6">
-                          <div className="w-20 h-20 bg-slate-800 rounded-[2rem] flex flex-col items-center justify-center border border-white/5 group-hover:border-blue-500/30 transition-colors">
+                          <div className="w-20 h-20 bg-slate-800 rounded-4xl flex flex-col items-center justify-center border border-white/5 group-hover:border-blue-500/30 transition-colors">
                             <span className="text-2xl font-black text-white">{val.IV_Month}</span>
                             <span className="text-[10px] font-black text-slate-500 uppercase">{val.IV_Year}</span>
                           </div>
@@ -742,7 +743,7 @@ export default function PilotageKPIPage() {
                               </span>
                               {val.IV_Comment && (
                                 <span className="text-[10px] text-slate-500 italic max-w-xs truncate">
-                                  "{val.IV_Comment}"
+                                  &quot;{val.IV_Comment}&quot;
                                 </span>
                               )}
                             </div>

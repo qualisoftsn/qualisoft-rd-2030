@@ -136,7 +136,7 @@ export default function ReportGeneratorPage() {
                 <FileText size={40} className="text-white" />
               </div>
               <div>
-                <h1 className="text-6xl font-black uppercase italic tracking-tighter">
+                <h1 className="text-4xl font-black uppercase italic tracking-tighter">
                   Générateur de <span className="text-purple-500">Rapports</span>
                 </h1>
                 <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-2 italic">

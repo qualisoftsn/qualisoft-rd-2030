@@ -1,242 +1,239 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Bell, 
-  CheckCircle, 
-  AlertTriangle, 
-  Clock, 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Eye, 
-  CheckSquare,
-  RefreshCw,
-  MessageSquare,
-  Plus,
-  ChevronRight
+  Bell, CheckCircle, AlertTriangle, Clock, Search, Filter, 
+  MoreVertical, Eye, CheckSquare, RefreshCw, MessageSquare,
+  ShieldAlert, Loader2, Zap
 } from 'lucide-react';
+import apiClient from '@/core/api/api-client';
+import { toast } from 'sonner';
 
-// Définition des types pour les alertes
+// --- INTERFACE ALIGNÉE SUR LE SCHÉMA PRISMA ---
 interface Alert {
-  id: string;
-  title: string;
-  message: string;
-  type: 'REMINDER' | 'DEADLINE' | 'OVERDUE' | 'INFO';
-  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-  status: 'NEW' | 'READ' | 'ACKNOWLEDGED';
-  date: string;
-  source: string;
+  AL_Id: string;
+  AL_Title: string;
+  AL_Message: string;
+  AL_Type: 'REMINDER' | 'DEADLINE' | 'OVERDUE' | 'INFO';
+  AL_Priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  AL_Status: 'NEW' | 'UNREAD' | 'READ' | 'ACKNOWLEDGED';
+  AL_TriggerDate: string;
+  AL_DueDate: string;
 }
 
 export default function AlertsPage() {
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const [alerts, setAlerts] = useState<Alert[]>([
-    {
-      id: '1',
-      title: 'Audit Interne QSE',
-      message: 'Rappel : L\'audit interne QSE démarre demain à 09h00.',
-      type: 'REMINDER',
-      priority: 'HIGH',
-      status: 'NEW',
-      date: '2025-05-14T09:00:00',
-      source: 'Audit'
-    },
-    {
-      id: '2',
-      title: 'Renouvellement Permis Environnemental',
-      message: 'Le permis d\'exploitation expire dans 30 jours.',
-      type: 'DEADLINE',
-      priority: 'CRITICAL',
-      status: 'READ',
-      date: '2025-06-12T00:00:00',
-      source: 'Réglementaire'
-    },
-    {
-      id: '3',
-      title: 'Action Corrective #AC-2024-045',
-      message: 'L\'action corrective assignée est en retard de 3 jours.',
-      type: 'OVERDUE',
-      priority: 'MEDIUM',
-      status: 'NEW',
-      date: '2025-05-10T14:30:00',
-      source: 'Action'
-    },
-    {
-      id: '4',
-      title: 'Nouveau Document Qualité',
-      message: 'La procédure "Gestion des déchets" v2.0 a été publiée.',
-      type: 'INFO',
-      priority: 'LOW',
-      status: 'READ',
-      date: '2025-05-12T10:15:00',
-      source: 'Document'
-    }
-  ]);
+  const [filterPriority, setFilterPriority] = useState('ALL');
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'CRITICAL': return 'bg-red-100 text-red-700 border-red-200';
-      case 'HIGH': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      default: return 'bg-blue-100 text-blue-700 border-blue-200';
+  // --- TRADUCTION DES TYPES & PRIORITÉS ---
+  const translateType = (type: string) => {
+    const map: any = { 'REMINDER': 'RAPPEL', 'DEADLINE': 'ÉCHÉANCE', 'OVERDUE': 'RETARD', 'INFO': 'INFORMATION' };
+    return map[type] || type;
+  };
+
+  const translatePriority = (priority: string) => {
+    const map: any = { 'CRITICAL': 'CRITIQUE', 'HIGH': 'ÉLEVÉE', 'MEDIUM': 'MOYENNE', 'LOW': 'BASSE' };
+    return map[priority] || priority;
+  };
+
+  // --- RÉCUPÉRATION DES DONNÉES (FLUX & STATS) ---
+  const refreshData = useCallback(async () => {
+    try {
+      const [alertsRes, statsRes] = await Promise.all([
+        apiClient.get<Alert[]>('/alerts'),
+        apiClient.get('/alerts/stats')
+      ]);
+      setAlerts(alertsRes.data);
+      setStats(statsRes.data);
+    } catch (err) {
+      toast.error("Échec de synchronisation avec le moteur d'alertes.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { refreshData(); }, [refreshData]);
+
+  // --- ACTIONS INTERACTIVES ---
+  const handleAcknowledge = async (id: string) => {
+    try {
+      // Cette action va aussi créer une Action Corrective dans le PAQ (Backend Logic)
+      await apiClient.patch(`/alerts/${id}/acknowledge`, { comment: "Alerte traitée depuis le Cockpit." });
+      toast.success("Alerte acquittée. Une action corrective a été générée dans le PAQ.");
+      refreshData();
+    } catch (err) {
+      toast.error("Impossible de traiter cette alerte.");
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'OVERDUE': return <AlertTriangle className="h-5 w-5 text-red-500" />;
-      case 'DEADLINE': return <Clock className="h-5 w-5 text-orange-500" />;
-      case 'REMINDER': return <Bell className="h-5 w-5 text-blue-500" />;
-      default: return <MessageSquare className="h-5 w-5 text-gray-500" />;
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await apiClient.patch(`/alerts/${id}/read`);
+      toast.success("Signal marqué comme lu.");
+      refreshData();
+    } catch (err) {
+      toast.error("Erreur technique.");
     }
   };
+
+  // --- MOTEUR DE RECHERCHE ---
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter(a => {
+      const matchesSearch = a.AL_Title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesPriority = filterPriority === 'ALL' || a.AL_Priority === filterPriority;
+      return matchesSearch && matchesPriority;
+    });
+  }, [alerts, searchTerm, filterPriority]);
+
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white italic">
+      <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
+      <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.5em]">Synchronisation Matrix...</p>
+    </div>
+  );
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-50 p-8 font-sans italic selection:bg-blue-100">
+      
+      {/* 🔝 EN-TÊTE DYNAMIQUE */}
+      <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Bell className="h-6 w-6 text-blue-600" />
-            Centre d&apos;Alertes
+          <h1 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none mb-3">
+            Cockpit <span className="text-blue-600">Alertes</span>
           </h1>
-          <p className="text-gray-500 mt-1">Gérez vos notifications, rappels et urgences QSE.</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Surveillance ISO 9001 & Réglementaire • Temps Réel</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 shadow-sm transition">
-            <RefreshCw className="h-4 w-4" />
-            Actualiser
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition">
-            <CheckSquare className="h-4 w-4" />
-            Tout marquer comme lu
+        <div className="flex gap-4">
+          <button onClick={() => refreshData()} className="px-6 py-4 bg-white border border-slate-200 rounded-2xl hover:bg-slate-100 transition-all font-black uppercase text-[10px] tracking-widest flex items-center gap-3 cursor-pointer">
+            <RefreshCw size={14} /> Actualiser le flux
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-sm font-medium">Non lues</span>
-            <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+      {/* 📊 INDICATEURS DE PERFORMANCE (KPIs) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        {[
+          { label: 'Non lues', val: stats?.unread || 0, color: 'text-blue-600' },
+          { label: 'Critiques', val: stats?.critical || 0, color: 'text-rose-600' },
+          { label: 'En retard', val: stats?.overdue || 0, color: 'text-amber-500' },
+          { label: 'Flux Total', val: stats?.total || 0, color: 'text-slate-400' }
+        ].map((kpi, i) => (
+          <div key={i} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 relative overflow-hidden group">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">{kpi.label}</p>
+            <p className={`text-6xl font-black italic ${kpi.color} leading-none tracking-tighter`}>{kpi.val}</p>
+            <div className="absolute -right-2 -bottom-2 opacity-5 group-hover:opacity-10 transition-opacity"><Zap size={100} /></div>
           </div>
-          <p className="text-3xl font-bold text-gray-900 mt-2">
-            {alerts.filter(a => a.status === 'NEW').length}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-sm font-medium">Critiques</span>
-            <span className="h-2 w-2 rounded-full bg-red-500"></span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 mt-2">
-            {alerts.filter(a => a.priority === 'CRITICAL').length}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-sm font-medium">En Retard</span>
-            <span className="h-2 w-2 rounded-full bg-orange-500"></span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 mt-2">
-            {alerts.filter(a => a.type === 'OVERDUE').length}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-sm font-medium">Total (Mois)</span>
-            <span className="h-2 w-2 rounded-full bg-gray-300"></span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{alerts.length}</p>
-        </div>
+        ))}
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+      {/* 🔍 FILTRES DE PRÉCISION */}
+      <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-white mb-8 flex flex-col md:flex-row gap-6 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
           <input 
             type="text" 
-            placeholder="Rechercher une alerte..." 
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+            placeholder="RECHERCHER DANS LE REGISTRE..." 
+            className="w-full pl-16 pr-8 py-5 bg-slate-50 border-none rounded-3xl font-black text-slate-900 uppercase text-[11px] tracking-widest outline-none focus:ring-4 ring-blue-600/5 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <select className="px-4 py-2 border rounded-lg bg-gray-50 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
-            <option value="ALL">Toutes les priorités</option>
-            <option value="CRITICAL">Critique</option>
-            <option value="HIGH">Élevée</option>
-            <option value="MEDIUM">Moyenne</option>
-          </select>
-          <button className="p-2 border rounded-lg hover:bg-gray-50 text-gray-600">
-            <Filter className="h-5 w-5" />
-          </button>
-        </div>
+        <select 
+          value={filterPriority} 
+          onChange={(e) => setFilterPriority(e.target.value)}
+          className="px-8 py-5 bg-slate-50 border-none rounded-3xl font-black uppercase text-[10px] tracking-widest text-slate-500 outline-none cursor-pointer"
+        >
+          <option value="ALL">TOUTES LES PRIORITÉS</option>
+          <option value="CRITICAL">CRITIQUE</option>
+          <option value="HIGH">ÉLEVÉE</option>
+          <option value="MEDIUM">MOYENNE</option>
+        </select>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="divide-y divide-gray-100">
-          {alerts.map((alert) => (
-            <div 
-              key={alert.id} 
-              className={`p-4 hover:bg-gray-50 transition flex items-start gap-4 ${alert.status === 'NEW' ? 'bg-blue-50/30' : ''}`}
-            >
-              <div className="mt-1 p-2 bg-gray-100 rounded-lg">
-                {getTypeIcon(alert.type)}
+      {/* 📋 REGISTRE DES SIGNAUX */}
+      <div className="bg-white rounded-[3rem] shadow-2xl border border-white overflow-hidden">
+        <div className="divide-y divide-slate-50">
+          {filteredAlerts.length > 0 ? filteredAlerts.map((alert) => (
+            <div key={alert.AL_Id} className={`p-10 flex flex-col lg:flex-row gap-10 items-start lg:items-center transition-all hover:bg-slate-50/50 ${alert.AL_Status === 'NEW' || alert.AL_Status === 'UNREAD' ? 'border-l-4 border-blue-600' : ''}`}>
+              
+              {/* Icône de Type */}
+              <div className={`shrink-0 w-20 h-20 rounded-[1.8rem] flex items-center justify-center ${
+                alert.AL_Priority === 'CRITICAL' ? 'bg-rose-50 text-rose-500' : 'bg-blue-50 text-blue-600'
+              }`}>
+                {alert.AL_Type === 'OVERDUE' ? <ShieldAlert size={32} /> : 
+                 alert.AL_Type === 'DEADLINE' ? <Clock size={32} /> : <Bell size={32} />}
               </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className={`text-sm font-semibold ${alert.status === 'NEW' ? 'text-gray-900' : 'text-gray-700'}`}>
-                      {alert.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-1">{alert.message}</p>
-                  </div>
-                  <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
-                    {new Date(alert.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              {/* Contenu */}
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">
+                    {alert.AL_Title}
+                  </h3>
+                  <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                    alert.AL_Priority === 'CRITICAL' ? 'bg-rose-500 text-white' : 'bg-slate-900 text-white'
+                  }`}>
+                    {translatePriority(alert.AL_Priority)}
                   </span>
                 </div>
+                <p className="text-slate-500 font-bold text-sm leading-relaxed max-w-3xl italic">{alert.AL_Message}</p>
                 
-                <div className="flex items-center gap-3 mt-2">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getPriorityColor(alert.priority)}`}>
-                    {alert.priority}
-                  </span>
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-gray-400"></span>
-                    Source : {alert.source}
-                  </span>
+                <div className="flex items-center gap-6 pt-2 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">
+                  <span className="flex items-center gap-2"><Clock size={12} /> {translateType(alert.AL_Type)}</span>
+                  <span>•</span>
+                  <span>Déclenchement : {new Date(alert.AL_TriggerDate).toLocaleDateString()}</span>
+                  {alert.AL_DueDate && (
+                    <>
+                      <span>•</span>
+                      <span className="text-rose-500">Échéance : {new Date(alert.AL_DueDate).toLocaleDateString()}</span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
-                <button title="Marquer comme lu" className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition">
-                  <CheckCircle className="h-4 w-4" />
-                </button>
-                <button title="Voir détails" className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition">
-                  <Eye className="h-4 w-4" />
-                </button>
-                <button title="Plus d'options" className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition">
-                  <MoreVertical className="h-4 w-4" />
-                </button>
+              {/* Actions */}
+              <div className="flex gap-4 self-end lg:self-center">
+                {alert.AL_Status !== 'ACKNOWLEDGED' && (
+                  <>
+                    <button 
+                      onClick={() => handleMarkAsRead(alert.AL_Id)}
+                      className="p-4 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-2xl transition-all cursor-pointer border-none"
+                      title="Marquer comme lu"
+                    >
+                      <CheckCircle size={20} />
+                    </button>
+                    <button 
+                      onClick={() => handleAcknowledge(alert.AL_Id)}
+                      className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition-all cursor-pointer border-none shadow-lg"
+                    >
+                      Acquitter
+                    </button>
+                  </>
+                )}
+                {alert.AL_Status === 'ACKNOWLEDGED' && (
+                  <span className="px-6 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center gap-2 italic">
+                    <CheckCircle size={14} /> Traité
+                  </span>
+                )}
               </div>
             </div>
-          ))}
-
-          {alerts.length === 0 && (
-            <div className="p-12 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-                <Bell className="h-8 w-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">Aucune alerte</h3>
-              <p className="text-gray-500 mt-1">Vous êtes à jour ! Tout semble calme pour le moment.</p>
+          )) : (
+            <div className="p-32 text-center">
+              <Bell className="mx-auto text-slate-100 mb-6" size={80} />
+              <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.6em]">Registre Souverain Vierge</p>
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-20 text-center">
+        <p className="text-[9px] font-black uppercase tracking-[0.8em] text-slate-300 italic">Qualisoft Elite RD 2030 - Surveillance Intelligente</p>
       </div>
     </div>
   );

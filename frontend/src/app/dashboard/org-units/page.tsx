@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
@@ -254,7 +255,7 @@ export default function OrgUnitsPage() {
 
       <header className="flex justify-between items-end">
         <div>
-          <h1 className="text-5xl font-black uppercase tracking-tighter text-slate-900 flex items-center gap-4 italic">
+          <h1 className="text-4xl font-black uppercase tracking-tighter text-slate-900 flex items-center gap-4 italic">
             <Layers className="text-blue-600" size={48} /> Unités <span className="text-blue-600">Organiques</span>
           </h1>
           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-2 italic">Architecture Elite SMI</p>

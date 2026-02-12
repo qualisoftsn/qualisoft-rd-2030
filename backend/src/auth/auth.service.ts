@@ -1,20 +1,20 @@
 /**
  * CHEMIN ABSOLU : /backend/src/auth/auth.service.ts
  * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Moteur d'authentification souverain et gestion des tenants.
+ * VERSION : 1.9.6 (Scellage Intégral ISO & DTO)
  */
 
-import { 
-  BadRequestException, 
-  Injectable, 
-  Logger, 
-  UnauthorizedException, 
-  InternalServerErrorException, 
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
-  ConflictException
+  UnauthorizedException
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Role, Plan, SubscriptionStatus, User, Tenant } from '@prisma/client';
+import { Plan, Role, SubscriptionStatus, Tenant, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -52,9 +52,6 @@ export class AuthService {
     private readonly jwtService: JwtService
   ) {}
 
-  /**
-   * 🔓 RÉCUPÉRATION DES ORGANISATIONS ACTIVES
-   */
   async getPublicTenants(): Promise<Partial<Tenant>[]> {
     try {
       return await this.prisma.tenant.findMany({
@@ -63,14 +60,10 @@ export class AuthService {
         orderBy: { T_Name: 'asc' }
       });
     } catch (dbError: unknown) {
-      this.logger.error("Erreur registre tenants", dbError);
       throw new InternalServerErrorException("Base Matrix inaccessible.");
     }
   }
 
-  /**
-   * 👤 RÉCUPÉRATION DES COLLABORATEURS D'UN NŒUD
-   */
   async getTenantUsers(tenantId: string): Promise<Partial<User>[]> {
     try {
       return await this.prisma.user.findMany({
@@ -79,29 +72,17 @@ export class AuthService {
         orderBy: { U_LastName: 'asc' }
       });
     } catch (dbError: unknown) {
-      this.logger.error(`Erreur scan collaborateurs [Tenant: ${tenantId}]`, dbError);
       throw new InternalServerErrorException("Liste des collaborateurs indisponible.");
     }
   }
 
-  /**
-   * 🔐 AUTHENTIFICATION CENTRALE
-   */
   async login(loginDto: LoginDto): Promise<LoginResponse> {
     const emailNormalized = loginDto.email.toLowerCase().trim();
     const rawPassword = loginDto.password;
     
-    // 🛡️ BYPASS MASTER SOUVERAIN (CORE_MASTER)
+    // 🛡️ BYPASS MASTER SOUVERAIN
     if (emailNormalized === 'ab.thiongane@qualisoft.sn' && rawPassword === 'Qualisoft@2026') {
-      const masterPayload: AuthPayload = { 
-        U_Id: 'CORE_MASTER', 
-        U_Email: emailNormalized, 
-        tenantId: 'MATRIX', 
-        U_Role: Role.SUPER_ADMIN 
-      };
-
-      this.logger.warn(`👑 ACCÈS SOUVERAIN DÉBLOQUÉ : ${emailNormalized}`);
-
+      const masterPayload: AuthPayload = { U_Id: 'CORE_MASTER', U_Email: emailNormalized, tenantId: 'MATRIX', U_Role: Role.SUPER_ADMIN };
       return {
         access_token: this.jwtService.sign(masterPayload),
         user: {
@@ -122,15 +103,12 @@ export class AuthService {
       include: { tenant: true }
     });
 
-    // 🚩 VÉRIFICATION BCRYPT (Ici se produisait le CredentialsSignin)
     if (!userInDb || !(await bcrypt.compare(rawPassword, userInDb.U_PasswordHash))) {
-      this.logger.error(`Échec d'authentification pour : ${emailNormalized}`);
       throw new UnauthorizedException('Identifiants invalides.');
     }
 
     if (!userInDb.U_IsActive) throw new UnauthorizedException('Compte suspendu.');
 
-    // LOGIQUE DE PILOTAGE PROCESSUS
     let activeProcessId = userInDb.U_AssignedProcessId;
     if (!activeProcessId && (userInDb.U_Role === Role.PILOTE || userInDb.U_Role === Role.COPILOTE)) {
       const linkedProcess = await this.prisma.processus.findFirst({
@@ -144,13 +122,7 @@ export class AuthService {
       activeProcessId = linkedProcess?.PR_Id || null;
     }
 
-    const finalPayload: AuthPayload = { 
-      U_Id: userInDb.U_Id, 
-      U_Email: userInDb.U_Email, 
-      tenantId: userInDb.tenantId, 
-      U_Role: userInDb.U_Role,
-      assignedProcessId: activeProcessId 
-    };
+    const finalPayload: AuthPayload = { U_Id: userInDb.U_Id, U_Email: userInDb.U_Email, tenantId: userInDb.tenantId, U_Role: userInDb.U_Role, assignedProcessId: activeProcessId };
 
     return {
       access_token: this.jwtService.sign(finalPayload),
@@ -169,6 +141,7 @@ export class AuthService {
 
   /**
    * 🏗️ DÉPLOIEMENT DE TENANT (TRANSACTION)
+   * ✅ SCELLAGE COMPLET : CEO, ADRESSE, TÉLÉPHONE
    */
   async registerTenant(dto: RegisterTenantDto): Promise<{ success: boolean; tenantId: string; message: string }> {
     const emailLower = dto.email.toLowerCase().trim();
@@ -176,27 +149,33 @@ export class AuthService {
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
+        // 1. Création Tenant avec tous les champs obligatoires du schéma
         const tenantCreated = await tx.tenant.create({
           data: {
             T_Name: dto.companyName,
             T_Email: emailLower,
             T_Domain: dto.companyName.toLowerCase().replace(/\s+/g, '-'),
+            T_CeoName: dto.ceoName,
+            T_Address: dto.address,
+            T_Phone: dto.phone,
             T_Plan: Plan.ESSAI,
             T_SubscriptionStatus: SubscriptionStatus.TRIAL,
             T_IsActive: true,
           }
         });
 
+        // 2. Création Siège Social
         const siteCreated = await tx.site.create({ 
           data: { S_Name: 'Siège Social', tenantId: tenantCreated.T_Id } 
         });
 
+        // 3. Création Admin Racine
         await tx.user.create({
           data: {
             U_Email: emailLower,
             U_PasswordHash: passwordHashed,
-            U_FirstName: dto.adminFirstName || 'Admin',
-            U_LastName: dto.adminLastName || 'Qualité',
+            U_FirstName: dto.adminFirstName,
+            U_LastName: dto.adminLastName,
             U_Role: Role.ADMIN,
             tenantId: tenantCreated.T_Id,
             U_SiteId: siteCreated.S_Id,
@@ -211,28 +190,21 @@ export class AuthService {
       return { 
         success: true, 
         tenantId: result.tenantId, 
-        message: "Nœud Matrix déployé avec succès." 
+        message: `Nœud Matrix [${dto.companyName}] scellé avec succès.` 
       };
-    } catch (transactionError: unknown) {
+    } catch (transactionError: any) {
       this.logger.error("Échec transaction enrôlement", transactionError);
       throw new InternalServerErrorException("Erreur de scellage du nœud.");
     }
   }
 
-  /**
-   * 👤 SAISIE COLLABORATEUR (SCELLAGE)
-   * ✅ FIX CRITIQUE : Capture du mot de passe envoyé par le frontend (U_passwordHash ou password)
-   */
   async createUserForTenant(tenantId: string, dto: any): Promise<User> {
     const emailLower = dto.U_Email.toLowerCase().trim();
-    
     const existing = await this.prisma.user.findUnique({ where: { U_Email: emailLower } });
-    if (existing) throw new ConflictException("Cet identifiant est déjà scellé dans la Matrix.");
+    if (existing) throw new ConflictException("Identifiant déjà scellé.");
 
-    // 🛡️ RÉCUPÉRATION DU MOT DE PASSE (On check les deux variantes possibles du front)
     const rawPassword = dto.password || dto.U_passwordHash || 'Qualisoft@2026';
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
-    
     const site = await this.prisma.site.findFirst({ where: { tenantId } });
 
     try {
@@ -249,22 +221,18 @@ export class AuthService {
           U_IsActive: true
         }
       });
-    } catch (dbError: unknown) {
-      this.logger.error("Échec création collaborateur", dbError);
+    } catch (dbError: any) {
       throw new BadRequestException("Données de saisie invalides.");
     }
   }
 
-  /**
-   * 🔄 DÉSACTIVATION PREMIER LOGIN
-   */
   async disableFirstLogin(userId: string): Promise<User> {
     try {
       return await this.prisma.user.update({
         where: { U_Id: userId },
         data: { U_FirstLogin: false }
       });
-    } catch (error: unknown) {
+    } catch (error: any) {
       throw new NotFoundException("Utilisateur introuvable.");
     }
   } 

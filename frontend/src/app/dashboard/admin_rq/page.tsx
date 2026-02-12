@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 // --- INTERFACES ---
 interface DashboardStats {
@@ -72,10 +73,6 @@ interface UserSession {
   U_Role: string;
   U_TenantName?: string;
   U_FirstLogin?: boolean;
-  U_Tenant?: {
-    T_SubscriptionStatus: string;
-    T_Plan: string;
-  };
 }
 
 const HEALTH_COLORS = {
@@ -96,31 +93,26 @@ const HEALTH_COLORS = {
   },
 };
 
-const WelcomeModal = ({
-  userName,
-  onClose,
-}: {
-  userName: string;
-  onClose: () => void;
-}) => (
-  <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-    <div className="bg-white rounded-[3rem] p-10 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-300">
+// --- COMPOSANTS INTERNES ---
+const WelcomeModal = ({ userName, onClose }: { userName: string; onClose: () => void; }) => (
+  <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div className="bg-white rounded-[3rem] p-10 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-500">
       <div className="text-center">
-        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Sparkles className="text-blue-600" size={40} />
+        <div className="w-24 h-24 bg-blue-600/10 rounded-4xl flex items-center justify-center mx-auto mb-8">
+          <Sparkles className="text-blue-600" size={48} />
         </div>
-        <h2 className="text-3xl font-black uppercase italic text-slate-900 mb-4">
-          Bienvenue, {userName} !
+        <h2 className="text-4xl font-black uppercase italic text-slate-900 mb-4 tracking-tighter">
+          Bienvenue, {userName}
         </h2>
-        <p className="text-slate-600 mb-8 font-medium">
-          Vous êtes connecté à votre tableau de bord Qualisoft. Découvrez vos
-          indicateurs en temps réel.
+        <p className="text-slate-500 mb-10 font-bold uppercase text-[10px] tracking-widest leading-relaxed">
+          Initialisation de votre cockpit de conformité Qualisoft terminée. 
+          Vos indicateurs sont désormais synchronisés.
         </p>
         <button
           onClick={onClose}
-          className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-sm tracking-widest shadow-lg transition-all"
+          className="w-full py-6 bg-blue-600 hover:bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl shadow-blue-600/20 transition-all italic"
         >
-          Commencer
+          Accéder au Cockpit
         </button>
       </div>
     </div>
@@ -144,6 +136,7 @@ export default function ExecutiveDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
 
+  // 🕒 GESTION DU TEMPS ET HYDRATATION
   useEffect(() => {
     setIsMounted(true);
     const formatDate = () =>
@@ -158,6 +151,7 @@ export default function ExecutiveDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // 👤 RÉCUPÉRATION SESSION
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -168,7 +162,7 @@ export default function ExecutiveDashboard() {
         if (parsed.U_FirstLogin) setShowWelcome(true);
       }
     } catch (e) {
-      console.error("Erreur parsing user:", e);
+      console.error("Erreur session Matrix:", e);
     }
   }, []);
 
@@ -177,11 +171,7 @@ export default function ExecutiveDashboard() {
     [user],
   );
 
-  const isDecisionMaker = useMemo(
-    () => ["SUPER_ADMIN", "ADMIN", "RQ"].includes(user?.U_Role || ""),
-    [user],
-  );
-
+  // 🛰️ RÉCUPÉRATION DES DONNÉES SOUVERAINES
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
     try {
@@ -211,7 +201,7 @@ export default function ExecutiveDashboard() {
         setActivities(results[2].value.data);
       }
     } catch (err) {
-      console.error("Erreur fetch dashboard:", err);
+      toast.error("Échec de synchronisation du Cockpit.");
     } finally {
       setLoading(false);
     }
@@ -222,6 +212,7 @@ export default function ExecutiveDashboard() {
     else if (isMounted && !user) setLoading(false);
   }, [isMounted, user, fetchDashboardData]);
 
+  // 🔒 SCELLAGE PREMIÈRE CONNEXION
   const handleCloseWelcome = async () => {
     if (user?.U_Id) {
       await apiClient.patch(`/auth/disable-first-login/${user.U_Id}`).catch(() => {});
@@ -232,6 +223,7 @@ export default function ExecutiveDashboard() {
     setShowWelcome(false);
   };
 
+  // 📄 GÉNÉRATION RAPPORT PDF
   const handleDownloadReport = async () => {
     setIsExporting(true);
     try {
@@ -244,21 +236,25 @@ export default function ExecutiveDashboard() {
       link.href = url;
       link.setAttribute("download", `Rapport_Qualisoft_${Date.now()}.pdf`);
       link.click();
+      toast.success("Rapport Matrix exporté.");
+    } catch (e) {
+      toast.error("Erreur lors de l'exportation.");
     } finally {
       setIsExporting(false);
     }
   };
 
-  // 🟢 CORRECTION DE L'ERREUR DE TYPE ICI
-  // const performanceTrend = useMemo((): { direction: "up" | "down" | "stable"; value: string } | null => {
-  //   if (!data?.globalPerformance || !data?.previousPerformance) return null;
-  //   const diff = data.globalPerformance - data.previousPerformance;
-  //   return {
-  //     direction: diff > 0 ? "up" : diff < 0 ? "down" : "stable",
-  //     value: Math.abs(diff).toFixed(1),
-  //   };
-  // }, [data]);
+  // ✅ CORRECTION DU TYPE TREND (L'ERREUR D'HIER)
+  const performanceTrend = useMemo(() => {
+    if (!data?.globalPerformance || !data?.previousPerformance) return { direction: "stable" as const, value: "0" };
+    const diff = data.globalPerformance - data.previousPerformance;
+    return {
+      direction: diff > 0 ? ("up" as const) : diff < 0 ? ("down" as const) : ("stable" as const),
+      value: Math.abs(diff).toFixed(1),
+    };
+  }, [data]);
 
+  // 🏥 CALCUL SCORE DE SANTÉ SMI
   const healthScore = useMemo(() => {
     if (!data) return 0;
     const perf = data.globalPerformance || 0;
@@ -269,116 +265,163 @@ export default function ExecutiveDashboard() {
 
   const healthStatus = useMemo(() => {
     if (healthScore >= 80) return { color: "emerald" as const, label: "Excellente" };
-    if (healthScore >= 60) return { color: "amber" as const, label: "À surveiller" };
+    if (healthScore >= 60) return { color: "amber" as const, label: "Alerte Modérée" };
     return { color: "red" as const, label: "Critique" };
   }, [healthScore]);
 
   if (!isMounted || loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#0B0F1A]">
-        <Loader2 className="animate-spin text-blue-600" size={48} />
+        <div className="text-center space-y-4">
+          <Loader2 className="animate-spin text-blue-600 mx-auto" size={48} />
+          <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em] italic">Calcul de la Matrix...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col p-6 lg:p-10 space-y-8 animate-in fade-in duration-700 italic font-sans bg-[#0B0F1A] overflow-y-auto">
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 border-b border-white/10 pb-8">
-        <div className="space-y-3">
+    <div className="min-h-screen flex flex-col p-6 lg:p-10 space-y-10 animate-in fade-in duration-700 italic font-sans bg-[#0B0F1A] overflow-y-auto selection:bg-blue-500/30">
+      
+      {/* 🔝 HEADER SOUVERAIN */}
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-8 border-b border-white/5 pb-10">
+        <div className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+            <span className="px-5 py-2 rounded-full bg-blue-500/5 border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
               <Clock size={12} /> {currentTime}
             </span>
-            <span className={`px-4 py-1.5 rounded-full bg-white/5 border border-white/10 ${HEALTH_COLORS[healthStatus.color].text} text-[10px] font-black uppercase tracking-widest flex items-center gap-2`}>
-              <Activity size={12} /> Santé SMI: {healthScore}% {healthStatus.label}
+            <span className={`px-5 py-2 rounded-full ${HEALTH_COLORS[healthStatus.color].bg} border ${HEALTH_COLORS[healthStatus.color].border} ${HEALTH_COLORS[healthStatus.color].text} text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 shadow-lg shadow-black/20`}>
+              <Activity size={12} /> Santé SMI: {healthScore}% — {healthStatus.label}
             </span>
           </div>
-          <h1 className="text-4xl lg:text-6xl font-black uppercase italic tracking-tighter leading-none text-white">
-            Cockpit <span className="text-blue-500">{isSuperAdmin ? "Souverain" : "Stratégique"}</span>
+          <h1 className="text-4xl lg:text-4xl font-black uppercase italic tracking-tighter leading-none text-white">
+            Cockpit <span className="text-blue-600">{isSuperAdmin ? "Souverain" : "Stratégique"}</span>
           </h1>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden lg:block">
-            <p className="text-white font-black uppercase text-lg tracking-tighter">
+
+        <div className="flex items-center gap-6 bg-white/5 p-4 rounded-[2.5rem] border border-white/5 shadow-2xl">
+          <div className="text-right hidden lg:block pr-2">
+            <p className="text-white font-black uppercase text-xl italic tracking-tighter leading-none mb-1">
               {user?.U_FirstName} {user?.U_LastName}
             </p>
-            <span className="text-[10px] font-bold uppercase text-blue-400">{user?.U_Role}</span>
+            <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest">{user?.U_Role}</span>
           </div>
-          <div className={`w-16 h-16 rounded-3xl flex items-center justify-center border-2 border-white/10 bg-linear-to-br ${isSuperAdmin ? "from-amber-500 to-amber-700" : "from-blue-600 to-blue-800"}`}>
+          <div className={`w-16 h-16 rounded-3xl flex items-center justify-center border-2 border-white/10 shadow-xl ${isSuperAdmin ? "bg-linear-to-br from-amber-400 to-amber-600" : "bg-linear-to-br from-blue-600 to-blue-800"}`}>
             <span className="text-2xl font-black text-white">{user?.U_FirstName?.[0]}{user?.U_LastName?.[0]}</span>
           </div>
         </div>
       </header>
 
+      {/* 🚨 BANDEAU D'ALERTE DÉCISIONNEL */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 flex items-center gap-4 bg-linear-to-r from-red-500/20 to-amber-500/20 border border-red-500/30 rounded-4xl p-6">
-          <AlertTriangle className="text-red-400" size={32} />
+        <div className="lg:col-span-8 flex items-center gap-6 bg-linear-to-r from-red-600/10 via-amber-600/5 to-transparent border border-red-500/20 rounded-[3rem] p-8 group hover:border-red-500/40 transition-all">
+          <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center animate-pulse">
+            <AlertTriangle className="text-red-500" size={32} />
+          </div>
           <div className="flex-1">
-            <h3 className="text-white font-black uppercase italic text-lg">Points d&apos;attention</h3>
-            <p className="text-slate-300 text-xs font-bold uppercase tracking-widest">
-              {govData.late} retards • {data?.nonConformities} NC • {govData.critical} alertes
+            <h3 className="text-white font-black uppercase italic text-xl tracking-tighter mb-1">Points critiques identifiés</h3>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+              {govData.late} Retards • {data?.nonConformities || 0} Non-Conformités • {govData.critical} Alertes ISO
             </p>
           </div>
-          <Link href="/dashboard/actions" className="px-6 py-3 bg-red-600 text-white rounded-2xl font-black uppercase text-[11px]">Voir</Link>
+          <Link href="/dashboard/actions" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-white hover:text-red-600 transition-all shadow-xl shadow-red-600/20">Traiter</Link>
         </div>
+
         <div className="lg:col-span-4">
-          <button onClick={handleDownloadReport} className="w-full h-full bg-white/5 border border-white/10 rounded-4xl p-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-               <FileText className="text-blue-500" size={32} />
-               <span className="text-white font-black uppercase italic text-sm">Rapport Mensuel</span>
+          <button onClick={handleDownloadReport} className="w-full h-full bg-white/5 border border-white/5 hover:border-blue-500/30 rounded-[3rem] p-8 flex items-center justify-between group transition-all">
+            <div className="flex items-center gap-5">
+               <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 transition-all">
+                  <FileText className="text-blue-500 group-hover:text-white" size={28} />
+               </div>
+               <div className="text-left">
+                  <span className="block text-white font-black uppercase italic text-lg leading-none mb-1">Rapport SMI</span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Génération Mensuelle</span>
+               </div>
             </div>
-            {isExporting ? <Loader2 className="animate-spin text-blue-400" /> : <FileDown className="text-slate-400" />}
+            {isExporting ? <Loader2 className="animate-spin text-blue-400" /> : <FileDown className="text-slate-600 group-hover:text-blue-500 transition-all" size={24} />}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard title="Performance" value={`${data?.globalPerformance || 0}%`} trend={{ direction: "up", value: "2.4" }} icon={Target} color="emerald" subtitle="vs mois précédent" href="/dashboard/indicators" />
-        <KPICard title="Conformité" value={`${data?.completionRate || 0}%`} trend={{ direction: "up", value: "2.4" }} icon={ShieldCheck} color="blue" subtitle="Objectifs SMI" href="/dashboard/compliance" />
-        <KPICard title="Gouvernance" value={`${govData?.completionRate || 0}%`} trend={{ direction: (govData?.late || 0) > 0 ? "down" : "up", value: String(govData?.late || 0) }} icon={CalendarCheck} color="amber" subtitle={`${govData?.upcoming} échéances`} href="/dashboard/gouvernance" />
-        <KPICard title="Processus" value={data?.totalProcessus || 0} trend={{ direction: "stable", value: String(data?.totalIndicators || 0) }} icon={Layers} color="purple" subtitle="Indicateurs actifs" href="/dashboard/processes" />
+      {/* 📊 KPI GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <KPICard title="Performance" value={`${data?.globalPerformance || 0}%`} trend={performanceTrend} icon={Target} color="emerald" subtitle="Efficacité Globale" href="/dashboard/indicators" />
+        <KPICard title="Conformité" value={`${data?.completionRate || 0}%`} trend={{ direction: "up", value: "1.2" }} icon={ShieldCheck} color="blue" subtitle="Taux de Scellage" href="/dashboard/compliance" />
+        <KPICard title="Gouvernance" value={`${govData?.completionRate || 0}%`} trend={govData.late > 0 ? { direction: "down", value: String(govData.late) } : null} icon={CalendarCheck} color="amber" subtitle={`${govData.upcoming} Échéances`} href="/dashboard/gouvernance" />
+        <KPICard title="Processus" value={data?.totalProcessus || 0} trend={{ direction: "stable", value: String(data?.totalIndicators || 0) }} icon={Layers} color="purple" subtitle="Unités Actives" href="/dashboard/processes" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-slate-900/50 border border-white/10 rounded-[3rem] p-8">
-           <h3 className="text-2xl font-black uppercase italic text-white mb-8">Analyse Performance</h3>
-           <div className="space-y-6">
-             {chartData.map((item, idx) => (
-               <div key={idx} className="space-y-2">
-                 <div className="flex justify-between text-sm font-black uppercase text-white italic">
-                   <span>{item.label}</span>
-                   <span>{Math.round((item.value/item.target)*100)}%</span>
+      {/* 📈 ANALYSE ET ACTIVITÉ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-2 bg-slate-900/40 border border-white/5 rounded-[4rem] p-12 shadow-2xl backdrop-blur-sm">
+           <h3 className="text-3xl font-black uppercase italic text-white mb-10 tracking-tighter">Analyse par <span className="text-blue-600">Axe Stratégique</span></h3>
+           <div className="space-y-10">
+             {chartData.length > 0 ? chartData.map((item, idx) => (
+               <div key={idx} className="space-y-3 group">
+                 <div className="flex justify-between items-end">
+                   <div>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Axe de Performance</span>
+                      <span className="text-lg font-black uppercase text-white italic tracking-tight">{item.label}</span>
+                   </div>
+                   <span className="text-2xl font-black text-blue-500 italic">{Math.round((item.value / item.target) * 100)}%</span>
                  </div>
-                 <div className="h-3 bg-white/5 rounded-full overflow-hidden">
-                   <div className="h-full bg-blue-600" style={{ width: `${Math.min((item.value/item.target)*100, 100)}%` }} />
+                 <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/5 p-1">
+                   <div 
+                    className="h-full bg-linear-to-r from-blue-700 to-blue-400 rounded-full transition-all duration-1000 ease-out" 
+                    style={{ width: `${Math.min((item.value / item.target) * 100, 100)}%` }} 
+                   />
                  </div>
                </div>
-             ))}
+             )) : (
+               <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-3xl">
+                  <p className="text-slate-600 font-black uppercase italic text-xs tracking-widest">Aucune donnée de performance scellée</p>
+               </div>
+             )}
            </div>
         </div>
-        <div className="space-y-6">
-           <div className="bg-slate-900/50 border border-white/10 rounded-[3rem] p-6">
-             <h3 className="text-lg font-black uppercase italic text-white mb-6">Flux Activité</h3>
-             <div className="space-y-4">
-               {activities.slice(0, 5).map(act => (
-                 <div key={act.id} className="flex items-center gap-4 p-3 bg-white/5 rounded-2xl">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${act.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                      <Activity size={16} />
+
+        <div className="space-y-8">
+           <div className="bg-slate-900/40 border border-white/5 rounded-[3.5rem] p-10 shadow-2xl">
+             <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-black uppercase italic text-white tracking-tighter">Activités <span className="text-blue-600">Matrix</span></h3>
+                <Link href="/dashboard/logs" className="text-[10px] font-black text-slate-500 hover:text-white uppercase tracking-widest transition-colors">Voir Tout</Link>
+             </div>
+             <div className="space-y-5">
+               {activities.length > 0 ? activities.slice(0, 6).map(act => (
+                 <div key={act.id} className="flex items-center gap-5 p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all border border-transparent hover:border-white/5 group">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                      act.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 
+                      act.status === 'warning' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'
+                    }`}>
+                      <Activity size={20} className="group-hover:scale-110 transition-transform" />
                     </div>
-                    <span className="text-xs font-bold text-white truncate">{act.title}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-black text-white uppercase italic truncate">{act.title}</p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">{act.date}</p>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-700 group-hover:text-white transition-colors" />
                  </div>
-               ))}
+               )) : (
+                 <p className="text-slate-600 font-black uppercase italic text-[10px] text-center py-10">Flux d&apos;activité vide</p>
+               )}
              </div>
            </div>
         </div>
       </div>
 
+      {/* 🚀 MODAL DE BIENVENUE */}
       {showWelcome && <WelcomeModal userName={user?.U_FirstName || ""} onClose={handleCloseWelcome} />}
+
+      <footer className="mt-auto pt-10 border-t border-white/5 text-center">
+        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-slate-600 italic">
+          Qualisoft Elite Sovereign Infrastructure — v2.4.0 (2026)
+        </p>
+      </footer>
     </div>
   );
 }
 
-// --- SUB-COMPONENTS ---
+// --- SUB-COMPONENTS SCELLÉS ---
 interface KPICardProps {
   title: string;
   value: string | number;
@@ -391,26 +434,41 @@ interface KPICardProps {
 
 function KPICard({ title, value, trend, icon: Icon, color, subtitle, href }: KPICardProps) {
   const colors = {
-    emerald: "text-emerald-400 border-emerald-500/20 bg-emerald-500/10",
-    blue: "text-blue-400 border-blue-500/20 bg-blue-500/10",
-    amber: "text-amber-400 border-amber-500/20 bg-amber-500/10",
-    purple: "text-purple-400 border-purple-500/20 bg-purple-500/10",
+    emerald: "text-emerald-400 border-emerald-500/10 bg-emerald-500/5 hover:border-emerald-500/30",
+    blue: "text-blue-400 border-blue-500/10 bg-blue-500/5 hover:border-blue-500/30",
+    amber: "text-amber-400 border-amber-500/10 bg-amber-500/5 hover:border-amber-500/30",
+    purple: "text-purple-400 border-purple-500/10 bg-purple-500/5 hover:border-purple-500/30",
+  };
+
+  const iconColors = {
+    emerald: "bg-emerald-500/10 text-emerald-400",
+    blue: "bg-blue-500/10 text-blue-400",
+    amber: "bg-amber-500/10 text-amber-400",
+    purple: "bg-purple-500/10 text-purple-400",
   };
 
   return (
-    <Link href={href} className="group block">
-      <div className={`bg-slate-900/50 border ${colors[color]} p-6 rounded-[2.5rem] hover:-translate-y-1 transition-all`}>
-        <div className="flex justify-between mb-4">
-          <Icon size={32} className={colors[color].split(' ')[0]} />
+    <Link href={href} className="group block outline-none">
+      <div className={`h-full border ${colors[color]} p-8 rounded-[3rem] transition-all duration-500 shadow-xl hover:shadow-2xl hover:-translate-y-2`}>
+        <div className="flex justify-between items-start mb-8">
+          <div className={`p-4 rounded-2xl ${iconColors[color]} transition-all duration-500 group-hover:scale-110`}>
+            <Icon size={32} />
+          </div>
           {trend && (
-            <span className={`text-[10px] font-black px-2 py-1 rounded-full bg-white/10`}>
-              {trend.direction === "up" ? "▲" : trend.direction === "down" ? "▼" : "●"} {trend.value}%
+            <span className={`text-[10px] font-black px-3 py-1.5 rounded-full bg-white/5 border border-white/5 italic`}>
+              {trend.direction === "up" ? <TrendingUp size={10} className="inline mr-1" /> : 
+               trend.direction === "down" ? <TrendingDown size={10} className="inline mr-1" /> : "●"} 
+              {trend.value}%
             </span>
           )}
         </div>
-        <p className="text-4xl font-black text-white">{value}</p>
-        <p className="text-xs font-bold uppercase text-slate-400 mt-1">{title}</p>
-        <p className="text-[10px] uppercase text-slate-500">{subtitle}</p>
+        <div className="space-y-1">
+          <p className="text-5xl font-black text-white italic tracking-tighter">{value}</p>
+          <p className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em]">{title}</p>
+        </div>
+        <div className="mt-6 pt-4 border-t border-white/5">
+          <p className="text-[9px] font-bold uppercase text-slate-600 tracking-widest italic">{subtitle}</p>
+        </div>
       </div>
     </Link>
   );

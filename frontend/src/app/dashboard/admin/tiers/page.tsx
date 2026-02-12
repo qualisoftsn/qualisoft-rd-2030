@@ -81,7 +81,7 @@ export default function TiersRegistryPage() {
       {/* HEADER ELITE */}
       <header className="flex justify-between items-end mb-12 border-b border-white/5 pb-10">
         <div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
             Registre <span className="text-blue-500">Tiers</span>
           </h1>
           <div className="flex gap-6 mt-6">

@@ -81,7 +81,7 @@ export default function SSEPage() {
               <HardHat size={16} />
               <span className="text-[10px] font-black uppercase tracking-[0.4em]">Sécurité au Travail</span>
             </div>
-            <h1 className="text-5xl font-black uppercase italic tracking-tighter">Registre <span className="text-orange-500">SSE</span></h1>
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter">Registre <span className="text-orange-500">SSE</span></h1>
             <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] mt-2 italic">Suivi des accidents et incidents environnementaux</p>
           </div>
           <button 

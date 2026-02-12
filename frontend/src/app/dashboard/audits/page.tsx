@@ -53,7 +53,7 @@ export default function AuditsPage() {
   return (
     <div className="p-10 bg-[#0B0F1A] min-h-screen ml-72 text-white italic font-sans text-left">
       <header className="mb-12 border-b border-white/5 pb-8">
-        <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none text-white">Gestion des <span className="text-blue-500">Audits</span></h1>
+        <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none text-white">Gestion des <span className="text-blue-500">Audits</span></h1>
         <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-3">Surveillance du Système de Management Intégré</p>
       </header>
 

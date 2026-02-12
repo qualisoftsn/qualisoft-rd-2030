@@ -220,7 +220,7 @@ export default function LibraryPage() {
       <header className="sticky top-0 z-40 bg-[#0B0F1A]/95 backdrop-blur-2xl border-b border-white/5 px-8 py-6">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h1 className="text-6xl font-black uppercase tracking-tighter italic leading-none">
+            <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">
               GED <span className="text-blue-600">SMI</span>
             </h1>
             <p className="text-slate-500 text-[10px] font-black uppercase mt-2 tracking-[0.3em]">

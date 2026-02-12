@@ -76,7 +76,7 @@ export default function SitesCrudPage() {
     <div className="flex-1 bg-[#0B0F1A] min-h-screen p-10 ml-72 text-white font-sans italic text-left">
       <header className="flex justify-between items-end mb-12 border-b border-white/5 pb-10">
         <div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
             Sites <span className="text-blue-500">Implantations</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-4 italic">Périmètre Organisationnel du SMQ Qualisoft</p>

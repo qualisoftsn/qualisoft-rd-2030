@@ -103,7 +103,7 @@ export default function BillingPage() {
           <div className="flex items-center gap-3 text-amber-500 mb-4 font-black uppercase tracking-[0.4em] text-[10px]">
             <Crown size={16} /> Système Qualisoft RD 2030
           </div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter leading-none">
+          <h1 className="text-4xl font-black uppercase tracking-tighter leading-none">
             Gestion <span className="text-blue-600">Licence</span>
           </h1>
         </div>

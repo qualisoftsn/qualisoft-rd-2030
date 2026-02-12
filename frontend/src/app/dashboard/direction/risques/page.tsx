@@ -77,7 +77,7 @@ export default function FormalRisksPage() {
       {/* HEADER ECRAN (Caché à l'impression) */}
       <header className="mb-10 flex justify-between items-end border-b border-white/5 pb-8 no-print">
         <div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter">Pilotage <span className="text-blue-500">Risques</span></h1>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter">Pilotage <span className="text-blue-500">Risques</span></h1>
           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest mt-3 italic">{currentProcess}</p>
         </div>
         <div className="flex gap-3">

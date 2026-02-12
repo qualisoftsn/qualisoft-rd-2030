@@ -93,7 +93,7 @@ export default function SenegalLegalPage() {
 
       <header className="mb-12 border-b border-white/5 pb-10 flex justify-between items-end">
         <div>
-          <h1 className="text-6xl tracking-tighter leading-none">CONFORMITÉ <span className="text-blue-600">LÉGALE</span></h1>
+          <h1 className="text-4xl tracking-tighter leading-none">CONFORMITÉ <span className="text-blue-600">LÉGALE</span></h1>
           <p className="text-slate-500 text-[10px] tracking-[0.4em] mt-4 flex items-center gap-2">
             <ShieldCheck size={14} className="text-emerald-500" /> SÉNÉGAL • VEILLE RÉGLEMENTAIRE ISO 9001
           </p>

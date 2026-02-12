@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -7,10 +5,10 @@ import apiClient from '@/core/api/api-client';
 import { 
   ShieldAlert, CheckCircle2, Clock, Users, 
   ArrowRight, Target, Loader2, LayoutGrid, 
-  Plus, Calendar, X, Save, Edit3
+  Plus, Save, Edit3, X
 } from 'lucide-react';
 import Link from 'next/link';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export default function PAQPage() {
   const [data, setData] = useState<any>(null); 
@@ -28,7 +26,7 @@ export default function PAQPage() {
       setData(resStats.data);
       setPaqs(resPaqs.data);
     } catch (error) {
-      console.error("Erreur sync PAQ:", error);
+      toast.error("Rupture de flux PAQ");
     } finally {
       setLoading(false);
     }
@@ -40,119 +38,99 @@ export default function PAQPage() {
     e.preventDefault();
     try {
       await apiClient.patch(`/paq/actions/${editingAction.ACT_Id}`, editingAction);
-      toast.success("Action mise à jour");
+      toast.success("Action rectifiée");
       setEditingAction(null);
       fetchData();
     } catch (err) {
-      toast.error("Échec de la modification");
+      toast.error("Échec de mise à jour");
     }
   };
 
   if (loading) return (
     <div className="flex h-screen flex-col items-center justify-center bg-[#0B0F1A] ml-72">
-      <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
-      <p className="text-blue-500 font-black uppercase italic text-[10px] tracking-widest">Analyse Qualisoft Elite...</p>
+      <Loader2 className="animate-spin text-blue-500 mb-4" size={48} />
+      <p className="text-blue-500 font-black uppercase italic text-[10px] tracking-[0.4em]">Calcul Qualisoft Elite...</p>
     </div>
   );
 
   return (
-    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-8 ml-72 text-white font-sans italic text-left relative overflow-hidden">
-      <div className="max-w-7xl mx-auto space-y-12">
+    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-12 ml-72 text-white font-sans italic text-left">
+      <div className="max-w-7xl mx-auto space-y-16">
         
-        {/* HEADER */}
-        <header className="flex justify-between items-center border-b border-white/5 pb-8">
+        <header className="flex justify-between items-end border-b border-white/5 pb-10">
           <div>
-            <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
-              Pilotage <span className="text-blue-500">PAQ</span>
-            </h1>
-            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-3 italic">Amélioration Continue • Certification ISO</p>
+            <h1 className="text-3xl font-black uppercase italic tracking-tighter leading-none">PILOTAGE <span className="text-blue-500">PAQ</span></h1>
+            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.5em] mt-4 italic">Surveillance Système ISO</p>
           </div>
-          <Link href="/dashboard/paq/nouveau" className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-5 rounded-4xl font-black uppercase italic text-xs shadow-xl flex items-center gap-3 transition-all active:scale-95">
-             <Plus size={18} /> Initialiser un PAQ
+          <Link href="/dashboard/paq/nouveau" className="bg-blue-600 hover:bg-white hover:text-slate-900 text-white px-10 py-6 rounded-2xl font-black uppercase italic text-xs transition-all shadow-2xl border-none">
+             <Plus size={20} className="inline mr-2" /> Initialiser un Plan
           </Link>
         </header>
 
-        {/* STATS CARDS */}
-        <div className="grid grid-cols-4 gap-6">
-          <PaqStatCard title="Total Actions" value={data?.total || 0} icon={Target} color="blue" />
-          <PaqStatCard title="Actions en Retard" value={Array.isArray(data?.enRetard) ? data.enRetard.length : 0} icon={ShieldAlert} color="red" />
-          <PaqStatCard title="Efficacité" value={`${Math.round(data?.tauxEfficacite || 0)}%`} icon={CheckCircle2} color="emerald" />
-          <PaqStatCard title="Charge Active" value={data?.chargeTravail?.length || 0} icon={Users} color="orange" />
+        <div className="grid grid-cols-4 gap-8">
+          <StatCard title="ACTIONS TOTALES" value={data?.total || 0} icon={Target} color="blue" />
+          <StatCard title="RETARDS CRITIQUES" value={data?.enRetard?.length || 0} icon={ShieldAlert} color="red" />
+          <StatCard title="INDICE EFFICACITÉ" value={`${data?.tauxEfficacite || 0}%`} icon={CheckCircle2} color="emerald" />
+          <StatCard title="PILOTES ACTIFS" value={data?.chargeTravail?.length || 0} icon={Users} color="orange" />
         </div>
 
-        <div className="grid grid-cols-12 gap-10">
-          {/* LISTE DES PLANS */}
-          <div className="col-span-8 space-y-8">
-            <h3 className="text-xl font-black uppercase italic flex items-center gap-3">
-              <LayoutGrid className="text-blue-500" /> Référentiel des Plans Annuels
-            </h3>
-            <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-12 gap-12">
+          <div className="col-span-8 space-y-10">
+            <h3 className="text-2xl font-black uppercase italic flex items-center gap-4"><LayoutGrid className="text-blue-500" /> Plans Annuels</h3>
+            <div className="grid grid-cols-2 gap-8">
               {paqs.map((paq: any) => (
-                <Link href={`/dashboard/paq/${paq.PAQ_Id}`} key={paq.PAQ_Id} className="bg-slate-900/40 border border-white/5 p-8 rounded-[3rem] hover:border-blue-500/30 transition-all group min-h-55 flex flex-col justify-between">
+                <Link href={`/dashboard/paq/${paq.PAQ_Id}`} key={paq.PAQ_Id} className="bg-slate-900/40 border border-white/5 p-10 rounded-[3.5rem] hover:border-blue-500/40 transition-all group flex flex-col justify-between min-h-64 shadow-2xl">
                   <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="bg-white/5 px-4 py-1.5 rounded-xl border border-white/10 text-[10px] font-black text-blue-400">{paq.PAQ_Year}</span>
-                      <span className="text-[9px] font-black uppercase text-slate-500 italic">{paq._count?.PAQ_Actions || 0} ACTIONS</span>
+                    <div className="flex justify-between items-start mb-6">
+                      <span className="bg-blue-500/10 px-5 py-2 rounded-xl text-[11px] font-black text-blue-400 italic">{paq.PAQ_Year}</span>
+                      <span className="text-[10px] font-black uppercase text-slate-500 italic tracking-widest">{paq._count?.PAQ_Actions || 0} ACTIONS</span>
                     </div>
-                    <h4 className="text-2xl font-black uppercase italic tracking-tighter group-hover:text-blue-400 transition-colors">{paq.PAQ_Processus?.PR_Libelle}</h4>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-2">Resp: {paq.PAQ_QualityManager?.U_LastName}</p>
+                    <h4 className="text-3xl font-black uppercase italic tracking-tighter group-hover:text-blue-400 transition-colors leading-tight">{paq.PAQ_Processus?.PR_Libelle}</h4>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-4">Responsable : {paq.PAQ_QualityManager?.U_LastName}</p>
                   </div>
-                  <div className="flex justify-end mt-4"><ArrowRight className="text-blue-500 group-hover:translate-x-2 transition-transform" /></div>
+                  <div className="flex justify-end"><ArrowRight className="text-blue-500 group-hover:translate-x-3 transition-transform" /></div>
                 </Link>
               ))}
             </div>
           </div>
 
-          {/* VIGILANCE RETARDS */}
-          <aside className="col-span-4 space-y-8">
-             <div className="bg-red-500/5 border border-red-500/10 p-8 rounded-[3rem]">
-                <h3 className="text-lg font-black uppercase italic text-red-500 mb-6 flex items-center gap-2">
-                   <ShieldAlert size={20} /> Vigilance Retards
-                </h3>
-                <div className="space-y-4">
-                   {/* ✅ PROTECTION .slice() contre les erreurs runtime */}
-                   {(Array.isArray(data?.enRetard) ? data.enRetard : []).slice(0, 4).map((action: any) => (
-                      <div key={action.ACT_Id} className="p-5 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center group">
-                         <div>
-                            <p className="text-[9px] font-black text-red-500 italic underline mb-1">{new Date(action.ACT_Deadline).toLocaleDateString()}</p>
-                            <p className="text-[11px] font-black uppercase italic truncate max-w-37.5">{action.ACT_Title}</p>
-                         </div>
-                         <button onClick={() => setEditingAction(action)} className="text-slate-600 hover:text-white transition-colors">
-                            <Edit3 size={16} />
-                         </button>
-                      </div>
-                   ))}
-                </div>
-             </div>
+          <aside className="col-span-4 bg-red-500/5 border border-red-500/10 p-10 rounded-[3.5rem] h-fit">
+            <h3 className="text-xl font-black uppercase italic text-red-500 mb-8 flex items-center gap-3"><ShieldAlert /> Urgences</h3>
+            <div className="space-y-6">
+               {data?.enRetard?.slice(0, 5).map((action: any) => (
+                  <div key={action.ACT_Id} className="p-6 bg-white/2 rounded-2xl border border-white/5 flex justify-between items-center group">
+                     <div>
+                        <p className="text-[10px] font-black text-red-500 italic mb-2">DÉLAI : {new Date(action.ACT_Deadline).toLocaleDateString()}</p>
+                        <p className="text-sm font-black uppercase italic truncate max-w-[150px]">{action.ACT_Title}</p>
+                     </div>
+                     <button onClick={() => setEditingAction(action)} className="text-slate-600 hover:text-white transition-colors cursor-pointer bg-transparent border-none"><Edit3 size={18} /></button>
+                  </div>
+               ))}
+            </div>
           </aside>
         </div>
       </div>
 
-      {/* MODAL DE MODIFICATION (SLIDE-OVER) */}
       {editingAction && (
         <>
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-100" onClick={() => setEditingAction(null)} />
-          <div className="fixed top-0 right-0 h-full w-125 bg-[#0F172A] border-l border-white/10 z-110 p-12 overflow-y-auto animate-in slide-in-from-right duration-500">
-            <h2 className="text-3xl font-black uppercase italic tracking-tighter mb-10 border-b border-white/5 pb-6 text-white">
-              Modifier <span className="text-blue-500 text-4xl">l&apos;Action</span>
-            </h2>
-            <form onSubmit={handleUpdate} className="space-y-8">
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-500 italic mb-3 block">Désignation de l&apos;action</label>
-                <input type="text" value={editingAction.ACT_Title} onChange={e => setEditingAction({...editingAction, ACT_Title: e.target.value})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-6 text-sm font-bold italic text-white outline-none focus:border-blue-600 transition-all" />
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]" onClick={() => setEditingAction(null)} />
+          <div className="fixed top-0 right-0 h-full w-[500px] bg-[#0F172A] z-[110] p-16 animate-in slide-in-from-right duration-500 border-l border-white/10">
+            <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-12 border-b border-white/5 pb-8">RECTIFIER <span className="text-blue-500">L&apos;ACTION</span></h2>
+            <form onSubmit={handleUpdate} className="space-y-10 text-left">
+              <div className="space-y-4">
+                <label className="text-[11px] font-black uppercase text-slate-500 tracking-widest ml-2">Intitulé</label>
+                <input type="text" value={editingAction.ACT_Title} onChange={e => setEditingAction({...editingAction, ACT_Title: e.target.value})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-6 text-sm font-bold italic text-white outline-none" />
               </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-500 italic mb-3 block">Statut Actuel</label>
-                <select value={editingAction.ACT_Status} onChange={e => setEditingAction({...editingAction, ACT_Status: e.target.value})} className="w-full bg-slate-950 border border-white/10 rounded-xl p-5 text-[10px] font-black uppercase italic text-white outline-none">
+              <div className="space-y-4">
+                <label className="text-[11px] font-black uppercase text-slate-500 tracking-widest ml-2">Statut</label>
+                <select value={editingAction.ACT_Status} onChange={e => setEditingAction({...editingAction, ACT_Status: e.target.value})} className="w-full bg-slate-950 border border-white/10 rounded-2xl p-6 text-xs font-black uppercase italic text-white outline-none">
                   <option value="A_FAIRE">À FAIRE</option>
                   <option value="EN_COURS">EN COURS</option>
                   <option value="TERMINEE">TERMINÉE</option>
                   <option value="ANNULEE">ANNULÉE</option>
                 </select>
               </div>
-              <button type="submit" className="w-full py-6 bg-blue-600 rounded-[2.5rem] text-[11px] font-black uppercase italic hover:bg-blue-500 transition-all shadow-xl flex items-center justify-center gap-3">
-                <Save size={18}/> Enregistrer les modifications
-              </button>
+              <button type="submit" className="w-full py-7 bg-blue-600 rounded-3xl text-xs font-black uppercase italic transition-all shadow-2xl border-none cursor-pointer"><Save size={20} className="inline mr-3" /> Sceller les modifications</button>
             </form>
           </div>
         </>
@@ -161,18 +139,13 @@ export default function PAQPage() {
   );
 }
 
-function PaqStatCard({ title, value, icon: Icon, color }: any) {
-  const themes: any = {
-    blue: "text-blue-500 bg-blue-500/10 border-blue-500/20",
-    red: "text-red-500 bg-red-500/10 border-red-500/20",
-    emerald: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
-    orange: "text-orange-500 bg-orange-500/10 border-orange-500/20"
-  };
+function StatCard({ title, value, icon: Icon, color }: any) {
+  const themes: any = { blue: "text-blue-500 border-blue-500/20", red: "text-red-500 border-red-500/20", emerald: "text-emerald-500 border-emerald-500/20", orange: "text-orange-500 border-orange-500/20" };
   return (
-    <div className="bg-slate-900/40 border border-white/5 p-8 rounded-[3rem] group hover:bg-white/2 transition-all">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border ${themes[color]}`}><Icon size={24} /></div>
-      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">{title}</p>
-      <p className="text-4xl font-black italic tracking-tighter leading-none">{value}</p>
+    <div className="bg-slate-900/40 border border-white/5 p-10 rounded-[3.5rem] shadow-2xl">
+      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-8 border-2 ${themes[color]}`}><Icon size={32} /></div>
+      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">{title}</p>
+      <p className="text-6xl font-black italic tracking-tighter leading-none">{value}</p>
     </div>
   );
 }
