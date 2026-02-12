@@ -19,7 +19,7 @@ jobs:
           command_timeout: 30m 
           script: |
             # 1. Accès au répertoire racine du projet
-            cd /app/qualisoft/qualisoft-rd-2030
+            cd /var/www/qualisoft/qualisoft-rd-2030
             
             # 2. Synchronisation du code source
             git pull origin main
