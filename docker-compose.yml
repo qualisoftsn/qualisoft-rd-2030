@@ -1,33 +1,24 @@
-# PROJET : Qualisoft Elite RD 2030
-# STRATÉGIE : Build Séquentiel & Contrôle de la RAM (Souveraineté des Ressources)
+# PROJET : Qualisoft Elite RD 2030 - PRODUCTION OVH
+# STRATÉGIE : Performance & Étanchéité (SSL-Ready)
 
 services:
-  # 🗄️ BASE DE DONNÉES (Souveraineté des Données)
+  # 🗄️ PERSISTANCE DES DONNÉES
   db:
     image: postgres:16-alpine
     container_name: qualisoft_db
-    restart: unless-stopped
+    restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=qualipass2026
-      - POSTGRES_DB=qualisoft_db
-    ports:
-      - "5544:5432"
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    # Suppression du port 5544 pour la prod (sécurité : accessible uniquement en interne via le network)
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d qualisoft_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - qualisoft_network
-
-  # ⚡ CACHE & SESSIONS
-  redis:
-    image: redis:7-alpine
-    container_name: qualisoft_redis
-    restart: unless-stopped
     networks:
       - qualisoft_network
 
@@ -37,18 +28,17 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: qualisoft-backend
-    restart: unless-stopped
-    # 🛡️ BRIDAGE DE LA RAM POUR LE BACKEND
+    restart: always
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 2G # Augmenté pour la charge de prod
     environment:
-      - DATABASE_URL=postgresql://postgres:qualipass2026@qualisoft_db:5432/qualisoft_db?schema=public
-      - NODE_ENV=development
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public
+      - NODE_ENV=production
       - PORT=9000
-      - JWT_SECRET=QUALISOFT_2026_SECRET
-      - FRONTEND_URL=http://localhost:3001
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=https://app.qualisoft.sn # Ton futur domaine
     ports:
       - "9000:9000"
     depends_on:
@@ -63,8 +53,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: qualisoft-frontend
-    restart: unless-stopped
-    # 🛡️ BRIDAGE DE LA RAM POUR LE FRONTEND (Crucial pour Next.js 16/Turbopack)
+    restart: always
     deploy:
       resources:
         limits:
@@ -72,23 +61,18 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:9000/api
-      - INTERNAL_API_URL=http://qualisoft-backend:9000/api
-      - NEXTAUTH_URL=http://localhost:3001
-      - NEXTAUTH_SECRET=QUALISOFT_2026_SECRET
+      - NEXT_PUBLIC_API_URL=https://api.qualisoft.sn/api # URL Publique SSL
+      - INTERNAL_API_URL=http://backend:9000/api
+      - NEXTAUTH_URL=https://app.qualisoft.sn
+      - NEXTAUTH_SECRET=${JWT_SECRET}
     depends_on:
-      backend:
-        condition: service_started
-      db:
-        condition: service_healthy
+      - backend
     networks:
       - qualisoft_network
 
-# 🌐 RÉSEAU SÉCURISÉ
 networks:
   qualisoft_network:
     driver: bridge
 
-# 💾 PERSISTANCE
 volumes:
-  postgres_data:
+  postgres_data_prod:
