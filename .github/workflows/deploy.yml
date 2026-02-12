@@ -18,18 +18,18 @@ jobs:
           # Augmenter le timeout peut aider sur les VPS OVH lors de gros builds
           command_timeout: 30m 
           script: |
-            # 1. Accès au répertoire RÉEL (On utilise /root car c'est là où tu es)
-            cd /root/qualisoft-rd-2030
+            # 1. Accès au répertoire racine du projet
+            cd /var/www/qualisoft/qualisoft-rd-2030
             
-            # 2. Synchronisation du code
+            # 2. Synchronisation du code source
             git pull origin main
             
-            # 3. Reconstruction (On enlève 'vitrine' car elle est dans un autre dossier)
-            # On ne reconstruit que ce qui est dans ce docker-compose
-            docker compose up -d --build --force-recreate frontend backend
+            # 3. Reconstruction séquentielle des 3 piliers (Elite SMI + Vitrine + API)
+            # ATTENTION : On remplace 'qualisoft-ui' par les noms réels du nouveau docker-compose
+            docker compose up -d --build --force-recreate frontend backend vitrine
             
-            # 4. Base de données
+            # 4. Synchronisation de la base de données (Prisma Migration)
             docker exec qualisoft-backend npx prisma migrate deploy
             
-            # 5. Nettoyage
+            # 5. Nettoyage drastique pour préserver l'espace disque du VPS
             docker image prune -af
