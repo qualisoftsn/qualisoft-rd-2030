@@ -75,8 +75,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ? localStorage.getItem('master_access') === 'true' 
       : false;
 
-    // Conversion de type sécurisée
-    const uEmail = (currentUser as any).U_Email || currentUser.U_Email;
+    // Conversion de type sécurisée (Supporte structure Store et Session)
+    const uEmail = (currentUser as any).U_Email || (currentUser as any).email;
     const uRole = (currentUser as any).U_Role;
 
     return (
@@ -93,7 +93,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Typage dynamique pour gérer les différences Store/Session
     const uFirst = (currentUser as any).U_FirstName;
     const uLast = (currentUser as any).U_LastName;
-    const uEmail = (currentUser as any).U_Email || currentUser.U_Email;
+    const uEmail = (currentUser as any).U_Email || (currentUser as any).email;
 
     if (uFirst && uLast) {
       return `${uFirst[0]}${uLast[0]}`.toUpperCase();
