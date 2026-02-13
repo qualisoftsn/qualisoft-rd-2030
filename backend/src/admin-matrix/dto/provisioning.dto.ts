@@ -1,12 +1,31 @@
-import { IsEmail, IsNotEmpty, IsString, IsOptional, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export class ProvisioningDto {
-  @IsNotEmpty() @IsString() companyName!: string;
-  @IsNotEmpty() @IsString() ceoName!: string;
-  @IsNotEmpty() @IsEmail() email!: string;
-  @IsNotEmpty() @IsString() adminFirstName!: string;
-  @IsNotEmpty() @IsString() adminLastName!: string;
-  @IsNotEmpty() @IsString() phone!: string;
-  @IsNotEmpty() @IsString() address!: string;
-  @IsOptional() @IsString() @MinLength(8) password?: string;
+  @IsNotEmpty({ message: "Le nom de l'entité est requis." })
+  @IsString()
+  companyName!: string;
+
+  @IsNotEmpty({ message: "Le leadership (CEO/DG) est requis." })
+  @IsString()
+  ceoName!: string;
+
+  @IsNotEmpty({ message: "L'email racine est obligatoire." })
+  @IsEmail({}, { message: "Format d'email invalide." })
+  email!: string;
+
+  @IsNotEmpty({ message: "Le prénom de l'administrateur est requis." })
+  @IsString()
+  adminFirstName!: string;
+
+  @IsNotEmpty({ message: "Le nom de l'administrateur est requis." })
+  @IsString()
+  adminLastName!: string;
+
+  @IsNotEmpty({ message: "Le numéro de téléphone est requis." })
+  @IsString()
+  phone!: string;
+
+  @IsNotEmpty({ message: "L'adresse physique est requise." })
+  @IsString()
+  address!: string;
 }

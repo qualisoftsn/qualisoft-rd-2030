@@ -4,14 +4,14 @@
  * RÔLE : Point d'entrée souverain du Noyau Backend.
  */
 
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
-import { ConfigService } from '@nestjs/config';
 
-// 🛡️ SYNTAXE ULTRA-ROBUSTE (Compatibilité Docker/ESM)
+// 🛡️ IMPORTATION COOKIE-PARSER (Syntaxe compatible ESM/CommonJS)
 const cookieParser = require('cookie-parser');
 
 async function bootstrap() {
@@ -27,13 +27,30 @@ async function bootstrap() {
     // 🛰️ PRÉFIXE GLOBAL : Scelle toutes les routes sous le namespace /api
     app.setGlobalPrefix('api');
 
-    // 🛡️ VALIDATION DES DONNÉES : Scellage des entrées via DTO
+    // 🛡️ VALIDATION DES DONNÉES (SCELLAGE DTO)
+    // Cette configuration force l'affichage des erreurs dans docker logs
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true, // Rejette les champs non définis dans le DTO
         transform: true,
         transformOptions: { enableImplicitConversion: true },
+        exceptionFactory: (errors) => {
+          const formattedErrors = errors.map((err) => ({
+            champ: err.property,
+            erreurs: Object.values(err.constraints || {}),
+            valeurRecue: err.value,
+          }));
+          
+          // 🔥 C'est ce log qui va nous sauver :
+          logger.error(`❌ ERREUR VALIDATION : ${JSON.stringify(formattedErrors)}`);
+          
+          return new BadRequestException({
+            statusCode: 400,
+            message: formattedErrors,
+            error: 'Bad Request',
+          });
+        },
       }),
     );
 
@@ -48,7 +65,8 @@ async function bootstrap() {
       origin: [
         'http://localhost:3000',
         'http://localhost:3001',
-        'https://elite.qualisoft.sn'
+        'https://elite.qualisoft.sn',
+        'https://api.qualisoft.sn'
       ],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       credentials: true,
