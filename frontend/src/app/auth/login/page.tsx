@@ -35,6 +35,9 @@ export default function LoginPage() {
    * Analyse l'URL pour savoir si on est sur un territoire conquis (SDE, Senelec...)
    */
   useEffect(() => {
+    // Vérification de sécurité pour le rendu serveur
+    if (typeof window === 'undefined') return;
+
     const hostname = window.location.hostname;
     // Ex: sde.qualisoft.sn -> parts[0] = sde
     const parts = hostname.split('.');
@@ -72,25 +75,39 @@ export default function LoginPage() {
     }
   }, [mode, detectedTenant]);
 
+  /**
+   * 🔐 AUTHENTIFICATION SOUVERAINE
+   * Gère la connexion et maintient l'utilisateur sur son territoire (Sous-domaine)
+   */
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // 1️⃣ Capturer le territoire actuel (ex: https://sde.qualisoft.sn)
+    // Cela nous permet de dire à NextAuth où revenir exactement.
+    const currentOrigin = window.location.origin;
+
     try {
       const result = await signIn("credentials", {
         email: email.toLowerCase().trim(),
         password,
         tenantId: selectedTenantId || "MATRIX",
-        redirect: false,
+        redirect: false, // 🚫 On désactive la redirection auto de NextAuth
+        callbackUrl: `${currentOrigin}/dashboard`, // 🎯 On cible explicitement ce sous-domaine
       });
 
       if (result?.error) throw new Error("Accès refusé. Vérifiez vos identifiants.");
 
       toast.success(`Authentification réussie.`);
-      router.push("/dashboard");
+
+      // 2️⃣ Navigation FORCÉE (Hard Redirect)
+      // On utilise window.location au lieu de router.push pour garantir 
+      // qu'on ne repart pas vers le domaine principal par accident.
+      window.location.href = `${currentOrigin}/dashboard`;
+      
     } catch (err: any) {
       toast.error(err.message);
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // On ne stoppe le chargement qu'en cas d'erreur
     }
   };
 
