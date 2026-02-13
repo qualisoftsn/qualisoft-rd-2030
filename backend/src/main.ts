@@ -21,13 +21,13 @@ async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
     const configService = app.get(ConfigService);
 
-    // 🍪 PROTOCOLE COOKIES : Indispensable pour la persistance des sessions Matrix
+    // 🍪 PROTOCOLE COOKIES
     app.use(cookieParser());
 
-    // 🛰️ PRÉFIXE GLOBAL : Scelle toutes les routes sous le namespace /api
+    // 🛰️ PRÉFIXE GLOBAL
     app.setGlobalPrefix('api');
 
-    // 🛡️ VALIDATION DES DONNÉES (SCELLAGE DTO)
+    // 🛡️ VALIDATION DES DONNÉES
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -52,20 +52,19 @@ async function bootstrap() {
       }),
     );
 
-    // 📁 GESTION DES ASSETS : Stockage souverain (Uploads)
+    // 📁 GESTION DES ASSETS
     app.useStaticAssets(join(process.cwd(), 'uploads'), {
       prefix: '/uploads/',
       index: false,
     });
 
-    // 🌐 CONFIGURATION CORS : Dynamique pour la Galaxie Multi-Tenant
+    // 🌐 CONFIGURATION CORS : CORRIGÉE POUR LE MASTER ET SDE
     app.enableCors({
       origin: (origin, callback) => {
-        // Autorise localhost, le domaine maître et TOUS les sous-domaines qualisoft.sn
         const allowedOriginPatterns = [
           /^http:\/\/localhost:\d+$/,
           /^https:\/\/qualisoft\.sn$/,
-          /^https:\/\/.*\.qualisoft\.sn$/
+          /^https:\/\/.*\.qualisoft\.sn$/ // Autorise app.qualisoft.sn, sde..., elite...
         ];
 
         if (!origin || allowedOriginPatterns.some(pattern => pattern.test(origin))) {
@@ -81,21 +80,24 @@ async function bootstrap() {
         'Content-Type', 
         'Accept', 
         'Authorization', 
-        'x-tenant-id', 
-        'X-Tenant-ID'
+        'x-tenant-id',     // Identifiant ID
+        'X-Tenant-ID',
+        // ✅ LES SAUVEURS (Indispensables pour que SDE et Master fonctionnent)
+        'x-tenant-domain', // Identifiant Domaine (ex: sde)
+        'X-Tenant-Domain'
       ],
     });
 
-    // 🔌 DÉTERMINATION DU PORT (Priorité Config/Docker)
+    // 🔌 DÉTERMINATION DU PORT
     const port = configService.get<number>('PORT') || 9000;
     
-    // 🚀 MISE EN ÉCOUTE : Liaison 0.0.0.0 obligatoire pour Docker
+    // 🚀 MISE EN ÉCOUTE
     await app.listen(port, '0.0.0.0');
     
     logger.log(`--------------------------------------------------------`);
     logger.log(`🚀 QUALISOFT ELITE BACKEND : OPÉRATIONNEL (2026)`);
     logger.log(`📡 API BASE URL            : http://0.0.0.0:${port}/api`);
-    logger.log(`🌐 CORS MULTI-TENANT       : ACTIVÉ (*.qualisoft.sn)`);
+    logger.log(`🌐 CORS MULTI-TENANT       : FULL ACCESS (Headers OK)`);
     logger.log(`🛰️ INFRASTRUCTURE          : DOCKER SOUVERAIN`);
     logger.log(`--------------------------------------------------------`);
 
