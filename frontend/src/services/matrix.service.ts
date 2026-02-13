@@ -2,12 +2,12 @@
 /**
  * CHEMIN ABSOLU : /frontend/src/services/matrix.service.ts
  * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Interface de communication avec le Noyau Master.
+ * RÔLE : Interface de communication souveraine avec le Noyau Master.
  */
 
 import apiClient from "@/core/api/api-client";
 
-// --- TYPES SCELLÉS ---
+// --- 💎 TYPES SCELLÉS ---
 export type TenantPlan = "ESSAI" | "EMERGENCE" | "CROISSANCE" | "ENTREPRISE" | "GROUPE";
 export type MatrixRole = "SUPER_ADMIN" | "ADMIN" | "USER" | "PILOTE" | "COPILOTE" | "RQ" | "DIRECTION" | "HSE" | "SAFETY_OFFICER" | "AUDITEUR" | "OBSERVATEUR";
 
@@ -38,22 +38,31 @@ export interface ProvisioningPayload {
   companyName: string;
   ceoName: string;
   email: string;
-  password?: string;
   adminFirstName: string;
   adminLastName: string;
   phone: string;
   address: string;
 }
 
-export interface PublicTenant { T_Id: string; T_Name: string; T_Domain: string; }
-export interface PublicUser { U_Id: string; U_Email: string; U_FirstName: string | null; U_LastName: string | null; }
+export interface PublicTenant { 
+  T_Id: string; 
+  T_Name: string; 
+  T_Domain: string; 
+}
 
-// --- CORE API MATRIX ---
+export interface PublicUser { 
+  U_Id: string; 
+  U_Email: string; 
+  U_FirstName: string | null; 
+  U_LastName: string | null; 
+}
+
+// --- 🛰️ CORE API MATRIX ---
 export const matrixApi = {
   
   /**
-   * 🛰️ RÉCUPÉRATION DU REGISTRE COMPLET
-   * Cible : GET /admin/matrix (via la route racine du contrôleur)
+   * 📋 RÉCUPÉRATION DU REGISTRE COMPLET (ADMIN)
+   * Accès restreint au Master Node.
    */
   getTenants: async (): Promise<TenantDetails[]> => {
     const res = await apiClient.get<TenantDetails[]>('/admin/matrix');
@@ -61,8 +70,7 @@ export const matrixApi = {
   },
 
   /**
-   * 🛰️ RÉCUPÉRATION DES DÉTAILS D'UN NŒUD
-   * Cible : GET /admin/matrix/details/:id
+   * 🔍 RÉCUPÉRATION DES DÉTAILS D'UN NŒUD (ADMIN)
    */
   getDetails: async (id: string): Promise<TenantDetails> => {
     const res = await apiClient.get<TenantDetails>(`/admin/matrix/details/${id}`);
@@ -71,7 +79,7 @@ export const matrixApi = {
 
   /**
    * 🏗️ INITIALISATION D'UN NOUVEAU NŒUD (SCELLAGE)
-   * Cible : POST /admin/matrix/initialize
+   * Création d'un nouveau Tenant et de son Admin Racine.
    */
   initialize: async (data: ProvisioningPayload): Promise<{ success: boolean; tenantId: string; message: string }> => {
     const res = await apiClient.post('/admin/matrix/initialize', data);
@@ -79,8 +87,7 @@ export const matrixApi = {
   },
 
   /**
-   * 🎭 PROTOCOLE D'INCARNATION (PRISE DE CONTRÔLE)
-   * Cible : POST /admin/matrix/impersonate/:tenantId
+   * 🎭 PROTOCOLE D'INCARNATION (SUPER-ADMIN)
    */
   impersonate: async (tenantId: string): Promise<{ token: string; user: any }> => {
     const res = await apiClient.post(`/admin/matrix/impersonate/${tenantId}`);
@@ -88,8 +95,7 @@ export const matrixApi = {
   },
 
   /**
-   * 🖋️ ENRÔLEMENT D'UN COLLABORATEUR UNITAIRE
-   * Cible : POST /admin/matrix/tenants/:tenantId/users
+   * 🖋️ ENRÔLEMENT D'UN COLLABORATEUR (ADMIN)
    */
   createUser: async (tenantId: string, userData: any): Promise<UserMatrixEntry> => {
     const res = await apiClient.post<UserMatrixEntry>(`/admin/matrix/tenants/${tenantId}/users`, userData);
@@ -97,20 +103,29 @@ export const matrixApi = {
   },
 
   /**
-   * ✅ ACCÈS PUBLICS (LOGIN CASCADE)
-   * Cible : GET /admin/matrix
+   * 🔓 [PUBLIC] RÉCUPÉRATION DES ORGANISATIONS ACTIVES
+   * Utilisé pour alimenter le portail de connexion.
    */
   getPublicTenants: async (): Promise<PublicTenant[]> => {
-    const res = await apiClient.get<PublicTenant[]>('/admin/matrix');
+    const res = await apiClient.get<PublicTenant[]>('/auth/public/tenants');
     return res.data;
   },
 
   /**
-   * ✅ RÉCUPÉRATION DES UTILISATEURS PUBLICS D'UN TENANT
-   * Cible : GET /admin/matrix/tenants/:tenantId/users
+   * 🛰️ [PUBLIC] IDENTIFICATION PAR DOMAINE
+   * Crucial pour la fidélisation (ex: sde.qualisoft.sn).
+   * C'est cette méthode qui corrige ton erreur TS.
+   */
+  getTenantByDomain: async (domain: string): Promise<PublicTenant> => {
+    const res = await apiClient.get<PublicTenant>(`/auth/domain/${domain}`);
+    return res.data;
+  },
+
+  /**
+   * 🔓 [PUBLIC] RÉCUPÉRATION DES UTILISATEURS D'UN TENANT
    */
   getPublicTenantUsers: async (tenantId: string): Promise<PublicUser[]> => {
-    const res = await apiClient.get<PublicUser[]>(`/admin/matrix/tenants/${tenantId}/users`);
+    const res = await apiClient.get<PublicUser[]>(`/auth/public/tenants/${tenantId}/users`);
     return res.data;
   }
 };

@@ -1,43 +1,81 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+/**
+ * CHEMIN ABSOLU : /src/middleware.ts
+ * PROJET : Qualisoft Elite RD 2030
+ * RÔLE : Douane Unique (Auth + Routage Multi-Tenant)
+ */
 
-export function middleware(request: NextRequest) {
-  const url = request.nextUrl.clone();
-  const hostname = request.headers.get('host') || '';
-  
-  // 1. Détection du sous-domaine
-  // elite.qualisoft.sn -> elite
-  // sde.qualisoft.sn -> sde
-  const subdomain = hostname.split('.')[0];
+import { withAuth, NextAuthMiddlewareOptions } from "next-auth/middleware";
+import { NextResponse, NextRequest } from "next/server";
+import { JWT } from "next-auth/jwt";
 
-  // 2. Sécurisation du Portail Master
-  if (subdomain === 'elite') {
-    const token = request.cookies.get('auth-token'); // Ajuste selon ton nom de cookie
+type QualisoftToken = JWT & {
+  U_Id?: string;
+  U_Role?: string;
+  U_Email?: string;
+  tenantId?: string;
+};
+
+/**
+ * 🏛️ MIDDLEWARE DE HAUTE SÉCURITÉ FUSIONNÉ
+ */
+export default withAuth(
+  function middleware(req: NextRequest & { nextauth: { token: JWT | null } }) {
+    const token = req.nextauth.token as QualisoftToken;
+    const { pathname } = req.nextUrl;
+    const hostname = req.headers.get('host') || '';
+
+    // --- 🛰️ BLOC A : FIDÉLISATION (SOU-DOMAINE) ---
+    const subdomain = hostname.split('.')[0];
     
-    // Si on est sur elite et pas de token -> vers le login
-    if (!token && !url.pathname.startsWith('/auth')) {
-      return NextResponse.redirect(new URL('/auth/login', request.url));
+    // --- 🛡️ BLOC B : SÉCURITÉ RÉGALIENNE ---
+    
+    // 1. Protection Master Node (/admin)
+    if (pathname.startsWith("/admin")) {
+      if (token?.U_Role !== "SUPER_ADMIN") {
+        console.warn(`[SECURITY] Accès bloqué sur /admin - Utilisateur: ${token?.U_Email || 'Inconnu'}`);
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
     }
-    
-    // Ici on pourrait ajouter une vérification de rôle via le JWT si nécessaire
-  }
 
-  // 3. Injection du sous-domaine dans les headers pour les pages
-  const response = NextResponse.next();
-  response.headers.set('x-qualisoft-tenant', subdomain);
-  
-  return response;
-}
+    // 2. Protection Instance Client (/dashboard)
+    if (pathname.startsWith("/dashboard")) {
+      if (!token?.U_Role) {
+        return NextResponse.redirect(new URL("/auth/login", req.url));
+      }
+    }
 
+    // On prépare la réponse
+    const response = NextResponse.next();
+
+    // 🔗 On injecte le sous-domaine dans les headers pour que le reste de l'app sache où elle est
+    response.headers.set('x-qualisoft-tenant', subdomain);
+
+    return response;
+  },
+  {
+    callbacks: {
+      authorized: ({ token }: { token: JWT | null }): boolean => {
+        const qToken = token as QualisoftToken;
+        return !!qToken?.sub;
+      },
+    },
+    pages: {
+      signIn: "/auth/login",
+      error: "/auth/error",
+    },
+  } as NextAuthMiddlewareOptions
+);
+
+/**
+ * 🎯 MATCHER GLOBAL
+ */
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
+    "/dashboard/:path*",
+    "/admin/:path*",
+    "/profile/:path*",
+    "/settings/:path*",
+    /* On ajoute ici la détection sur toutes les pages sauf ressources statiques */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
