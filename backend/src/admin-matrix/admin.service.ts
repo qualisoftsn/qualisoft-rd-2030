@@ -1,49 +1,37 @@
+/**
+ * CHEMIN : /backend/src/admin-matrix/admin.service.ts
+ * RÔLE : Service de lecture globale pour l'administration (Tenants, Stats...).
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-/**
- * Interface de transfert pour le registre Matrix (Frontend-safe)
- */
-export interface TenantRegistryItem {
-  T_Id: string;
-  T_Name: string;
-  T_Domain: string;
-  T_Plan: string;
-  T_IsActive: boolean;
-  _count: {
-    T_Users: number;
-  };
-}
+import { Tenant } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
-   * Scan complet du registre des nœuds déployés.
+   * 📋 Récupère la liste de tous les tenants (Scellés)
+   * Inclut le comptage ISO 9001 (Utilisateurs et Sites)
    */
-  async findAllTenants(): Promise<TenantRegistryItem[]> {
-    try {
-      const tenants = await this.prisma.tenant.findMany({
-        select: {
-          T_Id: true,
-          T_Name: true,
-          T_Domain: true,
-          T_Plan: true,
-          T_IsActive: true,
-          _count: {
-            select: { T_Users: true }
+  async findAllTenants(): Promise<Tenant[]> {
+    this.logger.log("🔍 [ADMIN] Lecture du registre global des tenants");
+    
+    return this.prisma.tenant.findMany({
+      orderBy: { T_CreatedAt: 'desc' },
+      include: {
+        _count: {
+          select: { 
+            T_Users: true, 
+            T_Sites: true 
           }
-        },
-        orderBy: { T_CreatedAt: 'desc' }
-      });
-      
-      return tenants as TenantRegistryItem[];
-    } catch {
-      this.logger.error("🚨 Échec du scan du registre Master.");
-      throw new Error("Impossible de lire le registre des nœuds.");
-    }
+        }
+      }
+    });
   }
 }

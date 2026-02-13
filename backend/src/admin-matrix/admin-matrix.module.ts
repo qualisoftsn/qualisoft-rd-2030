@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdminMatrixController } from './admin-matrix.controller';
-import { AdminService } from './admin.service'; // ✅ Import relatif direct
+import { AdminService } from './admin.service'; 
 import { ProvisioningService } from './provisioning.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
@@ -16,7 +16,7 @@ import { EmailService } from '../common/email.service';
   ],
   controllers: [AdminMatrixController],
   providers: [
-    AdminService, // ✅ IL DOIT ETRE LA
+    AdminService,
     ProvisioningService,
     EmailService
   ],
