@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MasterGuard } from '../auth/guards/master.guard';
 import { AdminService } from './admin.service';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { ProvisioningDto } from '../admin-matrix/dto/provisioning.dto';
 
 @Controller('admin/super-admin')
 @UseGuards(JwtAuthGuard, MasterGuard)
@@ -48,36 +49,41 @@ export class SuperAdminController {
   }
 
   /**
-   * INITIALISATION D'UN NOUVEAU CLIENT (EX: SAGAM)
-   * Mise à jour conforme au schéma multi-admin Qualisoft RD 2030
+   * INITIALISATION D'UN NOUVEAU CLIENT
+   * ✅ CORRECTIF : Aligné sur le nouveau ProvisioningDto pour éviter l'erreur de build TS2345
    */
   @Post('activate-tenant')
   @HttpCode(HttpStatus.CREATED)
-  async activateTenant(@Body() data: { 
-    companyName: string; 
-    admin1Email: string; 
-    admin2Email: string; 
-    domain: string 
-  }) {
-    // Validation stricte des données de provisioning
-    if (!data.companyName || !data.admin1Email || !data.admin2Email || !data.domain) {
-      throw new BadRequestException("Données de provisioning incomplètes (Emails ou Domaine manquants).");
+  async activateTenant(@Body() data: any) {
+    // 1. Validation de base pour éviter les crashs
+    if (!data.companyName || (!data.admin1Email && !data.email)) {
+      throw new BadRequestException("Données minimales manquantes (Nom entreprise ou Email).");
     }
 
     try {
-      this.logger.log(`🚀 Lancement du déploiement pour le domaine : ${data.domain}`);
+      this.logger.log(`🚀 Redirection du provisioning vers le nouveau moteur pour : ${data.companyName}`);
       
-      return await this.provisioningService.initializeNewClient({
+      /**
+       * 🔄 MAPPAGE DE SÉCURITÉ
+       * On transforme les données entrantes (anciennes ou nouvelles) 
+       * pour satisfaire les exigences du ProvisioningDto.
+       */
+      const alignedData: ProvisioningDto = {
         companyName: data.companyName,
-        admin1Email: data.admin1Email,
-        admin2Email: data.admin2Email,
-        domain: data.domain,
-        defaultPassword: "qs@20252030" // Mot de passe d'initialisation par défaut
-      });
+        ceoName: data.ceoName || "Direction Générale",
+        email: data.admin1Email || data.email, // Gère l'ancien champ admin1Email
+        adminFirstName: data.adminFirstName || "Admin",
+        adminLastName: data.adminLastName || "Principal",
+        phone: data.phone || "000000000",
+        address: data.address || "Dakar, SN",
+        password: data.defaultPassword || data.password || "qs@20252030"
+      };
+
+      return await this.provisioningService.initializeNewClient(alignedData);
     } catch (error: any) {
       this.logger.error(`❌ Échec du déploiement [${data.companyName}]: ${error.message}`);
       throw new HttpException(
-        error.message || "Erreur lors de la phase de provisioning", 
+        error.message || "Erreur lors de la phase de scellage", 
         error.status || HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
