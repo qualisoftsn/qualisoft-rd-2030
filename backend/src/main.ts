@@ -1,7 +1,7 @@
 /**
  * CHEMIN ABSOLU : /backend/src/main.ts
  * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Point d'entrée souverain du Noyau Backend.
+ * RÔLE : Point d'entrée souverain du Noyau Backend (Multi-Tenant Ready).
  */
 
 import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
@@ -11,7 +11,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
-// 🛡️ IMPORTATION COOKIE-PARSER (Syntaxe compatible ESM/CommonJS)
+// 🛡️ IMPORTATION COOKIE-PARSER
 const cookieParser = require('cookie-parser');
 
 async function bootstrap() {
@@ -28,11 +28,10 @@ async function bootstrap() {
     app.setGlobalPrefix('api');
 
     // 🛡️ VALIDATION DES DONNÉES (SCELLAGE DTO)
-    // Cette configuration force l'affichage des erreurs dans docker logs
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: true, // Rejette les champs non définis dans le DTO
+        forbidNonWhitelisted: true,
         transform: true,
         transformOptions: { enableImplicitConversion: true },
         exceptionFactory: (errors) => {
@@ -42,7 +41,6 @@ async function bootstrap() {
             valeurRecue: err.value,
           }));
           
-          // 🔥 C'est ce log qui va nous sauver :
           logger.error(`❌ ERREUR VALIDATION : ${JSON.stringify(formattedErrors)}`);
           
           return new BadRequestException({
@@ -60,14 +58,23 @@ async function bootstrap() {
       index: false,
     });
 
-    // 🌐 CONFIGURATION CORS : Ouverture des ponts avec le Frontend Elite
+    // 🌐 CONFIGURATION CORS : Dynamique pour la Galaxie Multi-Tenant
     app.enableCors({
-      origin: [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'https://elite.qualisoft.sn',
-        'https://api.qualisoft.sn'
-      ],
+      origin: (origin, callback) => {
+        // Autorise localhost, le domaine maître et TOUS les sous-domaines qualisoft.sn
+        const allowedOriginPatterns = [
+          /^http:\/\/localhost:\d+$/,
+          /^https:\/\/qualisoft\.sn$/,
+          /^https:\/\/.*\.qualisoft\.sn$/
+        ];
+
+        if (!origin || allowedOriginPatterns.some(pattern => pattern.test(origin))) {
+          callback(null, true);
+        } else {
+          logger.warn(`🚫 CORS Bloqué pour l'origine : ${origin}`);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       credentials: true,
       allowedHeaders: [
@@ -87,8 +94,8 @@ async function bootstrap() {
     
     logger.log(`--------------------------------------------------------`);
     logger.log(`🚀 QUALISOFT ELITE BACKEND : OPÉRATIONNEL (2026)`);
-    logger.log(`📡 API BASE URL            : http://localhost:${port}/api`);
-    logger.log(`🍪 COOKIE PARSER           : ACTIVÉ (§8.5.1)`);
+    logger.log(`📡 API BASE URL            : http://0.0.0.0:${port}/api`);
+    logger.log(`🌐 CORS MULTI-TENANT       : ACTIVÉ (*.qualisoft.sn)`);
     logger.log(`🛰️ INFRASTRUCTURE          : DOCKER SOUVERAIN`);
     logger.log(`--------------------------------------------------------`);
 
