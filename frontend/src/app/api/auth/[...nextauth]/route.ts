@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import NextAuth, { NextAuthOptions, User, Session } from "next-auth";
 import { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -18,6 +19,14 @@ interface QualisoftUser extends User {
   accessToken: string;
 }
 
+// 🍪 LOGIQUE SOUVERAINE DES COOKIES
+// En production, on partage le cookie sur tout le domaine (*.qualisoft.sn)
+// En local, on reste sur localhost pour éviter les conflits.
+const useSecureCookies = process.env.NODE_ENV === 'production';
+const cookiePrefix = useSecureCookies ? '__Secure-' : '';
+const hostPrefix = useSecureCookies ? '__Host-' : '';
+const cookieDomain = useSecureCookies ? '.qualisoft.sn' : undefined; // 👈 LA CLÉ DU MULTI-TENANT
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -25,6 +34,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
+        tenantId: { label: "Tenant ID", type: "text" }, // ✅ Ajouté pour le contexte
         impersonationToken: { label: "Token", type: "text" },
         impersonatedUser: { label: "UserJson", type: "text" }
       },
@@ -62,38 +72,50 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
-          const backendUrl = process.env.INTERNAL_API_URL || "http://qualisoft-backend:9000/api";
-          
+          const backendUrl = process.env.INTERNAL_API_URL || "http://backend:9000/api";
+          const targetTenantId = credentials.tenantId || "MATRIX";
+
+          // 📡 Appel au Backend (NestJS)
           const res = await fetch(`${backendUrl}/auth/login`, {
             method: "POST",
             body: JSON.stringify({
-              // ✅ ALIGNEMENT CRITIQUE : Le Backend attend 'email' et 'password'
               email: credentials.email.toLowerCase().trim(),
               password: credentials.password,
+              // Le backend n'a pas forcément besoin du tenantId dans le body s'il est dans le header
+              // mais on peut l'envoyer pour être sûr.
             }),
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              // 🔑 C'EST ICI QUE LE BACKEND SAIT QUELLE BASE INTERROGER :
+              "x-tenant-id": targetTenantId 
+            },
           });
 
           const data = await res.json();
 
-          if (res.ok && data && data.user) {
+          if (res.ok && data) {
+            // Adaptation selon la réponse de ton backend (LoginResponse)
+            // Parfois la réponse est direct { access_token, user: {...} }
+            const userData = data.user || data; 
+
             // ✅ MAPPAGE INTÉGRAL SANS PERTE DE DONNÉES
             return {
-              id: data.user.U_Id,
-              U_Id: data.user.U_Id,
-              U_Email: data.user.U_Email,
-              name: `${data.user.U_FirstName} ${data.user.U_LastName}`,
-              email: data.user.U_Email,
-              U_Role: data.user.U_Role,
-              U_FirstName: data.user.U_FirstName,
-              U_LastName: data.user.U_LastName,
-              tenantId: data.user.tenantId,
-              U_TenantName: data.user.U_TenantName,
-              assignedProcessId: data.user.assignedProcessId || null,
-              accessToken: data.access_token,
+              id: userData.U_Id,
+              U_Id: userData.U_Id,
+              U_Email: userData.U_Email,
+              name: `${userData.U_FirstName} ${userData.U_LastName}`,
+              email: userData.U_Email,
+              U_Role: userData.U_Role,
+              U_FirstName: userData.U_FirstName,
+              U_LastName: userData.U_LastName,
+              tenantId: userData.tenantId || targetTenantId,
+              U_TenantName: userData.U_TenantName || "Organisation",
+              assignedProcessId: userData.assignedProcessId || null,
+              accessToken: data.access_token || data.accessToken,
             } as QualisoftUser;
           }
           
+          console.error(`[AUTH ECHEC] Backend a répondu: ${res.status}`, data);
           return null;
         } catch (error: unknown) {
           console.error(`[CRITIQUE] Rupture de pont Matrix:`, error);
@@ -102,6 +124,22 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  
+  // 🍪 CONFIGURATION DES COOKIES PARTAGÉS
+  // Indispensable pour que SDE.QUALISOFT.SN lise la session créée
+  cookies: {
+    sessionToken: {
+      name: `${useSecureCookies ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: useSecureCookies,
+        domain: cookieDomain // 🔥 C'est ça qui débloque le multi-tenant
+      }
+    }
+  },
+
   callbacks: {
     async jwt({ token, user }): Promise<JWT> {
       if (user) {
@@ -149,9 +187,10 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60,
+    maxAge: 24 * 60 * 60, // 24 heures
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development', // Aide au debug en dev
 };
 
 const handler = NextAuth(authOptions);
