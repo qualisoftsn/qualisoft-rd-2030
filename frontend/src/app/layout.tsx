@@ -2,6 +2,7 @@
 import "./globals.css";
 import Providers from "./providers";
 import { Toaster } from "sonner"; // Importation du moteur de notifications
+import React from "react";
 
 export const metadata = {
   title: "Qualisoft ELITE",

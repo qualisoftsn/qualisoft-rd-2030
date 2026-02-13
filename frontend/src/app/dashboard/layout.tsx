@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Fichier : src/app/dashboard/layout.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -8,9 +11,11 @@ import {
   Search, ShieldCheck, Bell, Crown, 
   LayoutGrid, Home, LogOut, 
   Settings, Zap, Info,
-  LucideIcon} from 'lucide-react';
+  LucideIcon
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react'; // 👈 AJOUT CRUCIAL
 
 /**
  * 🛰️ INTERFACES SOUVERAINES (Scellées)
@@ -25,13 +30,18 @@ interface SlimNavItemProps {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, token, logout } = useAuthStore();
+  
+  // On récupère la session NextAuth (le cookie SDE)
+  const { data: session, status } = useSession();
+  
+  // On récupère le store local (Zustand)
+  const { user, token, logout, setLogin } = useAuthStore();
+  
   const [hasMounted, setHasMounted] = useState(false);
 
   /**
    * 🛰️ ACTIVATION SCELLÉE DU MONTAGE
-   * On utilise requestAnimationFrame pour sortir du cycle de rendu synchrone
-   * et éviter l'erreur "setState synchronously within an effect".
+   * On utilise requestAnimationFrame pour sortir du cycle de rendu synchrone.
    */
   useEffect(() => {
     const timer = requestAnimationFrame(() => {
@@ -40,48 +50,81 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => cancelAnimationFrame(timer);
   }, []);
 
+  /**
+   * 🔄 RÉHYDRATATION DE LA SESSION (LA CORRECTION DU VIDE)
+   * Si NextAuth a trouvé un cookie (status authenticated) mais que le Store est vide,
+   * on injecte les données de NextAuth dans le Store immédiatement.
+   */
+  useEffect(() => {
+    if (status === "authenticated" && session?.user && !user) {
+      console.log("🔄 Réhydratation automatique de l'identité SDE...");
+      // On force la mise à jour du store avec les données du cookie
+      setLogin(session.user as any); 
+    }
+  }, [status, session, user, setLogin]);
+
   const SUPER_ADMIN_EMAIL = "ab.thiongane@qualisoft.sn";
 
   const isSuperAdmin = useMemo(() => {
-    if (!user) return false;
+    // On vérifie d'abord la session, puis le user du store
+    const currentUser = user || session?.user;
+    
+    if (!currentUser) return false;
+    
     const masterAccess = typeof window !== 'undefined' 
       ? localStorage.getItem('master_access') === 'true' 
       : false;
 
+    // Conversion de type sécurisée
+    const uEmail = (currentUser as any).U_Email || currentUser.U_Email;
+    const uRole = (currentUser as any).U_Role;
+
     return (
-      user.U_Email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ||
-      user.U_Role?.toUpperCase() === "SUPER_ADMIN" ||
+      uEmail?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ||
+      uRole?.toUpperCase() === "SUPER_ADMIN" ||
       masterAccess
     );
-  }, [user]);
+  }, [user, session]);
 
   const initials = useMemo(() => {
-    if (!user) return "QS";
-    if (user.U_FirstName && user.U_LastName) {
-      return `${user.U_FirstName[0]}${user.U_LastName[0]}`.toUpperCase();
+    const currentUser = user || session?.user;
+    if (!currentUser) return "QS";
+    
+    // Typage dynamique pour gérer les différences Store/Session
+    const uFirst = (currentUser as any).U_FirstName;
+    const uLast = (currentUser as any).U_LastName;
+    const uEmail = (currentUser as any).U_Email || currentUser.U_Email;
+
+    if (uFirst && uLast) {
+      return `${uFirst[0]}${uLast[0]}`.toUpperCase();
     }
-    return user.U_Email?.[0]?.toUpperCase() || "QS";
-  }, [user]);
+    return uEmail?.[0]?.toUpperCase() || "QS";
+  }, [user, session]);
 
   const handleLogout = () => {
     logout();
     if (typeof window !== 'undefined') {
         localStorage.removeItem("master_access");
-        window.location.href = "/auth/login";
+        // On force la redirection NextAuth pour nettoyer le cookie
+        window.location.href = "/api/auth/signout"; 
     }
   };
 
-  // 1. Écran de chargement (Hydratation sécurisée)
-  if (!hasMounted) {
+  // 1. Écran de chargement (On attend que NextAuth ait fini de vérifier le cookie)
+  if (!hasMounted || status === "loading") {
     return (
-      <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest animate-pulse">
+           Synchronisation Matrix...
+        </p>
       </div>
     );
   }
 
-  // 2. Barrière de Sécurité (Redirection si non connecté)
-  if (!user || !token) {
+  // 2. Barrière de Sécurité (Redirection si non connecté NI dans le store NI dans la session)
+  // On est strict : si NextAuth dit "unauthenticated", c'est fini.
+  if (status === "unauthenticated") {
     return (
       <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center font-sans italic">
         <div className="text-center">
@@ -94,14 +137,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
+  // Si le user n'est pas encore dans le store mais qu'on a la session, on affiche temporairement
+  // le layout avec les données de session en attendant que le useEffect fasse le setLogin.
+  const currentUser = user || (session?.user as any);
+
+  if (!currentUser) return null; // Sécurité ultime
+
   return (
     <div className="h-screen bg-[#0B0F1A] flex italic selection:bg-blue-600/30 font-sans overflow-hidden">
       
-      <Sidebar user={{...user}} isSuperAdmin={isSuperAdmin} />
+      <Sidebar user={{...currentUser}} isSuperAdmin={isSuperAdmin} />
 
       <div className="flex-1 flex flex-col pl-80 pr-20 min-w-0 relative">
         
-        <TrialBanner user={user} isSuperAdmin={isSuperAdmin} />
+        <TrialBanner user={currentUser} isSuperAdmin={isSuperAdmin} />
 
         <header className="h-20 bg-[#0F172A]/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-10 sticky top-0 z-40">
           <div className="flex items-center gap-6 flex-1">
@@ -131,10 +180,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex items-center gap-4 border-l border-white/10 pl-8">
               <div className="text-right hidden xl:block text-white">
                 <p className="text-xs font-black uppercase tracking-tight italic leading-none mb-1">
-                  {user.U_FirstName} {user.U_LastName}
+                  {currentUser.U_FirstName} {currentUser.U_LastName}
                 </p>
                 <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isSuperAdmin ? 'text-amber-500' : 'text-blue-500'}`}>
-                  {user.U_Role}
+                  {currentUser.U_Role}
                 </p>
               </div>
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center border border-white/10 text-white font-black shadow-lg ${isSuperAdmin ? 'bg-amber-600' : 'bg-blue-600'}`}>
