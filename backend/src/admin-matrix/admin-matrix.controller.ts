@@ -1,6 +1,6 @@
 import { 
   Controller, Get, Post, Param, Body, UseGuards, 
-  HttpStatus, HttpCode, InternalServerErrorException, Logger 
+  HttpStatus, HttpCode, Logger 
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MasterGuard } from '../auth/guards/master.guard';
@@ -19,7 +19,17 @@ export class AdminMatrixController {
   ) {}
 
   /**
-   * Récupération du registre typé.
+   * 🛰️ ROUTE RACINE (Correction 404)
+   * Répond à GET /admin/matrix
+   */
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  async getMatrixRoot(): Promise<TenantRegistryItem[]> {
+    return await this.adminService.findAllTenants();
+  }
+
+  /**
+   * Récupération du registre typé (Alias tenants)
    */
   @Get('tenants')
   @HttpCode(HttpStatus.OK)

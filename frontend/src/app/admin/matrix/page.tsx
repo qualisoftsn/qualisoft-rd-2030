@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -8,25 +9,24 @@ import { useRouter } from "next/navigation";
 import { matrixApi, TenantDetails } from "@/services/matrix.service";
 import { toast } from "sonner";
 
-/**
- * 🏛️ REGISTRE SOUVERAIN MATRIX
- * Pilotage global des nœuds Qualisoft Elite RD 2030.
- */
 export default function MatrixRegistry() {
   const router = useRouter();
-  
   const [tenants, setTenants] = useState<TenantDetails[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
-    const fetchRegistry = async (): Promise<void> => {
+    const fetchRegistry = async () => {
       try {
         setLoading(true);
         const data = await matrixApi.getTenants();
-        setTenants(data);
-      } catch {
-        toast.error("Échec de connexion au registre Master.");
+        setTenants(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        const errorMsg = err.response?.status === 404 
+          ? "Route Master introuvable (404)." 
+          : "Échec de connexion au registre Master.";
+        toast.error(errorMsg);
+        console.error("Matrix Sync Error:", err);
       } finally {
         setLoading(false);
       }
@@ -36,8 +36,8 @@ export default function MatrixRegistry() {
 
   const filteredTenants = useMemo(() => {
     return tenants.filter((tenant) => 
-      tenant.T_Name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      tenant.T_Domain.toLowerCase().includes(searchTerm.toLowerCase())
+      tenant.T_Name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      tenant.T_Domain?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [tenants, searchTerm]);
 
@@ -51,8 +51,6 @@ export default function MatrixRegistry() {
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans italic selection:bg-blue-100">
       <div className="max-w-7xl mx-auto">
-        
-        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
           <div>
             <div className="flex items-center gap-3 mb-4">
@@ -74,7 +72,6 @@ export default function MatrixRegistry() {
           </button>
         </div>
 
-        {/* RECHERCHE */}
         <div className="relative mb-8 group">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
           <input 
@@ -86,7 +83,6 @@ export default function MatrixRegistry() {
           />
         </div>
 
-        {/* GRID DES NŒUDS */}
         <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>

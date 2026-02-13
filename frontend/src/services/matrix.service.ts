@@ -51,41 +51,66 @@ export interface PublicUser { U_Id: string; U_Email: string; U_FirstName: string
 // --- CORE API MATRIX ---
 export const matrixApi = {
   
+  /**
+   * 🛰️ RÉCUPÉRATION DU REGISTRE COMPLET
+   * Cible : GET /admin/matrix (via la route racine du contrôleur)
+   */
   getTenants: async (): Promise<TenantDetails[]> => {
     const res = await apiClient.get<TenantDetails[]>('/admin/matrix');
     return res.data;
   },
 
+  /**
+   * 🛰️ RÉCUPÉRATION DES DÉTAILS D'UN NŒUD
+   * Cible : GET /admin/matrix/details/:id
+   */
   getDetails: async (id: string): Promise<TenantDetails> => {
-    const res = await apiClient.get<TenantDetails>(`/admin/matrix/${id}`);
+    const res = await apiClient.get<TenantDetails>(`/admin/matrix/details/${id}`);
     return res.data;
   },
 
+  /**
+   * 🏗️ INITIALISATION D'UN NOUVEAU NŒUD (SCELLAGE)
+   * Cible : POST /admin/matrix/initialize
+   */
   initialize: async (data: ProvisioningPayload): Promise<{ success: boolean; tenantId: string; message: string }> => {
-    const res = await apiClient.post('/auth/register-tenant', data);
+    const res = await apiClient.post('/admin/matrix/initialize', data);
     return res.data;
   },
 
-  // 🎭 Prise de contrôle (Impersonation)
+  /**
+   * 🎭 PROTOCOLE D'INCARNATION (PRISE DE CONTRÔLE)
+   * Cible : POST /admin/matrix/impersonate/:tenantId
+   */
   impersonate: async (tenantId: string): Promise<{ token: string; user: any }> => {
-    const res = await apiClient.post(`/admin/matrix/${tenantId}/impersonate`);
+    const res = await apiClient.post(`/admin/matrix/impersonate/${tenantId}`);
     return res.data;
   },
 
-  // 🖋️ Gestion Collaborateurs
+  /**
+   * 🖋️ ENRÔLEMENT D'UN COLLABORATEUR UNITAIRE
+   * Cible : POST /admin/matrix/tenants/:tenantId/users
+   */
   createUser: async (tenantId: string, userData: any): Promise<UserMatrixEntry> => {
-    const res = await apiClient.post<UserMatrixEntry>(`/admin/matrix/${tenantId}/users`, userData);
+    const res = await apiClient.post<UserMatrixEntry>(`/admin/matrix/tenants/${tenantId}/users`, userData);
     return res.data;
   },
 
-  // ✅ ACCÈS PUBLICS (LOGIN CASCADE)
+  /**
+   * ✅ ACCÈS PUBLICS (LOGIN CASCADE)
+   * Cible : GET /admin/matrix
+   */
   getPublicTenants: async (): Promise<PublicTenant[]> => {
     const res = await apiClient.get<PublicTenant[]>('/admin/matrix');
     return res.data;
   },
 
+  /**
+   * ✅ RÉCUPÉRATION DES UTILISATEURS PUBLICS D'UN TENANT
+   * Cible : GET /admin/matrix/tenants/:tenantId/users
+   */
   getPublicTenantUsers: async (tenantId: string): Promise<PublicUser[]> => {
-    const res = await apiClient.get<PublicUser[]>(`/admin/matrix/${tenantId}/users`);
+    const res = await apiClient.get<PublicUser[]>(`/admin/matrix/tenants/${tenantId}/users`);
     return res.data;
   }
 };

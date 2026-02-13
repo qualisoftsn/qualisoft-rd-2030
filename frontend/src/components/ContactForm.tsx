@@ -37,7 +37,7 @@ export default function ContactForm() {
       <h2 className="text-2xl font-bold mb-4">Demander une démo Qualisoft Elite</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium">Nom de l'entreprise</label>
+          <label className="block text-sm font-medium">Nom de l&apos;entreprise</label>
           <input type="text" name="company" required className="w-full border p-2 rounded" />
         </div>
         <div>
