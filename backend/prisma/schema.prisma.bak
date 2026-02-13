@@ -1265,9 +1265,62 @@ model ComplianceCalendar {
   @@index([tenantId])
 }
 
+
+// --- MODULE ENQUÊTES & SATISFACTION (ISO 9001) ---
+
+// 1. DÉFINITION STRICTE DES CIBLES
+enum SurveyTarget {
+  CLIENT    // §9.1.2 Satisfaction Client
+  SUPPLIER  // §8.4.2 Évaluation Fournisseurs
+  EMPLOYEE  // §7.1.2 Ressources Humaines
+}
+
+// 2. LE MODÈLE CAMPAGNE (Configuration de l'enquête)
+// Remplace l'ancien model "Survey"
+model SurveyCampaign {
+  SC_Id          String       @id @default(uuid())
+  SC_TenantId    String       // Pour le Multi-tenant (SaaS)
+  SC_Title       String
+  SC_Target      SurveyTarget @default(CLIENT)
+  SC_Status      String       @default("DRAFT") // DRAFT, OPEN, CLOSED
+  
+  // Stocke la structure du Builder (ex: [{id: 1, text: "Qualité?", type: "SCALE"}])
+  SC_Questions   Json         
+  
+  SC_CreatedAt   DateTime     @default(now())
+  SC_UpdatedAt   DateTime     @updatedAt
+
+  // Relation vers les résultats
+  results        SurveyResult[]
+
+  @@index([SC_TenantId])
+}
+
+// 3. LE MODÈLE RÉSULTAT (Les réponses scannées)
+// Remplace l'ancien model "Response"
+model SurveyResult {
+  RES_Id         String         @id @default(uuid())
+  RES_CampaignId String
+  
+  // Données de réponse
+  RES_Score      Int            // Score global calculé (sur 10)
+  RES_Details    Json?          // (Optionnel) Détail des réponses par question
+  RES_Comment    String?        @db.Text
+  RES_Respondent String?        // Nom ou "Anonyme"
+  RES_Date       DateTime       @default(now())
+  
+  // Statut pour le Scanner (Traitement des non-conformités)
+  RES_Status     String         @default("PENDING") // PENDING, PROCESSED
+  
+  // Relation technique
+  campaign       SurveyCampaign @relation(fields: [RES_CampaignId], references: [SC_Id], onDelete: Cascade)
+
+  @@index([RES_CampaignId])
+}
 // ==========================================
 // ENUMS (INTÉGRITÉ DU PROJET)
 // ==========================================
+
 
 enum Plan {
   ESSAI
