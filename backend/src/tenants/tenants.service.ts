@@ -26,24 +26,11 @@ export class TenantsService {
       select: { T_Plan: true }
     });
 
-    const planPrices = { 
-      ESSAI: 0, 
-      EMERGENCE: 55000, 
-      CROISSANCE: 105000, 
-      ENTREPRISE: 175000, 
-      GROUPE: 350000 
-    };
-
+    // Estimation des revenus (MRR)
+    const planPrices = { ESSAI: 0, EMERGENCE: 55000, CROISSANCE: 105000, ENTREPRISE: 175000, GROUPE: 350000 };
     const mrr = activeTenants.reduce((acc, curr) => acc + (planPrices[curr.T_Plan] || 0), 0);
 
-    return {
-      totalTenants: total,
-      activeTenants: active,
-      trialTenants: trial,
-      suspendedTenants: suspended,
-      mrr: mrr,
-      totalRevenue: mrr * 12
-    };
+    return { totalTenants: total, activeTenants: active, trialTenants: trial, suspendedTenants: suspended, mrr, totalRevenue: mrr * 12 };
   }
 
   // 📊 STATISTIQUES INDIVIDUELLES
@@ -59,31 +46,25 @@ export class TenantsService {
       this.prisma.audit.count({ where: { tenantId: id } }),
     ]);
 
-    return {
-      usersCount: users,
-      processesCount: processes,
-      documentsCount: docs,
-      ncCount: nc,
-      auditsCount: audits
-    };
+    return { usersCount: users, processesCount: processes, documentsCount: docs, ncCount: nc, auditsCount: audits };
   }
 
-  // 🏗️ CRÉATION (CORRIGÉE : GÉNÉRATION DU DOMAINE)
+  // 🏗️ CRÉATION (Le cœur du problème résolu ici)
   async create(dto: CreateTenantDto) {
     this.logger.log(`🏗️ Création de l'instance organisationnelle : ${dto.T_Name}`);
     
-    // 1. Calcul des valeurs forcées (Status/Plan)
+    // 1. On force les valeurs par défaut (ACTIVE / ENTREPRISE)
+    // Le (dto as any) empêche TypeScript de râler si le champ n'est pas dans le DTO strict
     const forcedStatus = (dto as any).T_SubscriptionStatus || SubscriptionStatus.ACTIVE;
     const forcedPlan = (dto as any).T_Plan || Plan.ENTREPRISE;
 
-    // 2. 🚀 CRUCIAL : Génération du domaine si manquant (ex: "Quali Soft" -> "quali-soft")
-    // Prisma refuse la création si T_Domain est manquant.
+    // 2. Génération automatique du domaine technique si absent
     const generatedDomain = dto.T_Domain || dto.T_Name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     return this.prisma.tenant.create({
       data: { 
         ...dto, 
-        T_Domain: generatedDomain, // ✅ On injecte le domaine manquant
+        T_Domain: generatedDomain,
         T_IsActive: true,
         T_SubscriptionStatus: forcedStatus as SubscriptionStatus,
         T_Plan: forcedPlan as Plan
@@ -96,11 +77,7 @@ export class TenantsService {
     return this.prisma.tenant.findMany({
       where: includeArchived ? {} : { T_IsActive: true },
       orderBy: { T_CreatedAt: 'desc' },
-      include: {
-        _count: { 
-          select: { T_Users: true, T_Sites: true } 
-        }
-      }
+      include: { _count: { select: { T_Users: true, T_Sites: true } } }
     });
   }
 
@@ -111,20 +88,16 @@ export class TenantsService {
 
     return this.prisma.tenant.update({
       where: { T_Id: id },
-      data: dto as any 
+      data: dto as any // 👈 Le "Joker" pour que ça passe
     });
   }
 
   // 📁 ARCHIVAGE
   async archive(id: string) {
     this.logger.warn(`📁 Archivage sécurisé de l'instance ID: ${id}`);
-    
     return this.prisma.tenant.update({
       where: { T_Id: id },
-      data: { 
-        T_IsActive: false, 
-        T_SubscriptionStatus: 'SUSPENDED' as any 
-      }
+      data: { T_IsActive: false, T_SubscriptionStatus: 'SUSPENDED' as any }
     });
   }
 }
