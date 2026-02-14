@@ -62,10 +62,8 @@ export const matrixApi = {
   
   /**
    * 📋 RÉCUPÉRATION DU REGISTRE COMPLET (ADMIN MASTER)
-   * Utilisé par le Master Node pour lister toutes les organisations.
    */
   getTenants: async (): Promise<TenantDetails[]> => {
-    // Aligné sur le contrôleur admin/matrix
     const res = await apiClient.get<TenantDetails[]>('/admin/matrix');
     return res.data;
   },
@@ -95,21 +93,26 @@ export const matrixApi = {
   },
 
   /**
+   * 🖋️ ENRÔLEMENT D'UN COLLABORATEUR (ADMIN MASTER)
+   * ✅ RÉTABLI : Correction de l'erreur de build sur matrix/[id]/page.tsx
+   */
+  createUser: async (tenantId: string, userData: any): Promise<UserMatrixEntry> => {
+    const res = await apiClient.post<UserMatrixEntry>(`/admin/matrix/tenants/${tenantId}/users`, userData);
+    return res.data;
+  },
+
+  /**
    * 🔓 [PUBLIC] RÉCUPÉRATION DES ORGANISATIONS ACTIVES
-   * Utilisé pour la liste déroulante sur le portail de connexion.
    */
   getPublicTenants: async (): Promise<PublicTenant[]> => {
-    // Route alignée : /api/auth/public/tenants
     const res = await apiClient.get<PublicTenant[]>('/auth/public/tenants');
     return res.data;
   },
 
   /**
    * 🛰️ [PUBLIC] IDENTIFICATION PAR DOMAINE
-   * Crucial pour sde.qualisoft.sn
    */
   getTenantByDomain: async (domain: string): Promise<PublicTenant> => {
-    // Route alignée : /api/auth/domain/:domain
     const res = await apiClient.get<PublicTenant>(`/auth/domain/${domain}`);
     return res.data;
   },
@@ -118,7 +121,6 @@ export const matrixApi = {
    * 🔓 [PUBLIC] RÉCUPÉRATION DES UTILISATEURS D'UN TENANT
    */
   getPublicTenantUsers: async (tenantId: string): Promise<PublicUser[]> => {
-    // Route alignée : /api/auth/public/tenants/:id/users
     const res = await apiClient.get<PublicUser[]>(`/auth/public/tenants/${tenantId}/users`);
     return res.data;
   }
