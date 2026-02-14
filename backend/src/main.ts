@@ -2,6 +2,7 @@
  * CHEMIN ABSOLU : /backend/src/main.ts
  * PROJET : Qualisoft Elite RD 2030
  * RÔLE : Point d'entrée souverain du Noyau Backend (Multi-Tenant Ready).
+ * VERSION : 2.0.1 (CORS & Cookie Domain Optimized)
  */
 
 import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
@@ -11,7 +12,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
-// 🛡️ IMPORTATION COOKIE-PARSER
+// 🛡️ IMPORTATION COOKIE-PARSER pour la gestion des sessions Matrix
 const cookieParser = require('cookie-parser');
 
 async function bootstrap() {
@@ -21,13 +22,13 @@ async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
     const configService = app.get(ConfigService);
 
-    // 🍪 PROTOCOLE COOKIES
+    // 🍪 PROTOCOLE COOKIES : Indispensable pour la persistance des sessions sur *.qualisoft.sn
     app.use(cookieParser());
 
-    // 🛰️ PRÉFIXE GLOBAL
+    // 🛰️ PRÉFIXE GLOBAL : Toutes les routes sont servies sous /api
     app.setGlobalPrefix('api');
 
-    // 🛡️ VALIDATION DES DONNÉES
+    // 🛡️ VALIDATION DES DONNÉES (Scellage DTO avec transformation automatique)
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -52,19 +53,20 @@ async function bootstrap() {
       }),
     );
 
-    // 📁 GESTION DES ASSETS
+    // 📁 GESTION DES ASSETS : Stockage des documents et images (Uploads)
     app.useStaticAssets(join(process.cwd(), 'uploads'), {
       prefix: '/uploads/',
       index: false,
     });
 
-    // 🌐 CONFIGURATION CORS : CORRIGÉE POUR LE MASTER ET SDE
+    // 🌐 CONFIGURATION CORS : CORRIGÉE POUR LE WORKFLOW SOUS-DOMAINE (SDE, MASTER, ETC.)
     app.enableCors({
       origin: (origin, callback) => {
+        // Autorise Localhost, le domaine maître et tous les sous-domaines dynamiques
         const allowedOriginPatterns = [
           /^http:\/\/localhost:\d+$/,
           /^https:\/\/qualisoft\.sn$/,
-          /^https:\/\/.*\.qualisoft\.sn$/ // Autorise app.qualisoft.sn, sde..., elite...
+          /^https:\/\/.*\.qualisoft\.sn$/ 
         ];
 
         if (!origin || allowedOriginPatterns.some(pattern => pattern.test(origin))) {
@@ -75,29 +77,28 @@ async function bootstrap() {
         }
       },
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      credentials: true,
+      credentials: true, // Crucial pour autoriser l'envoi des cookies de session
       allowedHeaders: [
         'Content-Type', 
         'Accept', 
         'Authorization', 
-        'x-tenant-id',     // Identifiant ID
+        'x-tenant-id',     // Identifiant par ID (UUID)
         'X-Tenant-ID',
-        // ✅ LES SAUVEURS (Indispensables pour que SDE et Master fonctionnent)
-        'x-tenant-domain', // Identifiant Domaine (ex: sde)
+        'x-tenant-domain', // Identifiant par sous-domaine (ex: sde)
         'X-Tenant-Domain'
       ],
     });
 
-    // 🔌 DÉTERMINATION DU PORT
+    // 🔌 DÉTERMINATION DU PORT (Priorité aux variables d'environnement Docker)
     const port = configService.get<number>('PORT') || 9000;
     
-    // 🚀 MISE EN ÉCOUTE
+    // 🚀 MISE EN ÉCOUTE : Écoute sur toutes les interfaces pour Docker
     await app.listen(port, '0.0.0.0');
     
     logger.log(`--------------------------------------------------------`);
     logger.log(`🚀 QUALISOFT ELITE BACKEND : OPÉRATIONNEL (2026)`);
     logger.log(`📡 API BASE URL            : http://0.0.0.0:${port}/api`);
-    logger.log(`🌐 CORS MULTI-TENANT       : FULL ACCESS (Headers OK)`);
+    logger.log(`🌐 CORS MULTI-TENANT       : FULL ACCESS (*.qualisoft.sn)`);
     logger.log(`🛰️ INFRASTRUCTURE          : DOCKER SOUVERAIN`);
     logger.log(`--------------------------------------------------------`);
 
