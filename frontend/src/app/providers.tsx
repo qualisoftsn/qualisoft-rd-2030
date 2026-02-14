@@ -1,8 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SessionProvider } from 'next-auth/react'; // 👈 C'EST LUI QUI MANQUAIT !
-import { Toaster } from 'react-hot-toast';
+import { SessionProvider } from 'next-auth/react'; 
 import { ReactNode, useState } from 'react';
 
 export default function Providers({ children }: { children: ReactNode }) {
@@ -17,11 +16,11 @@ export default function Providers({ children }: { children: ReactNode }) {
   }));
 
   return (
-    // 🛡️ IMPORTANTE : SessionProvider doit englober tout le reste
+    // 🛡️ SESSION PROVIDER : L'enveloppe vitale pour l'identité SDE
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         {children}
-        <Toaster position="top-right" />
+        {/* Note : Le Toaster est déjà géré dans layout.tsx, inutile de le remettre ici */}
       </QueryClientProvider>
     </SessionProvider>
   );
