@@ -3,27 +3,31 @@ import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 export class CreateTenantDto {
   @IsString()
   @IsNotEmpty()
-  T_Name: string;
+  T_Name!: string; // 👈 Le ! calme TypeScript
 
   @IsEmail()
   @IsNotEmpty()
-  T_Email: string;
+  T_Email!: string;
 
   @IsString()
   @IsNotEmpty()
-  T_CeoName: string;
+  T_CeoName!: string;
 
   @IsString()
   @IsNotEmpty()
-  T_Address: string;
+  T_Address!: string;
 
   @IsString()
   @IsNotEmpty()
-  T_Phone: string;
+  T_Phone!: string;
+
+  // Optionnel : On laisse le ? et on ajoute IsOptional
+  @IsOptional()
+  @IsString()
+  T_Domain?: string;
 
   @IsOptional()
   @IsString()
-  // Le ? dit à TypeScript : "T'inquiète, ça peut être vide, le service gère"
   T_SubscriptionStatus?: string; 
 
   @IsOptional()

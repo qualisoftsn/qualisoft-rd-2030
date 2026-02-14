@@ -68,17 +68,22 @@ export class TenantsService {
     };
   }
 
-  // 🏗️ CRÉATION
+  // 🏗️ CRÉATION (CORRIGÉE : GÉNÉRATION DU DOMAINE)
   async create(dto: CreateTenantDto) {
     this.logger.log(`🏗️ Création de l'instance organisationnelle : ${dto.T_Name}`);
     
-    // On extrait les valeurs avec 'as any' pour contourner la vérification stricte
+    // 1. Calcul des valeurs forcées (Status/Plan)
     const forcedStatus = (dto as any).T_SubscriptionStatus || SubscriptionStatus.ACTIVE;
     const forcedPlan = (dto as any).T_Plan || Plan.ENTREPRISE;
+
+    // 2. 🚀 CRUCIAL : Génération du domaine si manquant (ex: "Quali Soft" -> "quali-soft")
+    // Prisma refuse la création si T_Domain est manquant.
+    const generatedDomain = dto.T_Domain || dto.T_Name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     return this.prisma.tenant.create({
       data: { 
         ...dto, 
+        T_Domain: generatedDomain, // ✅ On injecte le domaine manquant
         T_IsActive: true,
         T_SubscriptionStatus: forcedStatus as SubscriptionStatus,
         T_Plan: forcedPlan as Plan
@@ -99,14 +104,13 @@ export class TenantsService {
     });
   }
 
-  // 📝 MISE À JOUR (CORRIGÉE POUR LE BUILD)
+  // 📝 MISE À JOUR
   async update(id: string, dto: UpdateTenantDto) {
     const tenant = await this.prisma.tenant.findUnique({ where: { T_Id: id } });
     if (!tenant) throw new NotFoundException('Instance inexistante');
 
     return this.prisma.tenant.update({
       where: { T_Id: id },
-      // 🛠️ CORRECTION : 'as any' ici résout l'erreur TS2322 (String vs Enum)
       data: dto as any 
     });
   }
