@@ -1,15 +1,23 @@
+/**
+ * CHEMIN : /backend/src/admin-matrix/admin-matrix.controller.ts
+ * RÔLE : Contrôleur Souverain pour la gestion des Tenants (Matrix).
+ */
 import { 
   Controller, Get, Post, Param, Body, UseGuards, 
   HttpStatus, HttpCode, Logger 
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { MasterGuard } from '../auth/guards/master.guard';
+// Assure-toi que ce Guard existe et fonctionne, sinon utilise RolesGuard
+import { RolesGuard } from '../auth/guards/roles.guard'; 
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 import { AdminService } from './admin.service'; 
 import { ProvisioningService } from './provisioning.service';
 import { ProvisioningDto } from './dto/provisioning.dto';
 
 @Controller('admin/matrix')
-@UseGuards(JwtAuthGuard, MasterGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.SUPER_ADMIN, Role.ADMIN) // Sécurité renforcée
 export class AdminMatrixController {
   private readonly logger = new Logger(AdminMatrixController.name);
 
@@ -19,26 +27,19 @@ export class AdminMatrixController {
   ) {}
 
   /**
-   * 🛰️ ROUTE RACINE (Correction 404)
-   * Répond à GET /admin/matrix
+   * 🛰️ ROUTE RACINE : LISTE DES TENANTS
+   * GET /api/admin/matrix
    */
   @Get()
   @HttpCode(HttpStatus.OK)
   async getMatrixRoot() {
+    this.logger.log("🔍 [MATRIX] Lecture du registre global");
     return await this.adminService.findAllTenants();
   }
 
   /**
-   * Récupération du registre typé (Alias tenants)
-   */
-  @Get('tenants')
-  @HttpCode(HttpStatus.OK)
-  async getMatrixTenants() {
-    return await this.adminService.findAllTenants();
-  }
-
-  /**
-   * Détails d'un nœud spécifique
+   * DÉTAILS D'UN NŒUD SPÉCIFIQUE
+   * GET /api/admin/matrix/details/:tenantId
    */
   @Get('details/:tenantId')
   @HttpCode(HttpStatus.OK)
@@ -47,7 +48,8 @@ export class AdminMatrixController {
   }
 
   /**
-   * Enrôlement d'un nouveau collaborateur dans un nœud
+   * ENRÔLEMENT D'UN NOUVEAU COLLABORATEUR
+   * POST /api/admin/matrix/tenants/:tenantId/users
    */
   @Post('tenants/:tenantId/users')
   @HttpCode(HttpStatus.CREATED)
@@ -65,7 +67,8 @@ export class AdminMatrixController {
   }
 
   /**
-   * Protocole d'incarnation (Prise de contrôle souveraine)
+   * PROTOCOLE D'INCARNATION (IMPERSONATION)
+   * POST /api/admin/matrix/impersonate/:tenantId
    */
   @Post('impersonate/:tenantId')
   @HttpCode(HttpStatus.OK)
@@ -74,11 +77,13 @@ export class AdminMatrixController {
   }
 
   /**
-   * Initialisation d'un nouveau nœud (Provisioning)
+   * INITIALISATION D'UN NOUVEAU NŒUD (DEPLOY)
+   * POST /api/admin/matrix/initialize
    */
   @Post('initialize')
   @HttpCode(HttpStatus.CREATED)
   async initialize(@Body() payload: ProvisioningDto) {
+    this.logger.log(`🚀 [MATRIX] Initialisation nœud : ${payload.companyName}`);
     return await this.provisioningService.initializeNewClient(payload);
   }
 }

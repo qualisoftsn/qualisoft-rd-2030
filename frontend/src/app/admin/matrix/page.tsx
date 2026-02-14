@@ -20,13 +20,16 @@ export default function MatrixRegistry() {
       try {
         setLoading(true);
         const data = await matrixApi.getTenants();
+        // Sécurité : On s'assure que data est un tableau
         setTenants(Array.isArray(data) ? data : []);
       } catch (err: any) {
-        const errorMsg = err.response?.status === 404 
-          ? "Route Master introuvable (404)." 
-          : "Échec de connexion au registre Master.";
-        toast.error(errorMsg);
         console.error("Matrix Sync Error:", err);
+        const status = err.response?.status;
+        if (status === 403 || status === 401) {
+             toast.error("Accès refusé : Droits Master requis.");
+        } else {
+             toast.error("Connexion au registre impossible.");
+        }
       } finally {
         setLoading(false);
       }
@@ -36,15 +39,15 @@ export default function MatrixRegistry() {
 
   const filteredTenants = useMemo(() => {
     return tenants.filter((tenant) => 
-      tenant.T_Name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      tenant.T_Domain?.toLowerCase().includes(searchTerm.toLowerCase())
+      (tenant.T_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (tenant.T_Domain || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [tenants, searchTerm]);
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 italic">
       <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Scan du Registre Principal...</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Chargement du Registre...</p>
     </div>
   );
 
@@ -88,10 +91,10 @@ export default function MatrixRegistry() {
             <thead>
               <tr className="bg-slate-50/50 text-slate-400 font-black uppercase text-[10px] tracking-widest border-b border-slate-50">
                 <th className="px-10 py-6">Organisation</th>
-                <th className="px-10 py-6 text-center">Niveau de Plan</th>
-                <th className="px-10 py-6 text-center">Collaborateurs</th>
-                <th className="px-10 py-6 text-center">Intégrité</th>
-                <th className="px-10 py-6 text-right">Cockpit</th>
+                <th className="px-10 py-6 text-center">Plan</th>
+                <th className="px-10 py-6 text-center">Utilisateurs</th>
+                <th className="px-10 py-6 text-center">État</th>
+                <th className="px-10 py-6 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -124,7 +127,7 @@ export default function MatrixRegistry() {
 
                   <td className="px-10 py-8 text-center">
                     <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${tenant.T_IsActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                      <Activity size={10} /> {tenant.T_IsActive ? 'SÉCURISÉ' : 'HORS-LIGNE'}
+                      <Activity size={10} /> {tenant.T_IsActive ? 'ACTIF' : 'SUSPENDU'}
                     </div>
                   </td>
 
@@ -144,7 +147,7 @@ export default function MatrixRegistry() {
           {filteredTenants.length === 0 && (
             <div className="p-20 text-center">
               <ShieldCheck size={48} className="mx-auto text-slate-200 mb-4" />
-              <p className="font-black uppercase text-xs text-slate-400 tracking-widest italic">Aucun nœud identifié dans ce secteur du registre.</p>
+              <p className="font-black uppercase text-xs text-slate-400 tracking-widest italic">Aucune organisation trouvée.</p>
             </div>
           )}
         </div>

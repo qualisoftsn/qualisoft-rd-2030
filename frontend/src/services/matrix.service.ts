@@ -2,12 +2,12 @@
 /**
  * CHEMIN ABSOLU : /frontend/src/services/matrix.service.ts
  * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Interface de communication souveraine avec le Noyau Master et les sous-domaines.
+ * RÔLE : Interface unique de communication API pour la Matrix.
  */
 
 import apiClient from "@/core/api/api-client";
 
-// --- 💎 TYPES SCELLÉS ---
+// --- TYPES ---
 export type TenantPlan = "ESSAI" | "EMERGENCE" | "CROISSANCE" | "ENTREPRISE" | "GROUPE";
 export type MatrixRole = "SUPER_ADMIN" | "ADMIN" | "USER" | "PILOTE" | "COPILOTE" | "RQ" | "DIRECTION" | "HSE" | "SAFETY_OFFICER" | "AUDITEUR" | "OBSERVATEUR";
 
@@ -57,69 +57,56 @@ export interface PublicUser {
   U_LastName: string | null; 
 }
 
-// --- 🛰️ CORE API MATRIX ---
+// --- API CLIENT ---
 export const matrixApi = {
   
-  /**
-   * 📋 RÉCUPÉRATION DU REGISTRE COMPLET (ADMIN MASTER)
-   */
+  // --- PARTIE ADMIN (Nécessite Token Master) ---
+
+  /** Récupère la liste complète des tenants */
   getTenants: async (): Promise<TenantDetails[]> => {
     const res = await apiClient.get<TenantDetails[]>('/admin/matrix');
     return res.data;
   },
 
-  /**
-   * 🔍 RÉCUPÉRATION DES DÉTAILS D'UN NŒUD (ADMIN MASTER)
-   */
+  /** Récupère les détails profonds d'un tenant */
   getDetails: async (id: string): Promise<TenantDetails> => {
     const res = await apiClient.get<TenantDetails>(`/admin/matrix/details/${id}`);
     return res.data;
   },
 
-  /**
-   * 🏗️ INITIALISATION D'UN NOUVEAU NŒUD (ADMIN MASTER)
-   */
+  /** Initialise un nouveau tenant */
   initialize: async (data: ProvisioningPayload): Promise<{ success: boolean; tenantId: string; message: string }> => {
     const res = await apiClient.post('/admin/matrix/initialize', data);
     return res.data;
   },
 
-  /**
-   * 🎭 PROTOCOLE D'INCARNATION (SUPER-ADMIN)
-   */
+  /** Génère un token d'impersonation */
   impersonate: async (tenantId: string): Promise<{ token: string; user: any }> => {
     const res = await apiClient.post(`/admin/matrix/impersonate/${tenantId}`);
     return res.data;
   },
 
-  /**
-   * 🖋️ ENRÔLEMENT D'UN COLLABORATEUR (ADMIN MASTER)
-   * ✅ RÉTABLI : Correction de l'erreur de build sur matrix/[id]/page.tsx
-   */
+  /** Crée un utilisateur dans un tenant spécifique */
   createUser: async (tenantId: string, userData: any): Promise<UserMatrixEntry> => {
     const res = await apiClient.post<UserMatrixEntry>(`/admin/matrix/tenants/${tenantId}/users`, userData);
     return res.data;
   },
 
-  /**
-   * 🔓 [PUBLIC] RÉCUPÉRATION DES ORGANISATIONS ACTIVES
-   */
+  // --- PARTIE PUBLIQUE (Login / Auth) ---
+
+  /** Récupère la liste publique des tenants (pour select) */
   getPublicTenants: async (): Promise<PublicTenant[]> => {
     const res = await apiClient.get<PublicTenant[]>('/auth/public/tenants');
     return res.data;
   },
 
-  /**
-   * 🛰️ [PUBLIC] IDENTIFICATION PAR DOMAINE
-   */
+  /** Identifie un tenant par son domaine (ex: sde) */
   getTenantByDomain: async (domain: string): Promise<PublicTenant> => {
     const res = await apiClient.get<PublicTenant>(`/auth/domain/${domain}`);
     return res.data;
   },
 
-  /**
-   * 🔓 [PUBLIC] RÉCUPÉRATION DES UTILISATEURS D'UN TENANT
-   */
+  /** Récupère les utilisateurs publics d'un tenant (optionnel) */
   getPublicTenantUsers: async (tenantId: string): Promise<PublicUser[]> => {
     const res = await apiClient.get<PublicUser[]>(`/auth/public/tenants/${tenantId}/users`);
     return res.data;
