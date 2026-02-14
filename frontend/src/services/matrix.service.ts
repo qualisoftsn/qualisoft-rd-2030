@@ -2,7 +2,7 @@
 /**
  * CHEMIN ABSOLU : /frontend/src/services/matrix.service.ts
  * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Interface de communication souveraine avec le Noyau Master.
+ * RÔLE : Interface de communication souveraine avec le Noyau Master et les sous-domaines.
  */
 
 import apiClient from "@/core/api/api-client";
@@ -61,16 +61,17 @@ export interface PublicUser {
 export const matrixApi = {
   
   /**
-   * 📋 RÉCUPÉRATION DU REGISTRE COMPLET (ADMIN)
-   * Accès restreint au Master Node.
+   * 📋 RÉCUPÉRATION DU REGISTRE COMPLET (ADMIN MASTER)
+   * Utilisé par le Master Node pour lister toutes les organisations.
    */
   getTenants: async (): Promise<TenantDetails[]> => {
+    // Aligné sur le contrôleur admin/matrix
     const res = await apiClient.get<TenantDetails[]>('/admin/matrix');
     return res.data;
   },
 
   /**
-   * 🔍 RÉCUPÉRATION DES DÉTAILS D'UN NŒUD (ADMIN)
+   * 🔍 RÉCUPÉRATION DES DÉTAILS D'UN NŒUD (ADMIN MASTER)
    */
   getDetails: async (id: string): Promise<TenantDetails> => {
     const res = await apiClient.get<TenantDetails>(`/admin/matrix/details/${id}`);
@@ -78,8 +79,7 @@ export const matrixApi = {
   },
 
   /**
-   * 🏗️ INITIALISATION D'UN NOUVEAU NŒUD (SCELLAGE)
-   * Création d'un nouveau Tenant et de son Admin Racine.
+   * 🏗️ INITIALISATION D'UN NOUVEAU NŒUD (ADMIN MASTER)
    */
   initialize: async (data: ProvisioningPayload): Promise<{ success: boolean; tenantId: string; message: string }> => {
     const res = await apiClient.post('/admin/matrix/initialize', data);
@@ -95,28 +95,21 @@ export const matrixApi = {
   },
 
   /**
-   * 🖋️ ENRÔLEMENT D'UN COLLABORATEUR (ADMIN)
-   */
-  createUser: async (tenantId: string, userData: any): Promise<UserMatrixEntry> => {
-    const res = await apiClient.post<UserMatrixEntry>(`/admin/matrix/tenants/${tenantId}/users`, userData);
-    return res.data;
-  },
-
-  /**
    * 🔓 [PUBLIC] RÉCUPÉRATION DES ORGANISATIONS ACTIVES
-   * Utilisé pour alimenter le portail de connexion.
+   * Utilisé pour la liste déroulante sur le portail de connexion.
    */
   getPublicTenants: async (): Promise<PublicTenant[]> => {
+    // Route alignée : /api/auth/public/tenants
     const res = await apiClient.get<PublicTenant[]>('/auth/public/tenants');
     return res.data;
   },
 
   /**
    * 🛰️ [PUBLIC] IDENTIFICATION PAR DOMAINE
-   * Crucial pour la fidélisation (ex: sde.qualisoft.sn).
-   * C'est cette méthode qui corrige ton erreur TS.
+   * Crucial pour sde.qualisoft.sn
    */
   getTenantByDomain: async (domain: string): Promise<PublicTenant> => {
+    // Route alignée : /api/auth/domain/:domain
     const res = await apiClient.get<PublicTenant>(`/auth/domain/${domain}`);
     return res.data;
   },
@@ -125,6 +118,7 @@ export const matrixApi = {
    * 🔓 [PUBLIC] RÉCUPÉRATION DES UTILISATEURS D'UN TENANT
    */
   getPublicTenantUsers: async (tenantId: string): Promise<PublicUser[]> => {
+    // Route alignée : /api/auth/public/tenants/:id/users
     const res = await apiClient.get<PublicUser[]>(`/auth/public/tenants/${tenantId}/users`);
     return res.data;
   }
