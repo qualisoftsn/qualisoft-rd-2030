@@ -2,6 +2,7 @@
  * CHEMIN ABSOLU : /backend/src/admin-matrix/provisioning.service.ts
  * PROJET : Qualisoft Elite RD 2030
  * RÔLE : Moteur de déploiement atomique et gestion souveraine des nœuds.
+ * VERSION : 2.0.2 (Scellage Production Direct)
  */
 
 import {
@@ -43,18 +44,20 @@ export class ProvisioningService {
    * Crée l'entité (Tenant), le siège (Site) et l'autorité (Admin) en une seule transaction.
    */
   async initializeNewClient(data: ProvisioningDto) {
+    // 1. Normalisation du domaine (ex: "SDE Senegal" -> "sde-senegal")
     const domainNormalized = data.companyName
       .toLowerCase()
       .trim()
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '');
 
-    // Hachage du mot de passe maître interne
+    // 2. Hachage du mot de passe maître interne
     const hashedPassword = await bcrypt.hash(this.MASTER_DEFAULT_PASSWORD, 10);
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // 1. Vérification de l'unicité du domaine technique
+        
+        // --- ÉTAPE A : VÉRIFICATION D'UNICITÉ ---
         const existing = await tx.tenant.findUnique({
           where: { T_Domain: domainNormalized },
         });
@@ -63,8 +66,7 @@ export class ProvisioningService {
           throw new ConflictException(`Le domaine technique ${domainNormalized} est déjà scellé.`);
         }
 
-        // 2. Création du Tenant (Nœud Matrix)
-        // 🚀 CORRECTION : Passage direct en mode PRODUCTION / ACTIF
+        // --- ÉTAPE B : CRÉATION DU TENANT (PLAN ENTREPRISE + ACTIVE) ---
         const tenant = await tx.tenant.create({
           data: {
             T_Name: data.companyName,
@@ -73,15 +75,14 @@ export class ProvisioningService {
             T_CeoName: data.ceoName,
             T_Phone: data.phone,
             T_Address: data.address,
-            // On attribue le plan ENTREPRISE par défaut pour débloquer toutes les fonctionnalités
+            // 🚀 SOUVERAINETÉ : On force le plan maximum et le statut actif immédiatement
             T_Plan: Plan.ENTREPRISE, 
-            // On active immédiatement la souscription
             T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
             T_IsActive: true,
           },
         });
 
-        // 3. Création du Site de Commandement (Siège Social)
+        // --- ÉTAPE C : CRÉATION DU SITE DE COMMANDEMENT (SIÈGE) ---
         const site = await tx.site.create({
           data: {
             S_Name: `SIÈGE - ${tenant.T_Name.toUpperCase()}`,
@@ -91,7 +92,7 @@ export class ProvisioningService {
           },
         });
 
-        // 4. Enrôlement de l'Administrateur Racine
+        // --- ÉTAPE D : ENRÔLEMENT DE L'ADMINISTRATEUR RACINE ---
         await tx.user.create({
           data: {
             U_Email: data.email.toLowerCase().trim(),
@@ -106,6 +107,7 @@ export class ProvisioningService {
           },
         });
 
+        this.logger.log(`✅ NŒUD SCELLÉ : ${tenant.T_Name} (${domainNormalized})`);
         return { success: true, tenantId: tenant.T_Id };
       });
     } catch (error) {
@@ -140,6 +142,7 @@ export class ProvisioningService {
 
   /**
    * 🎭 PROTOCOLE D'IMPERSONATION (PRISE DE CONTRÔLE ADMIN)
+   * Permet à l'Admin Master de pénétrer un nœud client sans mot de passe.
    */
   async generateImpersonationToken(tenantId: string): Promise<ImpersonationResult> {
     const tenant = await this.prisma.tenant.findUnique({
