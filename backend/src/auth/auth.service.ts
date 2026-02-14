@@ -201,8 +201,9 @@ export class AuthService {
             T_CeoName: dto.ceoName,
             T_Address: dto.address,
             T_Phone: dto.phone,
-            T_Plan: Plan.ESSAI,
-            T_SubscriptionStatus: SubscriptionStatus.TRIAL,
+            // 🚀 CORRECTION : Passage direct en mode PRODUCTION
+            T_Plan: Plan.ENTREPRISE,
+            T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
             T_IsActive: true,
           }
         });
@@ -233,7 +234,7 @@ export class AuthService {
       return { 
         success: true, 
         tenantId: result.tenantId, 
-        message: `Nœud Matrix [${dto.companyName}] scellé avec succès.` 
+        message: `Nœud Matrix [${dto.companyName}] scellé avec succès en mode ACTIVE.` 
       };
     } catch (transactionError: any) {
       this.logger.error("❌ ÉCHEC TRANSACTION PROVISIONING", transactionError);

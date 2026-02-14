@@ -64,6 +64,7 @@ export class ProvisioningService {
         }
 
         // 2. Création du Tenant (Nœud Matrix)
+        // 🚀 CORRECTION : Passage direct en mode PRODUCTION / ACTIF
         const tenant = await tx.tenant.create({
           data: {
             T_Name: data.companyName,
@@ -72,8 +73,10 @@ export class ProvisioningService {
             T_CeoName: data.ceoName,
             T_Phone: data.phone,
             T_Address: data.address,
-            T_Plan: Plan.ESSAI,
-            T_SubscriptionStatus: SubscriptionStatus.TRIAL,
+            // On attribue le plan ENTREPRISE par défaut pour débloquer toutes les fonctionnalités
+            T_Plan: Plan.ENTREPRISE, 
+            // On active immédiatement la souscription
+            T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
             T_IsActive: true,
           },
         });

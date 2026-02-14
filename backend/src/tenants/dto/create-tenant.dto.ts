@@ -19,4 +19,6 @@ export class CreateTenantDto {
 
   @IsOptional() @IsInt()
   T_ContractDuration?: number;
+  T_SubscriptionStatus: string;
+  T_Plan: string;
 }
