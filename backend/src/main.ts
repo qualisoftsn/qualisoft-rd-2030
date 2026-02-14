@@ -61,33 +61,40 @@ async function bootstrap() {
 
     // 🌐 CONFIGURATION CORS : CORRIGÉE POUR LE WORKFLOW SOUS-DOMAINE (SDE, MASTER, ETC.)
     app.enableCors({
-      origin: (origin, callback) => {
-        // Autorise Localhost, le domaine maître et tous les sous-domaines dynamiques
-        const allowedOriginPatterns = [
-          /^http:\/\/localhost:\d+$/,
-          /^https:\/\/qualisoft\.sn$/,
-          /^https:\/\/.*\.qualisoft\.sn$/ 
-        ];
-
-        if (!origin || allowedOriginPatterns.some(pattern => pattern.test(origin))) {
-          callback(null, true);
-        } else {
-          logger.warn(`🚫 CORS Bloqué pour l'origine : ${origin}`);
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      credentials: true, // Crucial pour autoriser l'envoi des cookies de session
-      allowedHeaders: [
-        'Content-Type', 
-        'Accept', 
-        'Authorization', 
-        'x-tenant-id',     // Identifiant par ID (UUID)
-        'X-Tenant-ID',
-        'x-tenant-domain', // Identifiant par sous-domaine (ex: sde)
-        'X-Tenant-Domain'
-      ],
+      origin: true, // 👈 Autorise TOUT temporairement pour débloquer
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'x-tenant-domain'],
     });
+
+
+    // app.enableCors({
+    //   origin: (origin, callback) => {
+    //     // Autorise Localhost, le domaine maître et tous les sous-domaines dynamiques
+    //     const allowedOriginPatterns = [
+    //       /^http:\/\/localhost:\d+$/,
+    //       /^https:\/\/qualisoft\.sn$/,
+    //       /^https:\/\/.*\.qualisoft\.sn$/ 
+    //     ];
+
+    //     if (!origin || allowedOriginPatterns.some(pattern => pattern.test(origin))) {
+    //       callback(null, true);
+    //     } else {
+    //       logger.warn(`🚫 CORS Bloqué pour l'origine : ${origin}`);
+    //       callback(new Error('Not allowed by CORS'));
+    //     }
+    //   },
+    //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    //   credentials: true, // Crucial pour autoriser l'envoi des cookies de session
+    //   allowedHeaders: [
+    //     'Content-Type', 
+    //     'Accept', 
+    //     'Authorization', 
+    //     'x-tenant-id',     // Identifiant par ID (UUID)
+    //     'X-Tenant-ID',
+    //     'x-tenant-domain', // Identifiant par sous-domaine (ex: sde)
+    //     'X-Tenant-Domain'
+    //   ],
+    // });
 
     // 🔌 DÉTERMINATION DU PORT (Priorité aux variables d'environnement Docker)
     const port = configService.get<number>('PORT') || 9000;

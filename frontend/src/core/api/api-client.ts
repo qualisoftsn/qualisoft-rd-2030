@@ -10,11 +10,8 @@ import { useAuthStore } from '../../store/authStore';
 
 const isServer = typeof window === 'undefined';
 
-const apiClient: AxiosInstance = axios.create({
-  // Utilisation de l'URL interne dans Docker pour le SSR, et l'URL publique pour le client
-  baseURL: isServer 
-    ? 'http://backend:9000/api' 
-    : (process.env.NEXT_PUBLIC_API_URL || 'https://api.qualisoft.sn/api'),
+const apiClient = axios.create({
+  baseURL: "https://api.qualisoft.sn/api", // 👈 FORCE L'URL ICI
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
