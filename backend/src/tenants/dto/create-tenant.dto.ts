@@ -1,24 +1,35 @@
-import { IsEmail, IsString, IsNotEmpty, IsOptional, IsBoolean, IsInt } from 'class-validator';
-import { Plan, SubscriptionStatus } from '@prisma/client';
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateTenantDto {
-  @IsString() @IsNotEmpty()
-  T_Name!: string;
+  @IsString()
+  @IsNotEmpty()
+  T_Name: string;
 
   @IsEmail()
-  T_Email!: string;
+  @IsNotEmpty()
+  T_Email: string;
 
-  @IsString() @IsNotEmpty()
-  T_Domain!: string;
+  @IsString()
+  @IsNotEmpty()
+  T_CeoName: string;
 
-  @IsOptional() @IsString()
-  T_Address?: string;
+  @IsString()
+  @IsNotEmpty()
+  T_Address: string;
 
-  @IsOptional() @IsString()
-  T_Phone?: string;
+  @IsString()
+  @IsNotEmpty()
+  T_Phone: string;
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsString()
+  // Le ? dit à TypeScript : "T'inquiète, ça peut être vide, le service gère"
+  T_SubscriptionStatus?: string; 
+
+  @IsOptional()
+  @IsString()
+  T_Plan?: string;
+
+  @IsOptional()
   T_ContractDuration?: number;
-  T_SubscriptionStatus: string;
-  T_Plan: string;
 }
