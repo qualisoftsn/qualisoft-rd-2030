@@ -3,7 +3,7 @@ import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 export class CreateTenantDto {
   @IsString()
   @IsNotEmpty()
-  T_Name!: string; // 👈 Le ! est la clé qui calme TypeScript
+  T_Name!: string;
 
   @IsEmail()
   @IsNotEmpty()
@@ -23,7 +23,7 @@ export class CreateTenantDto {
 
   @IsOptional()
   @IsString()
-  T_Domain?: string; // Optionnel car généré automatiquement si absent
+  T_Domain?: string;
 
   @IsOptional()
   @IsString()
