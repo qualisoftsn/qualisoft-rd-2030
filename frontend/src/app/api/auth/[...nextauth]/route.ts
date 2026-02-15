@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import NextAuth, { NextAuthOptions, User, Session } from "next-auth";
 import { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-/**
- * 🛰️ EXTENSION DES TYPES LOCALE
- * Rôle : Assurer que TypeScript valide tous les champs Qualisoft Elite RD 2030.
- */
+// ---------------------------------------------------------
+// 1. DÉFINITION LOCALE DES TYPES (Pour éviter les conflits globaux)
+// ---------------------------------------------------------
 interface QualisoftUser extends User {
   U_Id: string;
   U_Email: string;
@@ -14,18 +14,16 @@ interface QualisoftUser extends User {
   U_FirstName: string | null;
   U_LastName: string | null;
   tenantId: string;
-  U_TenantName: string; // ✅ Rétabli pour le Dashboard
-  assignedProcessId?: string | null; // ✅ Rétabli pour le pilotage
+  U_TenantName: string;
+  assignedProcessId?: string | null;
   accessToken: string;
 }
 
-// 🍪 LOGIQUE SOUVERAINE DES COOKIES
-// En production, on partage le cookie sur tout le domaine (*.qualisoft.sn)
-// En local, on reste sur localhost pour éviter les conflits.
-const useSecureCookies = process.env.NODE_ENV === 'production';
-const cookiePrefix = useSecureCookies ? '__Secure-' : '';
-const hostPrefix = useSecureCookies ? '__Host-' : '';
-const cookieDomain = useSecureCookies ? '.qualisoft.sn' : undefined; // 👈 LA CLÉ DU MULTI-TENANT
+// ---------------------------------------------------------
+// 2. CONFIGURATION
+// ---------------------------------------------------------
+const isProduction = process.env.NODE_ENV === "production";
+const rootDomain = "qualisoft.sn"; 
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -34,16 +32,18 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
-        tenantId: { label: "Tenant ID", type: "text" }, // ✅ Ajouté pour le contexte
+        tenantId: { label: "Tenant ID", type: "text" },
         impersonationToken: { label: "Token", type: "text" },
         impersonatedUser: { label: "UserJson", type: "text" }
       },
-      async authorize(credentials): Promise<QualisoftUser | null> {
+      // CORRECTION LIGNE 71 : On gère le type credentials explicitement
+      async authorize(credentials: Record<string, string> | undefined) {
         
-        // ---------------------------------------------------------
-        // 🕵️ CAS 1 : INCARNATION (Passage Souverain)
-        // ---------------------------------------------------------
-        if (credentials?.impersonationToken && credentials?.impersonatedUser) {
+        // Sécurité : Si pas de credentials, on refuse
+        if (!credentials) return null;
+
+        // A. CAS INCARNATION (Impersonation)
+        if (credentials.impersonationToken && credentials.impersonatedUser) {
           try {
             const user = JSON.parse(credentials.impersonatedUser);
             return {
@@ -66,27 +66,22 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
-        // ---------------------------------------------------------
-        // 🔐 CAS 2 : LOGIN CLASSIQUE (Aligné sur le Backend)
-        // ---------------------------------------------------------
-        if (!credentials?.email || !credentials?.password) return null;
+        // B. CAS LOGIN CLASSIQUE
+        if (!credentials.email || !credentials.password) return null;
 
         try {
-          const backendUrl = process.env.INTERNAL_API_URL || "http://backend:9000/api";
+          // Communication Interne Docker
+          const backendUrl = "http://backend:9000/api";
           const targetTenantId = credentials.tenantId || "MATRIX";
 
-          // 📡 Appel au Backend (NestJS)
           const res = await fetch(`${backendUrl}/auth/login`, {
             method: "POST",
             body: JSON.stringify({
               email: credentials.email.toLowerCase().trim(),
               password: credentials.password,
-              // Le backend n'a pas forcément besoin du tenantId dans le body s'il est dans le header
-              // mais on peut l'envoyer pour être sûr.
             }),
             headers: { 
               "Content-Type": "application/json",
-              // 🔑 C'EST ICI QUE LE BACKEND SAIT QUELLE BASE INTERROGER :
               "x-tenant-id": targetTenantId 
             },
           });
@@ -94,11 +89,9 @@ export const authOptions: NextAuthOptions = {
           const data = await res.json();
 
           if (res.ok && data) {
-            // Adaptation selon la réponse de ton backend (LoginResponse)
-            // Parfois la réponse est direct { access_token, user: {...} }
-            const userData = data.user || data; 
-
-            // ✅ MAPPAGE INTÉGRAL SANS PERTE DE DONNÉES
+            const userData = data.user || data;
+            
+            // Retour objet typé
             return {
               id: userData.U_Id,
               U_Id: userData.U_Id,
@@ -115,33 +108,42 @@ export const authOptions: NextAuthOptions = {
             } as QualisoftUser;
           }
           
-          console.error(`[AUTH ECHEC] Backend a répondu: ${res.status}`, data);
           return null;
-        } catch (error: unknown) {
-          console.error(`[CRITIQUE] Rupture de pont Matrix:`, error);
+        } catch (error) {
+          console.error(`[AUTH] Erreur connexion Backend:`, error);
           return null;
         }
       },
     }),
   ],
-  
-  // 🍪 CONFIGURATION DES COOKIES PARTAGÉS
-  // Indispensable pour que SDE.QUALISOFT.SN lise la session créée
+
+  // 🍪 COOKIES SÉCURISÉS (Correction Session Blink)
   cookies: {
     sessionToken: {
-      name: `${useSecureCookies ? '__Secure-' : ''}next-auth.session-token`,
+      name: `${isProduction ? '__Secure-' : ''}next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: useSecureCookies,
-        domain: cookieDomain // 🔥 C'est ça qui débloque le multi-tenant
+        secure: isProduction,
+        // Force le cookie sur .qualisoft.sn pour qu'il soit vu par les sous-domaines
+        domain: isProduction ? '.' + rootDomain : undefined 
+      }
+    },
+    callbackUrl: {
+      name: `${isProduction ? '__Secure-' : ''}next-auth.callback-url`,
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure: isProduction,
+        domain: isProduction ? '.' + rootDomain : undefined
       }
     }
   },
 
   callbacks: {
-    async jwt({ token, user }): Promise<JWT> {
+    // 1. JWT : On force le typage (as any) pour éviter les erreurs "Property does not exist"
+    async jwt({ token, user }) {
       if (user) {
         const u = user as QualisoftUser;
         token.accessToken = u.accessToken;
@@ -156,41 +158,41 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    async session({ session, token }): Promise<Session> {
-      // ✅ SCELLAGE SANS 'ANY'
-      const extendedSession = session as Session & { 
-        accessToken: string; 
-        user: QualisoftUser 
-      };
+    // 2. SESSION : On passe les infos au Frontend
+    async session({ session, token }) {
+      // On utilise "as any" pour dire à TypeScript de nous faire confiance
+      const extendedSession = session as any;
       
       if (token) {
-        extendedSession.accessToken = token.accessToken as string;
+        extendedSession.accessToken = token.accessToken;
         extendedSession.user = {
           ...session.user,
-          U_Id: token.U_Id as string,
-          U_Role: token.U_Role as string,
-          tenantId: token.tenantId as string,
-          U_TenantName: token.U_TenantName as string,
-          U_FirstName: token.U_FirstName as string,
-          U_LastName: token.U_LastName as string,
-          assignedProcessId: token.assignedProcessId as string | null,
-          accessToken: token.accessToken as string
-        } as QualisoftUser;
+          U_Id: token.U_Id,
+          U_Email: token.email,
+          U_Role: token.U_Role,
+          tenantId: token.tenantId,
+          U_TenantName: token.U_TenantName,
+          U_FirstName: token.U_FirstName,
+          U_LastName: token.U_LastName,
+          assignedProcessId: token.assignedProcessId,
+        };
       }
-      
       return extendedSession;
     },
   },
+  
   pages: {
     signIn: "/auth/login",
     error: "/auth/error",
   },
+  
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 heures
+    maxAge: 24 * 60 * 60,
   },
+  
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development', // Aide au debug en dev
+  debug: process.env.NODE_ENV === 'development',
 };
 
 const handler = NextAuth(authOptions);
