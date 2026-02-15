@@ -1,7 +1,7 @@
 import "./globals.css";
 import React from "react";
 // 👇 Ces imports vont marcher maintenant car les fichiers existent
-import AuthProvider from "@/providers/AuthProvider"; 
+import AuthProvider from "@/components/providers/AuthProvider"; 
 import AuthSync from "@/components/auth/AuthSync";   
 import { Toaster } from "sonner";
 
