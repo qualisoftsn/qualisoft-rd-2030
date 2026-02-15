@@ -4,80 +4,67 @@ import { NextResponse } from "next/server";
 
 export default withAuth(
   function middleware(req) {
-    // Récupération du token enrichi (grâce aux types NextAuth augmentés)
+    // On récupère le token décodé
     const token = req.nextauth.token;
     const { pathname } = req.nextUrl;
-    
-    // 1. DÉTECTION DU SOUS-DOMAINE ACTUEL
-    // On gère le cas localhost pour le dev, et les domaines réels pour la prod
-    const hostname = req.headers.get('host') || '';
-    let subdomain = 'app'; // Valeur par défaut
-    
-    if (hostname.includes('localhost')) {
-       // En local, on ne peut pas vraiment tester les sous-domaines facilement sans config hosts
-       // On simule 'app' ou on prend ce qui vient
-       subdomain = 'app';
-    } else {
-       const parts = hostname.split('.');
-       if (parts.length > 2) {
-         subdomain = parts[0].toLowerCase();
-       }
-    }
-    
-    // 2. LOGIQUE DE REDIRECTION (Ta logique "Fidélisation")
-    // Si l'utilisateur est connecté et essaie d'accéder au dashboard
-    if (token && pathname.startsWith("/dashboard")) {
-        // On récupère le domaine assigné à l'utilisateur dans son token
-        // (Assure-toi que le callback JWT dans [...nextauth].ts peuple bien ce champ)
-        const userTenantDomain = (token as any).tenantDomain?.toLowerCase();
-        
-        // Si je suis sur 'app' ou 'elite' (Master) mais que je suis un user 'sde'
-        // ALORS je dois être redirigé vers sde.qualisoft.sn
-        const isMasterDomain = ['app', 'elite', 'www'].includes(subdomain);
-        
-        if (isMasterDomain && userTenantDomain && userTenantDomain !== 'matrix') {
-            const url = req.nextUrl.clone();
-            const hostParts = hostname.split('.');
-            // On remplace le sous-domaine
-            hostParts[0] = userTenantDomain;
-            url.host = hostParts.join('.');
-            // url.protocol est déjà https en prod
-            
-            console.log(`🛰️ [MIDDLEWARE] Redirection de ${token.email} vers ${url.host}`);
-            return NextResponse.redirect(url);
-        }
-    }
+    const userRole = token?.U_Role as string | undefined;
 
-    // 3. PROTECTION ADMINISTRATIVE (/admin)
-    // Seul le SUPER_ADMIN ou ADMIN du Master peut aller sur /admin
+    // -----------------------------------------------------------
+    // 1. RÈGLE SUPRÊME : ACCÈS MASTER (/admin)
+    // -----------------------------------------------------------
     if (pathname.startsWith("/admin")) {
-      const userRole = (token as any).role;
-      // Si on n'est pas Super Admin, on dégage vers le dashboard standard
-      if (userRole !== "SUPER_ADMIN") {
+      // Seul le SUPER_ADMIN passe. Les autres sont éjectés vers le dashboard.
+      if (userRole === "SUPER_ADMIN") {
+        return NextResponse.next(); // ✅ ON LAISSE PASSER VERS /admin/matrix
+      } else {
+        // Tentative d'intrusion -> retour à la case départ
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
+    }
+
+    // -----------------------------------------------------------
+    // 2. LOGIQUE DE REDIRECTION INTELLIGENTE (Multi-Tenant)
+    // -----------------------------------------------------------
+    // Si on est sur le dashboard, on vérifie si l'utilisateur est sur le bon domaine
+    if (pathname.startsWith("/dashboard")) {
+        const hostname = req.headers.get('host') || '';
+        const subdomain = hostname.split('.')[0].toLowerCase();
+        
+        // Domaine assigné à l'utilisateur (ex: 'sde')
+        const userDomain = (token as any).U_TenantDomain?.toLowerCase(); // Assure-toi que ce champ existe dans ton JWT callback
+
+        // Si l'utilisateur est 'sde' mais qu'il est connecté sur 'app' (Master)
+        // On le redirige vers sde.qualisoft.sn
+        // SAUF si c'est le Super Admin (qui a le droit d'être partout)
+        if (userRole !== "SUPER_ADMIN" && userDomain && subdomain !== userDomain && userDomain !== 'matrix') {
+            const url = req.nextUrl.clone();
+            const hostParts = hostname.split('.');
+            hostParts[0] = userDomain; // On remplace le sous-domaine
+            url.host = hostParts.join('.');
+            // En prod, url.protocol est déjà https
+            return NextResponse.redirect(url);
+        }
     }
 
     return NextResponse.next();
   },
   {
     callbacks: {
-      // Le middleware ne s'active que si l'utilisateur est authentifié (a un token)
+      // Le middleware ne se déclenche que si l'utilisateur est connecté
       authorized: ({ token }) => !!token,
     },
     pages: {
       signIn: "/auth/login",
-      error: "/auth/error",
     },
   }
 );
 
 export const config = {
   matcher: [
-    // On protège le dashboard et l'admin
-    "/dashboard/:path*",
+    // On surveille l'admin et le dashboard
     "/admin/:path*",
-    // On exclut les routes d'API, les fichiers statiques, et l'auth
+    "/dashboard/:path*",
+    // On ignore les assets et l'API
     "/((?!api/auth|auth|static|.*\\..*|_next).*)",
   ],
 };
