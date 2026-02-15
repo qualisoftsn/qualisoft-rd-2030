@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -77,7 +77,7 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email: email.toLowerCase().trim(),
         password,
-        tenantId: selectedTenantId || detectedTenant?.T_Id || "MATRIX",
+        tenantId: selectedTenantId || detectedTenant?.T_Id,
         redirect: false,
         callbackUrl: `${currentOrigin}/dashboard`,
       });
@@ -184,7 +184,7 @@ export default function LoginPage() {
           )}
 
           <footer className="text-center pt-8 border-t border-slate-100 text-[10px] font-black text-slate-300 uppercase tracking-widest italic">
-            Qualisoft Elite RD 2030 Sovereign System
+            Qualisoft Elite RD 2030
           </footer>
         </div>
       </div>

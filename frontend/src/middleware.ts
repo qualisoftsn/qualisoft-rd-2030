@@ -18,7 +18,7 @@ export default withAuth(
         return NextResponse.next(); // ✅ ON LAISSE PASSER VERS /admin/matrix
       } else {
         // Tentative d'intrusion -> retour à la case départ
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+        return NextResponse.redirect(new URL("/auth/login", req.url));
       }
     }
 
