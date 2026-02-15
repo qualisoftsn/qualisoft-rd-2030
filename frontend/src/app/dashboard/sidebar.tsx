@@ -106,7 +106,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Registre des Risques", path: "/dashboard/risks", icon: Zap, access: "ALL" },
           { title: "Notifications", path: "/dashboard/notifications", icon: FileText, access: "ALL" },
           { title: "Aspects Environnementaux", path: "/dashboard/environment", icon: AlertTriangle, access: "ALL" },
-          { title: "Conformité Légale", path: "/dashboard/ged", icon: FileText, access: "ALL" },
+          { title: "Conformité Légale", path: "/dashboard/requirements", icon: FileText, access: "ALL" },
         ],
       },
       {
