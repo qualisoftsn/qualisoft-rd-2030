@@ -1,49 +1,41 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, Building2, CheckCircle2, Loader2, Mail, 
-  Rocket, ShieldCheck, Zap, UserCheck, Phone, MapPin, Globe 
+  Rocket, ShieldCheck, Zap, UserCheck, Phone, MapPin, Globe, Lock
 } from "lucide-react";
 import { matrixApi, ProvisioningPayload } from "@/services/matrix.service";
 import { toast } from "sonner";
 
-/**
- * 🚀 PAGE DE DÉPLOIEMENT MATRIX ELITE RD 2030 (v3.2 - Build Intégral)
- * Rôle : Initialisation souveraine (Nœud, Admin, Siège, UnitTypes, DG).
- */
 export default function MatrixDeployPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const [formData, setFormData] = useState<ProvisioningPayload>({
+  const [formData, setFormData] = useState<ProvisioningPayload & { customSlug: string; adminPassword: string }>({
     companyName: "",
+    customSlug: "",
     ceoName: "",
     email: "",
+    adminPassword: "",
     adminFirstName: "",
     adminLastName: "",
     phone: "",
     address: "",
   });
 
-  // 🛰️ Calcul du domaine technique en temps réel
-  const domainPreview = useMemo(() => {
-    if (!formData.companyName) return "...";
-    return formData.companyName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-  }, [formData.companyName]);
-
   const handleDeploy = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const tid = toast.loading("Initialisation du Big Bang Matrix...");
+    const tid = toast.loading("Déclenchement du Big Bang Matrix...");
     try {
-      // 🚀 EXÉCUTION : Nœud + Admin + Siège + UnitTypes + DG
       await matrixApi.initialize(formData);
       setIsSuccess(true);
-      toast.success("Nœud déployé : Siège, UnitTypes et DG créés.", { id: tid });
+      toast.success("Nœud déployé : Siège et DG scellés avec succès.", { id: tid });
       setTimeout(() => router.push("/admin/matrix"), 2500);
     } catch (error: any) {
       const backendMessage = error.response?.data?.message;
@@ -61,7 +53,7 @@ export default function MatrixDeployPage() {
           <CheckCircle2 className="text-emerald-500" size={56} />
         </div>
         <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-3 italic">Nœud Scellé</h2>
-        <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.5em] animate-pulse">Initialisation du siège et de la DG terminée...</p>
+        <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.5em] animate-pulse">Configuration du domaine et de l&apos;autorité terminée...</p>
       </div>
     </div>
   );
@@ -93,49 +85,47 @@ export default function MatrixDeployPage() {
                 <input required type="text" placeholder="EX: SENELEC" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} />
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Directeur Général (CEO)</label>
-                <div className="relative"><UserCheck className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={20} /><input required type="text" placeholder="PRÉNOM & NOM DU DG" className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic" value={formData.ceoName} onChange={e => setFormData({...formData, ceoName: e.target.value})} /></div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Sous-domaine personnalisé (Slug)</label>
+                <div className="relative">
+                  <Globe className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-600" size={18} />
+                  <input required type="text" placeholder="ex: senelec-corp" className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic" value={formData.customSlug} onChange={e => setFormData({...formData, customSlug: e.target.value.toLowerCase().replace(/\s+/g, '-')})} />
+                </div>
+                <p className="text-[9px] text-slate-600 font-bold ml-4">URL FINALE : {formData.customSlug || '...'}.qualisoft.sn</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Téléphone</label><div className="relative"><Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} /><input required type="text" placeholder="+221..." className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div></div>
-                <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Adresse</label><div className="relative"><MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} /><input required type="text" placeholder="DAKAR, SN" className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div></div>
-              </div>
-              <div className="p-6 bg-blue-600/5 border border-blue-600/10 rounded-[2.5rem] flex items-center gap-5">
-                <Globe className="text-blue-500" size={24} />
-                <div className="overflow-hidden">
-                  <p className="text-[9px] font-black text-blue-500/50 uppercase tracking-widest mb-1 italic">Domaine technique injecté</p>
-                  <p className="text-sm font-black text-white italic truncate tracking-tight">https://<span className="text-blue-500">{domainPreview}</span>.qualisoft.sn</p>
-                </div>
+                <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Téléphone</label><input required type="text" placeholder="+221..." className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
+                <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Adresse</label><input required type="text" placeholder="DAKAR, SN" className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
               </div>
             </div>
           </div>
 
           <div className="bg-[#0F172A]/50 backdrop-blur-xl border border-white/5 p-10 rounded-[3.5rem] space-y-10 shadow-2xl">
             <h3 className="text-[10px] font-black text-amber-500 uppercase flex items-center gap-3"><ShieldCheck size={16} /> Autorité Admin Racine</h3>
-            <div className="space-y-8 text-left">
+            <div className="space-y-6 text-left">
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Prénom</label><input required type="text" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" value={formData.adminFirstName} onChange={e => setFormData({...formData, adminFirstName: e.target.value})} /></div>
                 <div className="space-y-3"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Nom</label><input required type="text" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" value={formData.adminLastName} onChange={e => setFormData({...formData, adminLastName: e.target.value})} /></div>
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Email de Supervision</label>
-                <div className="relative"><Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={20} /><input required type="email" placeholder="admin@domaine.sn" className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+                <input required type="email" placeholder="admin@domaine.sn" className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
               </div>
-              <div className="p-8 bg-amber-500/5 border border-amber-500/10 rounded-[2.5rem] border-l-4 border-l-amber-500"><p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-2 italic">Alerte Kernel Matrix</p><p className="text-xs text-slate-400 leading-relaxed font-bold">Le Big Bang génère automatiquement le siège social, les types d&apos;unités (Direction, Département, Service) et la Direction Générale.</p></div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 italic">Mot de passe Administrateur</label>
+                <div className="relative">
+                  <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-amber-600" size={18} />
+                  <input required type="password" placeholder="********" className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" value={formData.adminPassword} onChange={e => setFormData({...formData, adminPassword: e.target.value})} />
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="lg:col-span-2 flex flex-col md:flex-row items-center justify-between p-10 bg-[#0F172A] border border-white/5 rounded-[3.5rem] shadow-2xl gap-8">
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shadow-inner group"><ShieldCheck className="text-slate-500 group-hover:text-blue-500" size={28} /></div>
-              <div><p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic leading-none">Standard RD-2030</p><p className="text-xs font-black text-white uppercase italic tracking-tighter mt-1">Qualisoft Elite • Provisioning Souverain</p></div>
-            </div>
-            <button type="submit" disabled={isLoading} className="w-full md:w-auto px-20 py-8 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.3em] flex items-center justify-center gap-5 hover:bg-white hover:text-slate-900 transition-all border-none cursor-pointer shadow-2xl italic text-xs active:scale-95">
-              {isLoading ? <><Loader2 className="animate-spin" size={22} /> SCELLAGE...</> : <><Rocket size={22} /> INITIALISER LE NŒUD</>}
+            <button type="submit" disabled={isLoading} className="w-full px-20 py-8 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.3em] flex items-center justify-center gap-5 hover:bg-white hover:text-slate-900 transition-all border-none cursor-pointer shadow-2xl italic text-xs active:scale-95 disabled:opacity-50">
+              {isLoading ? <><Loader2 className="animate-spin" size={22} /> SCELLAGE DU NŒUD...</> : <><Rocket size={22} /> INITIALISER LE NŒUD</>}
             </button>
           </div>
         </form>
-        <p className="text-center text-[9px] font-black text-slate-700 uppercase tracking-[0.8em] pb-10 italic">Matrix Engine RD 2030 • Enterprise Deployment Portal</p>
       </div>
     </div>
   );

@@ -1,14 +1,8 @@
 #!/bin/bash
-echo "🛡️ Déploiement Qualisoft RD 2030 - Serveur Dakar"
-
-# 1. Vérifier les dossiers de stockage
-mkdir -p uploads backups
-
-# 2. Relancer l'infrastructure
-docker-compose down
-docker-compose up -d --build
-
-# 3. Nettoyer les images inutilisées pour libérer l'espace OVH
-docker image prune -f
-
-echo "✅ Noyau Qualisoft opérationnel sur le port 9000"
+echo "🚀 [MATRIX] Déclenchement du déploiement Elite..."
+git pull
+docker compose build --no-cache
+docker compose up -d
+docker compose exec backend npx prisma db push --accept-data-loss
+docker compose exec backend npx prisma db seed
+echo "✅ [MATRIX] Système à jour et sécurisé sur https://elite.qualisoft.sn"
