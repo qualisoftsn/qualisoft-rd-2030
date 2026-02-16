@@ -1,25 +1,24 @@
 /**
- * CHEMIN ABSOLU : /prisma/seed.ts
- * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Déploiement du Noyau Souverain (Master Seed)
- * SÉCURITÉ : Injection du SUPER_ADMIN et du Site Maître
+ * 🛰️ PROTOCOLE DE SCELLAGE MASTER - QUALISOFT ELITE RD 2030
+ * RÔLE : Initialisation du Noyau conformément au Schéma Prisma V2
+ * NOMENCLATURE : T_ (Tenant), U_ (User), S_ (Site), OUT_ (OrgUnitType), OU_ (OrgUnit)
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Plan, SubscriptionStatus, Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function seedMasterAdmin(): Promise<void> {
+async function seedMasterSystem(): Promise<void> {
   console.log('--------------------------------------------------------');
-  console.log('🛡️  SYNCHRONISATION DU NOYAU MASTER QUALISOFT ELITE...');
+  console.log('🛡️  DÉPLOIEMENT DU NOYAU MASTER QUALISOFT ELITE...');
   console.log('--------------------------------------------------------');
 
   // 1. CONFIGURATION RÉGALIENNE
   const masterEmail = 'ab.thiongane@qualisoft.sn';
   const masterDomain = 'qualisoft.sn';
-  // Mot de passe scellé par le CTO
-  const hashedPassword = await bcrypt.hash('mohamed1965ab1711@@@', 12);
+  const masterPassword = 'mohamed1965ab1711@@@'; 
+  const hashedPassword = await bcrypt.hash(masterPassword, 12);
 
   try {
     // 2. GARANTIE DU TENANT MASTER (QUALISOFT CORPORATE)
@@ -28,31 +27,25 @@ async function seedMasterAdmin(): Promise<void> {
       update: {
         T_Name: 'QUALISOFT CORPORATE',
         T_Email: 'contact@qualisoft.sn',
-        T_Plan: 'GROUPE',
-        T_SubscriptionStatus: 'ACTIVE',
+        T_Plan: Plan.GROUPE,
+        T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
         T_IsActive: true,
-        T_ContractDuration: 99,
       },
       create: {
         T_Name: 'QUALISOFT CORPORATE',
         T_Email: 'contact@qualisoft.sn',
         T_Domain: masterDomain,
-        T_Plan: 'GROUPE',
-        T_SubscriptionStatus: 'ACTIVE',
+        T_Plan: Plan.GROUPE,
+        T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
         T_IsActive: true,
         T_ContractDuration: 99,
         T_TacitRenewal: true,
       },
     });
 
-    // 3. GARANTIE DU SITE MAÎTRE (INDISPENSABLE POUR U_SiteId)
-    // On crée un site par défaut pour le siège social de Qualisoft
+    // 3. GARANTIE DU SITE MAÎTRE (ANCRAGE)
     const masterSite = await prisma.site.upsert({
-      where: { 
-        // Hypothèse : S_Name ou une combinaison unique selon ton schéma Prisma
-        // Ici, on utilise une recherche par nom liée au tenant
-        S_Id: 'MASTER_SITE_QS' // Utilisation d'un ID fixe si ton schéma le permet, sinon filtrage
-      },
+      where: { S_Id: 'MASTER_SITE_QS' },
       update: {
         S_Name: 'SIÈGE QUALISOFT CORPORATE',
         S_IsActive: true,
@@ -60,48 +53,88 @@ async function seedMasterAdmin(): Promise<void> {
       create: {
         S_Id: 'MASTER_SITE_QS',
         S_Name: 'SIÈGE QUALISOFT CORPORATE',
-        tenantId: qualisoftTenant.T_Id,
+        S_Address: 'Dakar, Sénégal',
+        S_Country: 'Sénégal',
         S_IsActive: true,
+        tenantId: qualisoftTenant.T_Id,
       },
     });
 
-    // 4. GARANTIE DE L'ADMINISTRATEUR UNIVERSEL (CTO)
+    // 4. INJECTION DES TYPES D'UNITÉS (ORG UNIT TYPES)
+    const typesToCreate = [
+      { id: 'OUT_MASTER_DIR', label: 'DIRECTION' },
+      { id: 'OUT_MASTER_DEP', label: 'DÉPARTEMENT' },
+      { id: 'OUT_MASTER_SRV', label: 'SERVICE' },
+    ];
+
+    for (const item of typesToCreate) {
+      await prisma.orgUnitType.upsert({
+        where: { OUT_Id: item.id },
+        update: { OUT_Label: item.label },
+        create: {
+          OUT_Id: item.id,
+          OUT_Label: item.label,
+          OUT_IsActive: true,
+          tenantId: qualisoftTenant.T_Id,
+        },
+      });
+    }
+
+    // 5. CRÉATION DE LA CELLULE MÈRE (ORGANIC UNIT)
+    const masterDG = await prisma.orgUnit.upsert({
+      where: { OU_Id: 'OU_MASTER_DG' },
+      update: { OU_Name: 'DIRECTION GÉNÉRALE' },
+      create: {
+        OU_Id: 'OU_MASTER_DG',
+        OU_Name: 'DIRECTION GÉNÉRALE',
+        OU_IsActive: true,
+        OU_TypeId: 'OUT_MASTER_DIR', // Liaison au type DIRECTION créé ci-dessus
+        OU_SiteId: masterSite.S_Id,   // Liaison au Site Maître
+        tenantId: qualisoftTenant.T_Id,
+      },
+    });
+
+    // 6. GARANTIE DE L'ADMINISTRATEUR UNIVERSEL (CTO)
     const masterAdmin = await prisma.user.upsert({
       where: { U_Email: masterEmail },
       update: {
         U_FirstName: 'Abdoulaye',
         U_LastName: 'THIONGANE',
         U_PasswordHash: hashedPassword,
-        U_Role: 'SUPER_ADMIN',
+        U_Role: Role.SUPER_ADMIN,
         U_IsActive: true,
         tenantId: qualisoftTenant.T_Id,
-        U_SiteId: masterSite.S_Id, // Liaison au site maître
+        U_SiteId: masterSite.S_Id,
+        U_OrgUnitId: masterDG.OU_Id, // Liaison à la Direction Générale
       },
       create: {
         U_FirstName: 'Abdoulaye',
         U_LastName: 'THIONGANE',
         U_Email: masterEmail,
         U_PasswordHash: hashedPassword,
-        U_Role: 'SUPER_ADMIN',
+        U_Role: Role.SUPER_ADMIN,
         U_IsActive: true,
+        U_FirstLogin: false,
         tenantId: qualisoftTenant.T_Id,
         U_SiteId: masterSite.S_Id,
+        U_OrgUnitId: masterDG.OU_Id,
       },
     });
 
     console.log(`✅ NOYAU SCELLÉ : ${masterAdmin.U_FirstName} ${masterAdmin.U_LastName}`);
     console.log(`📡 TENANT ID   : ${qualisoftTenant.T_Id}`);
     console.log(`📍 SITE ID     : ${masterSite.S_Id}`);
+    console.log(`🏢 UNITÉ ORG.  : ${masterDG.OU_Name}`);
     console.log(`📧 MASTER EMAIL : ${masterAdmin.U_Email}`);
     console.log('--------------------------------------------------------');
 
-  } catch (exception: unknown) {
-    const message = exception instanceof Error ? exception.message : 'Inconnue';
-    console.error('❌ ERREUR CRITIQUE DE SEEDING :', message);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Inconnue';
+    console.error('❌ ERREUR CRITIQUE DE SEEDING :', msg);
     process.exit(1);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-seedMasterAdmin();
+seedMasterSystem();
