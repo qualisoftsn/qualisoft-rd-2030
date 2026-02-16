@@ -1,157 +1,194 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
+'use client';
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from 'react';
+import { matrixApi, TenantDetails } from '@/services/matrix.service';
 import { 
-  Building2, Plus, Search, Loader2, ChevronRight, Activity, Database, Users, ShieldCheck
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { matrixApi, TenantDetails } from "@/services/matrix.service";
-import { toast } from "sonner";
+  Search, Plus, Server, AlertCircle, 
+  Loader2, RefreshCw, ChevronRight, ShieldCheck 
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-export default function MatrixRegistry() {
-  const router = useRouter();
+// 👇 IMPORT DES MODULES QUE NOUS AVONS CRÉÉS
+import MatrixHealthMonitor from '@/components/admin/MatrixHealthMonitor';
+import DeployTenantModal from '@/components/admin/DeployTenantModal';
+import TenantDetailsModal from '@/components/admin/TenantDetailsModal';
+
+export default function MatrixPage() {
+  // --- ÉTATS DU COCKPIT ---
+  const [loading, setLoading] = useState(true);
   const [tenants, setTenants] = useState<TenantDetails[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [search, setSearch] = useState('');
+  
+  // États des Modales (Les fenêtres qui s'ouvrent)
+  const [isDeployOpen, setIsDeployOpen] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchRegistry = async () => {
-      try {
-        setLoading(true);
-        const data = await matrixApi.getTenants();
-        // Sécurité : On s'assure que data est un tableau
-        setTenants(Array.isArray(data) ? data : []);
-      } catch (err: any) {
-        console.error("Matrix Sync Error:", err);
-        const status = err.response?.status;
-        if (status === 403 || status === 401) {
-             toast.error("Accès refusé : Droits Master requis.");
-        } else {
-             toast.error("Connexion au registre impossible.");
-        }
-      } finally {
-        setLoading(false);
+  // --- CHARGEMENT DES DONNÉES ---
+  const fetchTenants = async () => {
+    setLoading(true);
+    try {
+      const data = await matrixApi.getTenants();
+      setTenants(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error(err);
+      // Gestion fine des erreurs d'accès
+      if (err.response?.status === 403) {
+        toast.error("ACCÈS REFUSÉ : Accréditation insuffisante.");
+      } else {
+        toast.error("Erreur de connexion au Neuro-Cortex Matrix");
       }
-    };
-    fetchRegistry();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Chargement initial
+  useEffect(() => {
+    fetchTenants();
   }, []);
 
-  const filteredTenants = useMemo(() => {
-    return tenants.filter((tenant) => 
-      (tenant.T_Name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (tenant.T_Domain || "").toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [tenants, searchTerm]);
-
-  if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 italic">
-      <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Chargement du Registre...</p>
-    </div>
+  // --- FILTRAGE TEMPS RÉEL ---
+  const filteredTenants = tenants.filter(t => 
+    t.T_Name.toLowerCase().includes(search.toLowerCase()) ||
+    t.T_Domain.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans italic selection:bg-blue-100">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-slate-900 rounded-2xl shadow-xl shadow-blue-500/10">
-                <Database className="text-blue-500" size={24} />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 italic">Master Supervision</span>
-            </div>
-            <h1 className="text-4xl font-black text-slate-900 uppercase italic leading-none tracking-tighter">
-              Registre <span className="text-blue-600">Matrix</span>
-            </h1>
+    <div className="p-8 space-y-8 min-h-screen bg-slate-950 text-slate-200 font-sans italic selection:bg-blue-500/30">
+      
+      {/* 1. LE MONITEUR DE SANTÉ (Stats en haut) */}
+      <MatrixHealthMonitor />
+
+      {/* 2. BARRE DE COMMANDES */}
+      <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-800 pb-6 animate-in slide-in-from-left duration-500">
+        <div>
+          <h1 className="text-3xl font-black uppercase tracking-tighter text-white flex items-center gap-3">
+            <Server className="text-blue-500" /> Matrix Control
+          </h1>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1 pl-1">
+            Supervision des Nœuds & Gestion Souveraine
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Barre de Recherche */}
+          <div className="relative group flex-1 md:w-72">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={16} />
+            <input 
+              type="text" 
+              placeholder="Rechercher un nœud..." 
+              className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-4 py-4 text-xs font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-white placeholder:text-slate-600"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-          
+
+          {/* Bouton Rafraîchir */}
           <button 
-            onClick={() => router.push('/admin/matrix/deploy')}
-            className="flex items-center gap-3 bg-blue-600 text-white px-8 py-5 rounded-3xl font-black uppercase text-[11px] hover:bg-slate-900 transition-all shadow-xl shadow-blue-600/20 border-none cursor-pointer"
+            onClick={fetchTenants}
+            className="p-4 bg-slate-900 border border-slate-800 rounded-2xl hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+            title="Synchroniser les données"
           >
-            <Plus size={18} /> Initialiser Nouveau Nœud
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+
+          {/* 🔴 BOUTON CRÉATION (Ouvre DeployTenantModal) */}
+          <button 
+            onClick={() => setIsDeployOpen(true)}
+            className="px-6 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-wide shadow-lg shadow-blue-900/20 hover:shadow-blue-500/40 transition-all flex items-center gap-2 cursor-pointer border-none"
+          >
+            <Plus size={16} /> Initialiser Nouveau Nœud
           </button>
         </div>
+      </div>
 
-        <div className="relative mb-8 group">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
-          <input 
-            type="text" 
-            placeholder="Filtrer par organisation ou domaine..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border-none shadow-2xl rounded-[2.5rem] py-6 pl-16 pr-8 font-bold text-slate-900 outline-none placeholder:text-slate-300 transition-all focus:ring-2 ring-blue-500/10 italic"
-          />
-        </div>
-
-        <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
+      {/* 3. TABLEAU DE BORD (Liste des Tenants) */}
+      <div className="bg-slate-900/50 rounded-4xl border border-slate-800 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 duration-700">
+        
+        {loading ? (
+          <div className="p-24 flex flex-col items-center justify-center text-slate-600 gap-4">
+            <Loader2 className="animate-spin text-blue-600" size={48} />
+            <p className="text-xs font-black uppercase tracking-[0.3em] animate-pulse">Synchronisation Matrix...</p>
+          </div>
+        ) : filteredTenants.length === 0 ? (
+          <div className="p-24 flex flex-col items-center justify-center text-slate-600 gap-4 opacity-50">
+            <ShieldCheck size={48} />
+            <p className="text-xs font-black uppercase tracking-widest">Aucune organisation détectée.</p>
+          </div>
+        ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 text-slate-400 font-black uppercase text-[10px] tracking-widest border-b border-slate-50">
-                <th className="px-10 py-6">Organisation</th>
-                <th className="px-10 py-6 text-center">Plan</th>
-                <th className="px-10 py-6 text-center">Utilisateurs</th>
-                <th className="px-10 py-6 text-center">État</th>
-                <th className="px-10 py-6 text-right">Action</th>
+              <tr className="border-b border-slate-800 bg-slate-950/50 text-[9px] font-black uppercase text-slate-500 tracking-[0.2em]">
+                <th className="p-6 pl-8">Statut</th>
+                <th className="p-6">Organisation</th>
+                <th className="p-6">Domaine Matrix</th>
+                <th className="p-6">Plan</th>
+                <th className="p-6 text-center">Utilisateurs</th>
+                <th className="p-6 text-right pr-8">Accès</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-800/50">
               {filteredTenants.map((tenant) => (
-                <tr key={tenant.T_Id} className="group hover:bg-blue-50/30 transition-all">
-                  <td className="px-10 py-8">
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center group-hover:bg-white transition-colors border border-transparent group-hover:border-blue-100">
-                        <Building2 size={24} className="text-slate-400 group-hover:text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-black text-slate-900 uppercase italic text-lg leading-tight tracking-tighter">{tenant.T_Name}</div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tenant.T_Domain}.qualisoft.sn</div>
-                      </div>
+                <tr 
+                  key={tenant.T_Id} 
+                  // ⚡ L'ACTION CLÉ : Au clic, on ouvre les détails
+                  onClick={() => setSelectedTenantId(tenant.T_Id)}
+                  className="group hover:bg-slate-800/40 transition-colors cursor-pointer"
+                >
+                  <td className="p-6 pl-8">
+                    <div className="relative flex items-center justify-center w-4 h-4">
+                        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${tenant.T_IsActive ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                        <span className={`relative inline-flex rounded-full h-2 w-2 ${tenant.T_IsActive ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
                     </div>
                   </td>
-                  
-                  <td className="px-10 py-8 text-center">
-                    <span className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest italic">
-                      {tenant.T_Plan}
+                  <td className="p-6">
+                    <p className="text-sm font-black text-white group-hover:text-blue-400 transition-colors">{tenant.T_Name}</p>
+                    <p className="text-[10px] text-slate-500 font-mono mt-1">UUID: {tenant.T_Id.substring(0, 8)}</p>
+                  </td>
+                  <td className="p-6">
+                    <span className="px-3 py-1 bg-slate-950 rounded-lg border border-slate-800 text-[10px] font-bold text-slate-400 font-mono group-hover:border-blue-900 transition-colors">
+                      {tenant.T_Domain}.qualisoft.sn
                     </span>
                   </td>
-
-                  <td className="px-10 py-8 text-center">
-                    <div className="inline-flex items-center gap-2 bg-slate-50 px-4 py-1.5 rounded-xl">
-                      <Users size={12} className="text-slate-400" />
-                      <span className="text-xs font-black text-slate-600">{tenant._count?.T_Users ?? 0}</span>
-                    </div>
+                  <td className="p-6">
+                    <span className="text-[10px] font-black uppercase text-blue-400 bg-blue-900/10 px-2 py-1 rounded">{tenant.T_Plan}</span>
                   </td>
-
-                  <td className="px-10 py-8 text-center">
-                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${tenant.T_IsActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                      <Activity size={10} /> {tenant.T_IsActive ? 'ACTIF' : 'SUSPENDU'}
-                    </div>
+                  <td className="p-6 text-center">
+                    <span className="text-sm font-bold text-slate-300 group-hover:text-white">{tenant._count?.T_Users || 0}</span>
                   </td>
-
-                  <td className="px-10 py-8 text-right">
-                    <button 
-                      onClick={() => router.push(`/admin/matrix/${tenant.T_Id}`)}
-                      className="p-4 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-900 hover:text-white transition-all border-none cursor-pointer group/btn"
-                    >
-                      <ChevronRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
+                  <td className="p-6 text-right pr-8">
+                    <button className="p-3 bg-slate-900 rounded-xl text-slate-500 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-lg">
+                        <ChevronRight size={16} />
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          
-          {filteredTenants.length === 0 && (
-            <div className="p-20 text-center">
-              <ShieldCheck size={48} className="mx-auto text-slate-200 mb-4" />
-              <p className="font-black uppercase text-xs text-slate-400 tracking-widest italic">Aucune organisation trouvée.</p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* --- LES MODALES INVISIBLES QUI S'ACTIVENT AU CLIC --- */}
+      
+      {/* 4. MODALE DE CRÉATION DE TENANT */}
+      <DeployTenantModal 
+        isOpen={isDeployOpen} 
+        onClose={() => setIsDeployOpen(false)} 
+        onSuccess={() => {
+          setIsDeployOpen(false);
+          fetchTenants(); // Rafraîchir la liste après création
+        }} 
+      />
+
+      {/* 5. MODALE DE DÉTAILS (Gestion des Utilisateurs) */}
+      <TenantDetailsModal 
+        isOpen={!!selectedTenantId} 
+        tenantId={selectedTenantId}
+        onClose={() => setSelectedTenantId(null)}
+      />
+
     </div>
   );
 }

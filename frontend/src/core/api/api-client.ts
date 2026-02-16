@@ -1,95 +1,88 @@
 /**
  * CHEMIN ABSOLU : /frontend/src/core/api/api-client.ts
  * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Client Axios "Blindé" (Force l'injection du Token via LocalStorage).
- * VERSION : 2.1.0 (Fix Authentification Robuste)
+ * RÔLE : Client Axios Centralisé avec Injection Automatique des Headers de Sécurité.
  */
 
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosError } from 'axios';
 import { useAuthStore } from '../../store/authStore';
 
+// Détection de l'environnement
 const isServer = typeof window === 'undefined';
 
-// 1. Configuration de base avec URL forcée pour la Prod
-const apiClient: AxiosInstance = axios.create({
+// 1. Instanciation du Client Axios
+const apiClient = axios.create({
   baseURL: isServer 
-    ? 'http://backend:9000/api' // Communication interne Docker
-    : 'https://api.qualisoft.sn/api', // URL Publique forcée
+    ? 'http://backend:9000/api'          // Docker Interne (SSR)
+    : 'https://api.qualisoft.sn/api',    // Accès Public (Client)
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  timeout: 15000, // Timeout de 15s pour éviter les requêtes fantômes
 });
 
-// 2. Intercepteur "Douanier" : Il fouille partout pour trouver le Token
+// 2. Intercepteur de Requête (Le "Passe-Partout")
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     
-    // A. D'abord, on regarde dans le State actif (Zustand)
-    let token = useAuthStore.getState().token;
-    const tenantId = useAuthStore.getState().tenantId;
+    // A. Récupération de l'état global Zustand
+    const state = useAuthStore.getState();
+    let token = state.token;
+    const user = state.user;
 
-    // B. [CRITIQUE] Si le State est vide (ex: après F5), on force la lecture du LocalStorage
+    // B. Fallback : Si Zustand est vide (ex: Hard Refresh), on tente le LocalStorage brut
     if (!token && !isServer) {
-      try {
-        // On lit le stockage brut de Zustand
-        const storageRaw = localStorage.getItem('auth-storage');
-        if (storageRaw) {
-          const parsed = JSON.parse(storageRaw);
-          // On extrait le token manuellement
-          token = parsed.state?.token || null;
-        }
-        
-        // Fallback ultime : On regarde si un token traîne ailleurs (Legacy)
-        if (!token) {
-          token = localStorage.getItem('token');
-        }
-      } catch (e) {
-        console.warn("⚠️ Erreur lecture LocalStorage", e);
+      const rawToken = localStorage.getItem('token'); 
+      // Note: On préfère le token simple s'il existe, sinon on fouille le storage Zustand
+      if (rawToken) {
+        token = rawToken;
       }
     }
 
-    // C. Gestion de l'Impersonation (Le Master Token écrase tout)
-    const masterToken = !isServer ? localStorage.getItem('master_token') : null;
-    const finalToken = masterToken || token;
-
-    // D. INJECTION DU TOKEN (Si on en a trouvé un)
-    if (finalToken && config.headers) {
-      config.headers.Authorization = `Bearer ${finalToken}`;
+    // C. INJECTION DU TOKEN (Bearer)
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // E. INJECTION DU DOMAINE (Pour le Multi-Tenant sde, senelec, etc.)
+    // D. INJECTION DU TENANT ID (CRUCIAL POUR L'ÉCRITURE EN BASE)
+    // Si l'utilisateur est connecté, on dit au backend : "Je travaille pour ce Tenant"
+    if (user?.tenantId && config.headers) {
+      config.headers['x-tenant-id'] = user.tenantId;
+    }
+
+    // E. INJECTION DU DOMAINE (Pour le contexte Multi-Site)
     if (!isServer && config.headers) {
       const hostname = window.location.hostname;
+      // Ex: sde.qualisoft.sn -> parts[0] = 'sde'
       const parts = hostname.split('.');
-      const serviceDomains = ['www', 'app', 'elite', 'api'];
+      const forbidden = ['www', 'app', 'elite', 'api', 'localhost'];
       
-      if (parts.length > 2 && !serviceDomains.includes(parts[0])) {
+      if (parts.length > 2 && !forbidden.includes(parts[0])) {
         const domain = parts[0];
         config.headers['x-tenant-domain'] = domain;
-        config.headers['X-Tenant-Domain'] = domain; // Doublon sécurité
       }
-    }
-
-    // F. Injection de l'ID Tenant si connu
-    if (tenantId && config.headers) {
-      config.headers['x-tenant-id'] = tenantId;
     }
 
     return config;
   },
   (error) => {
-    console.error(`[API-CLIENT] Erreur Request :`, error);
     return Promise.reject(error);
   }
 );
 
-// 3. Intercepteur de Réponse (Gère l'expiration de session)
+// 3. Intercepteur de Réponse (Gestion des erreurs globales)
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  (error: AxiosError) => {
+    // Gestion spécifique des erreurs 401 (Non autorisé)
     if (error.response?.status === 401) {
-      console.error("⛔ [API] Session invalide ou expirée (401).");
-      // Ici, on pourrait forcer un logout si nécessaire, 
-      // mais on évite pour ne pas faire de boucle infinie.
+      console.warn("⛔ Session expirée ou invalide.");
+      // Optionnel : Redirection vers login si ce n'est pas déjà géré par le Middleware
+      if (!isServer && window.location.pathname !== '/auth/login') {
+         // window.location.href = '/auth/login'; // À activer avec précaution
+      }
     }
     return Promise.reject(error);
   }
