@@ -23,7 +23,7 @@ interface MatrixMetrics {
 const MetricCard = ({ icon: Icon, label, value, color, trend }: { 
   icon: LucideIcon, label: string, value: string | number, color: string, trend?: string 
 }) => (
-  <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-500 transition-all group relative overflow-hidden">
+  <div className="bg-white p-6 rounded-4xl border-2 border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-500 transition-all group relative overflow-hidden">
     <div className={`absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity ${color}`}>
       <Icon size={120} />
     </div>
