@@ -1,6 +1,6 @@
 /**
  * 🛰️ API CLIENT - QUALISOFT ELITE RD 2030
- * RÔLE : Injection dynamique des headers de souveraineté.
+ * RÔLE : Injection des headers de souveraineté et isolation multi-tenant.
  */
 
 import axios, { InternalAxiosRequestConfig } from 'axios';
@@ -23,14 +23,14 @@ apiClient.interceptors.request.use(
     const state = useAuthStore.getState();
     const { token, user } = state;
 
-    // A. Jeton d'autorité
+    // A. Preuve d'identité
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // B. Fix CRUD Matrix (L'ancrage souverain)
+    // B. Fix CRUD (Ancrage Souverain)
     if (config.headers) {
-      // Pour que le CRUD marche en Master, on force 'MATRIX'
+      // Pour que le CRUD marche en mode Master, on force 'MATRIX'
       if (user?.U_Role === "SUPER_ADMIN") {
         config.headers['x-tenant-id'] = 'MATRIX';
       } else if (user?.tenantId) {
@@ -38,10 +38,10 @@ apiClient.interceptors.request.use(
       }
     }
 
-    // C. Contexte Territorial (Subdomain)
+    // C. Contexte Territorial
     if (!isServer && config.headers) {
       const parts = window.location.hostname.split('.');
-      if (parts.length > 2 && !['www', 'app', 'elite', 'api', 'localhost'].includes(parts[0])) {
+      if (parts.length > 2 && !['www', 'api', 'app', 'elite', 'localhost'].includes(parts[0])) {
         config.headers['x-tenant-domain'] = parts[0].toLowerCase();
       }
     }
