@@ -4,59 +4,48 @@
 
 import React, { useState, useEffect } from 'react';
 import { matrixApi } from '@/services/matrix.service';
-import { X, Save, Loader2, User, Mail, Lock, Shield, Building2, Eye, EyeOff, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, Save, Loader2, Mail, Lock, Shield, Building2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface TenantSummary {
-  T_Id: string;
-  T_Name: string;
-  T_Domain: string;
-}
+/**
+ * 🛠️ CORRECTIF ÉLITE : Gestion des payloads et décodage des erreurs
+ */
 
 const PRISMA_ROLES = [
-  { value: 'SUPER_ADMIN', label: '👑 SUPER ADMIN', desc: 'Accès total Matrix', color: 'bg-red-50 border-red-500 text-red-900' },
-  { value: 'ADMIN', label: '🏢 ADMIN TENANT', desc: 'Directeur / Admin Local', color: 'bg-blue-50 border-blue-500 text-blue-900' },
-  { value: 'RQ', label: '⭐ RESP. QUALITÉ (RQ)', desc: 'Pilotage du SMI', color: 'bg-indigo-50 border-indigo-500 text-indigo-900' },
-  { value: 'PILOTE', label: '✈️ PILOTE', desc: 'Propriétaire de processus', color: 'bg-emerald-50 border-emerald-500 text-emerald-900' },
-  { value: 'COPILOTE', label: '🛩️ CO-PILOTE', desc: 'Suppléant processus', color: 'bg-teal-50 border-teal-500 text-teal-900' },
-  { value: 'AUDITEUR', label: '🔍 AUDITEUR', desc: 'Réalise les audits', color: 'bg-amber-50 border-amber-500 text-amber-900' },
-  { value: 'HSE', label: '⛑️ HSE MANAGER', desc: 'Gestion Santé Sécurité', color: 'bg-orange-50 border-orange-500 text-orange-900' },
-  { value: 'SAFETY_OFFICER', label: '🛡️ SAFETY OFFICER', desc: 'Agent de sécurité', color: 'bg-orange-50 border-orange-500 text-orange-900' },
-  { value: 'DIRECTION', label: '👔 DIRECTION', desc: 'Revue de direction', color: 'bg-purple-50 border-purple-500 text-purple-900' },
-  { value: 'USER', label: '👤 UTILISATEUR', desc: 'Accès standard', color: 'bg-slate-50 border-slate-400 text-slate-900' },
-  { value: 'OBSERVATEUR', label: '👀 OBSERVATEUR', desc: 'Lecture seule', color: 'bg-gray-50 border-gray-400 text-gray-900' },
+  { value: 'SUPER_ADMIN', label: '👑 SUPER ADMIN', desc: 'Accès total Matrix' },
+  { value: 'ADMIN', label: '🏢 ADMIN TENANT', desc: 'Admin local société' },
+  { value: 'RQ', label: '⭐ RESP. QUALITÉ (RQ)', desc: 'Pilotage SMI' },
+  { value: 'PILOTE', label: '✈️ PILOTE', desc: 'Gestion processus' },
+  { value: 'HSE', label: '⛑️ HSE MANAGER', desc: 'Santé Sécurité' },
+  { value: 'SAFETY_OFFICER', label: '🛡️ SAFETY OFFICER', desc: 'Agent terrain' },
+  { value: 'AUDITEUR', label: '🔍 AUDITEUR', desc: 'Audits internes' },
+  { value: 'DIRECTION', label: '👔 DIRECTION', desc: 'Consultation' },
+  { value: 'USER', label: '👤 UTILISATEUR', desc: 'Accès standard' },
 ];
 
 export default function MatrixUserModal({ isOpen, onClose, onSuccess, userToEdit }: any) {
   const [loading, setLoading] = useState(false);
-  const [tenants, setTenants] = useState<TenantSummary[]>([]);
+  const [tenants, setTenants] = useState<any[]>([]);
   const [showPassword, setShowPassword] = useState(false);
-  const [errorDetails, setErrorDetails] = useState<string | null>(null);
-  
-  const [form, setForm] = useState({
-    firstName: '', lastName: '', email: '', password: '', role: 'ADMIN', tenantId: ''
-  });
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', role: 'USER', tenantId: '' });
 
   useEffect(() => {
     if (isOpen) {
-      setErrorDetails(null);
-      matrixApi.getTenants().then(data => {
-        setTenants((Array.isArray(data) ? data : []).map((t: any) => ({
-          T_Id: t.T_Id, T_Name: t.T_Name, T_Domain: t.T_Domain
-        })));
-      }).catch(() => toast.error("Échec synchro tenants."));
-
+      setErrorMsg(null);
+      matrixApi.getTenants().then(setTenants).catch(() => toast.error("Sync Tenants Échouée"));
       if (userToEdit) {
         setForm({
           firstName: userToEdit.U_FirstName || '',
           lastName: userToEdit.U_LastName || '',
           email: userToEdit.U_Email || '',
           role: userToEdit.U_Role || 'USER',
-          tenantId: userToEdit.tenantId || userToEdit.T_Id || '', 
-          password: '' 
+          tenantId: userToEdit.tenantId || '',
+          password: ''
         });
       } else {
-        setForm({ firstName: '', lastName: '', email: '', password: '', role: 'ADMIN', tenantId: '' });
+        setForm({ firstName: '', lastName: '', email: '', password: '', role: 'USER', tenantId: '' });
       }
     }
   }, [isOpen, userToEdit]);
@@ -64,40 +53,37 @@ export default function MatrixUserModal({ isOpen, onClose, onSuccess, userToEdit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorDetails(null);
+    setErrorMsg(null);
 
     try {
       // 🏗️ PAYLOAD SANITIZATION
       const payload: any = {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
-        email: form.email.trim(),
+        email: form.email.trim().toLowerCase(),
         role: form.role,
       };
 
-      if (form.password?.trim()) payload.password = form.password;
+      if (form.password) payload.password = form.password;
 
       if (userToEdit?.U_Id) {
-        // UPDATE MODE: On retire l'ID et le tenantId du body pour éviter la 400 NestJS
-        console.log("📤 PATCH Action:", payload);
+        // PATCH : On ne renvoie PAS le tenantId ni l'id dans le corps pour éviter la 400
         await matrixApi.updateUser(userToEdit.U_Id, payload);
-        toast.success("Cerveau mis à jour.");
+        toast.success("Agent mis à jour");
       } else {
-        // CREATE MODE
+        // POST : On ajoute le tenantId pour la création
         payload.tenantId = form.tenantId;
-        if (!payload.password) payload.password = "Qualisoft@2026";
-        console.log("📤 POST Action:", payload);
         await matrixApi.createGlobalUser(payload);
-        toast.success("Agent enrôlé.");
+        toast.success("Agent créé");
       }
-      
       onSuccess();
       onClose();
     } catch (err: any) {
-      const rawMsg = err.response?.data?.message;
-      const cleanMsg = Array.isArray(rawMsg) ? rawMsg.join(' | ') : (typeof rawMsg === 'object' ? JSON.stringify(rawMsg) : rawMsg);
-      setErrorDetails(cleanMsg || "Erreur de communication Matrix");
-      toast.error("Opération révoquée par le Kernel.");
+      // 🛡️ DÉCODEUR D'ERREUR (Fix [object Object])
+      const raw = err.response?.data?.message;
+      const msg = Array.isArray(raw) ? raw.join(' | ') : (typeof raw === 'object' ? JSON.stringify(raw) : (raw || "Erreur Inconnue"));
+      setErrorMsg(msg);
+      toast.error("Échec de l'opération");
     } finally {
       setLoading(false);
     }
@@ -105,93 +91,63 @@ export default function MatrixUserModal({ isOpen, onClose, onSuccess, userToEdit
 
   if (!isOpen) return null;
 
-  const labelClass = "block text-[11px] font-black uppercase text-slate-700 mb-1.5 tracking-wide";
-  const inputClass = "w-full bg-white border-2 border-slate-300 rounded-lg px-4 py-3 text-sm font-bold text-slate-900 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all outline-none";
-
   return (
-    <div className="fixed inset-0 z-200 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-in fade-in duration-200 italic">
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] border border-slate-200">
+    <div className="fixed inset-0 z-200 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 italic">
+      <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl border-4 border-slate-900 overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in duration-200">
         
-        {/* HEADER */}
-        <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
-            {userToEdit ? <User className="text-blue-600" /> : <Save className="text-blue-600" />}
-            {userToEdit ? `Rectifier : ${form.lastName}` : 'Enrôlement Matrix'}
+        <div className="p-8 bg-slate-50 border-b-2 border-slate-100 flex justify-between items-center">
+          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">
+            {userToEdit ? '📦 Rectifier Profil' : '🚀 Enrôler Agent'}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors cursor-pointer border border-slate-200"><X size={20}/></button>
+          <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full cursor-pointer transition-colors"><X size={24}/></button>
         </div>
 
-        {/* ERROR DISPLAY */}
-        {errorDetails && (
-          <div className="mx-6 mt-6 p-4 bg-red-50 border-l-4 border-red-600 rounded-r-lg flex items-start gap-3">
-            <AlertTriangle className="text-red-600 shrink-0 mt-0.5" size={18} />
-            <div className="flex-1 font-mono text-[11px] text-red-700 uppercase font-bold">{errorDetails}</div>
+        {errorMsg && (
+          <div className="mx-8 mt-6 p-4 bg-red-50 border-l-4 border-red-600 rounded-r-xl flex items-start gap-3">
+            <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={18} />
+            <p className="text-[10px] font-black text-red-800 uppercase leading-tight">{errorMsg}</p>
           </div>
         )}
 
-        <form id="matrix-form" onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
-          <div className="grid grid-cols-2 gap-5">
-            <div>
-              <label className={labelClass}>Prénom</label>
-              <input required className={inputClass} value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})} />
-            </div>
-            <div>
-              <label className={labelClass}>Nom</label>
-              <input required className={inputClass} value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})} />
-            </div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
+          <div className="grid grid-cols-2 gap-4">
+            <input required placeholder="Prénom" className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl p-4 font-bold outline-none focus:border-blue-600" value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})} />
+            <input required placeholder="Nom" className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl p-4 font-bold outline-none focus:border-blue-600" value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})} />
           </div>
 
-          <div>
-            <label className={labelClass}>Email (Identifiant Unique)</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input required type="email" className={`${inputClass} pl-12`} value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-            </div>
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input required type="email" placeholder="Email (Login)" className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none focus:border-blue-600" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
           </div>
 
-          <div className="p-4 bg-slate-50 rounded-xl border-2 border-slate-200">
-            <label className={labelClass}>{userToEdit ? 'Nouveau Password (Optionnel)' : 'Password Initial'}</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input type={showPassword ? "text" : "password"} className={`${inputClass} pl-12 pr-12`} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder={userToEdit ? "••••••••" : "Qualisoft@2026"} />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 cursor-pointer">{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
-            </div>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input type={showPassword ? "text" : "password"} placeholder={userToEdit ? "Laisser vide si inchangé" : "Mot de passe"} className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl py-4 pl-12 pr-4 font-bold outline-none focus:border-blue-600" value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer">{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
           </div>
 
-          <div className="space-y-6 pt-4 border-t-2 border-slate-100">
-            <div>
-              <label className={labelClass}>Affectation Nœud Client</label>
-              <select required disabled={!!userToEdit} className={`${inputClass} disabled:bg-slate-100`} value={form.tenantId} onChange={e => setForm({...form, tenantId: e.target.value})}>
-                <option value="">-- Sélectionner l&apos;Organisation --</option>
-                {tenants.map(t => <option key={t.T_Id} value={t.T_Id}>{t.T_Name} ({t.T_Domain})</option>)}
-              </select>
-            </div>
+          {!userToEdit && (
+            <select required className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl p-4 font-bold outline-none focus:border-blue-600 appearance-none" value={form.tenantId} onChange={e => setForm({...form, tenantId: e.target.value})}>
+              <option value="">Sélectionner Organisation</option>
+              {tenants.map((t: any) => <option key={t.T_Id} value={t.T_Id}>{t.T_Name}</option>)}
+            </select>
+          )}
 
-            <div>
-              <label className={labelClass}>Accréditation (Prisma Role)</label>
-              <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto p-1">
-                {PRISMA_ROLES.map(r => (
-                  <label key={r.value} className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.role === r.value ? `${r.color} shadow-sm border-current` : 'border-slate-200 bg-white hover:border-slate-400 opacity-60 hover:opacity-100'}`}>
-                    <input type="radio" className="hidden" checked={form.role === r.value} onChange={() => setForm({...form, role: r.value})} />
-                    <Shield size={16} className="mt-0.5 shrink-0" />
-                    <div>
-                      <span className="text-[10px] font-black uppercase block">{r.label}</span>
-                      <span className="text-[9px] font-bold opacity-70 block">{r.desc}</span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2">
+            {PRISMA_ROLES.map(r => (
+              <label key={r.value} className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${form.role === r.value ? 'border-blue-600 bg-blue-50' : 'border-slate-100 hover:border-slate-300'}`}>
+                <input type="radio" className="hidden" checked={form.role === r.value} onChange={() => setForm({...form, role: r.value})} />
+                <p className="text-[10px] font-black uppercase text-slate-900">{r.label}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase">{r.desc}</p>
+              </label>
+            ))}
           </div>
-        </form>
 
-        <div className="p-6 border-t border-slate-100 flex gap-4 bg-slate-50 rounded-b-2xl">
-          <button type="button" onClick={onClose} className="flex-1 py-4 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-black uppercase text-xs hover:bg-slate-100 transition-all cursor-pointer">Annuler</button>
-          <button form="matrix-form" type="submit" disabled={loading} className="flex-2 py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-xs hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer">
-            {loading ? <Loader2 className="animate-spin" /> : <Save size={16} />}
-            {loading ? 'SCELLEMENT...' : (userToEdit ? 'RECTIFIER L\'AGENT' : 'ENRÔLER L\'AGENT')}
+          <button disabled={loading} className="w-full bg-slate-900 text-white py-5 rounded-3xl font-black uppercase text-xs hover:bg-blue-600 transition-all flex items-center justify-center gap-3 cursor-pointer shadow-xl">
+            {loading ? <Loader2 className="animate-spin" /> : <Save size={18}/>}
+            {loading ? 'SCELLEMENT...' : 'SCELLER LE PROFIL'}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

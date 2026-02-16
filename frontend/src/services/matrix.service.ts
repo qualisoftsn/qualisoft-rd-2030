@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import apiClient from "@/core/api/api-client";
 
-// --- TYPES SOUVERAINS ---
+// --- TYPES SOUVERAINS (RESTESTAURÉS) ---
 export type TenantPlan = "ESSAI" | "EMERGENCE" | "CROISSANCE" | "ENTREPRISE" | "GROUPE";
 export type MatrixRole = "SUPER_ADMIN" | "ADMIN" | "USER" | "PILOTE" | "COPILOTE" | "RQ" | "DIRECTION" | "HSE" | "SAFETY_OFFICER" | "AUDITEUR" | "OBSERVATEUR";
 
@@ -32,46 +32,24 @@ export interface TenantDetails {
   _count?: { T_Users: number; T_Sites: number; };
 }
 
-export interface ProvisioningPayload {
-  companyName: string;
-  ceoName: string;
-  email: string;
-  adminFirstName: string;
-  adminLastName: string;
-  phone: string;
-  address: string;
-}
-
-export interface MatrixUserPayload {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password?: string;
-  role: MatrixRole;
-  tenantId: string;
-}
-
 // --- API MATRIX ---
 export const matrixApi = {
   getTenants: async () => (await apiClient.get<TenantDetails[]>('/admin/matrix')).data,
   getDetails: async (id: string) => (await apiClient.get<TenantDetails>(`/admin/matrix/details/${id}`)).data,
-  initialize: async (data: ProvisioningPayload) => (await apiClient.post('/admin/matrix/initialize', data)).data,
+  initialize: async (data: any) => (await apiClient.post('/admin/matrix/initialize', data)).data,
   impersonate: async (tenantId: string) => (await apiClient.post(`/admin/matrix/impersonate/${tenantId}`)).data,
   
-  createGlobalUser: async (payload: MatrixUserPayload) => (await apiClient.post<UserMatrixEntry>('/users', payload)).data,
-  updateUser: async (id: string, payload: Partial<MatrixUserPayload>) => {
-    const { tenantId, ...updateData } = payload as any;
-    return (await apiClient.patch<UserMatrixEntry>(`/users/${id}`, updateData)).data;
+  // ✅ Méthode globale utilisée par les nouvelles Modals
+  createGlobalUser: async (payload: any) => (await apiClient.post<UserMatrixEntry>('/users', payload)).data,
+  
+  // ✅ Méthode spécifique utilisée par le Cockpit [id]
+  updateUser: async (id: string, payload: any) => {
+    // Nettoyage pour éviter la 400 (On ne renvoie pas l'ID dans le body)
+    const { U_Id, ...cleanData } = payload;
+    return (await apiClient.patch<UserMatrixEntry>(`/users/${id}`, cleanData)).data;
   },
-  deleteUser: async (id: string) => (await apiClient.delete(`/users/${id}`)).data,
 
-  // --- MÉTHODES PUBLIQUES DE LOGIN ---
-  getPublicTenants: async (): Promise<PublicTenant[]> => {
-    const res = await apiClient.get<PublicTenant[]>('/auth/public/tenants');
-    return res.data;
-  },
-  getTenantByDomain: async (domain: string): Promise<PublicTenant> => {
-    const res = await apiClient.get<PublicTenant>(`/auth/domain/${domain}`);
-    return res.data;
-  }
+  deleteUser: async (id: string) => (await apiClient.delete(`/users/${id}`)).data,
+  getPublicTenants: async () => (await apiClient.get<PublicTenant[]>('/auth/public/tenants')).data,
+  getTenantByDomain: async (domain: string) => (await apiClient.get<PublicTenant>(`/auth/domain/${domain}`)).data,
 };
