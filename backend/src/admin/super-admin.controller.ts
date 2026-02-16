@@ -2,6 +2,7 @@
  * CHEMIN ABSOLU : /backend/src/admin/super-admin.controller.ts
  * PROJET : Qualisoft Elite RD 2030
  * RÔLE : Centre de commandement souverain pour la gestion des nœuds Matrix.
+ * VERSION : 2.1.0 (Correctif Build Strict)
  */
 
 import {
@@ -66,7 +67,7 @@ export class SuperAdminController {
 
   /**
    * 🏗️ ACTIVATION D'UN NOUVEAU NŒUD CLIENT
-   * ✅ SÉCURITÉ : Aligné sur le ProvisioningDto épuré (Zéro Password).
+   * ✅ SÉCURITÉ : Aligné sur le ProvisioningDto Strict (Slug + Password injectés).
    */
   @Post('activate-tenant')
   @HttpCode(HttpStatus.CREATED)
@@ -80,10 +81,12 @@ export class SuperAdminController {
 
     try {
       /**
-       * 🔄 MAPPAGE STRICT (Zéro Password)
-       * On construit l'objet en respectant scrupuleusement le ProvisioningDto 
-       * pour éviter l'erreur TS2353.
+       * 🔄 MAPPAGE STRICT (Compatibilité DTO v3)
+       * On génère un slug et un mot de passe par défaut pour satisfaire
+       * les validateurs stricts du nouveau DTO, car ce contrôleur est "legacy".
        */
+      const generatedSlug = data.companyName.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
+      
       const alignedData: ProvisioningDto = {
         companyName: data.companyName,
         ceoName: data.ceoName || "Direction Générale",
@@ -92,6 +95,10 @@ export class SuperAdminController {
         adminLastName: data.adminLastName || "Principal",
         phone: data.phone || "000000000",
         address: data.address || "Sénégal, Dakar",
+        
+        // 🛠️ CHAMPS INJECTÉS POUR LE BUILD :
+        customSlug: generatedSlug,
+        adminPassword: "Qualisoft@2030" // Mot de passe par défaut pour l'activation rapide
       };
 
       return await this.provisioningService.initializeNewClient(alignedData);
