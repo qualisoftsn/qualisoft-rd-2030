@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import axios, { InternalAxiosRequestConfig, AxiosError } from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../../store/authStore';
 
 const isServer = typeof window === 'undefined';
@@ -13,19 +12,19 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const state = useAuthStore.getState();
-    const token = state.token;
-    const user = state.user;
-
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    
+    // 1. Injection du Jeton Bearer
+    if (state.token && config.headers) {
+      config.headers.Authorization = `Bearer ${state.token}`;
     }
 
-    // ✅ Utilisation stricte de ta propriété tenantId du store
-    if (user?.tenantId && config.headers) {
-      config.headers['x-tenant-id'] = user.tenantId;
+    // 2. Injection du Tenant ID (Crucial pour Prisma Multi-tenant)
+    // On utilise exactement la structure de ton authStore
+    if (state.user?.tenantId && config.headers) {
+      config.headers['x-tenant-id'] = state.user.tenantId;
     }
 
-    // ✅ Restauration de la détection de domaine pour le Multi-site
+    // 3. Contexte de domaine (pour app.qualisoft.sn vs client.qualisoft.sn)
     if (!isServer && config.headers) {
       const parts = window.location.hostname.split('.');
       if (parts.length > 2 && !['www', 'app', 'elite', 'api', 'localhost'].includes(parts[0])) {
