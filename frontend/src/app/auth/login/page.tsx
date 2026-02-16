@@ -181,7 +181,7 @@ function LoginPortal() {
         )}
 
         <footer className="mt-12 text-center text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] italic">
-          Qualisoft Elite RD 2030 Sovereign System
+          Qualisoft Elite RD 2030 Souverain System
         </footer>
       </div>
     </div>
