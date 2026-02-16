@@ -7,21 +7,20 @@ import {
   ArrowLeft, Building2, CheckCircle2, Loader2, Mail, 
   Rocket, ShieldCheck, Zap, UserCheck, Phone, MapPin, Globe 
 } from "lucide-react";
+// ✅ Import scellé avec le service corrigé
 import { matrixApi, ProvisioningPayload } from "@/services/matrix.service";
 import { toast } from "sonner";
 
 /**
- * 🚀 PAGE DE DÉPLOIEMENT MATRIX ELITE RD 2030 (v2.1)
- * Rôle : Initialisation souveraine des instances sans transfert de mot de passe.
- * Philosophie : Sécurité par injection interne (Backend).
+ * 🚀 PAGE DE DÉPLOIEMENT MATRIX ELITE RD 2030 (v2.2 - Build Stable)
+ * Rôle : Initialisation souveraine des instances.
  */
 export default function MatrixDeployPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // ✅ État épuré : Le mot de passe est désormais géré par le Noyau Master
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProvisioningPayload>({
     companyName: "",
     ceoName: "",
     email: "",
@@ -31,7 +30,7 @@ export default function MatrixDeployPage() {
     address: "",
   });
 
-  // 🛰️ Calcul du domaine en temps réel
+  // 🛰️ Calcul du domaine technique en temps réel
   const domainPreview = useMemo(() => {
     if (!formData.companyName) return "...";
     return formData.companyName
@@ -42,29 +41,31 @@ export default function MatrixDeployPage() {
   }, [formData.companyName]);
 
   /**
-   * ⚡ EXÉCUTION DU PROTOCOLE DE SCELLAGE
+   * ⚡ EXÉCUTION DU PROTOCOLE DE DÉPLOIEMENT
    */
   const handleDeploy = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const toastId = toast.loading("Initialisation du nœud souverain...");
 
     try {
-      // 🛡️ Transmission au Noyau Master (ProvisioningPayload ne contient plus 'password')
-      const result = await matrixApi.initialize(formData as ProvisioningPayload);
+      // 🛡️ Appel au Kernel Matrix
+      const result = await matrixApi.initialize(formData);
 
-      if (result.success) {
+      if (result) {
         setIsSuccess(true);
-        toast.success("Nœud Matrix scellé avec succès.");
+        toast.success("Nœud Matrix scellé avec succès.", { id: toastId });
+        // Redirection après succès
         setTimeout(() => router.push("/admin/matrix"), 2500);
       }
     } catch (error: any) {
-      // 🛠️ Capture des erreurs de validation ou de conflit
+      // 🛠️ Décodage des erreurs du Backend
       const backendMessage = error.response?.data?.message;
       const finalMsg = Array.isArray(backendMessage) 
         ? backendMessage[0] 
         : backendMessage || "Échec du scellage souverain.";
       
-      toast.error(finalMsg);
+      toast.error(`ERREUR KERNEL : ${finalMsg}`, { id: toastId });
     } finally {
       setIsLoading(false);
     }
@@ -86,13 +87,13 @@ export default function MatrixDeployPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0F1A] p-6 md:p-12 italic selection:bg-blue-500/30">
-      <div className="max-w-6xl mx-auto space-y-12">
+      <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700">
         
-        {/* BARRE DE NAVIGATION */}
+        {/* NAV */}
         <div className="flex items-center justify-between">
           <button 
             onClick={() => router.back()} 
-            className="flex items-center gap-3 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-all bg-transparent border-none cursor-pointer group"
+            className="flex items-center gap-3 text-[10px] font-black text-slate-500 hover:text-white transition-all bg-transparent border-none cursor-pointer group uppercase tracking-widest"
           >
             <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> 
             Retour au Registre
@@ -130,6 +131,7 @@ export default function MatrixDeployPage() {
                   type="text" 
                   placeholder="EX: SENELEC" 
                   className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic placeholder:text-slate-700" 
+                  value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })} 
                 />
               </div>
@@ -143,6 +145,7 @@ export default function MatrixDeployPage() {
                     type="text" 
                     placeholder="PRÉNOM & NOM DU DG" 
                     className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic placeholder:text-slate-700" 
+                    value={formData.ceoName}
                     onChange={(e) => setFormData({ ...formData, ceoName: e.target.value })} 
                   />
                 </div>
@@ -153,23 +156,22 @@ export default function MatrixDeployPage() {
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Téléphone</label>
                   <div className="relative">
                     <Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                    <input required type="text" placeholder="+221..." className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic placeholder:text-slate-700" onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+                    <input required type="text" placeholder="+221..." className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic placeholder:text-slate-700" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
                   </div>
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Adresse</label>
                   <div className="relative">
                     <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                    <input required type="text" placeholder="DAKAR, SN" className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic placeholder:text-slate-700" onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+                    <input required type="text" placeholder="DAKAR, SN" className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-blue-600 transition-all italic placeholder:text-slate-700" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
                   </div>
                 </div>
               </div>
 
-              {/* DOMAIN PREVIEW */}
               <div className="p-6 bg-blue-600/5 border border-blue-600/10 rounded-[2.5rem] flex items-center gap-5">
                 <Globe className="text-blue-500" size={24} />
                 <div className="overflow-hidden">
-                  <p className="text-[9px] font-black text-blue-500/50 uppercase tracking-widest mb-1">Domaine technique</p>
+                  <p className="text-[9px] font-black text-blue-500/50 uppercase tracking-widest mb-1">Domaine technique injecté</p>
                   <p className="text-sm font-black text-white italic truncate tracking-tight">
                     https://<span className="text-blue-500">{domainPreview}</span>.qualisoft.sn
                   </p>
@@ -178,7 +180,7 @@ export default function MatrixDeployPage() {
             </div>
           </div>
 
-          {/* SECTION 2 : ADMIN */}
+          {/* SECTION 2 : ADMIN RACINE */}
           <div className="bg-[#0F172A]/50 backdrop-blur-xl border border-white/5 p-10 rounded-[3.5rem] space-y-10 shadow-2xl">
             <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] flex items-center gap-3">
               <ShieldCheck size={16} /> Autorité Racine (Admin)
@@ -188,11 +190,11 @@ export default function MatrixDeployPage() {
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Prénom</label>
-                  <input required type="text" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" onChange={(e) => setFormData({ ...formData, adminFirstName: e.target.value })} />
+                  <input required type="text" value={formData.adminFirstName} className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" onChange={(e) => setFormData({ ...formData, adminFirstName: e.target.value })} />
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Nom</label>
-                  <input required type="text" className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" onChange={(e) => setFormData({ ...formData, adminLastName: e.target.value })} />
+                  <input required type="text" value={formData.adminLastName} className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic" onChange={(e) => setFormData({ ...formData, adminLastName: e.target.value })} />
                 </div>
               </div>
 
@@ -205,57 +207,56 @@ export default function MatrixDeployPage() {
                     type="email" 
                     placeholder="admin@domaine.sn" 
                     className="w-full pl-16 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white font-black outline-none focus:border-amber-600 transition-all italic placeholder:text-slate-700" 
+                    value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
                   />
                 </div>
               </div>
 
-              {/* INFO BOX SÉCURITÉ */}
-              <div className="p-8 bg-amber-500/5 border border-amber-500/10 rounded-[2.5rem] space-y-3">
-                <p className="text-[10px] font-black text-amber-500/70 uppercase tracking-widest">Protocole de Sécurité</p>
+              <div className="p-8 bg-amber-500/5 border border-amber-500/10 rounded-[2.5rem] space-y-3 border-l-4 border-l-amber-500">
+                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Alerte Sécurité Kernel</p>
                 <p className="text-xs text-slate-400 leading-relaxed font-bold">
-                  Aucun mot de passe n&apos;est transmis durant le scellage. 
-                  L&apos;autorité racine est initialisée avec une clé maître temporaire. 
-                  Le renouvellement sera exigé lors du premier accès souverain.
+                  Conformément au protocole RD-2030, aucun mot de passe n&apos;est transmis durant le scellage. 
+                  L&apos;autorité racine devra générer sa clé de cryptage lors de la première synchronisation.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* FOOTER ACTIONS */}
+          {/* BOUTON D'ACTION */}
           <div className="lg:col-span-2 flex flex-col md:flex-row items-center justify-between p-10 bg-[#0F172A] border border-white/5 rounded-[3.5rem] shadow-2xl gap-8">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shadow-inner">
-                <ShieldCheck className="text-slate-500" size={24} />
+            <div className="flex items-center gap-5">
+              <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shadow-inner group">
+                <ShieldCheck className="text-slate-500 group-hover:text-blue-500 transition-colors" size={28} />
               </div>
               <div className="hidden md:block">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Certification Matrix</p>
-                <p className="text-[10px] font-black text-white uppercase italic tracking-tighter">ISO 9001 / 14001 / 27001 RD-2030</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Standard de conformité</p>
+                <p className="text-xs font-black text-white uppercase italic tracking-tighter">Qualisoft Elite • Provisioning Souverain</p>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !formData.companyName || !formData.email}
-              className="w-full md:w-auto px-16 py-7 bg-blue-600 text-white rounded-4xl font-black uppercase tracking-[0.3em] flex items-center justify-center gap-5 hover:bg-white hover:text-slate-900 transition-all disabled:opacity-20 disabled:cursor-not-allowed shadow-[0_0_50px_rgba(37,99,235,0.15)] border-none cursor-pointer italic text-xs"
+              className="w-full md:w-auto px-20 py-8 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.3em] flex items-center justify-center gap-5 hover:bg-white hover:text-slate-900 transition-all disabled:opacity-20 disabled:cursor-not-allowed shadow-2xl border-none cursor-pointer italic text-xs active:scale-95"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="animate-spin" size={20} />
-                  Scellage en cours...
+                  <Loader2 className="animate-spin" size={22} />
+                  SCELLAGE...
                 </>
               ) : (
                 <>
-                  <Rocket size={20} />
-                  Lancer le Scellage
+                  <Rocket size={22} />
+                  LANCER LE SCELLAGE
                 </>
               )}
             </button>
           </div>
         </form>
 
-        <p className="text-center text-[9px] font-black text-slate-600 uppercase tracking-[0.8em] pb-10">
-          Qualisoft Elite RD 2030 • Sovereign Provisioning System
+        <p className="text-center text-[9px] font-black text-slate-700 uppercase tracking-[0.8em] pb-10">
+          Matrix Engine RD 2030 • Enterprise Deployment Portal
         </p>
       </div>
     </div>
