@@ -11,6 +11,10 @@ const isServer = typeof window === 'undefined';
 const apiClient = axios.create({
   baseURL: isServer ? 'http://backend:9000/api' : 'https://api.qualisoft.sn/api',
   withCredentials: true,
+  headers: { 
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
   timeout: 15000,
 });
 
@@ -25,7 +29,7 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // B. Injection du Tenant ID (Isolation Multi-tenant)
+    // B. Injection du Tenant ID (Souveraineté Prisma)
     if (user?.tenantId && config.headers) {
       config.headers['x-tenant-id'] = user.tenantId;
     }
@@ -33,7 +37,8 @@ apiClient.interceptors.request.use(
     // C. Injection du Sous-domaine (Contexte Territorial)
     if (!isServer && config.headers) {
       const parts = window.location.hostname.split('.');
-      if (parts.length > 2 && !['www', 'app', 'elite', 'api', 'localhost'].includes(parts[0])) {
+      // Respect strict de tes MASTER_DOMAINS
+      if (parts.length > 2 && !['www', 'api', 'app', 'elite', 'localhost'].includes(parts[0])) {
         config.headers['x-tenant-domain'] = parts[0].toLowerCase();
       }
     }
