@@ -1,3 +1,8 @@
+/**
+ * 🛰️ API CLIENT - QUALISOFT ELITE RD 2030
+ * RÔLE : Injection dynamique des headers Authorization et TenantID.
+ */
+
 import axios, { InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../../store/authStore';
 
@@ -12,19 +17,20 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const state = useAuthStore.getState();
-    
-    // 1. Injection du Jeton Bearer
-    if (state.token && config.headers) {
-      config.headers.Authorization = `Bearer ${state.token}`;
+    const token = state.token;
+    const user = state.user;
+
+    // A. Injection du Jeton Bearer (Fix 401)
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // 2. Injection du Tenant ID (Crucial pour Prisma Multi-tenant)
-    // On utilise exactement la structure de ton authStore
-    if (state.user?.tenantId && config.headers) {
-      config.headers['x-tenant-id'] = state.user.tenantId;
+    // B. Injection du Tenant ID (Isolation Multi-tenant)
+    if (user?.tenantId && config.headers) {
+      config.headers['x-tenant-id'] = user.tenantId;
     }
 
-    // 3. Contexte de domaine (pour app.qualisoft.sn vs client.qualisoft.sn)
+    // C. Injection du Sous-domaine (Contexte Territorial)
     if (!isServer && config.headers) {
       const parts = window.location.hostname.split('.');
       if (parts.length > 2 && !['www', 'app', 'elite', 'api', 'localhost'].includes(parts[0])) {
