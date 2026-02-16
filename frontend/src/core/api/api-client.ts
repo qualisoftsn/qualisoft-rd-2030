@@ -1,6 +1,6 @@
 /**
  * 🛰️ API CLIENT - QUALISOFT ELITE RD 2030
- * RÔLE : Injection dynamique des headers et isolation des sessions.
+ * RÔLE : Injection dynamique des headers de souveraineté.
  */
 
 import axios, { InternalAxiosRequestConfig } from 'axios';
@@ -23,29 +23,26 @@ apiClient.interceptors.request.use(
     const state = useAuthStore.getState();
     const { token, user } = state;
 
-    // 1. Injection Jeton (Fix 401)
+    // A. Jeton d'autorité
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // 2. Détermination du Domaine Territorial
-    if (!isServer && config.headers) {
-      const hostname = window.location.hostname;
-      const parts = hostname.split('.');
-      const subdomain = parts[0].toLowerCase();
-      const isMaster = ['www', 'app', 'elite', 'api', 'localhost'].includes(subdomain);
-
-      // SOUVERAINETÉ : Si on est sur un tenant, on force son domaine dans le header
-      if (!isMaster) {
-        config.headers['x-tenant-domain'] = subdomain;
-      }
-
-      // 3. Injection du Tenant ID (Fix CRUD)
-      // Si c'est un Super Admin, il doit envoyer 'MATRIX' pour agir sur le Kernel
+    // B. Fix CRUD Matrix (L'ancrage souverain)
+    if (config.headers) {
+      // Pour que le CRUD marche en Master, on force 'MATRIX'
       if (user?.U_Role === "SUPER_ADMIN") {
         config.headers['x-tenant-id'] = 'MATRIX';
       } else if (user?.tenantId) {
         config.headers['x-tenant-id'] = user.tenantId;
+      }
+    }
+
+    // C. Contexte Territorial (Subdomain)
+    if (!isServer && config.headers) {
+      const parts = window.location.hostname.split('.');
+      if (parts.length > 2 && !['www', 'app', 'elite', 'api', 'localhost'].includes(parts[0])) {
+        config.headers['x-tenant-domain'] = parts[0].toLowerCase();
       }
     }
 
