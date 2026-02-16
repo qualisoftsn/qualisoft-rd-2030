@@ -29,7 +29,7 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // B. Injection du Tenant ID (Souveraineté Prisma)
+    // B. Injection du Tenant ID (Isolation Multi-tenant Prisma)
     if (user?.tenantId && config.headers) {
       config.headers['x-tenant-id'] = user.tenantId;
     }
@@ -37,8 +37,9 @@ apiClient.interceptors.request.use(
     // C. Injection du Sous-domaine (Contexte Territorial)
     if (!isServer && config.headers) {
       const parts = window.location.hostname.split('.');
-      // Respect strict de tes MASTER_DOMAINS
-      if (parts.length > 2 && !['www', 'api', 'app', 'elite', 'localhost'].includes(parts[0])) {
+      const masterReserved = ['www', 'app', 'elite', 'api', 'localhost'];
+      
+      if (parts.length > 2 && !masterReserved.includes(parts[0])) {
         config.headers['x-tenant-domain'] = parts[0].toLowerCase();
       }
     }

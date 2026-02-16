@@ -1,8 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/**
- * 🏛️ MATRIX SERVICE - CONTRAT SOUVERAIN
- * RÔLE : Appels API Matrix et Gestion des Citoyens.
- */
 import apiClient from "@/core/api/api-client";
 
 export type TenantPlan = "ESSAI" | "EMERGENCE" | "CROISSANCE" | "ENTREPRISE" | "GROUPE";
@@ -42,7 +38,7 @@ export const matrixApi = {
   impersonate: async (tenantId: string) => (await apiClient.post(`/admin/matrix/impersonate/${tenantId}`)).data,
   createGlobalUser: async (payload: any) => (await apiClient.post<UserMatrixEntry>('/users', payload)).data,
   
-  /** ✅ FIX 400 : On retire l'ID et le TenantId du body pour Prisma */
+  /** ✅ FIX 400 : On retire l'ID et le TenantId du corps pour Prisma */
   updateUser: async (id: string, payload: any) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { U_Id, tenantId, id: _, ...cleanPayload } = payload;
@@ -50,6 +46,6 @@ export const matrixApi = {
   },
 
   deleteUser: async (id: string) => (await apiClient.delete(`/users/${id}`)).data,
-  getPublicTenants: async () => (await apiClient.get('/auth/public/tenants')).data,
-  getTenantByDomain: async (domain: string) => (await apiClient.get(`/auth/domain/${domain}`)).data,
+  getPublicTenants: async () => (await apiClient.get<PublicTenant[]>('/auth/public/tenants')).data,
+  getTenantByDomain: async (domain: string) => (await apiClient.get<PublicTenant>(`/auth/domain/${domain}`)).data,
 };
