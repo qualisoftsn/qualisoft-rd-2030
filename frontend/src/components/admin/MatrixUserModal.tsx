@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { matrixApi, MatrixUserPayload } from '@/services/matrix.service';
-import { X, Save, Loader2, User, Mail, Lock, Shield, Building2 } from 'lucide-react';
+import { X, Save, Loader2, User, Mail, Lock, Shield, Building2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TenantSummary {
@@ -16,41 +16,38 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  userToEdit?: any; // Si cet objet est présent, on est en mode "MODIFICATION"
+  userToEdit?: any;
 }
 
-// 📋 LISTE DES RÔLES SYSTÈME (Hiérarchie Matrix)
 const SYSTEM_ROLES = [
-  { value: 'SUPER_ADMIN', label: '👑 SUPER ADMIN (Matrix)', desc: 'Accès total à tous les tenants', color: 'bg-red-50 border-red-200 text-red-700' },
-  { value: 'ADMIN', label: '🏢 ADMIN TENANT (DG/Admin)', desc: 'Gestion complète d\'une société', color: 'bg-blue-50 border-blue-200 text-blue-700' },
-  { value: 'ADMIN_RQ', label: '⭐ RESP. QUALITÉ (RMQ)', desc: 'Pilotage du système QHSE', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
-  { value: 'PILOTE', label: '✈️ PILOTE PROCESSUS', desc: 'Gestion de fiche processus', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-  { value: 'AUDITEUR', label: '🔍 AUDITEUR', desc: 'Réalisation d\'audits', color: 'bg-amber-50 border-amber-200 text-amber-700' },
+  { value: 'SUPER_ADMIN', label: '👑 SUPER ADMIN (Matrix)', desc: 'Accès total', color: 'bg-red-50 border-red-200 text-red-700' },
+  { value: 'ADMIN', label: '🏢 ADMIN TENANT', desc: 'DG / Admin Local', color: 'bg-blue-50 border-blue-200 text-blue-700' },
+  { value: 'ADMIN_RQ', label: '⭐ RESP. QUALITÉ', desc: 'Pilote le SMI', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
+  { value: 'PILOTE', label: '✈️ PILOTE', desc: 'Gère ses processus', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+  { value: 'AUDITEUR', label: '🔍 AUDITEUR', desc: 'Fait des audits', color: 'bg-amber-50 border-amber-200 text-amber-700' },
   { value: 'OBSERVATEUR', label: '👀 OBSERVATEUR', desc: 'Lecture seule', color: 'bg-slate-50 border-slate-200 text-slate-700' },
 ];
 
 export default function MatrixUserModal({ isOpen, onClose, onSuccess, userToEdit }: Props) {
   const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<TenantSummary[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
   
-  // État du formulaire
   const [formData, setFormData] = useState<MatrixUserPayload>({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
-    role: 'ADMIN', // Rôle par défaut
+    role: 'ADMIN',
     tenantId: ''
   });
 
-  // 🔄 Chargement initial (Tenants + Mode Édition)
+  // Chargement des données
   useEffect(() => {
     if (isOpen) {
-      // 1. Charger la liste des sociétés pour le menu déroulant
       const loadTenants = async () => {
         try {
           const data = await matrixApi.getTenants();
-          // On mappe les données complexes vers un format simple pour le select
           const simpleList = (Array.isArray(data) ? data : []).map((t: any) => ({
              T_Id: t.T_Id,
              T_Name: t.T_Name,
@@ -58,29 +55,24 @@ export default function MatrixUserModal({ isOpen, onClose, onSuccess, userToEdit
           }));
           setTenants(simpleList);
         } catch (e) {
-          console.error("Erreur chargement tenants", e);
-          toast.error("Impossible de charger la liste des organisations");
+          console.error(e);
+          toast.error("Erreur chargement organisations");
         }
       };
       loadTenants();
 
-      // 2. Si on édite, on remplit le formulaire avec les infos existantes
       if (userToEdit) {
-        console.log("📝 Mode Édition pour :", userToEdit);
         setFormData({
-          id: userToEdit.U_Id, // Important pour l'update
+          id: userToEdit.U_Id, 
           firstName: userToEdit.U_FirstName || '',
           lastName: userToEdit.U_LastName || '',
           email: userToEdit.U_Email || '',
           role: userToEdit.U_Role || 'ADMIN',
-          tenantId: userToEdit.tenantId || userToEdit.T_Id || '', // Tente de trouver l'ID du tenant
-          password: '' // On laisse vide (ne change que si l'admin tape quelque chose)
+          tenantId: userToEdit.tenantId || userToEdit.T_Id || '', 
+          password: '' 
         });
       } else {
-        // Reset en mode création
-        setFormData({
-            firstName: '', lastName: '', email: '', password: '', role: 'ADMIN', tenantId: ''
-        });
+        setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'ADMIN', tenantId: '' });
       }
     }
   }, [isOpen, userToEdit]);
@@ -92,27 +84,44 @@ export default function MatrixUserModal({ isOpen, onClose, onSuccess, userToEdit
     setLoading(true);
 
     try {
-      if (userToEdit && userToEdit.U_Id) {
-        // --- MODE UPDATE ---
-        // On n'envoie le mot de passe que s'il a été saisi
-        const payload = { ...formData };
-        if (!payload.password) delete payload.password;
-        
-        // On appelle la méthode update
-        await matrixApi.updateUser(userToEdit.U_Id, payload as any);
-        toast.success("Utilisateur mis à jour avec succès.");
-      } else {
-        // --- MODE CREATE ---
-        // On utilise la nouvelle méthode globale
-        await matrixApi.createGlobalUser(formData);
-        toast.success("Utilisateur créé et actif.");
+      // 🧹 NETTOYAGE CHIRURGICAL DU PAYLOAD AVANT ENVOI
+      // On retire l'ID du body (car il est dans l'URL pour le PUT)
+      // On retire le password s'il est vide (pour ne pas l'écraser avec du vide)
+      const cleanPayload: any = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        role: formData.role,
+        tenantId: formData.tenantId
+      };
+
+      // Gestion spécifique du mot de passe
+      if (formData.password && formData.password.trim().length > 0) {
+        cleanPayload.password = formData.password;
       }
-      onSuccess(); // Rafraîchir la liste parente
-      onClose();   // Fermer la modal
+
+      if (userToEdit && userToEdit.U_Id) {
+        // --- UPDATE (PATCH) ---
+        console.log("📤 PATCH Payload:", cleanPayload);
+        await matrixApi.updateUser(userToEdit.U_Id, cleanPayload);
+        toast.success("Utilisateur mis à jour.");
+      } else {
+        // --- CREATE (POST) ---
+        // Pour la création, le mot de passe est obligatoire ou généré
+        if (!cleanPayload.password) cleanPayload.password = "Qualisoft@2026";
+        
+        console.log("📤 POST Payload:", cleanPayload);
+        await matrixApi.createGlobalUser(cleanPayload);
+        toast.success("Utilisateur créé.");
+      }
+      
+      onSuccess();
+      onClose();
     } catch (err: any) {
-      console.error(err);
-      const msg = err.response?.data?.message || "Erreur opération";
-      toast.error("Erreur : " + (Array.isArray(msg) ? msg[0] : msg));
+      console.error("Erreur API:", err);
+      const msg = err.response?.data?.message;
+      const displayMsg = Array.isArray(msg) ? msg.join(' | ') : (msg || "Erreur serveur (500)");
+      toast.error(`Échec : ${displayMsg}`);
     } finally {
       setLoading(false);
     }
@@ -120,137 +129,141 @@ export default function MatrixUserModal({ isOpen, onClose, onSuccess, userToEdit
 
   const isEditMode = !!userToEdit;
 
+  // Style commun pour les inputs (High Contrast)
+  const inputClass = "w-full bg-white border border-slate-300 rounded-xl px-4 py-3.5 font-bold text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all placeholder:text-slate-400";
+  const labelClass = "text-[10px] font-black uppercase text-slate-500 ml-1 mb-1 block tracking-wide";
+
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-4xl w-full max-w-2xl p-8 shadow-2xl animate-in zoom-in-95 duration-300 font-sans italic overflow-y-auto max-h-[90vh]">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl w-full max-w-2xl p-8 shadow-2xl animate-in zoom-in-95 duration-300 font-sans shadow-blue-900/20 border border-slate-200 flex flex-col max-h-[95vh]">
         
         {/* HEADER */}
-        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+        <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 shrink-0">
           <div>
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-2">
-               {isEditMode ? <User className="text-blue-600" /> : <Save className="text-blue-600" />}
-               {isEditMode ? 'MODIFIER L\'AGENT' : 'NOUVEL AGENT MATRIX'}
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-3 italic">
+               {isEditMode ? <User className="text-blue-600" size={28} /> : <Save className="text-blue-600" size={28} />}
+               {isEditMode ? 'Modifier Agent' : 'Nouvel Agent'}
             </h2>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-              {isEditMode ? `Mise à jour du profil : ${userToEdit.U_Email}` : "Création d'un nouvel accès système"}
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+              {isEditMode ? `Mise à jour : ${userToEdit.U_Email}` : "Création d'un accès système"}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors border-none cursor-pointer">
-            <X size={24} className="text-slate-400 hover:text-red-500 transition-colors" />
+          <button onClick={onClose} className="p-2 bg-slate-100 rounded-full hover:bg-red-50 hover:text-red-600 transition-colors border border-slate-200">
+            <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* FORMULAIRE SCROLLABLE */}
+        <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
+          <form id="matrix-form" onSubmit={handleSubmit} className="space-y-6 pb-4">
             
-            {/* 1. NOM & PRÉNOM */}
-            <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Prénom</label>
-              <input required className="w-full bg-slate-50 border-none rounded-xl px-4 py-4 font-bold text-xs outline-none focus:ring-2 ring-blue-500/20"
-                value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} placeholder="Ex: Moussa" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Nom</label>
-              <input required className="w-full bg-slate-50 border-none rounded-xl px-4 py-4 font-bold text-xs outline-none focus:ring-2 ring-blue-500/20"
-                value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} placeholder="Ex: DIOP" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className={labelClass}>Prénom</label>
+                <input required className={inputClass}
+                  value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} placeholder="Ex: Moussa" />
+              </div>
+              <div>
+                <label className={labelClass}>Nom</label>
+                <input required className={inputClass}
+                  value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} placeholder="Ex: DIOP" />
+              </div>
             </div>
 
-            {/* 2. EMAIL & PASSWORD */}
-            <div className="space-y-2 md:col-span-2">
-                <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Email Corporatif (Login)</label>
+            <div>
+                <label className={labelClass}>Email Corporatif (Login)</label>
                 <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input required type="email" className="w-full bg-slate-50 border-none rounded-xl pl-12 pr-4 py-4 font-bold text-xs outline-none focus:ring-2 ring-blue-500/20"
-                    value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="email@domaine.sn" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input required type="email" className={`${inputClass} pl-12`}
+                      value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="email@domaine.sn" />
                 </div>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-                <label className="text-[9px] font-black uppercase text-slate-400 ml-2">
-                {isEditMode ? 'Nouveau Mot de passe (Laisser vide pour conserver l\'actuel)' : 'Mot de passe initial'}
+            <div>
+                <label className={labelClass}>
+                  {isEditMode ? 'Nouveau Mot de passe (Optionnel)' : 'Mot de passe initial'}
                 </label>
                 <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input 
-                    type="password" 
-                    required={!isEditMode} 
-                    className="w-full bg-slate-50 border-none rounded-xl pl-12 pr-4 py-4 font-bold text-xs outline-none focus:ring-2 ring-blue-500/20"
-                    value={formData.password} 
-                    onChange={e => setFormData({...formData, password: e.target.value})} 
-                    placeholder={isEditMode ? "••••••••" : "Définir un mot de passe"} 
-                />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input 
+                      type={showPassword ? "text" : "password"} 
+                      required={!isEditMode} 
+                      className={`${inputClass} pl-12 pr-12`}
+                      value={formData.password} 
+                      onChange={e => setFormData({...formData, password: e.target.value})} 
+                      placeholder={isEditMode ? "Laisser vide pour ne pas changer" : "Créer un mot de passe"} 
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600">
+                    {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                  </button>
                 </div>
             </div>
 
-            {/* 3. ORGANISATION (TENANT) - CRUCIAL POUR SUPER ADMIN */}
-            <div className="space-y-2 md:col-span-2">
-                <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Organisation d&apos;affectation</label>
-                <div className="relative group">
-                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10 group-focus-within:text-blue-500" size={18} />
-                <select 
-                    required
-                    className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-4 font-bold text-xs outline-none focus:ring-2 ring-blue-500 appearance-none text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors"
-                    value={formData.tenantId}
-                    onChange={e => setFormData({...formData, tenantId: e.target.value})}
-                >
-                    <option value="">-- Sélectionner l&apos;organisation cible --</option>
-                    <option value="MATRIX" className="font-black text-red-600">⚠️ QUALISOFT ELITE (Staff Interne Matrix)</option>
-                    {tenants.map(t => (
-                    <option key={t.T_Id} value={t.T_Id}>{t.T_Name} ({t.T_Domain})</option>
-                    ))}
-                </select>
+            <div>
+                <label className={labelClass}>Organisation d&apos;affectation</label>
+                <div className="relative">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                  <select 
+                      required
+                      className={`${inputClass} pl-12 appearance-none cursor-pointer bg-slate-50 hover:bg-white`}
+                      value={formData.tenantId}
+                      onChange={e => setFormData({...formData, tenantId: e.target.value})}
+                  >
+                      <option value="">-- Sélectionner l&apos;organisation --</option>
+                      <option value="MATRIX" className="font-bold text-red-600">⚠️ QUALISOFT ELITE (Staff Interne)</option>
+                      {tenants.map(t => (
+                        <option key={t.T_Id} value={t.T_Id}>{t.T_Name} ({t.T_Domain})</option>
+                      ))}
+                  </select>
                 </div>
             </div>
 
-            {/* 4. RÔLE (LISTE COMPLÈTE) */}
-            <div className="space-y-3 md:col-span-2">
-                <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Niveau d&apos;accréditation</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-1 custom-scrollbar">
-                {SYSTEM_ROLES.map((roleOption) => (
-                    <label key={roleOption.value} 
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        formData.role === roleOption.value 
-                        ? `${roleOption.color} ring-2 ring-offset-1 ring-blue-500/50` 
-                        : 'border-slate-100 hover:bg-slate-50'
-                    }`}
-                    >
-                    <input 
-                        type="radio" 
-                        name="role" 
-                        value={roleOption.value}
-                        checked={formData.role === roleOption.value}
-                        onChange={() => setFormData({...formData, role: roleOption.value})}
-                        className="hidden" 
-                    />
-                    <Shield size={18} className="mt-0.5 shrink-0" />
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase">
-                            {roleOption.label}
-                        </span>
-                        <span className="text-[9px] opacity-70 font-medium">
-                            {roleOption.desc}
-                        </span>
-                    </div>
-                    </label>
-                ))}
+            <div>
+                <label className={labelClass}>Niveau d&apos;accréditation</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {SYSTEM_ROLES.map((roleOption) => (
+                      <label key={roleOption.value} 
+                        className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                            formData.role === roleOption.value 
+                            ? `${roleOption.color} border-current ring-1 ring-current` 
+                            : 'border-slate-100 bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        <input 
+                            type="radio" 
+                            name="role" 
+                            value={roleOption.value}
+                            checked={formData.role === roleOption.value}
+                            onChange={() => setFormData({...formData, role: roleOption.value})}
+                            className="hidden" 
+                        />
+                        <Shield size={18} className="mt-0.5 shrink-0" />
+                        <div>
+                            <span className="text-[10px] font-black uppercase block leading-tight">
+                                {roleOption.label}
+                            </span>
+                            <span className="text-[9px] font-medium opacity-80 block mt-1">
+                                {roleOption.desc}
+                            </span>
+                        </div>
+                      </label>
+                  ))}
                 </div>
             </div>
+          </form>
+        </div>
 
-          </div>
+        {/* FOOTER */}
+        <div className="pt-4 mt-4 border-t border-slate-100 flex gap-4 shrink-0">
+            <button type="button" onClick={onClose} className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-black uppercase text-[11px] hover:bg-slate-50 hover:border-slate-300 transition-colors">
+              Annuler
+            </button>
+            <button form="matrix-form" type="submit" disabled={loading} className="flex-2 py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] hover:bg-blue-600 transition-colors shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2">
+              {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+              {loading ? 'Traitement...' : (isEditMode ? 'Enregistrer Modifications' : 'Créer Utilisateur')}
+            </button>
+        </div>
 
-          {/* FOOTER ACTIONS */}
-          <div className="pt-6 flex gap-4 border-t border-slate-100 mt-4">
-             <button type="button" onClick={onClose} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-[10px] hover:bg-slate-200 transition-colors">
-               Annuler
-             </button>
-             <button type="submit" disabled={loading} className="flex-2 py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] hover:bg-blue-600 transition-colors shadow-lg flex items-center justify-center gap-2 hover:shadow-blue-500/30">
-               {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-               {loading ? 'TRAITEMENT EN COURS...' : (isEditMode ? 'ENREGISTRER LES MODIFICATIONS' : 'CRÉER L\'UTILISATEUR')}
-             </button>
-          </div>
-
-        </form>
       </div>
     </div>
   );
