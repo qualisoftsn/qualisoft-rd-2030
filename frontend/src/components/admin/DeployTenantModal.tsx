@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
+
 import React, { useState } from 'react';
 import { matrixApi, ProvisioningPayload } from '@/services/matrix.service';
-import { X, Rocket, ShieldAlert, CheckCircle2, Loader2, Building2, User, Mail, MapPin, Phone, Shield } from 'lucide-react';
+import { X, Rocket, Loader2, Building2, User, Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -14,8 +14,6 @@ interface Props {
 
 export default function DeployTenantModal({ isOpen, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
-  
-  // Utilisation du format attendu par matrix.service.ts
   const [formData, setFormData] = useState<ProvisioningPayload>({
     companyName: '',
     email: '',
@@ -32,122 +30,109 @@ export default function DeployTenantModal({ isOpen, onClose, onSuccess }: Props)
     e.preventDefault();
     setLoading(true);
     try {
-      // APPEL À LA NOUVELLE MÉTHODE D'INITIALISATION
       await matrixApi.initialize(formData);
-      
-      toast.success('Déploiement réussi ! Le client est actif.');
+      toast.success('DÉPLOIEMENT RÉUSSI : Le nœud est désormais actif sur la Matrix.');
       onSuccess();
+      onClose();
     } catch (error: any) {
-      console.error(error);
-      const msg = error.response?.data?.message || "Erreur inconnue";
-      // Gestion propre si le message est un tableau (NestJS validation) ou une string
-      toast.error("Échec du déploiement : " + (Array.isArray(msg) ? msg[0] : msg));
+      const msg = error.response?.data?.message;
+      toast.error("ÉCHEC DÉPLOIEMENT : " + (Array.isArray(msg) ? msg[0] : msg || "Erreur Serveur"));
     } finally {
       setLoading(false);
     }
   };
 
+  const inputClass = "w-full bg-white border-2 border-slate-300 rounded-xl py-4 pl-12 pr-4 font-black text-slate-900 outline-none focus:border-blue-600 transition-all placeholder:text-slate-400 text-sm";
+  const labelClass = "text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-1 block";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-8 shadow-2xl animate-in zoom-in duration-300 font-sans italic overflow-y-auto max-h-[90vh]">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+      <div className="bg-white rounded-4xl w-full max-w-2xl p-10 shadow-2xl animate-in zoom-in duration-300 font-sans italic border border-slate-200 flex flex-col max-h-[90vh]">
         
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-8 shrink-0">
           <div>
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Déploiement <span className="text-blue-600">Express</span></h2>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initialisation nouveau nœud Matrix</p>
+            <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic">Initialisation <span className="text-blue-600">Nœud</span></h2>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">Provisioning Express Qualisoft Elite</p>
           </div>
-          <button onClick={onClose} className="p-3 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors border-none cursor-pointer">
-            <X size={20} className="text-slate-400" />
+          <button onClick={onClose} className="p-3 bg-slate-100 rounded-full hover:bg-red-50 hover:text-red-600 transition-all border border-slate-200 cursor-pointer">
+            <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* --- BLOC ORGANISATION --- */}
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Organisation Client</label>
+            <div className="md:col-span-2">
+              <label className={labelClass}>Organisation / Raison Sociale</label>
               <div className="relative">
-                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input required placeholder="Nom de la Société (ex: SDE)" className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 outline-none focus:ring-2 ring-blue-500/20" 
+                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input required placeholder="Ex: SENELEC SA" className={inputClass}
                   value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} />
               </div>
             </div>
 
-            {/* --- BLOC IDENTITÉ ADMIN --- */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Prénom Admin</label>
-              <div className="relative">
-                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                 <input required placeholder="Prénom" className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 outline-none focus:ring-2 ring-blue-500/20" 
+            <div className="md:col-span-2 grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Prénom Admin</label>
+                <div className="relative">
+                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                   <input required placeholder="Prénom" className={inputClass}
                     value={formData.adminFirstName} onChange={e => setFormData({...formData, adminFirstName: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Nom Admin</label>
+                <input required placeholder="Nom" className="w-full bg-white border-2 border-slate-300 rounded-xl py-4 px-6 font-black text-slate-900 outline-none focus:border-blue-600 transition-all text-sm"
+                  value={formData.adminLastName} onChange={e => setFormData({...formData, adminLastName: e.target.value})} />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Nom Admin</label>
-              <input required placeholder="Nom" className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold text-slate-900 outline-none focus:ring-2 ring-blue-500/20" 
-                value={formData.adminLastName} onChange={e => setFormData({...formData, adminLastName: e.target.value})} />
-            </div>
-
-            {/* --- BLOC ACCÈS (EMAIL & RÔLE) --- */}
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Email (Login Principal)</label>
+            <div className="md:col-span-2">
+              <label className={labelClass}>Email Maître (Root Access)</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input required type="email" placeholder="admin@client.sn" className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 outline-none focus:ring-2 ring-blue-500/20" 
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input required type="email" placeholder="root-admin@domaine.sn" className={inputClass}
                   value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
               </div>
             </div>
 
-            {/* RÔLE : Ajouté visuellement pour confirmer l'action */}
-            <div className="space-y-2 md:col-span-2">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Rôle Assigné</label>
-               <div className="relative opacity-80">
-                 <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600" size={18} />
-                 <input disabled value="ADMINISTRATEUR TENANT (ACCÈS COMPLET)" className="w-full bg-blue-50 border border-blue-100 text-blue-700 rounded-2xl py-4 pl-12 pr-4 font-black text-xs uppercase outline-none cursor-not-allowed" />
-               </div>
+            <div>
+              <label className={labelClass}>Directeur Général</label>
+              <input required placeholder="Prénom Nom" className="w-full bg-white border-2 border-slate-300 rounded-xl py-4 px-6 font-black text-slate-900 outline-none focus:border-blue-600 transition-all text-sm"
+                value={formData.ceoName} onChange={e => setFormData({...formData, ceoName: e.target.value})} />
             </div>
 
-            {/* --- BLOC DÉTAILS --- */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Directeur Général</label>
+            <div>
+              <label className={labelClass}>Téléphone Officiel</label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input required placeholder="Prénom Nom" className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 outline-none focus:ring-2 ring-blue-500/20" 
-                  value={formData.ceoName} onChange={e => setFormData({...formData, ceoName: e.target.value})} />
-              </div>
-            </div>
-
-             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Téléphone</label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input required placeholder="+221..." className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 outline-none focus:ring-2 ring-blue-500/20" 
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input required placeholder="+221..." className={inputClass}
                   value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
               </div>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Adresse Siège</label>
+            <div className="md:col-span-2">
+              <label className={labelClass}>Localisation Siège</label>
               <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input required placeholder="Ville, Pays" className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-900 outline-none focus:ring-2 ring-blue-500/20" 
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input required placeholder="Dakar, Sénégal" className={inputClass}
                   value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
               </div>
             </div>
 
+            <div className="md:col-span-2 p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl flex items-center gap-4">
+               <ShieldCheck className="text-blue-600" size={32} />
+               <p className="text-[10px] font-black text-blue-800 uppercase leading-relaxed">
+                 Le nœud sera déployé avec un plan <span className="underline">ESSAI</span> par défaut. 
+                 Le mot de passe root sera généré automatiquement.
+               </p>
+            </div>
           </div>
 
-          <div className="pt-6">
-            <button 
-              disabled={loading}
-              className="w-full bg-slate-900 text-white py-5 rounded-3xl font-black uppercase text-xs hover:bg-blue-600 transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 border-none cursor-pointer"
-            >
-              {loading ? <Loader2 className="animate-spin" /> : <Rocket size={18} />}
-              {loading ? 'INITIALISATION EN COURS...' : 'CONFIRMER LE DÉPLOIEMENT'}
-            </button>
-          </div>
+          <button disabled={loading} className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black uppercase text-xs hover:bg-blue-600 transition-all shadow-2xl flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer shrink-0">
+            {loading ? <Loader2 className="animate-spin" /> : <Rocket size={20} />}
+            {loading ? 'DÉPLOIEMENT EN COURS...' : 'LANCER L\'INITIALISATION'}
+          </button>
         </form>
       </div>
     </div>

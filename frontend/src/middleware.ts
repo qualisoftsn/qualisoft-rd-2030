@@ -1,70 +1,58 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import type { JWT } from "next-auth/jwt";
 
 /**
- * 🛡️ MIDDLEWARE SOUVERAIN - QUALISOFT ELITE
- * Rôle : Gardien des routes et gestionnaire de trafic multi-tenant.
+ * 🛡️ MIDDLEWARE SOUVERAIN V3 - QUALISOFT ELITE
+ * Isolation multi-tenant et protection du noyau Matrix.
  */
+
+// 1. DÉFINITION DU TYPE POUR LE JETON MATRIX
+type MatrixToken = JWT & {
+  U_Role?: string;
+  U_TenantDomain?: string;
+};
+
+// 2. DOMAINES RACINES (SANS REDIRECTION)
+const MASTER_DOMAINS = new Set(['app', 'elite', 'www', 'localhost']);
+
 export default withAuth(
   function middleware(req) {
-    // 1. Récupération de l'identité numérique (Token)
-    const token = req.nextauth.token;
-    const { pathname } = req.nextUrl;
+    const token = req.nextauth.token as MatrixToken;
+    const { pathname, hostname } = req.nextUrl;
     
-    // On sécurise les accès aux propriétés via un cast (pour éviter les erreurs TypeScript)
-    const userRole = token?.U_Role as string | undefined;
-    const userTenantDomain = (token as any)?.U_TenantDomain?.toLowerCase(); // ex: 'sde'
+    const hostParts = hostname.split('.');
+    const currentSubdomain = hostParts[0].toLowerCase();
+    
+    const userRole = token?.U_Role;
+    const targetTenant = token?.U_TenantDomain?.toLowerCase();
 
-    // -----------------------------------------------------------
-    // 🔒 ZONE 1 : SÉCURITÉ ABSOLUE (/admin)
-    // Seul le SUPER_ADMIN peut franchir cette ligne.
-    // -----------------------------------------------------------
+    // --- 🚨 ZONE 1 : PROTECTION DU NOYAU (/admin) ---
     if (pathname.startsWith("/admin")) {
       if (userRole !== "SUPER_ADMIN") {
-        console.warn(`[MIDDLEWARE] Intrusion bloquée sur /admin pour : ${token?.email}`);
-        // L'intrus est renvoyé vers son espace légitime
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
-      // Le SUPER_ADMIN passe.
       return NextResponse.next();
     }
 
-    // -----------------------------------------------------------
-    // 🧭 ZONE 2 : ROUTAGE TERRITORIAL (/dashboard)
-    // Redirection automatique vers le sous-domaine du client.
-    // -----------------------------------------------------------
+    // --- 🧭 ZONE 2 : ROUTAGE TERRITORIAL (/dashboard) ---
     if (pathname.startsWith("/dashboard")) {
-      const hostname = req.headers.get('host') || '';
-      const subdomain = hostname.split('.')[0].toLowerCase();
       
-      // Liste des domaines "Siège" (Master)
-      const masterDomains = ['app', 'elite', 'www', 'localhost'];
-      const isOnMasterDomain = masterDomains.includes(subdomain);
+      // Le Super Admin a un passe-droit universel
+      if (userRole === "SUPER_ADMIN") return NextResponse.next();
 
-      // LOGIQUE :
-      // SI je suis un utilisateur Client (ex: SDE)
-      // ET que je suis perdu sur le domaine Master (app.qualisoft.sn)
-      // ALORS je suis redirigé chez moi (sde.qualisoft.sn)
-      // (Exception : Le Super Admin peut naviguer partout)
-      if (
-        userRole !== "SUPER_ADMIN" &&    // Pas un Super Admin
-        userTenantDomain &&              // J'ai un domaine assigné
-        userTenantDomain !== 'matrix' && // Ce n'est pas Matrix
-        isOnMasterDomain                 // Je suis sur le Master
-      ) {
-        const url = req.nextUrl.clone();
-        const hostParts = hostname.split('.');
+      const isOnMaster = MASTER_DOMAINS.has(currentSubdomain);
+      const isCorrectDomain = currentSubdomain === targetTenant;
+
+      // Si l'utilisateur n'est pas sur son territoire assigné
+      if (targetTenant && targetTenant !== 'matrix' && (!isCorrectDomain || isOnMaster)) {
+        const targetUrl = req.nextUrl.clone();
         
-        // On remplace 'app' par 'sde'
-        hostParts[0] = userTenantDomain;
-        url.host = hostParts.join('.');
+        // Reconstruction forcée vers le sous-domaine client (ex: sde.qualisoft.sn)
+        hostParts[0] = targetTenant;
+        targetUrl.host = hostParts.join('.');
         
-        // En production, on force le HTTPS via le protocole si nécessaire, 
-        // mais NextUrl garde généralement le protocole de la requête entrante.
-        
-        console.log(`[MIDDLEWARE] Redirection territoriale : ${token?.email} -> ${url.host}`);
-        return NextResponse.redirect(url);
+        return NextResponse.redirect(targetUrl);
       }
     }
 
@@ -72,21 +60,19 @@ export default withAuth(
   },
   {
     callbacks: {
-      // Le middleware ne s'active que si l'utilisateur possède un Token valide
       authorized: ({ token }) => !!token,
     },
     pages: {
-      signIn: "/auth/login", // Si pas de token, direction Login
+      signIn: "/auth/login",
     },
   }
 );
 
 export const config = {
   matcher: [
-    // On protège toute la section Admin et Dashboard
-    "/admin/:path*",
-    "/dashboard/:path*",
-    // On exclut les fichiers statiques, l'API publique et les images
+    /*
+     * Protection globale excluant les fichiers statiques et l'auth publique
+     */
     "/((?!api/auth|auth|static|.*\\..*|_next).*)",
   ],
 };
