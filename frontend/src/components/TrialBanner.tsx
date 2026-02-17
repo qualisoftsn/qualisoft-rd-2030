@@ -20,6 +20,10 @@ interface TrialBannerProps {
   isSuperAdmin: boolean;
 }
 
+/**
+ * TRIAL BANNER QUALISOFT - VERSION 2.5
+ * Correction build Next.js 16 : Gestion du pathname null
+ */
 export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
   // --- ÉTATS ---
   const [trialData, setTrialData] = useState<TrialData | null>(null);
@@ -33,6 +37,9 @@ export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
   const isTrialAccount = user?.tenantId === 'ESSAI';
 
   useEffect(() => {
+    // 🛡️ SÉCURISATION BUILD : On vérifie que le pathname existe avant de l'analyser
+    if (!pathname) return;
+
     // 1. Ne rien faire si on est sur une page spécifique à l'essai ou si c'est un SuperAdmin
     if (pathname.startsWith('/essai') || isSuperAdmin) {
       setLoading(false);
@@ -65,22 +72,18 @@ export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
   }, [pathname, router, isSuperAdmin]);
 
   // --- CONDITIONS D'AFFICHAGE ---
-  // On ne montre rien si : 
-  // - On charge encore
-  // - Ce n'est pas un compte d'essai (et pas un admin qui surveille)
-  // - L'utilisateur a fermé la bannière (isVisible = false)
-  // - Le statut n'est pas explicitement 'TRIAL'
-  if (loading || !isVisible || (!isTrialAccount && !isSuperAdmin)) {
+  // On ne montre rien si le pathname n'est pas prêt ou si les conditions ne sont pas remplies
+  if (loading || !isVisible || !pathname || (!isTrialAccount && !isSuperAdmin)) {
     return null;
   }
 
-  // Si on est SuperAdmin mais qu'il n'y a pas de données de trial, on montre une version simplifiée
+  // Si on est SuperAdmin mais qu'il n'y a pas de données de trial, on montre la version "Crown"
   if (isSuperAdmin && !trialData) {
     return (
       <div className="fixed top-0 left-0 right-0 z-100 bg-linear-to-r from-amber-500 to-amber-700 text-white h-10 flex items-center justify-center px-4 shadow-lg border-b border-white/10 italic">
         <div className="flex items-center gap-3">
           <CrownIcon size={16} />
-          <p className="text-[11px] font-black uppercase tracking-widest">
+          <p className="text-[11px] font-black uppercase tracking-widest leading-none">
             Mode Super Administrateur Qualisoft — Accès Illimité
           </p>
         </div>
@@ -88,7 +91,7 @@ export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
     );
   }
 
-  // Si pas de données de trial du tout, on sort
+  // Si pas de données de trial du tout ou statut différent, on sort
   if (!trialData || trialData.subscriptionStatus !== 'TRIAL') return null;
 
   // --- CALCULS VISUELS ---
@@ -102,10 +105,10 @@ export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
         : isWarning 
           ? 'bg-orange-500/10 border-b border-orange-500/30' 
           : 'bg-blue-500/10 border-b border-blue-500/20'
-    } backdrop-blur-xl`}>
+    } backdrop-blur-xl italic text-left`}>
       <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <div className={`p-2 rounded-xl ${
+          <div className={`p-2 rounded-xl shadow-lg ${
             isCritical ? 'bg-red-500 text-white' : 
             isWarning ? 'bg-orange-500 text-white' : 
             'bg-blue-500/20 text-blue-400'
@@ -129,7 +132,7 @@ export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
               <span>
                 {trialData.daysLeft > 0 
                   ? `${trialData.daysLeft} jour${trialData.daysLeft > 1 ? 's' : ''} restant${trialData.daysLeft > 1 ? 's' : ''}`
-                  : `${trialData.hoursLeft} heure${trialData.hoursLeft > 1 ? 's' : ''}`
+                  : `${trialData.hoursLeft} heure${trialData.hoursLeft > 1 ? 's' : ''} restante${trialData.hoursLeft > 1 ? 's' : ''}`
                 }
               </span>
             </div>
@@ -149,14 +152,14 @@ export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
               isCritical 
                 ? 'bg-red-600 hover:bg-red-500 shadow-red-900/20' 
                 : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
-            } text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2`}
+            } text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 border-none cursor-pointer`}
           >
             Passer en Pro
           </button>
           
           <button 
             onClick={() => setIsVisible(false)}
-            className="text-slate-500 hover:text-white transition-colors p-1"
+            className="text-slate-500 hover:text-white transition-colors p-1 bg-transparent border-none cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -178,7 +181,7 @@ export default function TrialBanner({ user, isSuperAdmin }: TrialBannerProps) {
   );
 }
 
-// Composant icône interne pour l'admin
+// Composant icône interne pour l'admin (Couronne Qualisoft)
 function CrownIcon({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
