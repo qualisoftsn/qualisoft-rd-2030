@@ -1,8 +1,8 @@
 /**
  * 🛰️ PROTOCOLE DE SCELLAGE MASTER - QUALISOFT ELITE RD 2030
- * VERSION : 6.0.0 (Strict Schema Compliance)
- * RÔLE : Initialisation du Noyau Master et des 3 Tenants Piliers.
- * SÉCURITÉ : Hachage Bcrypt Round 12 pour les accès éternels.
+ * VERSION : 7.0.0 (Isolation Totale)
+ * RÔLE : Nettoyage atomique de la base et reconstruction des 3 Nœuds.
+ * SÉCURITÉ : Hachage Bcrypt Round 12 + Isolation stricte par TenantID.
  */
 
 import { PrismaClient, Plan, SubscriptionStatus, Role, ProcessFamily } from '@prisma/client';
@@ -12,19 +12,30 @@ const prisma = new PrismaClient();
 
 async function seedMasterSystem(): Promise<void> {
   console.log('--------------------------------------------------------');
-  console.log('🛡️  DÉPLOIEMENT DU NOYAU MASTER QUALISOFT ELITE...');
+  console.log('🧹 NETTOYAGE ATOMIQUE : SUPPRESSION DE TOUTES LES DONNÉES...');
   console.log('--------------------------------------------------------');
+
+  // Purge radicale pour éviter les collisions de tenants
+  await prisma.user.deleteMany();
+  await prisma.processus.deleteMany();
+  await prisma.processType.deleteMany();
+  await prisma.orgUnit.deleteMany();
+  await prisma.orgUnitType.deleteMany();
+  await prisma.site.deleteMany();
+  await prisma.tenant.deleteMany();
+
+  console.log('✨ BASE PURGÉE. DÉPLOIEMENT DES 3 PILIERS ISOLÉS...');
 
   const SALT = 12;
 
-  // --- DONNÉES DES 3 PILIERS DE LA FÉDÉRATION ---
+  // --- CONFIGURATION DES 3 UNITÉS DE LA FÉDÉRATION ---
   const tenantsData = [
     {
       id: 'TENANT_QS_CORP',
       name: 'QUALISOFT CORPORATE',
       domain: 'qs.qualisoft.sn',
       ceo: 'Abdoulaye Thiongane',
-      email: 'qualisoft@qualisoft.sn',
+      email: 'ab.thiongane@qualisoft.sn',
       address: '247, Rue du Lac Rose, Dakar, Sénégal',
       phone: '77441 09 02',
       plan: Plan.GROUPE,
@@ -41,7 +52,7 @@ async function seedMasterSystem(): Promise<void> {
       name: 'PORT AUTONOME DE DAKAR',
       domain: 'pad.qualisoft.sn',
       ceo: 'Waly Diouf Bodian',
-      email: 'info@pad.sn',
+      email: 'ale.diagne@pad.sn',
       address: 'Rue 1, Mole 2 Port de Dakar, Dakar - Sénégal',
       phone: '221 865 15 15',
       plan: Plan.ENTREPRISE,
@@ -58,7 +69,7 @@ async function seedMasterSystem(): Promise<void> {
       name: 'SAGAM ELECTRONICS',
       domain: 'sagam.qualisoft.sn',
       ceo: 'Faly SENE',
-      email: 'sagam@sagam.sn',
+      email: 'pierre.ndiaye@sagam.sn',
       address: 'Rue 3, Sotrac Mermoz, Dakar, Sénégal',
       phone: '221 865 65 65',
       plan: Plan.ENTREPRISE,
@@ -74,13 +85,11 @@ async function seedMasterSystem(): Promise<void> {
 
   try {
     for (const t of tenantsData) {
-      console.log(`🚀 INITIALISATION : ${t.name}`);
+      console.log(`📡 SCELLAGE DU NŒUD : ${t.domain}...`);
 
-      // 1. TENANT (Conforme T_)
-      const tenant = await prisma.tenant.upsert({
-        where: { T_Domain: t.domain },
-        update: { T_SubscriptionStatus: SubscriptionStatus.ACTIVE },
-        create: {
+      // 1. CRÉATION DU TENANT (Isolation ID forcée)
+      const currentTenant = await prisma.tenant.create({
+        data: {
           T_Id: t.id,
           T_Name: t.name,
           T_Email: t.email,
@@ -95,45 +104,63 @@ async function seedMasterSystem(): Promise<void> {
         },
       });
 
-      // 2. SITE (Conforme S_)
-      const site = await prisma.site.upsert({
-        where: { S_Id: `SITE_HQ_${t.id}` },
-        update: { S_Name: 'SIÈGE SOCIAL' },
-        create: {
-          S_Id: `SITE_HQ_${t.id}`,
+      // 2. CRÉATION DU SITE SIÈGE (Liaison au currentTenant)
+      const currentSite = await prisma.site.create({
+        data: {
+          S_Id: `SITE_${t.id}`,
           S_Name: 'SIÈGE SOCIAL',
           S_Address: t.address,
           S_Country: 'Sénégal',
-          tenantId: tenant.T_Id,
+          tenantId: currentTenant.T_Id,
         },
       });
 
-      // 3. TYPES D'UNITÉS (Conforme OUT_)
-      const out_dir = await prisma.orgUnitType.upsert({
-        where: { OUT_Label_tenantId: { OUT_Label: 'DIRECTION', tenantId: tenant.T_Id } },
-        update: {},
-        create: { OUT_Label: 'DIRECTION', tenantId: tenant.T_Id }
+      // 3. TYPES D'UNITÉS (Liaison au currentTenant)
+      const dirType = await prisma.orgUnitType.create({
+        data: { OUT_Id: `OUT_DIR_${t.id}`, OUT_Label: 'DIRECTION', tenantId: currentTenant.T_Id }
+      });
+      await prisma.orgUnitType.create({
+        data: { OUT_Id: `OUT_DEP_${t.id}`, OUT_Label: 'DÉPARTEMENT', tenantId: currentTenant.T_Id }
       });
 
-      // 4. UNITÉ ORGANIQUE (Conforme OU_)
-      const rootUnit = await prisma.orgUnit.upsert({
-        where: { OU_Id: `OU_DG_${t.id}` },
-        update: { OU_Name: 'DIRECTION GÉNÉRALE' },
-        create: {
+      // 4. UNITÉ ORGANIQUE RACINE (Liaison au currentTenant + currentSite)
+      const rootUnit = await prisma.orgUnit.create({
+        data: {
           OU_Id: `OU_DG_${t.id}`,
           OU_Name: 'DIRECTION GÉNÉRALE',
-          OU_TypeId: out_dir.OUT_Id,
-          OU_SiteId: site.S_Id,
-          tenantId: tenant.T_Id,
+          OU_TypeId: dirType.OUT_Id,
+          OU_SiteId: currentSite.S_Id,
+          tenantId: currentTenant.T_Id,
         },
       });
 
-      // 5. 🛡️ UTILISATEUR ADMIN (Hachage Bcrypt Round 12)
+      // 5. TYPES DE PROCESSUS ISO (Liaison au currentTenant)
+      const pilotageType = await prisma.processType.create({
+        data: {
+          PT_Id: `PT_PIL_${t.id}`,
+          PT_Label: 'PILOTAGE',
+          PT_Family: ProcessFamily.PILOTAGE,
+          PT_Color: '#3B82F6',
+          tenantId: currentTenant.T_Id,
+        }
+      });
+
+      const supportType = await prisma.processType.create({
+        data: {
+          PT_Id: `PT_SUP_${t.id}`,
+          PT_Label: 'SUPPORT',
+          PT_Family: ProcessFamily.SUPPORT,
+          PT_Color: '#64748B',
+          tenantId: currentTenant.T_Id,
+        }
+      });
+
+      // 6. 🛡️ CRÉATION DE L'ADMINISTRATEUR (Hashage Bcrypt 12)
+      // On s'assure que chaque admin est lié EXCLUSIVEMENT à son currentTenant
       const hashedPassword = await bcrypt.hash(t.admin.password, SALT);
-      const adminUser = await prisma.user.upsert({
-        where: { U_Email: t.admin.email },
-        update: { U_PasswordHash: hashedPassword },
-        create: {
+      const adminUser = await prisma.user.create({
+        data: {
+          U_Id: `USER_ADMIN_${t.id}`,
           U_FirstName: t.admin.firstName,
           U_LastName: t.admin.lastName.toUpperCase(),
           U_Email: t.admin.email,
@@ -141,64 +168,40 @@ async function seedMasterSystem(): Promise<void> {
           U_Role: t.admin.role,
           U_IsActive: true,
           U_FirstLogin: false,
-          tenantId: tenant.T_Id,
-          U_SiteId: site.S_Id,
+          tenantId: currentTenant.T_Id,
+          U_SiteId: currentSite.S_Id,
           U_OrgUnitId: rootUnit.OU_Id,
         },
       });
 
-      // 6. TYPES DE PROCESSUS (Conforme PT_ - SANS PT_Code)
-      const pilotageType = await prisma.processType.upsert({
-        where: { PT_Label_tenantId: { PT_Label: 'PILOTAGE', tenantId: tenant.T_Id } },
-        update: {},
-        create: {
-          PT_Label: 'PILOTAGE',
-          PT_Family: ProcessFamily.PILOTAGE,
-          PT_Color: '#3B82F6',
-          tenantId: tenant.T_Id,
-        }
-      });
-
-      const supportType = await prisma.processType.upsert({
-        where: { PT_Label_tenantId: { PT_Label: 'SUPPORT', tenantId: tenant.T_Id } },
-        update: {},
-        create: {
-          PT_Label: 'SUPPORT',
-          PT_Family: ProcessFamily.SUPPORT,
-          PT_Color: '#64748B',
-          tenantId: tenant.T_Id,
-        }
-      });
-
-      // 7. PROCESSUS STANDARDS (Conforme PR_)
-      const standardProcs = [
-        { code: 'PR-SMI', libelle: 'Amélioration Continue', typeId: pilotageType.PT_Id },
-        { code: 'PR-RH', libelle: 'Ressources Humaines', typeId: supportType.PT_Id },
+      // 7. PROCESSUS STANDARDS (Liaison au currentTenant + adminUser Pilote)
+      const procs = [
+        { id: `PR_SMI_${t.id}`, code: 'PR-SMI', libelle: 'Amélioration Continue', typeId: pilotageType.PT_Id },
+        { id: `PR_RH_${t.id}`, code: 'PR-RH', libelle: 'Ressources Humaines', typeId: supportType.PT_Id },
       ];
 
-      for (const p of standardProcs) {
-        await prisma.processus.upsert({
-          where: { PR_Code_tenantId: { PR_Code: p.code, tenantId: tenant.T_Id } },
-          update: { PR_Libelle: p.libelle },
-          create: {
+      for (const p of procs) {
+        await prisma.processus.create({
+          data: {
+            PR_Id: p.id,
             PR_Code: p.code,
             PR_Libelle: p.libelle,
             PR_TypeId: p.typeId,
-            PR_PiloteId: adminUser.U_Id, // L'admin devient le pilote par défaut
-            tenantId: tenant.T_Id,
+            PR_PiloteId: adminUser.U_Id,
+            tenantId: currentTenant.T_Id,
           }
         });
       }
 
-      console.log(`✅ NŒUD SCELLÉ : ${tenant.T_Domain}`);
+      console.log(`✅ NŒUD SCELLÉ ET ISOLÉ : ${currentTenant.T_Domain}`);
     }
 
     console.log('--------------------------------------------------------');
-    console.log('🏁 NOYAU ELITE INITIALISÉ ET SÉCURISÉ.');
+    console.log('🏁 FÉDÉRATION INITIALISÉE : 3 TENANTS, 3 ADMINS ISOLÉS.');
     console.log('--------------------------------------------------------');
 
   } catch (error: any) {
-    console.error('❌ ERREUR CRITIQUE DE SCELLAGE :', error.message);
+    console.error('❌ RUPTURE DU PROTOCOLE :', error.message);
     process.exit(1);
   } finally {
     await prisma.$disconnect();
