@@ -7,42 +7,52 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+/**
+ * TENANT GUARD - SÉCURITÉ SOUVERAINE
+ * Vérifie la correspondance entre l'utilisateur connecté et le sous-domaine accédé.
+ */
+
 @Injectable()
 export class TenantGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    
-    // 1. Extraction de l'utilisateur (déjà injecté par le JwtAuthGuard précédent)
+
+    // 1. On autorise les routes marquées comme publiques (ex: Liste des tenants)
+    const isPublic = this.reflector.getAllAndOverride<boolean>('isPublic', [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
+    // 2. Récupération de l'utilisateur (déjà validé par JwtAuthGuard)
     const user = request.user;
     if (!user) {
-      throw new UnauthorizedException('Authentification requise pour vérifier le locataire.');
+      throw new UnauthorizedException('Identité utilisateur introuvable.');
     }
 
-    // 2. Identification du Tenant demandé
-    // On récupère l'identifiant envoyé par le Frontend via le header personnalisé
+    // 3. Extraction du Tenant-ID envoyé par le Frontend
     const requestedTenantId = request.headers['x-tenant-id'];
 
     if (!requestedTenantId) {
-      throw new UnauthorizedException('Identifiant de locataire (Tenant-ID) manquant dans les en-têtes.');
+      throw new UnauthorizedException('Le header [x-tenant-id] est requis pour cette opération.');
     }
 
-    // 3. Logique de cloisonnement (Souveraineté des données)
-    // - Un utilisateur classique ne peut accéder QU'À son propre tenantId.
-    // - Un SUPER_ADMIN peut potentiellement naviguer partout (optionnel).
-    
+    // 4. Validation de la souveraineté
+    // Un Super-Admin Qualisoft peut accéder à tous les tenants
     if (user.role === 'SUPER_ADMIN') {
       return true;
     }
 
-    if (user.tenantId !== requestedTenantId) {
+    // Un utilisateur standard est verrouillé sur son propre tenantId (slug ou UUID)
+    // On compare l'ID contenu dans le Token avec celui demandé par le sous-domaine
+    if (user.tenantId !== requestedTenantId && user.tenantSlug !== requestedTenantId) {
       throw new ForbiddenException(
-        `Violation de périmètre : Vous tentez d'accéder au tenant [${requestedTenantId}] alors que vous appartenez au tenant [${user.tenantId}].`
+        `Accès refusé : Votre session est liée au client [${user.tenantId}], pas à [${requestedTenantId}].`
       );
     }
 
-    // Si tout correspond, le portier laisse passer la requête vers le contrôleur
     return true;
   }
 }
