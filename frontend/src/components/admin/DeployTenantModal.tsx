@@ -1,148 +1,187 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { matrixApi, ProvisioningPayload } from '@/services/matrix.service';
-import { X, Rocket, Loader2, Building2, User, Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from "react";
+import { X, Building2, User, Mail, Phone, MapPin, Loader2, Globe, Lock, ShieldCheck } from "lucide-react";
+import { matrixApi } from "@/services/matrix.service";
+import { toast } from "sonner";
 
-interface Props {
+interface DeployModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function DeployTenantModal({ isOpen, onClose, onSuccess }: Props) {
+export default function DeployTenantModal({ isOpen, onClose, onSuccess }: DeployModalProps) {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<ProvisioningPayload>({
-    companyName: '',
-    email: '',
-    ceoName: '',
-    adminFirstName: '',
-    adminLastName: '',
-    address: '',
-    phone: ''
+  const [formData, setFormData] = useState({
+    companyName: "",
+    customSlug: "", // 👈 LE CHAMP CLÉ POUR AVOIR DES NOMS COURTS
+    ceoName: "",
+    email: "",
+    adminFirstName: "",
+    adminLastName: "",
+    adminPassword: "", // 👈 LE MOT DE PASSE OBLIGATOIRE
+    phone: "",
+    address: ""
   });
 
-  if (!isOpen) return null;
+  // Génération automatique du slug (modifiable) pour gagner du temps
+  useEffect(() => {
+    if (!formData.customSlug && formData.companyName) {
+      const slug = formData.companyName
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')     // Remplace espaces par tirets
+        .replace(/[^a-z0-9-]/g, '') // Enlève caractères spéciaux
+        .substring(0, 15);          // ✂️ Coupe si c'est trop long par défaut
+      
+      setFormData(prev => ({ ...prev, customSlug: slug }));
+    }
+  }, [formData.companyName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const tid = toast.loading("Initialisation du nœud sur la Matrix...");
+    const tid = toast.loading("Scellage du Nœud en cours...");
 
     try {
       await matrixApi.initialize(formData);
-      toast.success('DÉPLOIEMENT RÉUSSI : Le nœud est désormais actif.', { id: tid });
+      toast.success("Nœud déployé avec succès !", { id: tid });
       onSuccess();
       onClose();
+      // Reset form
+      setFormData({
+        companyName: "", customSlug: "", ceoName: "", email: "",
+        adminFirstName: "", adminLastName: "", adminPassword: "",
+        phone: "", address: ""
+      });
     } catch (error: any) {
-      // 🛡️ DÉCODEUR D'ERREUR SÉCURISÉ (Évite les [object Object])
-      const rawMsg = error.response?.data?.message;
-      const cleanMsg = Array.isArray(rawMsg) 
-        ? rawMsg.join(' | ') 
-        : (typeof rawMsg === 'string' ? rawMsg : "Échec du protocole d'initialisation.");
-      
-      toast.error(`ERREUR : ${cleanMsg}`, { id: tid });
+      const msg = error.response?.data?.message || "Erreur de validation";
+      toast.error(`REJET KERNEL : ${Array.isArray(msg) ? msg[0] : msg}`, { id: tid });
     } finally {
       setLoading(false);
     }
   };
 
-  const labelClass = "text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5 block italic";
-  const inputClass = "w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-slate-900 outline-none focus:border-blue-600 focus:bg-white transition-all text-sm italic";
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
-      <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 shadow-2xl border-4 border-slate-900 flex flex-col max-h-[95vh] relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-[#0F172A] w-full max-w-4xl border border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* HEADER */}
-        <div className="flex justify-between items-start mb-8 shrink-0">
+        <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
           <div>
-            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">Initialisation <span className="text-blue-600 underline">Nœud</span></h2>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">Provisioning Express Qualisoft Elite RD 2030</p>
+            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
+              <ShieldCheck className="text-blue-600" /> Initialisation Nœud
+            </h2>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Provisioning Express Qualisoft Elite</p>
           </div>
-          <button onClick={onClose} className="p-3 bg-slate-100 rounded-full hover:bg-red-500 hover:text-white transition-all cursor-pointer border-none shadow-sm">
-            <X size={24} />
+          <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-red-500 transition-all">
+            <X size={20} />
           </button>
         </div>
 
-        {/* FORMULAIRE */}
-        <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* SCROLLABLE FORM */}
+        <div className="overflow-y-auto p-8 space-y-8 custom-scrollbar">
+          <form id="deployForm" onSubmit={handleSubmit} className="space-y-8">
             
-            <div className="md:col-span-2">
-              <label className={labelClass}>Organisation / Raison Sociale</label>
-              <div className="relative group">
-                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600" size={20} />
-                <input required placeholder="Ex: SENELEC SA" className={inputClass}
-                  value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} />
-              </div>
-            </div>
+            {/* SECTION 1: IDENTITÉ ORGANISATION */}
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-widest border-l-2 border-blue-500 pl-3">Identité Organisation</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-3">Raison Sociale</label>
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                    <input required placeholder="ex: Port Autonome de Dakar" className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-white focus:border-blue-500 outline-none transition-all uppercase"
+                      value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} />
+                  </div>
+                </div>
 
-            <div className="md:col-span-2 grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Prénom Admin</label>
-                <div className="relative">
-                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                   <input required placeholder="Prénom" className={inputClass}
-                    value={formData.adminFirstName} onChange={e => setFormData({...formData, adminFirstName: e.target.value})} />
+                {/* 🚀 LE CHAMP QUI MANQUAIT POUR LE BACKEND */}
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-amber-500 uppercase ml-3 flex justify-between">
+                    <span>Identifiant Court (Slug)</span>
+                    <span className="opacity-50 text-[8px] lowercase">{formData.customSlug}.qualisoft.sn</span>
+                  </label>
+                  <div className="relative">
+                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-600" size={16} />
+                    <input required placeholder="ex: pad" className="w-full bg-slate-900/50 border border-amber-900/30 rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-amber-500 focus:border-amber-500 outline-none transition-all lowercase"
+                      value={formData.customSlug} onChange={e => setFormData({...formData, customSlug: e.target.value})} />
+                  </div>
+                  <p className="text-[8px] text-slate-500 ml-4 italic">C'est ce nom court qui sera utilisé dans l'URL. Modifiez-le pour faire court !</p>
                 </div>
               </div>
-              <div>
-                <label className={labelClass}>Nom Admin</label>
-                <input required placeholder="Nom" className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-4 px-6 font-bold text-slate-900 outline-none focus:border-blue-600 focus:bg-white transition-all text-sm italic"
-                  value={formData.adminLastName} onChange={e => setFormData({...formData, adminLastName: e.target.value})} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-3">Directeur Général</label>
+                  <input required placeholder="Prénom & Nom" className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-4 px-5 text-sm font-bold text-white focus:border-blue-500 outline-none transition-all uppercase"
+                    value={formData.ceoName} onChange={e => setFormData({...formData, ceoName: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-3">Téléphone & Adresse</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input required placeholder="+221..." className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-4 px-4 text-sm font-bold text-white focus:border-blue-500 outline-none"
+                      value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                     <input required placeholder="Dakar..." className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-4 px-4 text-sm font-bold text-white focus:border-blue-500 outline-none uppercase"
+                      value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="md:col-span-2">
-              <label className={labelClass}>Email Maître (Root Access)</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input required type="email" placeholder="root-admin@domaine.sn" className={inputClass}
-                  value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+            {/* SECTION 2: ADMINISTRATEUR */}
+            <div className="space-y-4 pt-4 border-t border-slate-800">
+              <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-l-2 border-emerald-500 pl-3">Premier Administrateur</h3>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-3">Prénom</label>
+                  <input required className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-4 px-5 text-sm font-bold text-white focus:border-emerald-500 outline-none uppercase"
+                    value={formData.adminFirstName} onChange={e => setFormData({...formData, adminFirstName: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-3">Nom</label>
+                  <input required className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-4 px-5 text-sm font-bold text-white focus:border-emerald-500 outline-none uppercase"
+                    value={formData.adminLastName} onChange={e => setFormData({...formData, adminLastName: e.target.value})} />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-3">Email de Connexion</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                    <input required type="email" placeholder="admin@client.sn" className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-white focus:border-emerald-500 outline-none"
+                      value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                  </div>
+                </div>
+
+                {/* 🚀 LE MOT DE PASSE OBLIGATOIRE */}
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-3">Mot de Passe Initial</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" size={16} />
+                    <input required type="text" placeholder="Secret..." className="w-full bg-slate-900/50 border border-emerald-900/30 rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-white focus:border-emerald-500 outline-none"
+                      value={formData.adminPassword} onChange={e => setFormData({...formData, adminPassword: e.target.value})} />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className={labelClass}>Directeur Général</label>
-              <input required placeholder="Prénom Nom" className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-4 px-6 font-bold text-slate-900 outline-none focus:border-blue-600 focus:bg-white transition-all text-sm italic"
-                value={formData.ceoName} onChange={e => setFormData({...formData, ceoName: e.target.value})} />
-            </div>
+          </form>
+        </div>
 
-            <div>
-              <label className={labelClass}>Téléphone Officiel</label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input required placeholder="+221..." className={inputClass}
-                  value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className={labelClass}>Localisation Siège</label>
-              <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input required placeholder="Dakar, Sénégal" className={inputClass}
-                  value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
-              </div>
-            </div>
-
-            <div className="md:col-span-2 p-6 bg-blue-50 border-2 border-blue-100 rounded-3xl flex items-center gap-5 shadow-inner">
-               <ShieldCheck className="text-blue-600 shrink-0" size={32} />
-               <p className="text-[10px] font-black text-blue-900 uppercase leading-relaxed tracking-tight">
-                 Le nœud sera déployé avec un plan <span className="underline decoration-blue-500 decoration-2">ESSAI</span> par défaut. 
-                 Les identifiants root seront envoyés à l&apos;adresse email spécifiée.
-               </p>
-            </div>
-          </div>
-
-          <button disabled={loading} className="w-full bg-slate-900 text-white py-6 rounded-4xl font-black uppercase text-xs hover:bg-blue-600 transition-all shadow-2xl flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer shrink-0 mt-4 active:scale-95 group">
-            {loading ? <Loader2 className="animate-spin" /> : <Rocket size={20} className="group-hover:-translate-y-0.5 transition-transform" />}
-            {loading ? 'DÉPLOIEMENT DU KERNEL...' : 'LANCER L\'INITIALISATION DU NŒUD'}
+        {/* FOOTER */}
+        <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-4">
+          <button onClick={onClose} className="px-8 py-4 rounded-xl text-xs font-black uppercase text-slate-500 hover:text-white hover:bg-slate-800 transition-all">Annuler</button>
+          <button form="deployForm" disabled={loading} className="px-10 py-4 rounded-xl text-xs font-black uppercase text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20 transition-all flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />}
+            Lancer l&apos;Initialisation
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );
