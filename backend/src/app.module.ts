@@ -9,6 +9,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { TenantGuard } from './common/guards/tenant.guard';
 import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
@@ -176,19 +177,23 @@ import { SubscriptionGuard } from './auth/guards/subscription.guard';
 
     /**
      * 🛡️ BOUCLIER DE SÉCURITÉ GLOBAL
-     * L'ordre des gardes est CRITIQUE. NestJS les exécute dans l'ordre de déclaration.
+     * Mise à jour de l'ordre pour inclure l'isolation des données (Multi-tenancy)
      */
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard, // Étape 1 : Vérification d'Identité ("Qui es-tu ?")
+      useClass: JwtAuthGuard, // 1. Identité : "Qui es-tu ?" (Injecte l'user dans la requête)
     },
     {
       provide: APP_GUARD,
-      useClass: SubscriptionGuard, // Étape 2 : Vérification de Licence ("As-tu payé ton droit d'entrée ?")
+      useClass: TenantGuard, // 2. Isolation : "Es-tu bien chez toi ?" (Vérifie le sous-domaine/Header)
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard, // Étape 3 : Vérification de Permissions ("As-tu le droit de toucher à ça ?")
+      useClass: SubscriptionGuard, // 3. Licence : "Ton client a-t-il payé ce module ?"
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard, // 4. Permissions : "Toi, as-tu le rôle pour cette action ?"
     },
   ],
 })
