@@ -1,7 +1,7 @@
 /**
- * CHEMIN ABSOLU : /backend/src/auth/auth.service.ts
- * PROJET : Qualisoft Elite RD 2030
- * VERSION : 2.0.0 (Souveraineté Multi-Tenant & Routage Domaine)
+ * 🛰️ MOTEUR D'AUTHENTIFICATION SOUVERAIN - QUALISOFT ELITE RD 2030
+ * VERSION : 3.0.0 (Territorialisation & Scellage JWT)
+ * RÔLE : Gestion du cycle de vie des sessions et provisioning des nœuds.
  */
 
 import {
@@ -21,10 +21,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 
+// --- INTERFACES SCELLÉES ---
 export interface AuthPayload {
   U_Id: string;
   U_Email: string;
   tenantId: string;
+  U_TenantDomain: string; // 🚩 Le slug pour le Middleware (ex: "pad")
   U_Role: string;
   assignedProcessId?: string | null;
 }
@@ -39,6 +41,7 @@ export interface LoginResponse {
     U_Role: string;
     tenantId: string;
     U_TenantName: string;
+    U_TenantDomain: string; // 🚩 Le slug pour la navigation
     assignedProcessId: string | null;
   };
 }
@@ -54,7 +57,7 @@ export class AuthService {
 
   /**
    * 🔓 IDENTIFICATION DU NŒUD PAR DOMAINE
-   * Crucial pour la fidélisation : sde.qualisoft.sn
+   * Crucial pour le chargement initial : pad.qualisoft.sn -> "pad"
    */
   async getTenantByDomain(domain: string): Promise<Partial<Tenant>> {
     const tenant = await this.prisma.tenant.findUnique({
@@ -74,7 +77,7 @@ export class AuthService {
   }
 
   /**
-   * 🔓 LECTURE DU REGISTRE PUBLIC
+   * 🔓 LECTURE DU REGISTRE PUBLIC (Fédération)
    */
   async getPublicTenants(): Promise<Partial<Tenant>[]> {
     try {
@@ -83,7 +86,7 @@ export class AuthService {
         select: { T_Id: true, T_Name: true, T_Domain: true },
         orderBy: { T_Name: 'asc' }
       });
-    } catch (dbError: unknown) {
+    } catch (error) {
       throw new InternalServerErrorException("Base Matrix inaccessible.");
     }
   }
@@ -98,24 +101,27 @@ export class AuthService {
         select: { U_Id: true, U_FirstName: true, U_LastName: true, U_Email: true },
         orderBy: { U_LastName: 'asc' }
       });
-    } catch (dbError: unknown) {
+    } catch (error) {
       throw new InternalServerErrorException("Liste des collaborateurs indisponible.");
     }
   }
 
   /**
    * 🔐 AUTHENTIFICATION SOUVERAINE
+   * Gère le Bypass Master et l'identification multi-tenant.
    */
   async login(loginDto: LoginDto): Promise<LoginResponse> {
     const emailNormalized = loginDto.email.toLowerCase().trim();
     const rawPassword = loginDto.password;
     
     // 🛡️ BYPASS MASTER SOUVERAIN (Abdoulaye Thiongane)
-    if (emailNormalized === 'ab.thiongane@qualisoft.sn' && rawPassword === 'Qualisoft@2026') {
+    // Synchronisé avec le mot de passe scellé du projet
+    if (emailNormalized === 'ab.thiongane@qualisoft.sn' && (rawPassword === 'Qualisoft@2026' || rawPassword === 'mohamed1965ab1711@@@')) {
       const masterPayload: AuthPayload = { 
         U_Id: 'CORE_MASTER', 
         U_Email: emailNormalized, 
-        tenantId: 'MATRIX', 
+        tenantId: 'TENANT_QS_CORP', 
+        U_TenantDomain: 'qs', // 🚩 Territoire Master
         U_Role: Role.SUPER_ADMIN 
       };
       
@@ -127,25 +133,27 @@ export class AuthService {
           U_LastName: 'Thiongane',
           U_Email: emailNormalized,
           U_Role: Role.SUPER_ADMIN,
-          tenantId: 'MATRIX',
-          U_TenantName: 'Qualisoft Matrix Core',
+          tenantId: 'TENANT_QS_CORP',
+          U_TenantName: 'Qualisoft Corporate',
+          U_TenantDomain: 'qs',
           assignedProcessId: null
         }
       };
     }
 
+    // 🕵️ RECHERCHE DANS LE REGISTRE UTILISATEUR
     const userInDb = await this.prisma.user.findUnique({
       where: { U_Email: emailNormalized },
       include: { tenant: true }
     });
 
     if (!userInDb || !(await bcrypt.compare(rawPassword, userInDb.U_PasswordHash))) {
-      throw new UnauthorizedException('Identifiants invalides.');
+      throw new UnauthorizedException('Identifiants Matrix invalides.');
     }
 
-    if (!userInDb.U_IsActive) throw new UnauthorizedException('Compte suspendu.');
+    if (!userInDb.U_IsActive) throw new UnauthorizedException('Compte suspendu par le système.');
 
-    // 🛰️ RÉCUPÉRATION DU PROCESSUS ACTIF (Pour Pilotes/Copilotes)
+    // 🛰️ DÉTERMINATION DU PROCESSUS ACTIF (ISO 9001)
     let activeProcessId = userInDb.U_AssignedProcessId;
     if (!activeProcessId && (userInDb.U_Role === Role.PILOTE || userInDb.U_Role === Role.COPILOTE)) {
       const linkedProcess = await this.prisma.processus.findFirst({
@@ -159,10 +167,12 @@ export class AuthService {
       activeProcessId = linkedProcess?.PR_Id || null;
     }
 
+    // 🚩 CONSTRUCTION DU PAYLOAD AVEC LE SLUG DU DOMAINE
     const finalPayload: AuthPayload = { 
       U_Id: userInDb.U_Id, 
       U_Email: userInDb.U_Email, 
       tenantId: userInDb.tenantId, 
+      U_TenantDomain: userInDb.tenant.T_Domain, // 🚩 Le slug (ex: "pad")
       U_Role: userInDb.U_Role, 
       assignedProcessId: activeProcessId 
     };
@@ -177,18 +187,20 @@ export class AuthService {
         U_Role: userInDb.U_Role,
         tenantId: userInDb.tenantId,
         U_TenantName: userInDb.tenant?.T_Name || 'Qualisoft Node',
+        U_TenantDomain: userInDb.tenant.T_Domain, // 🚩 Indispensable pour le routage Frontend
         assignedProcessId: activeProcessId
       }
     };
   }
 
   /**
-   * 🏗️ DÉPLOIEMENT DE TENANT (TRANSACTION ATOMIQUE)
+   * 🏗️ PROVISIONING DE TENANT (TRANSACTION ATOMIQUE)
+   * Création simultanée du Tenant, du Siège et de l'Admin Racine.
    */
   async registerTenant(dto: RegisterTenantDto): Promise<{ success: boolean; tenantId: string; message: string }> {
     const emailLower = dto.email.toLowerCase().trim();
-    const passwordHashed = await bcrypt.hash(dto.password, 10);
-    const domain = dto.companyName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const passwordHashed = await bcrypt.hash(dto.password, 12); // Round 12 pour sécurité ELITE
+    const domainSlug = dto.companyName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
@@ -197,20 +209,27 @@ export class AuthService {
           data: {
             T_Name: dto.companyName,
             T_Email: emailLower,
-            T_Domain: domain,
+            T_Domain: domainSlug,
             T_CeoName: dto.ceoName,
             T_Address: dto.address,
             T_Phone: dto.phone,
-            // 🚀 CORRECTION : Passage direct en mode PRODUCTION
             T_Plan: Plan.ENTREPRISE,
             T_SubscriptionStatus: SubscriptionStatus.ACTIVE,
             T_IsActive: true,
+            T_ContractDuration: 24,
+            T_TacitRenewal: true,
           }
         });
 
-        // 2. Création Siège Social
+        // 2. Création Siège Social (Ancrage géographique)
         const siteCreated = await tx.site.create({ 
-          data: { S_Name: `SIÈGE - ${tenantCreated.T_Name.toUpperCase()}`, tenantId: tenantCreated.T_Id } 
+          data: { 
+            S_Id: `SITE_HQ_${tenantCreated.T_Id.slice(0, 8)}`,
+            S_Name: `SIÈGE - ${tenantCreated.T_Name.toUpperCase()}`, 
+            S_Address: dto.address,
+            S_Country: 'Sénégal',
+            tenantId: tenantCreated.T_Id 
+          } 
         });
 
         // 3. Création Admin Racine
@@ -234,25 +253,25 @@ export class AuthService {
       return { 
         success: true, 
         tenantId: result.tenantId, 
-        message: `Nœud Matrix [${dto.companyName}] scellé avec succès en mode ACTIVE.` 
+        message: `Nœud Matrix [${dto.companyName}] scellé avec succès.` 
       };
-    } catch (transactionError: any) {
-      this.logger.error("❌ ÉCHEC TRANSACTION PROVISIONING", transactionError);
-      if (transactionError.code === 'P2002') throw new ConflictException("Ce domaine ou email est déjà scellé.");
-      throw new InternalServerErrorException("Erreur de scellage du nœud.");
+    } catch (error: any) {
+      this.logger.error("❌ ÉCHEC PROVISIONING TENANT", error);
+      if (error.code === 'P2002') throw new ConflictException("Ce domaine ou email est déjà scellé dans la Matrix.");
+      throw new InternalServerErrorException("Erreur lors du scellage du nœud.");
     }
   }
 
   /**
-   * 🖋️ ENRÔLEMENT COLLABORATEUR
+   * 🖋️ ENRÔLEMENT COLLABORATEUR (RH SOUVERAIN)
    */
   async createUserForTenant(tenantId: string, dto: any): Promise<User> {
     const emailLower = dto.U_Email.toLowerCase().trim();
     const existing = await this.prisma.user.findUnique({ where: { U_Email: emailLower } });
-    if (existing) throw new ConflictException("Identifiant déjà scellé dans le Registre.");
+    if (existing) throw new ConflictException("Cet identifiant existe déjà dans le Registre Global.");
 
-    const rawPassword = dto.password || dto.U_passwordHash || 'Qualisoft@2026';
-    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+    const rawPassword = dto.password || 'Qualisoft@2026';
+    const hashedPassword = await bcrypt.hash(rawPassword, 12);
     const site = await this.prisma.site.findFirst({ where: { tenantId } });
 
     try {
@@ -269,8 +288,8 @@ export class AuthService {
           U_IsActive: true
         }
       });
-    } catch (dbError: any) {
-      throw new BadRequestException("Données de saisie invalides pour la création.");
+    } catch (error) {
+      throw new BadRequestException("Données d'enrôlement invalides.");
     }
   }
 
@@ -283,7 +302,7 @@ export class AuthService {
         where: { U_Id: userId },
         data: { U_FirstLogin: false }
       });
-    } catch (error: any) {
+    } catch (error) {
       throw new NotFoundException("Citoyen Matrix introuvable.");
     }
   } 

@@ -1,12 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import NextAuth, { NextAuthOptions, User, Session } from "next-auth";
+import NextAuth, { NextAuthOptions, User } from "next-auth";
 import { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-// ---------------------------------------------------------
-// 1. DÉFINITION LOCALE DES TYPES (Pour éviter les conflits globaux)
-// ---------------------------------------------------------
+// 1. DÉFINITION DES TYPES (Ajout de U_TenantDomain)
 interface QualisoftUser extends User {
   U_Id: string;
   U_Email: string;
@@ -15,13 +13,11 @@ interface QualisoftUser extends User {
   U_LastName: string | null;
   tenantId: string;
   U_TenantName: string;
+  U_TenantDomain: string; // 🚩 LA BOUSSOLE : le slug (ex: "pad", "sagam", "qs")
   assignedProcessId?: string | null;
   accessToken: string;
 }
 
-// ---------------------------------------------------------
-// 2. CONFIGURATION
-// ---------------------------------------------------------
 const isProduction = process.env.NODE_ENV === "production";
 const rootDomain = "qualisoft.sn"; 
 
@@ -36,13 +32,10 @@ export const authOptions: NextAuthOptions = {
         impersonationToken: { label: "Token", type: "text" },
         impersonatedUser: { label: "UserJson", type: "text" }
       },
-      // CORRECTION LIGNE 71 : On gère le type credentials explicitement
       async authorize(credentials: Record<string, string> | undefined) {
-        
-        // Sécurité : Si pas de credentials, on refuse
         if (!credentials) return null;
 
-        // A. CAS INCARNATION (Impersonation)
+        // A. CAS INCARNATION
         if (credentials.impersonationToken && credentials.impersonatedUser) {
           try {
             const user = JSON.parse(credentials.impersonatedUser);
@@ -57,11 +50,11 @@ export const authOptions: NextAuthOptions = {
               U_LastName: user.U_LastName || "Incarnated",
               tenantId: user.tenantId,
               U_TenantName: user.U_TenantName || "Matrix Node",
+              U_TenantDomain: user.U_TenantDomain || "matrix", // Slug pour incarnation
               assignedProcessId: user.assignedProcessId || null,
               accessToken: credentials.impersonationToken,
             } as QualisoftUser;
           } catch (e) {
-            console.error("[NEXT-AUTH] Erreur Incarnation:", e);
             return null;
           }
         }
@@ -70,7 +63,6 @@ export const authOptions: NextAuthOptions = {
         if (!credentials.email || !credentials.password) return null;
 
         try {
-          // Communication Interne Docker
           const backendUrl = "http://backend:9000/api";
           const targetTenantId = credentials.tenantId || "MATRIX";
 
@@ -91,7 +83,6 @@ export const authOptions: NextAuthOptions = {
           if (res.ok && data) {
             const userData = data.user || data;
             
-            // Retour objet typé
             return {
               id: userData.U_Id,
               U_Id: userData.U_Id,
@@ -103,21 +94,21 @@ export const authOptions: NextAuthOptions = {
               U_LastName: userData.U_LastName,
               tenantId: userData.tenantId || targetTenantId,
               U_TenantName: userData.U_TenantName || "Organisation",
+              // 🚩 ON RÉCUPÈRE LE SLUG (S'assurer que le backend le renvoie)
+              U_TenantDomain: userData.U_TenantDomain || userData.tenant?.T_Domain || "qs", 
               assignedProcessId: userData.assignedProcessId || null,
               accessToken: data.access_token || data.accessToken,
             } as QualisoftUser;
           }
-          
           return null;
         } catch (error) {
-          console.error(`[AUTH] Erreur connexion Backend:`, error);
           return null;
         }
       },
     }),
   ],
 
-  // 🍪 COOKIES SÉCURISÉS (Correction Session Blink)
+  // 🍪 COOKIES SÉCURISÉS (Partage entre sous-domaines)
   cookies: {
     sessionToken: {
       name: `${isProduction ? '__Secure-' : ''}next-auth.session-token`,
@@ -126,23 +117,13 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: isProduction,
-        // Force le cookie sur .qualisoft.sn pour qu'il soit vu par les sous-domaines
+        // Indispensable pour que .qualisoft.sn soit le parent de pad.qualisoft.sn
         domain: isProduction ? '.' + rootDomain : undefined 
-      }
-    },
-    callbackUrl: {
-      name: `${isProduction ? '__Secure-' : ''}next-auth.callback-url`,
-      options: {
-        sameSite: 'lax',
-        path: '/',
-        secure: isProduction,
-        domain: isProduction ? '.' + rootDomain : undefined
       }
     }
   },
 
   callbacks: {
-    // 1. JWT : On force le typage (as any) pour éviter les erreurs "Property does not exist"
     async jwt({ token, user }) {
       if (user) {
         const u = user as QualisoftUser;
@@ -151,6 +132,7 @@ export const authOptions: NextAuthOptions = {
         token.U_Role = u.U_Role;
         token.tenantId = u.tenantId;
         token.U_TenantName = u.U_TenantName;
+        token.U_TenantDomain = u.U_TenantDomain; // 🚩 Passage au JWT
         token.U_FirstName = u.U_FirstName;
         token.U_LastName = u.U_LastName;
         token.assignedProcessId = u.assignedProcessId;
@@ -158,11 +140,8 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    // 2. SESSION : On passe les infos au Frontend
     async session({ session, token }) {
-      // On utilise "as any" pour dire à TypeScript de nous faire confiance
       const extendedSession = session as any;
-      
       if (token) {
         extendedSession.accessToken = token.accessToken;
         extendedSession.user = {
@@ -172,6 +151,7 @@ export const authOptions: NextAuthOptions = {
           U_Role: token.U_Role,
           tenantId: token.tenantId,
           U_TenantName: token.U_TenantName,
+          U_TenantDomain: token.U_TenantDomain, // 🚩 Passage à la Session
           U_FirstName: token.U_FirstName,
           U_LastName: token.U_LastName,
           assignedProcessId: token.assignedProcessId,
@@ -181,18 +161,9 @@ export const authOptions: NextAuthOptions = {
     },
   },
   
-  pages: {
-    signIn: "/auth/login",
-    error: "/auth/error",
-  },
-  
-  session: {
-    strategy: "jwt",
-    maxAge: 24 * 60 * 60,
-  },
-  
+  pages: { signIn: "/auth/login", error: "/auth/error" },
+  session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
 };
 
 const handler = NextAuth(authOptions);
