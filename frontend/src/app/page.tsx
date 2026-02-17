@@ -124,12 +124,12 @@ export default function LandingPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-blue-600/5 rounded-full blur-[120px] -z-10" />
         
         <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-full mb-8 animate-bounce">
-          <Zap size={14} className="text-blue-500" />
+          <Zap size={14} className="text-blue-400" />
           <span className="text-[9px] font-black uppercase tracking-[0.3em]">Qualisoft Matrix RD-2030</span>
         </div>
 
         <h1 className="text-6xl md:text-9xl font-black uppercase tracking-tighter italic mb-10 leading-[0.85]">
-          {tenantName ? <>{tenantName} <br /><span className="text-emerald-500">Souverain</span></> : <>Digitalisez <br /><span className="text-blue-600">l&apos;Excellence</span></>}
+          {tenantName ? <>{tenantName} <br /><span className="text-emerald-400">Souverain</span></> : <>Digitalisez <br /><span className="text-blue-600">l&apos;Excellence</span></>}
         </h1>
 
         <p className="max-w-2xl mx-auto text-slate-500 text-sm md:text-lg font-medium mb-12 leading-relaxed">
