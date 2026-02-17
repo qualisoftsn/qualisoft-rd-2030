@@ -4,19 +4,29 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
-import { ShieldAlert, Printer } from 'lucide-react';
+import { ShieldAlert, Printer, Loader2 } from 'lucide-react';
 
 export default function SseReport() {
-  const { id } = useParams();
+  // 🛡️ SÉCURISATION ID
+  const params = useParams();
+  const id = params?.id as string;
+  
   const [event, setEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiClient.get(`/sse`).then(res => {
-      const found = res.data.find((e: any) => e.SSE_Id === id);
-      setEvent(found);
-    });
+    const fetchEvent = async () => {
+      if (!id) return;
+      try {
+        const res = await apiClient.get(`/sse`);
+        const found = res.data.find((e: any) => e.SSE_Id === id);
+        setEvent(found);
+      } finally { setLoading(false); }
+    };
+    fetchEvent();
   }, [id]);
 
+  if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin" /></div>;
   if (!event) return null;
 
   return (
@@ -30,7 +40,7 @@ export default function SseReport() {
                 <p className="text-red-600 font-black tracking-[0.3em] uppercase text-sm mt-2">SÉCURITÉ & SANTÉ AU TRAVAIL</p>
              </div>
           </div>
-          <p className="text-right text-[11px] font-black uppercase text-slate-300">RÉF: SSE-{event.SSE_Id.slice(0, 8)}</p>
+          <p className="text-right text-[11px] font-black uppercase text-slate-300">RÉF: SSE-{event.SSE_Id?.slice(0, 8)}</p>
         </header>
 
         <div className="grid grid-cols-2 gap-12 mb-12">

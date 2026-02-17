@@ -12,7 +12,9 @@ import { toast } from "sonner";
 export default function TenantCockpit() {
   const router = useRouter(); 
   const params = useParams();
-  const tenantId = typeof params?.id === 'string' ? params.id : "";
+  // 🛡️ SÉCURISATION ID
+  const tenantId = params?.id as string;
+  
   const [tenant, setTenant] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [editingUser, setEditingUser] = useState<any>(null);
@@ -30,7 +32,9 @@ export default function TenantCockpit() {
     }
   }, [tenantId]);
 
-  useEffect(() => { fetchTenantDetails(); }, [fetchTenantDetails]);
+  useEffect(() => { 
+    if (tenantId) fetchTenantDetails(); 
+  }, [fetchTenantDetails, tenantId]);
 
   const handleImpersonate = async () => {
     const tid = toast.loading("Ouverture Tunnel d'Incarnation...");
@@ -84,10 +88,10 @@ export default function TenantCockpit() {
           <div className="lg:col-span-2 bg-slate-900 rounded-[3rem] p-12 shadow-2xl border-2 border-slate-800 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none text-white"><ShieldCheck size={220} /></div>
             <div className="relative z-10">
-              <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter mb-8">{tenant.T_Name}</h1>
+              <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter mb-8">{tenant?.T_Name}</h1>
               <div className="grid grid-cols-2 gap-10 mt-12 text-slate-400 uppercase text-[11px] font-black italic">
-                <div className="flex items-center gap-4"><Globe className="text-blue-500" /> {tenant.T_Domain}</div>
-                <div className="flex items-center gap-4"><UserCheck className="text-amber-500" /> Leader : {tenant.T_CeoName || "Inconnu"}</div>
+                <div className="flex items-center gap-4"><Globe className="text-blue-500" /> {tenant?.T_Domain}</div>
+                <div className="flex items-center gap-4"><UserCheck className="text-amber-500" /> Leader : {tenant?.T_CeoName || "Inconnu"}</div>
               </div>
             </div>
             <button onClick={handleImpersonate} className="mt-12 w-full bg-blue-600 text-white py-7 rounded-2xl font-black uppercase text-xs tracking-[0.3em] hover:bg-white hover:text-slate-900 transition-all border-none cursor-pointer shadow-xl active:scale-95">Incarner Administrateur Nœud</button>
@@ -95,7 +99,7 @@ export default function TenantCockpit() {
           <div className="bg-white rounded-[3rem] p-12 shadow-2xl flex flex-col justify-center items-center gap-4 text-slate-900 border-8 border-slate-900">
             <Users className="text-blue-600" size={60} />
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Utilisateurs</p>
-            <p className="text-9xl font-black italic tracking-tighter leading-none">{tenant._count?.T_Users || 0}</p>
+            <p className="text-9xl font-black italic tracking-tighter leading-none">{tenant?._count?.T_Users || 0}</p>
           </div>
         </div>
 
@@ -113,7 +117,7 @@ export default function TenantCockpit() {
               </tr>
             </thead>
             <tbody>
-              {tenant.T_Users?.map((user: any) => (
+              {tenant?.T_Users?.map((user: any) => (
                 <tr key={user.U_Id} className="hover:bg-blue-600/5 transition-all border-b border-slate-800/30">
                   <td className="px-12 py-8">
                     <p className="font-black uppercase text-white italic text-sm">{user.U_Email}</p>
@@ -134,7 +138,6 @@ export default function TenantCockpit() {
         </div>
       </div>
 
-      {/* MODAL D'ÉDITION SOUVERAINE */}
       {editingUser && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex items-center justify-center p-6">
           <form onSubmit={handleSaveUser} className="bg-slate-900 border-2 border-slate-800 w-full max-w-2xl rounded-[3rem] p-12 space-y-8 shadow-2xl animate-in zoom-in duration-300">

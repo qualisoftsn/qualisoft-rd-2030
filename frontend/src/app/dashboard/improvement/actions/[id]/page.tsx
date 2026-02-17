@@ -13,8 +13,15 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+/**
+ * PAGE : DÉTAILS DE L'ACTION D'AMÉLIORATION
+ * Version 2.2 - Correction du typage strict pour build production
+ */
 export default function ActionDetailPage() {
+  // 🛡️ SÉCURISATION : Extraction et typage de l'ID pour le compilateur
   const params = useParams();
+  const id = params?.id as string;
+
   const router = useRouter();
   const [action, setAction] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -27,11 +34,12 @@ export default function ActionDetailPage() {
 
   useEffect(() => {
     const loadData = async () => {
+      if (!id) return;
       try {
         const [actionRes, tasksRes, evidRes, procRes] = await Promise.all([
-          apiClient.get(`/actions/${params.id}`),
-          apiClient.get(`/actions/${params.id}/tasks`),
-          apiClient.get(`/actions/${params.id}/evidences`),
+          apiClient.get(`/actions/${id}`),
+          apiClient.get(`/actions/${id}/tasks`),
+          apiClient.get(`/actions/${id}/evidences`),
           apiClient.get('/processes')
         ]);
         setAction(actionRes.data);
@@ -40,33 +48,34 @@ export default function ActionDetailPage() {
         setEvidences(evidRes.data);
         setProcesses(procRes.data);
       } catch (err) {
-        toast.error("Erreur chargement action");
+        toast.error("Erreur lors du chargement de l'action");
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [params.id]);
+  }, [id]);
 
   const handleUpdate = async () => {
+    if (!id) return;
     try {
-      await apiClient.patch(`/actions/${params.id}`, editData);
+      await apiClient.patch(`/actions/${id}`, editData);
       setAction(editData);
       setIsEditing(false);
-      toast.success("Action mise à jour");
+      toast.success("Action mise à jour avec succès");
     } catch (err) {
-      toast.error("Erreur mise à jour");
+      toast.error("Erreur lors de la mise à jour");
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm("Confirmer la suppression définitive ?")) return;
+    if (!id || !confirm("Confirmer la suppression définitive ?")) return;
     try {
-      await apiClient.delete(`/actions/${params.id}`);
+      await apiClient.delete(`/actions/${id}`);
       toast.success("Action supprimée");
-      router.push('/dashboard/improvement');
+      router.push('/dashboard/improvement?tab=actions');
     } catch (err) {
-      toast.error("Erreur suppression");
+      toast.error("Erreur lors de la suppression");
     }
   };
 
@@ -244,7 +253,7 @@ export default function ActionDetailPage() {
               )}
 
               {activeTab === 'evidence' && (
-                <EvidenceManager evidences={evidences} actionId={params.id as string} onUpdate={setEvidences} />
+                <EvidenceManager evidences={evidences} actionId={id} onUpdate={setEvidences} />
               )}
 
               {activeTab === 'details' && (
@@ -359,8 +368,12 @@ function EvidenceManager({ evidences: initialEvidences, actionId, onUpdate }: { 
   const [evidences, setEvidences] = useState(initialEvidences);
   const [isUploading, setIsUploading] = useState(false);
 
+  useEffect(() => {
+    setEvidences(initialEvidences);
+  }, [initialEvidences]);
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.length) return;
+    if (!e.target.files?.length || !actionId) return;
     setIsUploading(true);
     
     const formData = new FormData();
@@ -374,9 +387,9 @@ function EvidenceManager({ evidences: initialEvidences, actionId, onUpdate }: { 
       const newEvidences = [...evidences, res.data];
       setEvidences(newEvidences);
       onUpdate(newEvidences);
-      toast.success("Document ajouté");
+      toast.success("Document ajouté avec succès");
     } catch (err) {
-      toast.error("Erreur upload");
+      toast.error("Erreur lors de l'upload");
     } finally {
       setIsUploading(false);
     }
@@ -391,7 +404,7 @@ function EvidenceManager({ evidences: initialEvidences, actionId, onUpdate }: { 
       onUpdate(filtered);
       toast.success("Document supprimé");
     } catch (err) {
-      toast.error("Erreur suppression");
+      toast.error("Erreur lors de la suppression");
     }
   };
 
@@ -425,7 +438,7 @@ function EvidenceManager({ evidences: initialEvidences, actionId, onUpdate }: { 
                 </div>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <a href={ev.PV_FileUrl} target="_blank" className="p-2 hover:text-blue-400 transition-colors">
+                <a href={ev.PV_FileUrl} target="_blank" rel="noopener noreferrer" className="p-2 hover:text-blue-400 transition-colors">
                   <ExternalLink size={16} />
                 </a>
                 <button onClick={() => handleDelete(ev.PV_Id)} className="p-2 hover:text-red-400 transition-colors">
