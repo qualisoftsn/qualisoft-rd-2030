@@ -1,6 +1,7 @@
 /**
- * CHEMIN ABSOLU : /backend/src/auth/jwt.strategy.ts
- * PROJET : Qualisoft Elite RD 2030
+ * 🛰️ JWT STRATEGY - QUALISOFT ELITE RD 2030
+ * RÔLE : Déchiffrement et validation du jeton pour chaque requête.
+ * VERSION : 2.1.0 (Alignée sur le protocole Multi-Tenant)
  */
 
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -9,6 +10,7 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthPayload } from './auth.service';
 
+// Interface étendue pour inclure les champs standards du JWT
 interface JwtDecodedPayload extends AuthPayload {
   sub?: string;
   iat?: number;
@@ -35,30 +37,41 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   /**
    * 🛡️ VALIDATION DU TOKEN
-   * Gère la reconnaissance immédiate du Master et le typage strict des payloads.
+   * Cette méthode injecte l'utilisateur validé dans 'req.user'
    */
   async validate(payload: JwtDecodedPayload): Promise<AuthPayload> {
     const userId = payload.U_Id || payload.sub;
 
+    // 1. CAS MASTER SOUVERAIN (Abdoulaye Thiongane)
     if (userId === 'CORE_MASTER' || payload.U_Role === 'SUPER_ADMIN') {
       return {
         U_Id: 'CORE_MASTER',
         U_Email: payload.U_Email || 'ab.thiongane@qualisoft.sn',
         U_Role: 'SUPER_ADMIN',
-        tenantId: 'MATRIX',
+        tenantId: payload.tenantId || 'TENANT_QS_CORP',
+        U_TenantDomain: payload.U_TenantDomain || 'qs', // 🚩 CORRECTION : Indispensable pour TS
         assignedProcessId: null
       };
     }
 
+    // 2. VÉRIFICATION DE L'IDENTITÉ NUMÉRIQUE
     if (!userId) {
       this.logger.error("Tentative d'accès avec un token sans identifiant.");
       throw new UnauthorizedException('Identité numérique corrompue.');
     }
 
+    // 3. VÉRIFICATION DU TERRITOIRE (Obligatoire pour les clients)
+    if (!payload.U_TenantDomain) {
+      this.logger.error(`Accès refusé : Domaine manquant pour l'utilisateur ${userId}`);
+      throw new UnauthorizedException('Territoire non identifié.');
+    }
+
+    // 🚩 RETOUR DU PAYLOAD SCELLÉ (Répond à l'interface AuthPayload)
     return {
       U_Id: userId,
       U_Email: payload.U_Email,
       tenantId: payload.tenantId,
+      U_TenantDomain: payload.U_TenantDomain, // 🚩 CORRECTION : Répond à l'erreur TS2741
       U_Role: payload.U_Role,
       assignedProcessId: payload.assignedProcessId || null
     };
