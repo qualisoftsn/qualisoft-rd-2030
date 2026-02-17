@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsInt, IsBoolean } from 'class-validator';
 
 export class CreateTenantDto {
   @IsString()
@@ -23,7 +23,7 @@ export class CreateTenantDto {
 
   @IsOptional()
   @IsString()
-  T_Domain?: string;
+  T_Domain?: string; // Si vide, le service générera le slug automatiquement
 
   @IsOptional()
   @IsString()
@@ -34,5 +34,10 @@ export class CreateTenantDto {
   T_Plan?: string;
 
   @IsOptional()
+  @IsInt() // Changement : On force un entier pour la durée
   T_ContractDuration?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  T_TacitRenewal?: boolean;
 }
