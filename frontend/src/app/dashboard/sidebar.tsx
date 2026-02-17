@@ -145,6 +145,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Alertes", path: "/dashboard/alerts", icon: Zap, access: "ALL" },
           { title: "PAQ", path: "/dashboard/paq", icon: Zap, access: "ALL" },
           { title: "Environnement", path: "/dashboard/environment", icon: Zap, access: "ALL" },
+          { title: "Amélioration continue", path: "/dashboard/improvement", icon: Zap, access: "ALL" },
           { title: "Innovation & Suggestions", path: "/dashboard/continuous-improvement", icon: FileText, access: "MANAGER" },
         ],
       },
