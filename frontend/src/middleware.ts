@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * 🛰️ MIDDLEWARE SOUVERAIN V4 - QUALISOFT ELITE
  * CONCEPTION : Architecture Multi-Tenant Multi-Niveaux.

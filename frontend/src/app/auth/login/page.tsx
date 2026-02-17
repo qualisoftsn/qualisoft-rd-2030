@@ -21,16 +21,23 @@ function LoginPortal() {
   const [publicTenants, setPublicTenants] = useState<PublicTenant[]>([]);
   const [form, setForm] = useState({ email: "", password: "", tenantId: "" });
 
-  // 1. 🛰️ PROTOCOLE D'IDENTIFICATION TERRITORIALE
+  /**
+   * 1. 🛰️ PROTOCOLE D'IDENTIFICATION TERRITORIALE (SLUG DETECTION)
+   */
   useEffect(() => {
     const identifyNode = async () => {
       const hostname = window.location.hostname;
       const parts = hostname.split('.');
+      const slug = parts[0];
+
+      // 📜 Toujours charger le registre public en parallèle pour éviter la liste vide
+      const registry = await matrixApi.getPublicTenants().catch(() => []);
+      setPublicTenants(registry);
       
-      // Logique Middleware V3 : Domaines réservés vs Tenants
-      if (parts.length > 2 && !['www', 'api', 'app', 'elite', 'localhost'].includes(parts[0])) {
+      // Logique de détection par sous-domaine (ex: sagam.qualisoft.sn)
+      if (parts.length > 2 && !['www', 'api', 'app', 'elite', 'localhost'].includes(slug)) {
         try {
-          const tenant = await matrixApi.getTenantByDomain(parts[0]);
+          const tenant = await matrixApi.getTenantByDomain(slug);
           if (tenant) {
             setDetectedTenant(tenant);
             setForm(prev => ({ ...prev, tenantId: tenant.T_Id }));
@@ -38,42 +45,59 @@ function LoginPortal() {
             setMode("LOGIN_FORM");
             return;
           }
-        } catch (e) { console.warn("Node not identified"); }
+        } catch (e) { 
+          console.warn("⚠️ Nœud non répertorié, passage en mode choix manuel."); 
+        }
       } 
       
-      if (['app', 'elite'].includes(parts[0])) { 
+      // Cas spécifique pour l'accès Master (app ou elite)
+      if (['app', 'elite'].includes(slug)) { 
         setLoginType("MASTER"); 
         setMode("LOGIN_FORM"); 
       } else { 
         setMode("CHOICE"); 
       }
     };
+
     identifyNode();
   }, []);
 
-  // 2. 🏛️ RÉCUPÉRATION DU REGISTRE POUR CHOIX MANUEL
+  /**
+   * 🏛️ INITIALISATION DU REGISTRE (FALLBACK)
+   */
   useEffect(() => {
-    if (mode === "LOGIN_FORM" && loginType === "TENANT" && !detectedTenant) {
+    if (mode === "LOGIN_FORM" && loginType === "TENANT" && !detectedTenant && publicTenants.length === 0) {
       matrixApi.getPublicTenants().then(setPublicTenants);
     }
-  }, [mode, loginType, detectedTenant]);
+  }, [mode, loginType, detectedTenant, publicTenants.length]);
 
+  /**
+   * 🔐 PROTOCOLE D'AUTHENTIFICATION
+   */
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (loginType === "TENANT" && !form.tenantId) {
+      toast.error("Identification territoriale requise.");
+      return;
+    }
+
     setIsLoading(true);
-    const tid = toast.loading("Vérification Kernel...");
+    const tid = toast.loading("Vérification Kernel en cours...");
+
     try {
       const result = await signIn("credentials", {
         email: form.email.toLowerCase().trim(),
         password: form.password,
-        tenantId: form.tenantId,
+        tenantId: loginType === "MASTER" ? "MATRIX" : form.tenantId,
         redirect: false,
       });
 
       if (result?.error) throw new Error("Accès refusé. Accréditations invalides.");
       
       toast.success("Authentification scellée.", { id: tid });
-      // Redirection forcée pour purger le cache de domaine OVH
+      
+      // Redirection dynamique selon le type d'accès
       window.location.href = loginType === "MASTER" ? "/admin/matrix" : "/dashboard";
     } catch (err: any) {
       toast.error(err.message, { id: tid });
@@ -83,33 +107,37 @@ function LoginPortal() {
 
   if (mode === "LOADING") return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center italic text-slate-500 text-[10px] font-black uppercase tracking-widest">
-      <Loader2 className="animate-spin mb-4" /> Node identification...
+      <Loader2 className="animate-spin mb-4 text-blue-600" /> 
+      Initialisation du Node Qualisoft...
     </div>
   );
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 italic font-sans relative overflow-hidden">
-      {/* BACKGROUND DECOR */}
+      
+      {/* BACKGROUND DECOR (MATRICE) */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         <Cpu className="absolute -top-20 -left-20 text-slate-700" size={600} />
         <Fingerprint className="absolute -bottom-40 -right-20 text-blue-900" size={500} />
       </div>
 
       <div className="w-full max-w-md bg-slate-900/40 border-2 border-slate-800 rounded-[3rem] p-10 shadow-2xl backdrop-blur-xl relative z-10 animate-in zoom-in duration-500">
+        
+        {/* HEADER : IDENTITÉ VISUELLE */}
         <div className="text-center mb-10">
           <div className="inline-flex p-5 bg-slate-900 border-2 border-slate-800 rounded-[2.5rem] mb-6 shadow-2xl">
-            {/* ✅ FIX BUILD : className unique fusionnée */}
-            <ShieldCheck size={48} className={`mx-auto mb-4 ${loginType === "MASTER" ? "text-blue-500" : "text-emerald-500"}`} />
+            <ShieldCheck size={48} className={loginType === "MASTER" ? "text-blue-500" : "text-emerald-500"} />
           </div>
           <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
             {detectedTenant ? detectedTenant.T_Name : "QUALI"}<span className="text-blue-600">{detectedTenant ? "" : "SOFT"}</span>
           </h1>
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3">
-            {detectedTenant ? `Nœud : ${detectedTenant.T_Domain}` : "Elite RD 2030 Sovereign"}
+            {detectedTenant ? `SOUVERAINETÉ : ${detectedTenant.T_Domain}` : "Elite RD 2030 Sovereign"}
           </p>
         </div>
 
         {mode === "CHOICE" ? (
+          /* SECTION 1 : CHOIX DU CANAL */
           <div className="space-y-4 animate-in slide-in-from-bottom-8 duration-500">
             <button 
               onClick={() => { setLoginType("MASTER"); setMode("LOGIN_FORM"); }} 
@@ -121,6 +149,7 @@ function LoginPortal() {
               </div>
               <Terminal className="text-blue-500 group-hover:scale-110 transition-transform" />
             </button>
+
             <button 
               onClick={() => { setLoginType("TENANT"); setMode("LOGIN_FORM"); }} 
               className="w-full bg-white p-8 rounded-3xl border-none flex justify-between items-center hover:scale-[1.02] transition-all cursor-pointer group shadow-xl"
@@ -133,6 +162,7 @@ function LoginPortal() {
             </button>
           </div>
         ) : (
+          /* SECTION 2 : FORMULAIRE DE CONNEXION SCELLÉ */
           <form onSubmit={handleAuth} className="space-y-6 animate-in slide-in-from-right-8 duration-500">
             {!detectedTenant && (
               <button 
@@ -145,37 +175,70 @@ function LoginPortal() {
             )}
 
             <div className="space-y-4">
+              {/* SÉLECTION DU TENANT (AUTO OU MANUELLE) */}
               {loginType === "TENANT" && (
                 detectedTenant ? (
                   <div className="relative">
                     <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 text-blue-600" size={18} />
-                    <input disabled value={detectedTenant.T_Name} className="w-full p-5 pl-14 bg-blue-900/10 border-2 border-blue-900/20 rounded-2xl text-blue-400 font-black uppercase text-xs italic" />
+                    <input 
+                      disabled 
+                      value={detectedTenant.T_Name} 
+                      className="w-full p-5 pl-14 bg-blue-900/10 border-2 border-blue-900/20 rounded-2xl text-blue-400 font-black uppercase text-xs italic" 
+                    />
                   </div>
                 ) : (
-                  <select 
-                    required 
-                    className="w-full p-5 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white font-bold italic outline-none cursor-pointer appearance-none" 
-                    onChange={e => setForm({...form, tenantId: e.target.value})}
-                  >
-                    <option value="">Sélectionner Organisation</option>
-                    {publicTenants.map(t => <option key={t.T_Id} value={t.T_Id}>{t.T_Name}</option>)}
-                  </select>
+                  <div className="relative group">
+                    <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
+                    <select 
+                      required 
+                      className="w-full p-5 pl-14 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white font-bold italic outline-none cursor-pointer appearance-none focus:border-blue-600" 
+                      value={form.tenantId}
+                      onChange={e => setForm({...form, tenantId: e.target.value})}
+                    >
+                      <option value="">Sélectionner Organisation</option>
+                      {publicTenants.map(t => <option key={t.T_Id} value={t.T_Id}>{t.T_Name}</option>)}
+                    </select>
+                  </div>
                 )
               )}
 
+              {/* EMAIL PROFESSIONNEL */}
               <div className="relative group">
                 <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
-                <input required type="email" placeholder="EMAIL PROFESSIONNEL" className="w-full p-5 pl-14 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white font-bold outline-none focus:border-blue-600 transition-all italic" onChange={e => setForm({...form, email: e.target.value})} />
+                <input 
+                  required 
+                  type="email" 
+                  placeholder="EMAIL PROFESSIONNEL" 
+                  className="w-full p-5 pl-14 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white font-bold outline-none focus:border-blue-600 transition-all italic" 
+                  onChange={e => setForm({...form, email: e.target.value})} 
+                />
               </div>
 
+              {/* MOT DE PASSE SÉCURISÉ */}
               <div className="relative group">
                 <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-600 transition-colors" size={18} />
-                <input required type={showPassword ? "text" : "password"} placeholder="MOT DE PASSE" className="w-full p-5 pl-14 pr-14 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white font-bold outline-none focus:border-blue-600 italic" onChange={e => setForm({...form, password: e.target.value})} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 bg-transparent border-none text-slate-600 cursor-pointer hover:text-white transition-colors">{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
+                <input 
+                  required 
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="MOT DE PASSE" 
+                  className="w-full p-5 pl-14 pr-14 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white font-bold outline-none focus:border-blue-600 italic" 
+                  onChange={e => setForm({...form, password: e.target.value})} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)} 
+                  className="absolute right-5 top-1/2 -translate-y-1/2 bg-transparent border-none text-slate-600 cursor-pointer hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                </button>
               </div>
             </div>
 
-            <button disabled={isLoading} className="w-full py-7 bg-blue-600 text-white rounded-4xl font-black uppercase text-xs tracking-[0.3em] hover:bg-blue-500 transition-all border-none cursor-pointer shadow-xl active:scale-95 flex justify-center items-center gap-4 group">
+            {/* BOUTON D'ACCÈS FINAL */}
+            <button 
+              disabled={isLoading} 
+              className="w-full py-7 bg-blue-600 text-white rounded-4xl font-black uppercase text-xs tracking-[0.3em] hover:bg-blue-500 transition-all border-none cursor-pointer shadow-xl active:scale-95 flex justify-center items-center gap-4 group disabled:opacity-50"
+            >
               {isLoading ? (
                 <Loader2 className="animate-spin" size={24} />
               ) : (
@@ -189,4 +252,10 @@ function LoginPortal() {
   );
 }
 
-export default function LoginPage() { return <Suspense fallback={<div className="bg-slate-950 min-h-screen" />}><LoginPortal /></Suspense>; }
+export default function LoginPage() { 
+  return (
+    <Suspense fallback={<div className="bg-slate-950 min-h-screen flex items-center justify-center text-white">Initialisation...</div>}>
+      <LoginPortal />
+    </Suspense>
+  ); 
+}
