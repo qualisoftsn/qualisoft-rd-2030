@@ -245,7 +245,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
       <div className={`p-8 shrink-0 border-b border-white/5 ${isImpersonated ? "bg-[#282525]" : "bg-[#111A2E]"}`}>
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-white/10 shadow-lg">
-             <Image src="/QsLogo.svg" alt="QS" width={32} height={32} />
+             <Image src="/assets/QsLogo.svg" alt="Qualisoft" width={32} height={32} />
           </div>
           <div>
             <h1 className="text-xl font-black uppercase tracking-tighter text-white">QUALI<span className="text-blue-500">SOFT</span></h1>

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -111,7 +113,7 @@ export default function DeployTenantModal({ isOpen, onClose, onSuccess }: Deploy
                     <input required placeholder="ex: pad" className="w-full bg-slate-900/50 border border-amber-900/30 rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-amber-500 focus:border-amber-500 outline-none transition-all lowercase"
                       value={formData.customSlug} onChange={e => setFormData({...formData, customSlug: e.target.value})} />
                   </div>
-                  <p className="text-[8px] text-slate-500 ml-4 italic">C'est ce nom court qui sera utilisé dans l'URL. Modifiez-le pour faire court !</p>
+                  <p className="text-[8px] text-slate-500 ml-4 italic">C&apos;est ce nom court qui sera utilisé dans l&apos;URL. Modifiez-le pour faire court !</p>
                 </div>
               </div>
 
