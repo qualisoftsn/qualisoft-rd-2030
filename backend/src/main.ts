@@ -1,6 +1,6 @@
 /**
  * 🛰️ NOYAU SOUVERAIN - QUALISOFT ELITE RD 2030
- * VERSION : 2.1.1 (Correction Typage CookieParser)
+ * VERSION : 2.1.2 (Optimisation CORS Multi-Tenant & Scellage Sécurisé)
  */
 
 import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
@@ -10,8 +10,8 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
-// 🛡️ CORRECTION : Importation compatible CommonJS/ESM
-import cookieParser from 'cookie-parser'; 
+// 🛡️ IMPORTATION SÉCURISÉE DU COOKIE PARSER
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const logger = new Logger('Matrix-Bootstrap');
@@ -20,12 +20,13 @@ async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
     const configService = app.get(ConfigService);
 
-    // 🍪 PROTOCOLE DE SESSION (Ligne 23 désormais valide)
+    // 🍪 PROTOCOLE DE SESSION ET COOKIES
     app.use(cookieParser());
 
+    // 🚩 PRÉFIXE GLOBAL DE L'API
     app.setGlobalPrefix('api');
 
-    // 🛡️ VALIDATION DES DONNÉES
+    // 🛡️ VALIDATION DES DONNÉES (PIPE GLOBAL)
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -40,45 +41,69 @@ async function bootstrap() {
           return new BadRequestException({
             statusCode: 400,
             message: formattedErrors,
-            error: 'Bad Request',
+            error: 'Erreur de validation Matrix',
           });
         },
       }),
     );
 
+    // 📂 GESTION DES ASSETS STATIQUES (Uploads documents/signatures)
     app.useStaticAssets(join(process.cwd(), 'uploads'), {
       prefix: '/uploads/',
       index: false,
     });
 
     // 🌐 CONFIGURATION CORS : SOUVERAINETÉ MULTI-TENANT
+    // Cette configuration permet à tous les sous-domaines .qualisoft.sn de communiquer avec l'API
     app.enableCors({
       origin: (origin, callback) => {
-        const isDev = configService.get('NODE_ENV') === 'development';
-        // On autorise qualisoft.sn et tous ses sous-domaines (*.qualisoft.sn)
-        if (!origin || origin.endsWith('.qualisoft.sn') || origin === 'https://qualisoft.sn' || isDev) {
+        const env = configService.get('NODE_ENV');
+        const allowedUrls = configService.get<string>('FRONTEND_URL')?.split(',') || [];
+        
+        // Autorisation : 
+        // 1. Si pas d'origine (app mobile ou curl)
+        // 2. Si l'origine finit par .qualisoft.sn
+        // 3. Si l'origine est dans la liste FRONTEND_URL
+        // 4. Si on est en mode développement
+        const isAllowed = 
+          !origin || 
+          origin.endsWith('.qualisoft.sn') || 
+          origin === 'https://qualisoft.sn' ||
+          allowedUrls.includes(origin) ||
+          env === 'development';
+
+        if (isAllowed) {
           callback(null, true);
         } else {
-          logger.error(`🛑 CORS BLOQUÉ : ${origin}`);
-          callback(new Error('Non autorisé par la Matrix CORS'));
+          logger.error(`🛑 CORS BLOQUÉ : Tentative d'accès depuis une origine non autorisée : ${origin}`);
+          callback(new Error('Accès refusé par le protocole CORS Qualisoft'));
         }
       },
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'x-tenant-domain', 'Cookie'],
+      allowedHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'x-tenant-id', 
+        'x-tenant-domain', 
+        'Cookie', 
+        'Accept'
+      ],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     });
 
+    // 🚀 LANCEMENT DU SERVEUR
     const port = configService.get<number>('PORT') || 9000;
     await app.listen(port, '0.0.0.0');
     
     logger.log(`--------------------------------------------------------`);
     logger.log(`🚀 NOYAU QUALISOFT ELITE : OPÉRATIONNEL SUR PORT ${port}`);
-    logger.log(`🌐 CORS : ACCÈS SOUS-DOMAINES CONFIGURÉ`);
+    logger.log(`🌐 DOMAINES : *.qualisoft.sn AUTORISÉS`);
+    logger.log(`📡 API BASE URL : https://api.qualisoft.sn/api`);
     logger.log(`--------------------------------------------------------`);
 
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    logger.error(`❌ ÉCHEC DU DÉMARRAGE : ${message}`);
+    const message = err instanceof Error ? err.message : 'Erreur critique lors du bootstrap';
+    logger.error(`❌ ÉCHEC DU DÉMARRAGE DU NOYAU : ${message}`);
     process.exit(1);
   }
 }
