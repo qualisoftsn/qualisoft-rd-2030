@@ -18,12 +18,14 @@ export const matrixApi = {
   initialize: async (data: ProvisioningPayload) => (await apiClient.post('/admin/matrix/initialize', data)).data,
   impersonate: async (tenantId: string) => (await apiClient.post(`/admin/matrix/impersonate/${tenantId}`)).data,
   
-  createGlobalUser: async (payload: any) => (await apiClient.post<UserMatrixEntry>('/users', payload)).data,
+  // 🚩 CORRECTION : Utilisation de la route sécurisée Matrix pour l'enrôlement
+  createGlobalUser: async (payload: any) => (await apiClient.post<UserMatrixEntry>(`/admin/matrix/tenants/${payload.tenantId}/users`, payload)).data,
   
+  // 🚩 CORRECTION : Utilisation de la route sécurisée Matrix pour l'édition souveraine
   updateUser: async (id: string, payload: any) => {
     /// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { U_Id, tenantId, id: _, createdAt, updatedAt, ...cleanPayload } = payload;
-    return (await apiClient.patch<UserMatrixEntry>(`/users/${id}`, cleanPayload)).data;
+    return (await apiClient.patch<UserMatrixEntry>(`/admin/matrix/users/${id}`, cleanPayload)).data;
   },
 
   deleteUser: async (id: string) => (await apiClient.delete(`/users/${id}`)).data,
