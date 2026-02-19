@@ -1,41 +1,36 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/**
- * 🛰️ MIDDLEWARE SOUVERAIN V4 - QUALISOFT ELITE
- * CONCEPTION : Architecture Multi-Tenant Multi-Niveaux.
- * RÔLE : 
- * 1. Verrouillage de l'accès hors authentification.
- * 2. Isolation territoriale (Un utilisateur ne peut accéder qu'à son sous-domaine).
- * 3. Protection du Noyau Master (Accès /admin réservé au Super Admin).
- */
-
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { JWT } from "next-auth/jwt";
 
-// 1. DÉFINITION DU TYPE POUR LE JETON MATRIX (Sync avec NextAuth Callbacks)
+/**
+ * 🛰️ TYPE MATRIX : Synchronisé avec le JWT de NextAuth
+ */
 type MatrixToken = JWT & {
   U_Role?: string;
-  U_TenantDomain?: string; // Doit être le slug (ex: "pad") pour correspondre au hostname
+  U_TenantDomain?: string; // Le slug (ex: "pad", "sagam")
 };
 
-// 2. DOMAINES MAÎTRES (Points d'entrée de la Matrix Management)
-const MASTER_DOMAINS = new Set(['app', 'elite', 'www', 'localhost', 'matrix']);
+const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * 🏛️ DOMAINES DE GESTION (Périmètre Master)
+ */
+const MASTER_DOMAINS = new Set(['app', 'elite', 'www', 'localhost', 'matrix', 'qualisoft']);
 
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token as MatrixToken;
     const { pathname, hostname } = req.nextUrl;
     
-    // Extraction du sous-domaine (ex: "pad" de "pad.qualisoft.sn")
+    // 1. Extraction propre du sous-domaine (ex: "pad" de "pad.qualisoft.sn")
     const hostParts = hostname.split('.');
     const currentSubdomain = hostParts[0].toLowerCase();
     
     const userRole = token?.U_Role;
-    // On s'assure que le tenant dans le token est traité uniformément en minuscule
     const assignedTenant = token?.U_TenantDomain?.toLowerCase();
 
-    // --- 🚨 ZONE 1 : PROTECTION DU NOYAU MASTER (/admin) ---
-    // Seul le SUPER_ADMIN peut franchir ce périmètre, quel que soit le sous-domaine.
+    // --- 🚨 ZONE 1 : PROTECTION DU NOYAU ADMIN ---
     if (pathname.startsWith("/admin")) {
       if (userRole !== "SUPER_ADMIN") {
         return NextResponse.redirect(new URL("/dashboard", req.url));
@@ -43,28 +38,36 @@ export default withAuth(
       return NextResponse.next();
     }
 
-    // --- 🧭 ZONE 2 : ROUTAGE TERRITORIAL (Dashboard & Business Logic) ---
+    // --- 🧭 ZONE 2 : ISOLATION TERRITORIALE (Dashboard) ---
     if (pathname.startsWith("/dashboard") || pathname === "/") {
       
-      // A. Le Super Admin a un passe-droit universel (Visibilité totale sur la Fédération)
+      // A. Passe-droit pour le SUPER_ADMIN
       if (userRole === "SUPER_ADMIN") return NextResponse.next();
 
-      // B. Vérification de l'ancrage territorial
+      // B. Vérification de la cohérence du domaine
       const isOnMasterDomain = MASTER_DOMAINS.has(currentSubdomain);
       const isCorrectTerritory = currentSubdomain === assignedTenant;
 
-      // Si l'utilisateur tente de naviguer sur un domaine qui n'est pas le sien
-      // ou s'il tente d'accéder au dashboard depuis le domaine "app" ou "www"
+      // C. LOGIQUE DE REDIRECTION FORCÉE (Si l'utilisateur n'est pas chez lui)
       if (assignedTenant && !isCorrectTerritory) {
+        
+        // Sécurité : Si on est déjà sur le bon domaine mais que le middleware boucle, on stop.
+        if (currentSubdomain === assignedTenant) return NextResponse.next();
+
         const targetUrl = req.nextUrl.clone();
         
-        // Reconstruction chirurgicale de l'URL vers son domaine souverain
-        hostParts[0] = assignedTenant;
-        targetUrl.host = hostParts.join('.');
+        // On reconstruit l'hôte pour pointer vers le domaine souverain de l'utilisateur
+        // Cas particulier : si on est sur le domaine racine qualisoft.sn
+        if (hostParts.length <= 2) {
+          targetUrl.host = `${assignedTenant}.${hostname}`;
+        } else {
+          hostParts[0] = assignedTenant;
+          targetUrl.host = hostParts.join('.');
+        }
         
-        // On force la redirection vers la racine de son propre sous-domaine
         targetUrl.pathname = "/dashboard";
         
+        console.log(`🛰️ Redirection territoriale : ${hostname} -> ${targetUrl.host}`);
         return NextResponse.redirect(targetUrl);
       }
     }
@@ -73,25 +76,33 @@ export default withAuth(
   },
   {
     callbacks: {
-      // Si authorized renvoie false, Next-Auth redirige automatiquement vers signIn (pages.signIn)
+      // Le middleware ne s'exécute que si authorized renvoie true
       authorized: ({ token }) => !!token,
     },
+    // 🚩 CRITIQUE : Configuration des cookies pour correspondre à route.ts
+    cookies: {
+      sessionToken: {
+        name: isProduction ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      },
+    },
     pages: {
-      signIn: "/auth/login", // Le point de ralliement unique
+      signIn: "/auth/login",
     },
   }
 );
 
-// 3. CONFIGURATION DU MATCHER (VIGILANCE MAXIMALE)
+/**
+ * 🛠️ CONFIGURATION DU MATCHER
+ * On exclut tout ce qui est public ou fichiers statiques pour éviter les boucles sur les images/css
+ */
 export const config = {
   matcher: [
     /*
-     * On intercepte TOUT sauf :
-     * - api/auth (Nécessaire pour le handshake NextAuth)
-     * - auth/* (Pages de login/register publiques)
-     * - static, _next, favicon (Fichiers système)
-     * - Les fichiers avec extensions (.png, .svg, etc.)
+     * Intercepte tout sauf :
+     * - api/auth, auth/login, auth/error (Handshake & Public Pages)
+     * - _next (Fichiers de build Next.js)
+     * - static, favicon, images (Fichiers statiques)
      */
-    "/((?!api/auth|auth|static|.*\\..*|_next).*)",
+    "/((?!api/auth|auth|_next/static|_next/image|favicon.ico|uploads|.*\\..*).*)",
   ],
 };
