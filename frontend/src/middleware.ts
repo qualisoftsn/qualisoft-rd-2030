@@ -2,33 +2,33 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
-const MASTER_DOMAINS = new Set(['elite', 'www', 'app', 'matrix']);
-
 export default withAuth(
   function middleware(req) {
     const { pathname, hostname } = req.nextUrl;
     const subdomain = hostname.split('.')[0].toLowerCase();
     const token = req.nextauth.token as any;
 
-    // 🚩 CAS 1 : LANDING PAGE (/)
+    // 1. GESTION DE LA RACINE (/)
     if (pathname === "/") {
-      // Si on est sur pad.qualisoft.sn, on INTERDIT la landing page elite, on force le login
-      if (!MASTER_DOMAINS.has(subdomain)) {
-        return NextResponse.redirect(new URL("/auth/login", req.url));
-      }
-      // Si on est sur elite.qualisoft.sn, on laisse voir la Landing Page
-      return NextResponse.next();
+      // Si on est sur elite.qualisoft.sn -> ON LAISSE PASSER (Landing Page)
+      if (subdomain === "elite") return NextResponse.next();
+      
+      // Si on est sur un sous-domaine (ex: pad) -> DIRECTION LOGIN
+      return NextResponse.redirect(new URL("/auth/login", req.url));
     }
 
-    // 🚩 CAS 2 : PROTECTION DASHBOARD
+    // 2. GESTION DU DASHBOARD (Protection Territoriale)
     if (pathname.startsWith("/dashboard")) {
-        const assignedTenant = token?.U_TenantDomain?.toLowerCase();
-        // Si je suis sur pad.qualisoft.sn mais mon token dit sagam -> Redirection
-        if (assignedTenant && subdomain !== assignedTenant && token?.U_Role !== "SUPER_ADMIN") {
-            const targetUrl = req.nextUrl.clone();
-            targetUrl.host = `${assignedTenant}.qualisoft.sn`;
-            return NextResponse.redirect(targetUrl);
-        }
+      const assignedTenant = token?.U_TenantDomain?.toLowerCase();
+      
+      // Si le domaine actuel ne correspond pas au domaine assigné (et pas Super Admin)
+      if (assignedTenant && subdomain !== assignedTenant && token?.U_Role !== "SUPER_ADMIN") {
+        const targetUrl = req.nextUrl.clone();
+        // 🚩 CORRECTION : On reconstruit proprement sans concaténation sauvage
+        targetUrl.host = `${assignedTenant}.qualisoft.sn`;
+        targetUrl.pathname = "/dashboard";
+        return NextResponse.redirect(targetUrl);
+      }
     }
 
     return NextResponse.next();
@@ -38,11 +38,16 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname, hostname } = req.nextUrl;
         const subdomain = hostname.split('.')[0].toLowerCase();
-        
-        // La racine des domaines maîtres et les pages d'auth sont toujours autorisées
-        if ((pathname === "/" && MASTER_DOMAINS.has(subdomain)) || pathname.startsWith("/auth")) {
-            return true;
-        }
+
+        // 🔓 ACCÈS PUBLICS :
+        // - Racine d'Elite
+        // - Toutes les pages d'authentification
+        // - Fichiers statiques (images, etc)
+        if (
+          (pathname === "/" && subdomain === "elite") || 
+          pathname.startsWith("/auth")
+        ) return true;
+
         return !!token;
       },
     },
