@@ -8,27 +8,16 @@ export default withAuth(
     const subdomain = hostname.split('.')[0].toLowerCase();
     const token = req.nextauth.token as any;
 
-    // 1. GESTION DE LA RACINE (/)
-    if (pathname === "/") {
-      // Si on est sur elite.qualisoft.sn -> ON LAISSE PASSER (Landing Page)
-      if (subdomain === "elite") return NextResponse.next();
-      
-      // Si on est sur un sous-domaine (ex: pad) -> DIRECTION LOGIN
-      return NextResponse.redirect(new URL("/auth/login", req.url));
+    // 🚩 RÈGLE 1 : Si on est sur elite.qualisoft.sn et sur la racine -> C'est la Landing Page (Autorisée)
+    if (subdomain === "elite" && pathname === "/") {
+      return NextResponse.next();
     }
 
-    // 2. GESTION DU DASHBOARD (Protection Territoriale)
+    // 🚩 RÈGLE 2 : Sécurité du Dashboard (Pas de redirection auto vers d'autres domaines ici pour l'instant)
     if (pathname.startsWith("/dashboard")) {
-      const assignedTenant = token?.U_TenantDomain?.toLowerCase();
-      
-      // Si le domaine actuel ne correspond pas au domaine assigné (et pas Super Admin)
-      if (assignedTenant && subdomain !== assignedTenant && token?.U_Role !== "SUPER_ADMIN") {
-        const targetUrl = req.nextUrl.clone();
-        // 🚩 CORRECTION : On reconstruit proprement sans concaténation sauvage
-        targetUrl.host = `${assignedTenant}.qualisoft.sn`;
-        targetUrl.pathname = "/dashboard";
-        return NextResponse.redirect(targetUrl);
-      }
+        // On vérifie juste si la session est valide
+        if (!token) return NextResponse.redirect(new URL("/auth/login", req.url));
+        return NextResponse.next();
     }
 
     return NextResponse.next();
@@ -39,22 +28,25 @@ export default withAuth(
         const { pathname, hostname } = req.nextUrl;
         const subdomain = hostname.split('.')[0].toLowerCase();
 
-        // 🔓 ACCÈS PUBLICS :
-        // - Racine d'Elite
-        // - Toutes les pages d'authentification
-        // - Fichiers statiques (images, etc)
+        // 🔓 ROUTES PUBLIQUES : 
+        // - Landing Page sur elite
+        // - Pages d'auth (/auth/login, etc)
+        // - Assets statiques
         if (
           (pathname === "/" && subdomain === "elite") || 
           pathname.startsWith("/auth")
-        ) return true;
-
+        ) {
+          return true;
+        }
+        
+        // 🔒 TOUT LE RESTE demande un token
         return !!token;
       },
     },
     cookies: {
-      sessionToken: {
-        name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
-      }
+        sessionToken: {
+            name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+        }
     },
     pages: { signIn: "/auth/login" }
   }
