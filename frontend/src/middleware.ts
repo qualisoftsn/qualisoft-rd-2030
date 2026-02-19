@@ -6,9 +6,10 @@ export default withAuth(
     const { pathname, hostname } = req.nextUrl;
     const subdomain = hostname.split('.')[0].toLowerCase();
 
-    // 🚩 RÈGLE CRITIQUE : Si on est sur elite.qualisoft.sn, la racine (/) est publique
-    if (subdomain === "elite" && pathname === "/") {
-      return NextResponse.next();
+    // Si on est sur un sous-domaine (ex: pad) et qu'on tape la racine /
+    // On force la redirection vers le login du tenant
+    if (pathname === "/" && !['elite', 'www', 'localhost'].includes(subdomain)) {
+      return NextResponse.redirect(new URL("/auth/login", req.url));
     }
 
     return NextResponse.next();
@@ -19,15 +20,10 @@ export default withAuth(
         const { pathname, hostname } = req.nextUrl;
         const subdomain = hostname.split('.')[0].toLowerCase();
 
-        // ACCÈS PUBLICS :
-        // 1. Racine de elite.qualisoft.sn
-        // 2. Toutes les pages /auth/* (login, error, etc.)
-        if (
-          (pathname === "/" && subdomain === "elite") || 
-          pathname.startsWith("/auth")
-        ) return true;
-
-        // Le reste demande une session
+        // Accès publics : Landing Elite et Pages d'Auth
+        if ((pathname === "/" && subdomain === "elite") || pathname.startsWith("/auth")) {
+          return true;
+        }
         return !!token;
       },
     },
