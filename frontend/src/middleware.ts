@@ -2,27 +2,33 @@ import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(req: NextRequest) {
-  const { pathname, hostname } = req.nextUrl;
-  const subdomain = hostname.split('.')[0].toLowerCase();
+  // 🚩 1. DÉTECTION BLINDÉE DU DOMAINE (Contourne la cécité Docker)
+  // On lit d'abord ce que Nginx nous transmet formellement
+  const hostHeader = req.headers.get('x-forwarded-host') || req.headers.get('host') || req.nextUrl.hostname;
+  const cleanHost = hostHeader.split(':')[0]; // On enlève le port s'il est présent (ex: :3005)
+  const subdomain = cleanHost.split('.')[0].toLowerCase();
+
   const isProduction = process.env.NODE_ENV === "production";
 
-  // 1. ZONES PUBLIQUES
+  // 🔓 2. ZONES PUBLIQUES
   const isElite = (subdomain === "elite" || subdomain === "www");
-  const isAuthPage = pathname.startsWith("/auth");
-  const isStatic = pathname.startsWith("/_next") || pathname.includes(".");
+  const isAuthPage = req.nextUrl.pathname.startsWith("/auth");
+  const isStatic = req.nextUrl.pathname.startsWith("/_next") || req.nextUrl.pathname.includes(".");
 
   if (isAuthPage || isStatic) return NextResponse.next();
 
-  // 2. GESTION DES RACINES (/)
-  if (pathname === "/") {
-    if (isElite) return NextResponse.next(); // 🚩 ELITE AFFICHE LA LANDING
-    return NextResponse.redirect(new URL("/auth/login", req.url)); // 🚩 LES TENANTS VONT AU LOGIN
+  // 🎯 3. GESTION DE LA RACINE (/)
+  if (req.nextUrl.pathname === "/") {
+    if (isElite) {
+      // 🚩 ELITE EST ENFIN RECONNU ET AFFICHE LA LANDING PAGE
+      return NextResponse.next(); 
+    }
+    // Les tenants (pad, sagam...) vont au login
+    return NextResponse.redirect(new URL("/auth/login", req.url)); 
   }
 
-  // 3. VÉRIFICATION DE LA SESSION AVEC LE NOUVEAU COOKIE
-  const cookiePrefix = isProduction ? "__Secure-" : "";
-  const qsCookieName = `${cookiePrefix}qs.tenant.token`; // Le nouveau nom défini dans route.ts
-
+  // 🔒 4. VÉRIFICATION DE LA SESSION POUR LE RESTE (Dashboard, etc.)
+  const qsCookieName = `${isProduction ? "__Secure-" : ""}qs.tenant.token`;
   const token = await getToken({ 
     req, 
     secret: process.env.NEXTAUTH_SECRET,
@@ -30,8 +36,7 @@ export async function middleware(req: NextRequest) {
     secureCookie: isProduction
   });
 
-  // Si pas de session et tentative d'accès au dashboard
-  if (!token && pathname.startsWith("/dashboard")) {
+  if (!token && req.nextUrl.pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/auth/login", req.url));
   }
 
