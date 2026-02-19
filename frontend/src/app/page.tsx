@@ -3,8 +3,17 @@
 "use client";
 
 import {
-  CheckCircle2, Crown, 
-  Mail, Rocket, Sparkles, LogIn} from "lucide-react";
+  Activity,
+  CheckCircle2,
+  ClipboardCheck,
+  Crown,
+  Fingerprint,
+  Mail,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
+  LogIn
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
@@ -12,29 +21,51 @@ export default function LandingPage() {
   const [submitted, setSubmitted] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (!mounted) return null;
 
   const plans = [
     {
-      name: "Standard Elite",
-      price: "Sur Devis",
-      desc: "Idéal pour les PME en phase de certification.",
-      features: ["Conformité ISO 9001", "Gestion Documentaire", "5 Utilisateurs Matrix", "Support Standard"],
+      name: "ESSAI",
+      price: "0 FCFA",
+      period: "/14 jours",
+      desc: "Découverte totale de l'écosystème.",
+      features: ["1 Utilisateur Matrix", "Conformité ISO 9001", "Support Standard", "Accès Cloud Souverain"],
       premium: false
     },
     {
-      name: "Business Master",
-      price: "Sur Devis",
+      name: "ÉMERGENCE",
+      price: "250.000 FCFA",
+      period: "/mois",
+      desc: "Idéal pour les PME en phase de structuration.",
+      features: ["5 Utilisateurs", "ISO 9001 & 14001", "Gestion Documentaire", "Tableaux de bord"],
+      premium: false
+    },
+    {
+      name: "CROISSANCE",
+      price: "500.000 FCFA",
+      period: "/mois",
       desc: "Le standard industriel pour le multi-site.",
-      features: ["ISO 9001, 14001, 45001", "Audits & Non-Conformités", "25 Utilisateurs Matrix", "Analytique en Temps Réel"],
+      features: ["20 Utilisateurs", "Full Pack ISO", "Audits & Non-Conformités", "Analytique Avancée"],
       premium: true
     },
     {
-      name: "Enterprise Sovereign",
+      name: "ENTREPRISE",
+      price: "1.200.000 FCFA",
+      period: "/mois",
+      desc: "Performance globale et gestion des risques.",
+      features: ["Utilisateurs Illimités", "Workflow Personnalisé", "Gestion des Risques", "Cockpit Direction"],
+      premium: false
+    },
+    {
+      name: "GROUPE",
       price: "Sur Devis",
-      desc: "Souveraineté totale pour grands comptes.",
-      features: ["Full Pack Normatif", "Utilisateurs Illimités", "Hébergement Dédié", "Support Élite 24/7"],
+      period: "",
+      desc: "Souveraineté totale pour holdings.",
+      features: ["Instance Dédiée", "SLA Garanti 99.9%", "Support Élite 24/7", "Sécurité Matrix avancée"],
       premium: false
     }
   ];
@@ -66,13 +97,13 @@ export default function LandingPage() {
       </nav>
 
       {/* --- HERO --- */}
-      <section className="relative pt-48 pb-20 px-6 overflow-hidden">
+      <section className="relative pt-48 pb-20 px-6 overflow-hidden text-center">
         <div className="absolute inset-0 opacity-15 pointer-events-none">
-          <img src="/QS_FondEcran.webp" alt="Fond" className="w-full h-full object-cover" />
+          <img src="/QS_FondEcran.webp" alt="Fond Matrix" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-linear-to-b from-[#0B0F1A] via-transparent to-[#0B0F1A]"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto relative z-10 text-center">
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-[0.3em] mb-10">
             <Rocket size={18} className="animate-bounce" /> LANCEMENT : 02 FÉVRIER 2026
           </div>
@@ -83,14 +114,15 @@ export default function LandingPage() {
           </h1>
 
           <p className="max-w-3xl mx-auto text-slate-400 text-lg md:text-xl font-medium italic mb-14 leading-relaxed">
-            L&apos;excellence ISO 9001, 14001 et 45001 digitalisée. Rejoignez l&apos;élite.
+            L&apos;excellence ISO 9001, 14001 et 45001 digitalisée. Rejoignez l&apos;élite souveraine.
           </p>
 
-          <div id="essai" className="max-w-md mx-auto bg-white/5 border border-white/10 p-8 rounded-[3rem] shadow-3xl backdrop-blur-xl mb-24">
+          {/* FORMULAIRE D'ESSAI */}
+          <div id="essai" className="max-w-md mx-auto bg-white/5 border border-white/10 p-8 rounded-[3rem] shadow-3xl backdrop-blur-xl mb-32">
             {!submitted ? (
               <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }}>
                 <div className="text-left space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4 italic">Inscrivez-vous pour l&apos;essai de 14 jours</label>
+                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4 italic">Demander mon essai de 14 jours</label>
                   <div className="relative">
                     <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                     <input type="email" required placeholder="votre@email-pro.com" className="w-full bg-black/40 border border-white/10 rounded-2xl py-5 pl-14 text-white font-bold outline-none focus:border-blue-500 transition-all" />
@@ -104,35 +136,56 @@ export default function LandingPage() {
               <div className="py-8 space-y-4 animate-in zoom-in duration-500 text-center">
                 <CheckCircle2 size={48} className="text-emerald-500 mx-auto" />
                 <h3 className="text-xl font-black uppercase italic">Enregistré !</h3>
-                <p className="text-slate-400 text-[10px] font-black uppercase italic">Qualisoft vous contactera.</p>
+                <p className="text-slate-400 text-[10px] font-black uppercase italic">Un officier Qualisoft vous contactera.</p>
               </div>
             )}
+          </div>
+
+          {/* --- PLANS & TARIFS CORRIGÉS --- */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-left">
+            {plans.map((plan, i) => (
+              <div key={i} className={`relative p-6 rounded-[2.5rem] border-2 transition-all duration-500 hover:scale-105 ${plan.premium ? 'border-blue-600 bg-blue-600/10 shadow-2xl shadow-blue-600/20' : 'border-slate-800 bg-slate-900/50'}`}>
+                {plan.premium && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-[7px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest">Populaire</div>}
+                <h3 className="text-sm font-black uppercase italic mb-1">{plan.name}</h3>
+                <p className="text-slate-500 text-[8px] mb-4 uppercase font-bold italic h-6">{plan.desc}</p>
+                <div className="mb-6">
+                   <div className="text-lg font-black italic text-white leading-none">{plan.price}</div>
+                   <div className="text-[9px] text-slate-500 uppercase font-black">{plan.period}</div>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feat, j) => (
+                    <li key={j} className="flex items-center gap-2 text-[9px] font-bold uppercase text-slate-300 italic">
+                      <CheckCircle2 size={12} className="text-blue-500 shrink-0" /> {feat}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="#essai" className={`block w-full py-3 rounded-xl text-center text-[8px] font-black uppercase tracking-widest transition-all ${plan.premium ? 'bg-blue-600 text-white shadow-lg' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+                  Choisir
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* --- PLANS --- */}
-      <section className="py-24 px-6 border-t border-white/5 bg-slate-900/30">
+      {/* --- MODULES ÉLITE --- */}
+      <section className="py-20 px-6 border-t border-white/5 bg-black/40">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-black uppercase italic tracking-tighter">Plans <span className="text-blue-600">Souverains</span></h2>
-            <div className="w-20 h-1 bg-blue-600 mx-auto mt-4"></div>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {plans.map((plan, i) => (
-              <div key={i} className={`relative p-10 rounded-[3rem] border-2 transition-all duration-500 hover:scale-105 ${plan.premium ? 'border-blue-600 bg-blue-600/10 shadow-2xl shadow-blue-600/20' : 'border-slate-800 bg-slate-900/50'}`}>
-                {plan.premium && <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-600 text-[8px] font-black px-6 py-2 rounded-full uppercase tracking-widest">Recommandé</div>}
-                <h3 className="text-2xl font-black uppercase italic mb-2">{plan.name}</h3>
-                <p className="text-slate-500 text-[10px] mb-6 uppercase font-bold italic">{plan.desc}</p>
-                <div className="text-4xl font-black mb-8 italic">{plan.price}</div>
-                <ul className="space-y-4 mb-10">
-                  {plan.features.map((feat, j) => (
-                    <li key={j} className="flex items-center gap-3 text-[11px] font-bold uppercase text-slate-300 italic">
-                      <CheckCircle2 size={16} className="text-blue-500 shrink-0" /> {feat}
-                    </li>
-                  ))}
-                </ul>
-                <Link href="#essai" className={`block w-full py-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-widest transition-all ${plan.premium ? 'bg-blue-600 text-white shadow-lg' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>Choisir ce plan</Link>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+            {[
+              { label: "ISO 9001/14001", icon: ShieldCheck, desc: "Souveraineté" },
+              { label: "Audits Digitaux", icon: ClipboardCheck, desc: "Zéro Papier" },
+              { label: "Cockpit Direction", icon: Activity, desc: "Temps Réel" },
+              { label: "Sécurité Matrix", icon: Fingerprint, desc: "Isolation" },
+            ].map((f, i) => (
+              <div key={i} className="flex flex-col items-center space-y-3 group">
+                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-blue-600 transition-all duration-500">
+                  <f.icon size={24} className="text-blue-500 group-hover:text-white" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest">{f.label}</h4>
+                  <p className="text-[8px] text-slate-600 font-black uppercase mt-1 italic">{f.desc}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -140,7 +193,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="py-12 px-6 text-center border-t border-white/5 opacity-50">
-        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.5em] italic">Qualisoft RD 2030 • Dakar • Sénégal</p>
+        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.5em] italic">Qualisoft RD 2030 • Dakar • Sénégal • Excellence Opérationnelle</p>
       </footer>
     </div>
   );
