@@ -6,10 +6,14 @@ export default withAuth(
     const { pathname, hostname } = req.nextUrl;
     const subdomain = hostname.split('.')[0].toLowerCase();
 
-    // Si on est sur un sous-domaine (ex: pad) et qu'on tape la racine /
-    // On force la redirection vers le login du tenant
-    if (pathname === "/" && !['elite', 'www', 'localhost'].includes(subdomain)) {
-      return NextResponse.redirect(new URL("/auth/login", req.url));
+    // 🚩 AUTORISATION : La racine d'Elite est PUBLIQUE
+    if (subdomain === "elite" && pathname === "/") {
+      return NextResponse.next();
+    }
+
+    // 🚩 RESTRICTION : Les racines des tenants (pad, sagam) vont au login
+    if (pathname === "/" && subdomain !== "elite") {
+        return NextResponse.redirect(new URL("/auth/login", req.url));
     }
 
     return NextResponse.next();
@@ -20,7 +24,7 @@ export default withAuth(
         const { pathname, hostname } = req.nextUrl;
         const subdomain = hostname.split('.')[0].toLowerCase();
 
-        // Accès publics : Landing Elite et Pages d'Auth
+        // Pages publiques : Racine Elite et toutes les pages /auth/*
         if ((pathname === "/" && subdomain === "elite") || pathname.startsWith("/auth")) {
           return true;
         }
