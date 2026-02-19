@@ -1,38 +1,33 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 
-export default withAuth(
-  function middleware(req) {
-    const { pathname, hostname } = req.nextUrl;
-    const subdomain = hostname.split('.')[0].toLowerCase();
+export async function middleware(req: NextRequest) {
+  const { pathname, hostname } = req.nextUrl;
+  const subdomain = hostname.split('.')[0].toLowerCase();
 
-    // 🚩 RÈGLE D'OR : La racine (/) n'est autorisée QUE pour "elite"
-    if (pathname === "/") {
-      if (subdomain === "elite") return NextResponse.next();
-      
-      // Si on est sur pad.qualisoft.sn/ -> REDIRECTION LOGIN
-      return NextResponse.redirect(new URL("/auth/login", req.url));
-    }
-    
+  const isLandingElite = (subdomain === "elite") && pathname === "/";
+  const isAuthPage = pathname.startsWith("/auth");
+  const isStaticFile = pathname.startsWith("/_next") || pathname.includes(".");
+
+  // 🔓 Accès libre pour Elite et l'Auth
+  if (isLandingElite || isAuthPage || isStaticFile) {
     return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const { pathname, hostname } = req.nextUrl;
-        const subdomain = hostname.split('.')[0].toLowerCase();
-
-        // Accès publics : Racine Elite et pages /auth/*
-        if ((pathname === "/" && subdomain === "elite") || pathname.startsWith("/auth")) {
-          return true;
-        }
-        return !!token;
-      },
-    },
-    pages: { signIn: "/auth/login" }
   }
-);
+
+  const token = await getToken({ 
+    req, 
+    secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: true
+  });
+
+  // 🔒 Redirection login pour les tenants non connectés
+  if (!token && pathname === "/") {
+    return NextResponse.redirect(new URL("/auth/login", req.url));
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|uploads|images|.*\\..*).*)"],
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
 };

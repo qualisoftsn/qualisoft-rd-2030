@@ -38,7 +38,7 @@ export default function LandingPage() {
     },
     {
       name: "ÉMERGENCE",
-      price: "250.000 FCFA",
+      price: "55.000 FCFA",
       period: "/mois",
       desc: "Idéal pour les PME en phase de structuration.",
       features: ["5 Utilisateurs", "ISO 9001 & 14001", "Gestion Documentaire", "Tableaux de bord"],
@@ -46,7 +46,7 @@ export default function LandingPage() {
     },
     {
       name: "CROISSANCE",
-      price: "500.000 FCFA",
+      price: "105.000 FCFA",
       period: "/mois",
       desc: "Le standard industriel pour le multi-site.",
       features: ["20 Utilisateurs", "Full Pack ISO", "Audits & Non-Conformités", "Analytique Avancée"],
@@ -54,7 +54,7 @@ export default function LandingPage() {
     },
     {
       name: "ENTREPRISE",
-      price: "1.200.000 FCFA",
+      price: "175.000 FCFA",
       period: "/mois",
       desc: "Performance globale et gestion des risques.",
       features: ["Utilisateurs Illimités", "Workflow Personnalisé", "Gestion des Risques", "Cockpit Direction"],
@@ -105,7 +105,7 @@ export default function LandingPage() {
 
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-[0.3em] mb-10">
-            <Rocket size={18} className="animate-bounce" /> LANCEMENT : 02 FÉVRIER 2026
+            <Rocket size={18} className="animate-bounce" /> LANCEMENT : 02 MARS 2026
           </div>
 
           <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85] mb-10 italic">
@@ -136,7 +136,7 @@ export default function LandingPage() {
               <div className="py-8 space-y-4 animate-in zoom-in duration-500 text-center">
                 <CheckCircle2 size={48} className="text-emerald-500 mx-auto" />
                 <h3 className="text-xl font-black uppercase italic">Enregistré !</h3>
-                <p className="text-slate-400 text-[10px] font-black uppercase italic">Un officier Qualisoft vous contactera.</p>
+                <p className="text-slate-400 text-[10px] font-black uppercase italic">Qualisoft vous contactera sous 48h.</p>
               </div>
             )}
           </div>

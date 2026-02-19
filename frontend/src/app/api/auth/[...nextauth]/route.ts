@@ -5,7 +5,7 @@ import { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 /**
- * 🛰️ TYPES SOUVERAINS - QUALISOFT ELITE
+ * 🛰️ TYPES SOUVERAINS - QUALISOFT ELITE RD 2030
  */
 interface QualisoftUser extends User {
   U_Id: string;
@@ -15,13 +15,16 @@ interface QualisoftUser extends User {
   U_LastName: string | null;
   tenantId: string;
   U_TenantName: string;
-  U_TenantDomain: string; 
+  U_TenantDomain: string; // Le slug (ex: "pad", "sagam")
   assignedProcessId?: string | null;
   accessToken: string;
 }
 
 const isProduction = process.env.NODE_ENV === "production";
 
+/**
+ * 🏛️ CONFIGURATION NEXTAUTH - NOYAU D'ISOLATION
+ */
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -36,7 +39,7 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials) return null;
 
-        // --- A. CAS INCARNATION (Matrix Admin) ---
+        // --- A. PROTOCOLE D'INCARNATION (Matrix Admin) ---
         if (credentials.impersonationToken && credentials.impersonatedUser) {
           try {
             const user = JSON.parse(credentials.impersonatedUser);
@@ -48,7 +51,7 @@ export const authOptions: NextAuthOptions = {
               email: user.U_Email,
               U_Role: user.U_Role,
               U_FirstName: user.U_FirstName || "Admin",
-              U_LastName: user.U_LastName || "Incarnated",
+              U_LastName: user.U_LastName || "Matrix",
               tenantId: user.tenantId,
               U_TenantName: user.U_TenantName || "Matrix Node",
               U_TenantDomain: user.U_TenantDomain || "matrix",
@@ -56,14 +59,16 @@ export const authOptions: NextAuthOptions = {
               accessToken: credentials.impersonationToken,
             } as QualisoftUser;
           } catch (e) {
+            console.error("Matrix Impersonation Error:", e);
             return null;
           }
         }
 
-        // --- B. CAS LOGIN CLASSIQUE ---
+        // --- B. PROTOCOLE LOGIN CLASSIQUE (Multi-Tenant) ---
         if (!credentials.email || !credentials.password) return null;
 
         try {
+          // Utilisation du tunnel interne Docker (backend:9000 défini dans compose)
           const backendUrl = process.env.API_URL_INTERNAL || "http://backend:9000/api";
           const targetTenantId = credentials.tenantId || "MATRIX";
 
@@ -83,6 +88,7 @@ export const authOptions: NextAuthOptions = {
 
           if (res.ok && data) {
             const userData = data.user || data;
+            
             return {
               id: userData.U_Id,
               U_Id: userData.U_Id,
@@ -101,6 +107,7 @@ export const authOptions: NextAuthOptions = {
           }
           return null;
         } catch (error) {
+          console.error("Auth System Failure:", error);
           return null;
         }
       },
@@ -108,8 +115,9 @@ export const authOptions: NextAuthOptions = {
   ],
 
   /**
-   * 🍪 CONFIGURATION DES COOKIES (SÉCURITÉ & ISOLATION)
-   * On retire la directive 'domain' pour empêcher le Super Admin de baver sur les tenants.
+   * 🍪 GESTIONNAIRE DE COOKIES SOUVERAINS
+   * 🚩 IMPORTANT : On ne définit PAS de 'domain' pour forcer l'isolation par hostname.
+   * Ainsi, une session sur pad.qualisoft.sn ne sera jamais visible sur sagam.qualisoft.sn.
    */
   cookies: {
     sessionToken: {
@@ -119,8 +127,6 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: isProduction,
-        // 🚩 ISOLATION : On ne définit PAS de domain. 
-        // Le cookie sera restreint au hostname actuel (ex: pad.qualisoft.sn uniquement).
       }
     }
   },
@@ -169,7 +175,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: { 
     strategy: "jwt", 
-    maxAge: 24 * 60 * 60 
+    maxAge: 24 * 60 * 60 // 24 heures de validité
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
