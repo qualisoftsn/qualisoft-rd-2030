@@ -5,46 +5,47 @@ import { NextRequest, NextResponse } from "next/server";
 export async function middleware(req: NextRequest) {
   const { pathname, hostname } = req.nextUrl;
   
-  // 🚩 DÉTECTION ROBUSTE : Gère "elite.qualisoft.sn" et "www.elite.qualisoft.sn"
+  // 🚩 EXTRACTION DU SOUS-DOMAINE (pad.qualisoft.sn -> pad)
   const hostParts = hostname.split('.');
   const subdomain = hostParts.length > 2 ? hostParts[hostParts.length - 3].toLowerCase() : "";
 
   const isProduction = process.env.NODE_ENV === "production";
   
-  // 🔓 1. ACCÈS PUBLICS : Elite (Landing) et Auth
-  const isLandingElite = (subdomain === "elite" || subdomain === "www") && pathname === "/";
+  // 🔓 1. LES PASSAGES PUBLICS (Elite Landing & Auth)
+  const isElite = (subdomain === "elite" || subdomain === "www");
   const isAuthPage = pathname.startsWith("/auth");
-  const isStaticFile = pathname.startsWith("/_next") || 
-                       pathname.includes(".") || 
-                       pathname.startsWith("/favicon.ico");
+  const isStatic = pathname.startsWith("/_next") || pathname.includes(".") || pathname.startsWith("/favicon.ico");
 
-  if (isLandingElite || isAuthPage || isStaticFile) {
-    return NextResponse.next();
+  if (isAuthPage || isStatic) return NextResponse.next();
+
+  // 🚩 CAS CRITIQUE : La racine "/"
+  if (pathname === "/") {
+    if (isElite) {
+      return NextResponse.next(); // Affiche la Landing Page Elite
+    } else {
+      // 🚫 TOUS LES AUTRES (pad, sagam, etc.) -> Direction LOGIN
+      return NextResponse.redirect(new URL("/auth/login", req.url));
+    }
   }
 
-  // 🔒 2. VÉRIFICATION DE LA SESSION
-  // On utilise exactement la même logique de sécurité que dans route.ts
+  // 🔒 2. VÉRIFICATION DE LA SESSION (Pour le dashboard, etc.)
   const token = await getToken({ 
     req, 
     secret: process.env.NEXTAUTH_SECRET,
     secureCookie: isProduction
   });
 
-  // 🚪 3. REDIRECTION LOGIN
-  // Si pas de session et qu'on n'est pas sur une page publique
-  if (!token) {
-    const loginUrl = new URL("/auth/login", req.url);
-    // On peut ajouter un paramètre de callback si besoin plus tard
-    return NextResponse.redirect(loginUrl);
+  // Si pas de session sur une page privée
+  if (!token && !isAuthPage) {
+    return NextResponse.redirect(new URL("/auth/login", req.url));
   }
 
-  // 🏢 4. PROTECTION DES TENANTS (Dashboard)
-  if (pathname.startsWith("/dashboard")) {
+  // 🏢 3. PROTECTION DES FRONTIÈRES (Isolation des Tenants)
+  if (pathname.startsWith("/dashboard") && token) {
     const assignedTenant = (token as any)?.U_TenantDomain?.toLowerCase();
-    const currentSubdomain = subdomain;
     
-    // Si l'utilisateur tente d'accéder à un autre tenant que le sien (hors Super Admin)
-    if (assignedTenant && currentSubdomain !== assignedTenant && (token as any)?.U_Role !== "SUPER_ADMIN") {
+    // Si je suis sur pad.qualisoft.sn avec un compte SAGAM (et pas Super Admin)
+    if (assignedTenant && subdomain !== assignedTenant && (token as any)?.U_Role !== "SUPER_ADMIN") {
         const targetUrl = req.nextUrl.clone();
         targetUrl.host = `${assignedTenant}.qualisoft.sn`;
         return NextResponse.redirect(targetUrl);
