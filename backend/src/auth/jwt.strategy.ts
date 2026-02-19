@@ -48,8 +48,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         U_Id: 'CORE_MASTER',
         U_Email: payload.U_Email || 'ab.thiongane@qualisoft.sn',
         U_Role: 'SUPER_ADMIN',
-        tenantId: payload.tenantId || 'TENANT_QS_CORP',
-        U_TenantDomain: payload.U_TenantDomain || 'qs', // 🚩 CORRECTION : Indispensable pour TS
+        tenantId: 'MATRIX', // 🚩 CORRECTION CRITIQUE : Aligné sur les Guards
+        U_TenantDomain: payload.U_TenantDomain || 'elite', // 🚩 CORRECTION : Indispensable pour TS et Routage
         assignedProcessId: null
       };
     }

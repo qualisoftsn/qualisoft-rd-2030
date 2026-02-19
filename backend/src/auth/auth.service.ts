@@ -120,8 +120,8 @@ export class AuthService {
       const masterPayload: AuthPayload = { 
         U_Id: 'CORE_MASTER', 
         U_Email: emailNormalized, 
-        tenantId: 'TENANT_QS_CORP', 
-        U_TenantDomain: 'qs', // 🚩 Territoire Master
+        tenantId: 'MATRIX', // 🚩 CORRECTION CRITIQUE : Aligné sur les Guards
+        U_TenantDomain: 'elite', // 🚩 Territoire Master
         U_Role: Role.SUPER_ADMIN 
       };
       
@@ -133,9 +133,9 @@ export class AuthService {
           U_LastName: 'Thiongane',
           U_Email: emailNormalized,
           U_Role: Role.SUPER_ADMIN,
-          tenantId: 'TENANT_QS_CORP',
+          tenantId: 'MATRIX', // 🚩 CORRECTION CRITIQUE
           U_TenantName: 'Qualisoft Corporate',
-          U_TenantDomain: 'qs',
+          U_TenantDomain: 'elite',
           assignedProcessId: null
         }
       };
