@@ -6,16 +6,11 @@ export default withAuth(
     const { pathname, hostname } = req.nextUrl;
     const subdomain = hostname.split('.')[0].toLowerCase();
 
-    // 🚩 AUTORISATION : La racine d'Elite est PUBLIQUE
+    // 🚩 Si on est sur elite.qualisoft.sn, la racine (/) est PUBLIQUE
     if (subdomain === "elite" && pathname === "/") {
       return NextResponse.next();
     }
-
-    // 🚩 RESTRICTION : Les racines des tenants (pad, sagam) vont au login
-    if (pathname === "/" && subdomain !== "elite") {
-        return NextResponse.redirect(new URL("/auth/login", req.url));
-    }
-
+    
     return NextResponse.next();
   },
   {
@@ -24,7 +19,9 @@ export default withAuth(
         const { pathname, hostname } = req.nextUrl;
         const subdomain = hostname.split('.')[0].toLowerCase();
 
-        // Pages publiques : Racine Elite et toutes les pages /auth/*
+        // On laisse passer sans login : 
+        // 1. La racine d'Elite (Landing Page)
+        // 2. Toutes les pages /auth/*
         if ((pathname === "/" && subdomain === "elite") || pathname.startsWith("/auth")) {
           return true;
         }
