@@ -19,6 +19,10 @@ interface QualisoftUser extends User {
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// 🚩 NOUVEAU NOM DE COOKIE : Purge les anciennes sessions fantômes "Super Admin"
+const cookiePrefix = isProduction ? "__Secure-" : "";
+const qsCookieName = `${cookiePrefix}qs.tenant.token`;
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -106,13 +110,13 @@ export const authOptions: NextAuthOptions = {
 
   cookies: {
     sessionToken: {
-      name: `${isProduction ? '__Secure-' : ''}next-auth.session-token`,
+      name: qsCookieName, // 🚩 Utilisation du nouveau nom de cookie
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
         secure: isProduction,
-        // 🚩 ISOLATION : Pas de propriété 'domain' pour empêcher les fuites entre tenants
+        // Pas de directive 'domain' pour forcer l'isolation stricte par sous-domaine
       }
     }
   },
