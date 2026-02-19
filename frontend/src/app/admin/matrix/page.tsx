@@ -52,7 +52,7 @@ export default function MatrixControlPage() {
             className="bg-slate-900 border-2 border-slate-800 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-blue-500 text-white"
             value={search} onChange={(e) => setSearch(e.target.value)}
           />
-          <button onClick={() => setIsDeployOpen(true)} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] cursor-pointer border-none shadow-lg hover:bg-blue-500">
+          <button onClick={() => setIsDeployOpen(true)} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] cursor-pointer border-none shadow-lg hover:bg-blue-500 transition-all">
             <Plus size={16} className="inline mr-2"/> Initialiser Nœud
           </button>
         </div>

@@ -88,7 +88,7 @@ async function seedMasterSystem(): Promise<void> {
     ];
 
     for (const t of tenantsData) {
-      console.log(`📡 SCELLAGE DU NŒUD : ${t.domain}...`);
+      console.log(`📡 Partenaire validé : ${t.domain}...`);
 
       const currentTenant = await prisma.tenant.create({
         data: {

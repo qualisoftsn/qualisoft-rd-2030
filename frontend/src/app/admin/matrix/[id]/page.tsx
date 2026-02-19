@@ -12,6 +12,7 @@ import { toast } from "sonner";
 export default function TenantCockpit() {
   const router = useRouter(); 
   const params = useParams();
+  
   // 🛡️ SÉCURISATION ID
   const tenantId = params?.id as string;
   
@@ -36,15 +37,32 @@ export default function TenantCockpit() {
     if (tenantId) fetchTenantDetails(); 
   }, [fetchTenantDetails, tenantId]);
 
+  // 🚩 CORRECTION MAJEURE DU PONT D'INCARNATION
   const handleImpersonate = async () => {
     const tid = toast.loading("Ouverture Tunnel d'Incarnation...");
     try {
+      // Le backend renvoie { access_token, targetUser } via admin.service.ts
       const data = await matrixApi.impersonate(tenantId);
-      if (data?.token) {
-        await signIn("credentials", { redirect: false, impersonationToken: data.token, impersonatedUser: JSON.stringify(data.user) });
-        window.location.href = "/dashboard";
+      
+      if (data?.access_token && data?.targetUser) {
+        const result = await signIn("credentials", { 
+          redirect: false, 
+          impersonationToken: data.access_token, 
+          impersonatedUser: JSON.stringify(data.targetUser) 
+        });
+
+        if (result?.error) throw new Error("Rejet de sécurité NextAuth.");
+
+        // Redirection territoriale absolue : on force le navigateur à changer de domaine
+        // pour que Nginx et le Middleware reconnaissent immédiatement le nouveau locataire.
+        const targetSlug = data.targetUser.tenant?.T_Domain?.split('.')[0].toLowerCase() || "app";
+        window.location.href = `https://${targetSlug}.qualisoft.sn/dashboard`;
+      } else {
+        throw new Error("Payload d'incarnation corrompu.");
       }
-    } catch (err) { toast.error("ÉCHEC DU TUNNEL", { id: tid }); }
+    } catch (err: any) { 
+      toast.error(err.message || "ÉCHEC DU TUNNEL", { id: tid }); 
+    }
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
@@ -74,7 +92,7 @@ export default function TenantCockpit() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center italic text-slate-500 text-[10px] font-black uppercase tracking-[0.5em]"><Loader2 className="animate-spin mb-4" /> Analyse du Nœud...</div>;
+  if (loading) return <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center italic text-slate-500 text-[10px] font-black uppercase tracking-[0.5em]"><Loader2 className="animate-spin mb-4 text-blue-600" size={32} /> Analyse du Nœud...</div>;
 
   return (
     <div className="min-h-screen bg-slate-950 p-8 font-sans italic selection:bg-blue-500/30 text-slate-200">
@@ -106,7 +124,7 @@ export default function TenantCockpit() {
         <div className="bg-slate-900/40 rounded-[3rem] shadow-2xl border-2 border-slate-800 overflow-hidden backdrop-blur-sm">
           <div className="p-10 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
             <h3 className="font-black uppercase text-xs tracking-widest text-slate-500 italic flex items-center gap-4"><Users size={22} className="text-blue-600" /> Registre d&apos;Identité</h3>
-            <button onClick={() => setEditingUser({ U_Email: "", U_FirstName: "", U_LastName: "", U_Role: "USER", U_IsActive: true })} className="bg-white text-slate-900 px-8 py-4 rounded-xl font-black uppercase text-[10px] border-none cursor-pointer hover:bg-blue-600 hover:text-white transition-all">Enrôler Citoyen</button>
+            <button onClick={() => setEditingUser({ U_Email: "", U_FirstName: "", U_LastName: "", U_Role: "USER", U_IsActive: true })} className="bg-white text-slate-900 px-8 py-4 rounded-xl font-black uppercase text-[10px] border-none cursor-pointer hover:bg-blue-600 hover:text-white transition-all shadow-xl">Enrôler Citoyen</button>
           </div>
           <table className="w-full text-left">
             <thead>
@@ -143,15 +161,15 @@ export default function TenantCockpit() {
           <form onSubmit={handleSaveUser} className="bg-slate-900 border-2 border-slate-800 w-full max-w-2xl rounded-[3rem] p-12 space-y-8 shadow-2xl animate-in zoom-in duration-300">
             <div className="flex justify-between items-center border-b border-slate-800 pb-6">
               <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Édition Souveraine</h2>
-              <button type="button" onClick={() => setEditingUser(null)} className="p-2 text-slate-500 hover:text-white bg-transparent border-none cursor-pointer"><X size={24} /></button>
+              <button type="button" onClick={() => setEditingUser(null)} className="p-2 text-slate-500 hover:text-white bg-transparent border-none cursor-pointer transition-colors"><X size={24} /></button>
             </div>
             <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Prénom</label><input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600" value={editingUser.U_FirstName} onChange={e => setEditingUser({...editingUser, U_FirstName: e.target.value})} /></div>
-              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Nom</label><input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600" value={editingUser.U_LastName} onChange={e => setEditingUser({...editingUser, U_LastName: e.target.value})} /></div>
-              <div className="col-span-2 space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Email</label><input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600" value={editingUser.U_Email} onChange={e => setEditingUser({...editingUser, U_Email: e.target.value})} /></div>
+              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Prénom</label><input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600 transition-all" value={editingUser.U_FirstName} onChange={e => setEditingUser({...editingUser, U_FirstName: e.target.value})} /></div>
+              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Nom</label><input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600 transition-all" value={editingUser.U_LastName} onChange={e => setEditingUser({...editingUser, U_LastName: e.target.value})} /></div>
+              <div className="col-span-2 space-y-2"><label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Email</label><input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600 transition-all" value={editingUser.U_Email} onChange={e => setEditingUser({...editingUser, U_Email: e.target.value})} /></div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Rôle Matrix</label>
-                <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600 appearance-none" value={editingUser.U_Role} onChange={e => setEditingUser({...editingUser, U_Role: e.target.value})}>
+                <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600 appearance-none transition-all cursor-pointer" value={editingUser.U_Role} onChange={e => setEditingUser({...editingUser, U_Role: e.target.value})}>
                   <option value="USER">USER</option>
                   <option value="ADMIN">ADMIN</option>
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
@@ -159,13 +177,13 @@ export default function TenantCockpit() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Statut</label>
-                <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600 appearance-none" value={editingUser.U_IsActive ? "true" : "false"} onChange={e => setEditingUser({...editingUser, U_IsActive: e.target.value === "true"})}>
+                <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl text-white font-black italic outline-none focus:border-blue-600 appearance-none transition-all cursor-pointer" value={editingUser.U_IsActive ? "true" : "false"} onChange={e => setEditingUser({...editingUser, U_IsActive: e.target.value === "true"})}>
                   <option value="true">ACTIF</option>
                   <option value="false">SUSPENDU</option>
                 </select>
               </div>
             </div>
-            <button type="submit" className="w-full py-6 bg-white text-slate-900 rounded-2xl font-black uppercase text-xs tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-blue-600 hover:text-white transition-all border-none cursor-pointer"><Save size={18} /> Sceller les Modifications</button>
+            <button type="submit" className="w-full py-6 bg-white text-slate-900 rounded-2xl font-black uppercase text-xs tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-blue-600 hover:text-white transition-all border-none cursor-pointer shadow-xl"><Save size={18} /> Sceller les Modifications</button>
           </form>
         </div>
       )}

@@ -28,28 +28,18 @@ export class AdminMatrixController {
     private readonly provisioningService: MatrixProvisioningService
   ) {}
 
-  /**
-   * 📋 VUE D'ENSEMBLE (REGISTRE GLOBAL)
-   */
   @Get()
   @HttpCode(HttpStatus.OK)
   async getMatrixRoot() {
     return await this.adminService.findAllTenants();
   }
 
-  /**
-   * 🔍 DÉTAILS D'UN NŒUD (COCKPIT)
-   */
   @Get('details/:tenantId')
   @HttpCode(HttpStatus.OK)
   async getTenantDetails(@Param('tenantId') tenantId: string) {
     return await this.adminService.getTenantFullDetails(tenantId);
   }
 
-  /**
-   * 🚀 INITIALISATION NŒUD (BIG BANG)
-   * Scellage d'un nouveau tenant avec Site et Admin.
-   */
   @Post('initialize')
   @HttpCode(HttpStatus.CREATED)
   async initialize(@Body() payload: ProvisioningDto) {
@@ -57,31 +47,18 @@ export class AdminMatrixController {
     return await this.provisioningService.initializeNewTenant(payload);
   }
 
-  /**
-   * 🎭 IMPERSONATION (TUNNEL D'INCARNATION)
-   * Permet au Super Admin de devenir Admin d'un tenant.
-   */
   @Post('impersonate/:tenantId')
   @HttpCode(HttpStatus.OK)
   async impersonate(@Param('tenantId') tenantId: string) {
     return await this.adminService.generateImpersonationToken(tenantId);
   }
 
-  /**
-   * 👤 ENRÔLEMENT EXTERNE (CRÉATION DIRECTE)
-   * Ajout d'un utilisateur dans un tenant spécifique depuis le Cockpit.
-   */
   @Post('tenants/:tenantId/users')
   @HttpCode(HttpStatus.CREATED)
   async createCollaborator(@Param('tenantId') tenantId: string, @Body() userData: any) {
     return await this.adminService.createExternalUser(tenantId, userData);
   }
 
-  /**
-   * 🔐 ÉDITION SOUVERAINE (UPDATE UTILISATEUR)
-   * C'est cette fonction qui manquait pour corriger ton erreur 404/400.
-   * Elle permet de modifier le Rôle, l'Email ou le Statut d'un citoyen.
-   */
   @Patch('users/:userId')
   @HttpCode(HttpStatus.OK)
   async updateUserSovereign(
@@ -90,7 +67,6 @@ export class AdminMatrixController {
     @Req() req: any
   ) {
     this.logger.log(`⚡ Modification souveraine sur l'utilisateur ${userId}`);
-    // On passe req.user (l'admin connecté) pour vérifier les droits dans le service
     return await this.adminService.updateUserSovereign(userId, payload, req.user);
   }
 }
