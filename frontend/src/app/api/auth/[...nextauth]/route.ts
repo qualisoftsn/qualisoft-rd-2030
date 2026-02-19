@@ -15,17 +15,13 @@ interface QualisoftUser extends User {
   U_LastName: string | null;
   tenantId: string;
   U_TenantName: string;
-  U_TenantDomain: string; // Le slug (ex: "pad", "sagam")
+  U_TenantDomain: string; 
   assignedProcessId?: string | null;
   accessToken: string;
 }
 
 const isProduction = process.env.NODE_ENV === "production";
-const rootDomain = "qualisoft.sn"; 
 
-/**
- * 🏛️ CONFIGURATION NEXTAUTH
- */
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -37,10 +33,10 @@ export const authOptions: NextAuthOptions = {
         impersonationToken: { label: "Token", type: "text" },
         impersonatedUser: { label: "UserJson", type: "text" }
       },
-      async authorize(credentials: Record<string, string> | undefined) {
+      async authorize(credentials) {
         if (!credentials) return null;
 
-        // --- A. PROTOCOLE D'INCARNATION (Matrix Admin) ---
+        // --- A. CAS INCARNATION (Matrix Admin) ---
         if (credentials.impersonationToken && credentials.impersonatedUser) {
           try {
             const user = JSON.parse(credentials.impersonatedUser);
@@ -64,11 +60,10 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
-        // --- B. PROTOCOLE LOGIN CLASSIQUE (Multi-Tenant) ---
+        // --- B. CAS LOGIN CLASSIQUE ---
         if (!credentials.email || !credentials.password) return null;
 
         try {
-          // Utilisation de l'URL interne Docker pour la rapidité
           const backendUrl = process.env.API_URL_INTERNAL || "http://backend:9000/api";
           const targetTenantId = credentials.tenantId || "MATRIX";
 
@@ -88,7 +83,6 @@ export const authOptions: NextAuthOptions = {
 
           if (res.ok && data) {
             const userData = data.user || data;
-            
             return {
               id: userData.U_Id,
               U_Id: userData.U_Id,
@@ -100,7 +94,6 @@ export const authOptions: NextAuthOptions = {
               U_LastName: userData.U_LastName,
               tenantId: userData.tenantId || targetTenantId,
               U_TenantName: userData.U_TenantName || "Organisation",
-              // Résolution du slug : priorité à la donnée brute ou à l'objet tenant joint
               U_TenantDomain: userData.U_TenantDomain || userData.tenant?.T_Domain || "qs", 
               assignedProcessId: userData.assignedProcessId || null,
               accessToken: data.access_token || data.accessToken,
@@ -108,7 +101,6 @@ export const authOptions: NextAuthOptions = {
           }
           return null;
         } catch (error) {
-          console.error("Auth Fetch Error:", error);
           return null;
         }
       },
@@ -116,8 +108,8 @@ export const authOptions: NextAuthOptions = {
   ],
 
   /**
-   * 🍪 CONFIGURATION DES COOKIES (ANTI-BOUCLE INFINIE)
-   * Force le partage du cookie sur .qualisoft.sn pour que pad.qualisoft.sn puisse le lire.
+   * 🍪 CONFIGURATION DES COOKIES (SÉCURITÉ & ISOLATION)
+   * On retire la directive 'domain' pour empêcher le Super Admin de baver sur les tenants.
    */
   cookies: {
     sessionToken: {
@@ -127,8 +119,8 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: isProduction,
-        // En prod, on met .qualisoft.sn (le point initial est crucial)
-        domain: isProduction ? '.' + rootDomain : undefined 
+        // 🚩 ISOLATION : On ne définit PAS de domain. 
+        // Le cookie sera restreint au hostname actuel (ex: pad.qualisoft.sn uniquement).
       }
     }
   },
@@ -177,7 +169,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: { 
     strategy: "jwt", 
-    maxAge: 24 * 60 * 60 // 24 heures de session
+    maxAge: 24 * 60 * 60 
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
