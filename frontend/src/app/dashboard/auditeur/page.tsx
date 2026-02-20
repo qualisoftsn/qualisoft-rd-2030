@@ -1,5 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/auditeur/page.tsx
+ * Rôle : Tableau de bord principal (Cockpit) pour le profil Auditeur.
+ * * Fonctionnalités clés :
+ * 1. Évaluation globale (Santé SMI) : Permet à l'auditeur de voir instantanément le score de santé du système (basé sur la performance, les NC et la gouvernance).
+ * 2. Visualisation de la Performance : Graphiques des indicateurs par rapport aux objectifs pour repérer les processus en difficulté.
+ * 3. Journal d'Audit & Activités : Flux en temps réel des derniers événements (validations, NC ouvertes, audits terminés).
+ * 4. Export & Raccourcis : Accès rapide aux non-conformités, aux indicateurs, et génération de rapports PDF synthétiques pour la préparation de l'audit.
+ * * Public cible : Auditeurs Internes, Auditeurs Externes (Certification), Responsables Qualité.
+ */
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -7,17 +18,13 @@ import Link from 'next/link';
 import apiClient from '@/core/api/api-client';
 import type { LucideIcon } from 'lucide-react';
 import { 
-  Loader2, 
-  FileDown, Sparkles, Layers, Activity, Target, 
+  Loader2, FileDown, Sparkles, Layers, Activity, Target, 
   ShieldCheck, TrendingUp, TrendingDown, BadgeCheck, Crown, CalendarCheck,
-  AlertTriangle, Clock, 
-  FileText,
-  Rocket, 
-  ChevronRight, 
+  AlertTriangle, Clock, FileText, Rocket, ChevronRight, 
   ArrowDown, ArrowUp
 } from 'lucide-react';
 
-// --- INTERFACES ---
+// --- INTERFACES STRICTES ---
 interface DashboardStats {
   completionRate: number;
   globalPerformance: number;
@@ -44,6 +51,15 @@ interface ChartItem {
   previousValue?: number;
 }
 
+// Interface pour typer proprement le retour brut de l'API pour les graphiques
+interface RawChartItem {
+  label?: string;
+  value?: string | number;
+  target?: string | number;
+  trend?: 'up' | 'down' | 'stable';
+  previousValue?: string | number;
+}
+
 interface RecentActivity {
   id: string;
   type: 'indicator' | 'audit' | 'nc' | 'action';
@@ -66,7 +82,7 @@ interface UserSession {
   };
 }
 
-// Mapping des couleurs pour éviter les classes dynamiques Tailwind
+// Mapping des couleurs pour éviter les classes dynamiques Tailwind non compilées
 const HEALTH_COLORS = {
   emerald: {
     text: 'text-emerald-400',
@@ -85,7 +101,8 @@ const HEALTH_COLORS = {
   }
 };
 
-// WelcomeModal
+// --- COMPOSANTS INTERNES ---
+
 const WelcomeModal = ({ userName, onClose }: { userName: string; onClose: () => void }) => (
   <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
     <div className="bg-white rounded-[3rem] p-10 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-300">
@@ -97,20 +114,20 @@ const WelcomeModal = ({ userName, onClose }: { userName: string; onClose: () => 
           Bienvenue, {userName} !
         </h2>
         <p className="text-slate-600 mb-8 font-medium">
-          Vous êtes connecté à votre tableau de bord Qualisoft. Découvrez vos indicateurs en temps réel.
+          Vous êtes connecté à votre espace d&apos;Audit Qualisoft. Accédez aux indicateurs de conformité en temps réel.
         </p>
         <button 
           onClick={onClose}
-          className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-sm tracking-widest shadow-lg transition-all"
+          className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-sm tracking-widest shadow-lg transition-all cursor-pointer"
         >
-          Commencer
+          Démarrer l&apos;analyse
         </button>
       </div>
     </div>
   </div>
 );
 
-export default function ExecutiveDashboard() {
+export default function AuditorDashboard() {
   const [data, setData] = useState<DashboardStats | null>(null);
   const [chartData, setChartData] = useState<ChartItem[]>([]);
   const [govData, setGovData] = useState<GovernanceStats>({ 
@@ -127,7 +144,7 @@ export default function ExecutiveDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
 
-  // Horloge côté client
+  // 🕒 Horloge côté client
   useEffect(() => {
     setIsMounted(true);
     const formatDate = () => new Date().toLocaleDateString('fr-FR', { 
@@ -146,7 +163,7 @@ export default function ExecutiveDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Chargement utilisateur depuis localStorage (FONCTIONNALITÉ CONSERVÉE)
+  // 👤 Chargement utilisateur depuis localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
@@ -168,7 +185,7 @@ export default function ExecutiveDashboard() {
   [user]);
 
   const isDecisionMaker = useMemo(() => 
-    ['SUPER_ADMIN', 'ADMIN', 'RQ'].includes(user?.U_Role || ''), 
+    ['SUPER_ADMIN', 'ADMIN', 'RQ', 'AUDITEUR'].includes(user?.U_Role || ''), 
   [user]);
 
   // Données utilisateur sécurisées
@@ -180,11 +197,11 @@ export default function ExecutiveDashboard() {
   }, [user]);
 
   const userFullName = useMemo(() => {
-    if (!user) return 'Utilisateur';
-    return [user.U_FirstName, user.U_LastName].filter(Boolean).join(' ') || 'Utilisateur';
+    if (!user) return 'Auditeur';
+    return [user.U_FirstName, user.U_LastName].filter(Boolean).join(' ') || 'Auditeur';
   }, [user]);
 
-  // Fetch data
+  // 🛰️ Fetch data souveraine
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
     
@@ -210,13 +227,13 @@ export default function ExecutiveDashboard() {
           auditsPending: statsData.auditsPending || 0
         });
         
-        const rawChartData = statsData.chartData || [];
-        setChartData(rawChartData.map((item: any) => ({
+        const rawChartData: RawChartItem[] = statsData.chartData || [];
+        setChartData(rawChartData.map((item) => ({
           label: item.label || 'Indicateur',
           value: Number(item.value) || 0,
           target: Number(item.target) || 1,
           trend: item.trend || 'stable',
-          previousValue: item.previousValue || Math.floor((Number(item.value) || 0) * 0.9)
+          previousValue: Number(item.previousValue) || Math.floor((Number(item.value) || 0) * 0.9)
         })));
       }
 
@@ -245,13 +262,12 @@ export default function ExecutiveDashboard() {
     }
   }, [user]);
 
-  // CORRECTION CLÉ : Gestion du chargement selon présence utilisateur
+  // Gestion du chargement selon présence utilisateur
   useEffect(() => {
     if (isMounted) {
       if (user) {
         fetchDashboardData();
       } else {
-        // CORRECTION : Si pas d'utilisateur, on arrête le chargement pour éviter la boucle infinie
         setLoading(false);
       }
     }
@@ -286,10 +302,10 @@ export default function ExecutiveDashboard() {
       });
       
       if (response?.data) {
-        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `Rapport_Executif_${month}_${year}.pdf`);
+        link.setAttribute('download', `Rapport_Pre_Audit_${month}_${year}.pdf`);
         document.body.appendChild(link);
         link.click();
         window.URL.revokeObjectURL(url);
@@ -303,12 +319,12 @@ export default function ExecutiveDashboard() {
     }
   };
 
-  // Calculs métier
+  // 🧮 Calculs métier
   const performanceTrend = useMemo(() => {
     if (!data?.globalPerformance || !data?.previousPerformance) return null;
     const diff = data.globalPerformance - data.previousPerformance;
     return {
-      direction: diff >= 0 ? 'up' : 'down',
+      direction: diff >= 0 ? 'up' as const : 'down' as const,
       value: Math.abs(diff).toFixed(1)
     };
   }, [data]);
@@ -340,14 +356,14 @@ export default function ExecutiveDashboard() {
     );
   }
 
-  // Chargement des données (uniquement si utilisateur connecté)
+  // Chargement des données
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-500 italic">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin" size={48} />
           <span className="text-[10px] font-black uppercase tracking-[0.4em] animate-pulse text-white">
-            Chargement Executive...
+            Connexion au Cockpit d&apos;Audit...
           </span>
         </div>
       </div>
@@ -377,14 +393,14 @@ export default function ExecutiveDashboard() {
           <div className="flex items-center gap-4 flex-wrap">
             <h1 className="text-4xl lg:text-3xl font-black uppercase italic tracking-tighter leading-none text-white">
               Cockpit <span className="text-blue-500">
-                {isSuperAdmin ? 'Souverain' : 'Stratégique'}
+                Auditeur
               </span>
             </h1>
             {isSuperAdmin && <Crown className="text-amber-400 animate-pulse" size={32} />}
           </div>
           
           <p className="text-slate-400 text-sm font-medium max-w-2xl">
-            Vue synthétique de la performance globale et levier d&apos;action pour la direction.
+            Vue synthétique de la performance globale et levier d&apos;action pour votre mission d&apos;audit.
           </p>
         </div>
 
@@ -393,7 +409,7 @@ export default function ExecutiveDashboard() {
             <p className="text-white font-black uppercase text-lg tracking-tighter truncate max-w-50">{userFullName}</p>
             <div className="flex items-center justify-end gap-2 mt-1">
               <span className={`text-[10px] font-bold uppercase tracking-widest ${isSuperAdmin ? 'text-amber-400' : 'text-blue-400'}`}>
-                {isSuperAdmin ? 'Super Admin' : (user?.U_Role || 'User')}
+                {isSuperAdmin ? 'Super Admin' : (user?.U_Role || 'Auditeur')}
               </span>
               <BadgeCheck size={14} className={isSuperAdmin ? 'text-amber-400' : 'text-blue-400'} />
             </div>
@@ -433,15 +449,15 @@ export default function ExecutiveDashboard() {
           <button 
             onClick={handleDownloadReport}
             disabled={isExporting || !user}
-            className="w-full h-full min-h-20 group flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-500/50 rounded-4xl p-6 transition-all disabled:opacity-50"
+            className="w-full h-full min-h-20 group flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-500/50 rounded-4xl p-6 transition-all disabled:opacity-50 cursor-pointer"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                 <FileText className="text-white" size={24} />
               </div>
               <div className="text-left">
-                <p className="text-white font-black uppercase italic text-sm">Rapport PDF</p>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mensuel • {new Date().getMonth() + 1}/{new Date().getFullYear()}</p>
+                <p className="text-white font-black uppercase italic text-sm">Bilan Pré-Audit</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Générer le PDF • {new Date().getMonth() + 1}/{new Date().getFullYear()}</p>
               </div>
             </div>
             {isExporting ? (
@@ -458,7 +474,7 @@ export default function ExecutiveDashboard() {
         <KPICard 
           title="Performance" 
           value={`${data?.globalPerformance || 0}%`} 
-          trend={{ direction: 'up', value: '2.4' }}
+          trend={performanceTrend}
           icon={Target} 
           color="emerald"
           subtitle="vs mois précédent"
@@ -573,7 +589,7 @@ export default function ExecutiveDashboard() {
           <div className="bg-slate-900/50 border border-white/10 rounded-[3rem] p-6 shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-black uppercase italic text-white tracking-tight flex items-center gap-2">
-                <Activity size={20} className="text-blue-500" /> Flux
+                <Activity size={20} className="text-blue-500" /> Événements Récents
               </h3>
               <span className="text-[9px] font-bold text-slate-500 uppercase">Live</span>
             </div>
@@ -611,11 +627,11 @@ export default function ExecutiveDashboard() {
           </div>
 
           <div className="bg-linear-to-br from-blue-600 to-blue-800 rounded-[3rem] p-6 shadow-2xl border border-blue-500/30">
-            <h3 className="text-sm font-black uppercase italic text-white mb-4 tracking-widest opacity-90">Actions</h3>
+            <h3 className="text-sm font-black uppercase italic text-white mb-4 tracking-widest opacity-90">Raccourcis Auditeur</h3>
             <div className="space-y-3">
-              <QuickAction href="/dashboard/indicators" icon={Target} label="Indicateurs" />
-              <QuickAction href="/dashboard/audits" icon={ShieldCheck} label="Audits" />
-              <QuickAction href="/dashboard/nc" icon={AlertTriangle} label="Non-conformités" />
+              <QuickAction href="/dashboard/indicators" icon={Target} label="Indicateurs de Performance" />
+              <QuickAction href="/dashboard/audits" icon={ShieldCheck} label="Registre des Audits" />
+              <QuickAction href="/dashboard/nc" icon={AlertTriangle} label="Registre des Non-conformités" />
             </div>
           </div>
 
@@ -623,7 +639,7 @@ export default function ExecutiveDashboard() {
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-4xl p-6">
               <div className="flex items-center gap-3 mb-3">
                 <Clock className="text-amber-400" size={24} />
-                <h3 className="text-lg font-black uppercase italic text-white">Échéances</h3>
+                <h3 className="text-lg font-black uppercase italic text-white">Agenda d&apos;Audit</h3>
               </div>
               <p className="text-slate-300 text-xs font-bold uppercase tracking-widest mb-4">
                 {govData.upcoming} événement{govData.upcoming > 1 ? 's' : ''} à venir
@@ -632,7 +648,7 @@ export default function ExecutiveDashboard() {
                 href="/dashboard/calendar" 
                 className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all text-center block"
               >
-                Voir l&apos;agenda
+                Consulter l&apos;agenda
               </Link>
             </div>
           )}
@@ -670,7 +686,7 @@ export default function ExecutiveDashboard() {
   );
 }
 
-// SUB-COMPONENTS
+// --- SOUS-COMPOSANTS ---
 
 interface KPICardProps {
   title: string; 
@@ -693,7 +709,7 @@ function KPICard({ title, value, trend, icon: Icon, color, subtitle, href }: KPI
   const c = colorClasses[color];
 
   return (
-    <Link href={href} className="group block h-full">
+    <Link href={href} className="group block h-full outline-none">
       <div className={`relative h-full overflow-hidden bg-slate-900/50 border ${c.border} p-6 rounded-[2.5rem] hover:bg-white/5 transition-all shadow-xl ${c.shadow} hover:-translate-y-1`}>
         <div className={`absolute -top-10 -right-10 w-32 h-32 ${c.bg} rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity`} />
         
@@ -741,7 +757,7 @@ function QuickAction({ href, icon: Icon, label }: QuickActionProps) {
   return (
     <Link 
       href={href} 
-      className="flex items-center gap-4 p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group border border-white/10"
+      className="flex items-center gap-4 p-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group border border-white/10 outline-none"
     >
       <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
         <Icon size={20} />

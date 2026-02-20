@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState } from 'react';
@@ -11,6 +12,10 @@ interface WasteFormProps {
   sites: any[];
 }
 
+/**
+ * ♻️ FORMULAIRE DE CRÉATION DÉCHETS
+ * Gère la traçabilité des déchets banals, dangereux et recyclables.
+ */
 export default function WasteForm({ onClose, onSuccess, sites }: WasteFormProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,6 +28,9 @@ export default function WasteForm({ onClose, onSuccess, sites }: WasteFormProps)
     WAS_SiteId: sites[0]?.S_Id || ''
   });
 
+  /**
+   * 💾 ENVOI AU SMI MATRIX
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -42,33 +50,37 @@ export default function WasteForm({ onClose, onSuccess, sites }: WasteFormProps)
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-100 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden border border-white/20">
+        
+        {/* HEADER DESIGNÉ */}
         <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <h2 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900">
+          <h2 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">
             Nouveau <span className="text-green-600">Déchet</span>
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors border-none bg-transparent cursor-pointer">
             <X size={24} className="text-slate-400" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Libellé</label>
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left">
+          {/* LIBELLÉ */}
+          <div className="text-left">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2 italic">Libellé</label>
             <input 
               type="text"
               required
-              className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none"
+              className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-green-500 transition-all italic"
               placeholder="Ex: Déchets électroniques, Cartons, etc."
               value={formData.WAS_Label}
               onChange={(e) => setFormData({...formData, WAS_Label: e.target.value})}
             />
           </div>
 
+          {/* TYPE ET TRAITEMENT */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Type de déchet</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2 italic">Type de déchet</label>
               <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-green-500 outline-none"
+                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-green-500 outline-none cursor-pointer italic"
                 value={formData.WAS_Type}
                 onChange={(e) => setFormData({...formData, WAS_Type: e.target.value})}
                 required
@@ -83,9 +95,9 @@ export default function WasteForm({ onClose, onSuccess, sites }: WasteFormProps)
             </div>
 
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Traitement</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2 italic">Traitement</label>
               <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-green-500 outline-none"
+                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-green-500 outline-none cursor-pointer italic"
                 value={formData.WAS_Treatment}
                 onChange={(e) => setFormData({...formData, WAS_Treatment: e.target.value})}
                 required
@@ -99,23 +111,24 @@ export default function WasteForm({ onClose, onSuccess, sites }: WasteFormProps)
             </div>
           </div>
 
+          {/* QUANTITÉ ET TEMPS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Quantité (kg)</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2 italic">Quantité (kg)</label>
               <input 
                 type="number"
                 step="0.1"
                 required
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none"
+                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-green-500 italic"
                 value={formData.WAS_Weight}
                 onChange={(e) => setFormData({...formData, WAS_Weight: parseFloat(e.target.value)})}
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Mois</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2 italic">Mois</label>
               <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none"
+                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none cursor-pointer italic"
                 value={formData.WAS_Month}
                 onChange={(e) => setFormData({...formData, WAS_Month: parseInt(e.target.value)})}
                 required
@@ -129,24 +142,25 @@ export default function WasteForm({ onClose, onSuccess, sites }: WasteFormProps)
             </div>
 
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Année</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2 italic">Année</label>
               <select 
-                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none"
+                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 outline-none cursor-pointer italic"
                 value={formData.WAS_Year}
                 onChange={(e) => setFormData({...formData, WAS_Year: parseInt(e.target.value)})}
                 required
               >
-                {[2024, 2023, 2022, 2021, 2020].map(year => (
+                {[2026, 2025, 2024, 2023, 2022].map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2">Site</label>
+          {/* SITE */}
+          <div className="text-left">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-2 italic">Site</label>
             <select 
-              className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-green-500 outline-none"
+              className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-green-500 outline-none cursor-pointer italic"
               value={formData.WAS_SiteId}
               onChange={(e) => setFormData({...formData, WAS_SiteId: e.target.value})}
               required
@@ -157,10 +171,11 @@ export default function WasteForm({ onClose, onSuccess, sites }: WasteFormProps)
             </select>
           </div>
 
+          {/* ACTION SUBMIT */}
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-green-600 transition-all shadow-xl"
+            className="w-full bg-slate-900 text-white p-6 rounded-3xl font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-green-600 transition-all shadow-xl italic border-none cursor-pointer"
           >
             {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
             Enregistrer le Déchet

@@ -1,24 +1,67 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/checklists/iso14001/page.tsx
+ * Rôle : Interface pour l'évaluation de la conformité ISO 14001:2015 (Management Environnemental).
+ * * * Fonctionnalités clés :
+ * 1. KPIs Environnementaux : Suivi de la conso énergétique, déchets et recyclage.
+ * 2. Analyse Réglementaire Spécifique : Prise en charge des obligations légales du Sénégal (Code de l'Environnement).
+ * 3. Matrice de Conformité : Identification des exigences maîtrisées et des risques (écarts).
+ * 4. Traçabilité Documentaire : Possibilité de lier des preuves (certificats de destruction, relevés, etc.).
+ */
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
   Leaf, Recycle, Droplets, Zap, Flame, Target, 
-  CheckCircle, XCircle, AlertTriangle, Download, Save,
-  UploadCloud, FileText, Clock, TrendingUp, ChevronDown,
-  Search, Filter, Plus, MapPin, Users
+  CheckCircle, XCircle, AlertTriangle, Download,
+  UploadCloud, FileText, Clock, ChevronDown,
+  Search, Plus, MapPin, Users, RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// --- TYPES STRICTS ---
+type ResponseType = 'YES' | 'NO' | 'PARTIAL' | 'NA';
+type FilterStatus = 'ALL' | 'COMPLIANT' | 'NON_COMPLIANT' | 'PENDING';
+
+interface ChecklistResponse {
+  CR_ChecklistId: string;
+  CR_Response: ResponseType;
+  CR_Comment?: string;
+  CR_Evidence?: string;
+  CR_IsCompliant: boolean;
+}
+
+interface ChecklistItem {
+  LC_Id: string;
+  LC_Clause: string;
+  LC_Title: string;
+  LC_Description: string;
+  LC_Criteria: string;
+  LC_Reference?: string;
+  LC_SenegalSpecific?: boolean; // Attribut spécifique pour la conformité locale
+  response?: ChecklistResponse;
+}
+
+interface ChecklistStats {
+  complianceRate: number;
+  compliant: number;
+  nonCompliant: number;
+  notAnswered: number;
+  total: number;
+}
+
 export default function ISO14001ChecklistPage() {
-  const [checklistItems, setChecklistItems] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  // --- ÉTATS ---
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [stats, setStats] = useState<ChecklistStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'COMPLIANT' | 'NON_COMPLIANT' | 'PENDING'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
   const [uploadingEvidence, setUploadingEvidence] = useState<string | null>(null);
 
@@ -33,6 +76,7 @@ export default function ISO14001ChecklistPage() {
     { id: '10', label: 'Amélioration (§10)', color: 'from-lime-500 to-green-700' }
   ], []);
 
+  // --- CHARGEMENT DES DONNÉES ---
   useEffect(() => {
     fetchData();
   }, []);
@@ -41,8 +85,8 @@ export default function ISO14001ChecklistPage() {
     try {
       setLoading(true);
       const [checklistRes, statsRes] = await Promise.all([
-        apiClient.get('/checklist?standard=ISO_14001_2015'),
-        apiClient.get('/checklist/stats?standard=ISO_14001_2015')
+        apiClient.get<ChecklistItem[]>('/checklist?standard=ISO_14001_2015'),
+        apiClient.get<ChecklistStats>('/checklist/stats?standard=ISO_14001_2015')
       ]);
       setChecklistItems(checklistRes.data);
       setStats(statsRes.data);
@@ -54,6 +98,7 @@ export default function ISO14001ChecklistPage() {
     }
   };
 
+  // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
   const handleResponseChange = async (itemId: string, response: string) => {
     setSavingItemId(itemId);
     try {
@@ -77,7 +122,7 @@ export default function ISO14001ChecklistPage() {
       const formData = new FormData();
       formData.append('file', file);
       
-      const res = await apiClient.post('/upload', formData, {
+      const res = await apiClient.post<{url: string}>('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -122,7 +167,7 @@ export default function ISO14001ChecklistPage() {
         template: 'ISO_14001'
       }, { responseType: 'blob' });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `checklist-iso14001-${new Date().toISOString().split('T')[0]}.pdf`);
@@ -137,6 +182,7 @@ export default function ISO14001ChecklistPage() {
     }
   };
 
+  // --- FILTRES ET REGROUPEMENTS ---
   const filteredItems = useMemo(() => {
     return checklistItems.filter(item => {
       const matchesSearch = 
@@ -157,7 +203,7 @@ export default function ISO14001ChecklistPage() {
   }, [checklistItems, searchTerm, filterStatus]);
 
   const groupedItems = useMemo(() => {
-    const groups: any = {};
+    const groups: Record<string, ChecklistItem[]> = {};
     clauseGroups.forEach(group => {
       groups[group.id] = filteredItems.filter(item => 
         item.LC_Clause.startsWith(group.id + '.') || item.LC_Clause === group.id
@@ -166,11 +212,12 @@ export default function ISO14001ChecklistPage() {
     return groups;
   }, [filteredItems, clauseGroups]);
 
+  // --- ÉTAT DE CHARGEMENT ---
   if (loading) {
     return (
       <div className="ml-72 h-screen flex items-center justify-center bg-[#0B0F1A]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin mb-6"></div>
+          <div className="w-16 h-16 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin mb-6 mx-auto"></div>
           <p className="text-slate-500 font-black uppercase italic text-[10px] tracking-widest">
             Chargement de la checklist ISO 14001:2015...
           </p>
@@ -233,20 +280,20 @@ export default function ISO14001ChecklistPage() {
           <div className="flex gap-4">
             <button 
               onClick={handleGenerateReport}
-              className="bg-linear-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg"
+              className="bg-linear-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg cursor-pointer"
             >
               <Download size={18} /> Rapport Environnemental
             </button>
             <button 
               onClick={fetchData}
-              className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all"
+              className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all cursor-pointer"
             >
-              <RefreshCw size={18} className="animate-spin" /> Actualiser
+              <RefreshCw size={18} className="hover:animate-spin" /> Actualiser
             </button>
           </div>
         </div>
 
-        {/* FILTRES */}
+        {/* BARRE DE FILTRES */}
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -261,8 +308,8 @@ export default function ISO14001ChecklistPage() {
           
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none min-w-45"
+            onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+            className="bg-[#151B2B] border border-white/10 rounded-xl px-4 py-2 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none min-w-45 cursor-pointer"
           >
             <option value="ALL">Tous les statuts</option>
             <option value="COMPLIANT">Conforme (Oui)</option>
@@ -300,7 +347,7 @@ export default function ISO14001ChecklistPage() {
         />
       </div>
 
-      {/* PROGRESSION GLOBALE */}
+      {/* PROGRESSION GLOBALE ISO 14001 */}
       <div className="bg-linear-to-r from-green-900/30 to-emerald-900/30 border border-green-500/20 rounded-3xl p-6 mb-10">
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -342,11 +389,11 @@ export default function ISO14001ChecklistPage() {
         </div>
       </div>
 
-      {/* CHECKLIST PAR SECTION */}
+      {/* CHECKLIST PAR SECTION ISO */}
       <div className="space-y-8">
         {clauseGroups.map((group) => {
           const items = groupedItems[group.id];
-          if (items.length === 0) return null;
+          if (!items || items.length === 0) return null;
           
           const isExpanded = expandedSection === group.id;
           
@@ -354,7 +401,7 @@ export default function ISO14001ChecklistPage() {
             <section key={group.id} className="bg-slate-900/40 border border-white/5 rounded-3xl overflow-hidden">
               <button
                 onClick={() => setExpandedSection(isExpanded ? null : group.id)}
-                className="w-full p-6 text-left bg-linear-to-r hover:from-slate-800 hover:to-slate-900 transition-all"
+                className="w-full p-6 text-left bg-linear-to-r hover:from-slate-800 hover:to-slate-900 transition-all cursor-pointer"
                 style={{ 
                   background: isExpanded ? `linear-gradient(90deg, ${group.color.replace('from-', 'rgb(').replace(' to-', ',')})` : 'transparent'
                 }}
@@ -369,7 +416,7 @@ export default function ISO14001ChecklistPage() {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 text-[10px] font-black">
                       <Leaf className="text-green-500" size={16} />
-                     <span>{items.filter((i: any) => i.response?.CR_IsCompliant).length}</span>
+                      <span>{items.filter(i => i.response?.CR_IsCompliant).length}</span>
                       <span className="text-slate-500">/</span>
                       <span>{items.length}</span>
                     </div>
@@ -377,7 +424,7 @@ export default function ISO14001ChecklistPage() {
                       <div 
                         className="h-full bg-green-500" 
                         style={{ 
-                          width: `${Math.round((items.filter((i: { response: { CR_IsCompliant: any; }; }) => i.response?.CR_IsCompliant).length / items.length) * 100)}%` 
+                          width: `${Math.round((items.filter(i => i.response?.CR_IsCompliant).length / items.length) * 100)}%` 
                         }}
                       ></div>
                     </div>
@@ -391,7 +438,7 @@ export default function ISO14001ChecklistPage() {
               
               {isExpanded && (
                 <div className="divide-y divide-white/5">
-                  {items.map((item: any) => {
+                  {items.map((item) => {
                     const response = item.response;
                     const isCompliant = response?.CR_IsCompliant;
                     const hasEvidence = response?.CR_Evidence;
@@ -446,7 +493,7 @@ export default function ISO14001ChecklistPage() {
                                     key={resp}
                                     onClick={() => handleResponseChange(item.LC_Id, resp)}
                                     disabled={savingItemId === item.LC_Id}
-                                    className={`p-3 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                    className={`p-3 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${
                                       response?.CR_Response === resp
                                         ? resp === 'YES' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
                                           resp === 'NO' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
@@ -466,7 +513,7 @@ export default function ISO14001ChecklistPage() {
                             
                             <div>
                               <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block items-center gap-2">
-                                <UploadCloud size={14} className="text-green-500" /> Preuve environnementale
+                                <UploadCloud size={14} className="text-green-500 inline mr-1" /> Preuve environnementale
                               </label>
                               {hasEvidence ? (
                                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
@@ -528,7 +575,7 @@ export default function ISO14001ChecklistPage() {
         })}
       </div>
 
-      {/* ENGAGEMENTS SÉNÉGAL */}
+      {/* ENGAGEMENTS SÉNÉGAL (Compliance locale) */}
       <section className="mt-10 bg-linear-to-r from-amber-900/20 to-green-900/20 border border-amber-500/20 rounded-3xl p-8">
         <h2 className="text-2xl font-black mb-4 flex items-center gap-3 text-green-400">
           <Users size={28} /> Engagements Réglementaires Sénégalais
@@ -555,6 +602,7 @@ export default function ISO14001ChecklistPage() {
         </div>
       </section>
 
+      {/* FOOTER */}
       <footer className="mt-12 pt-8 border-t border-white/5 text-center">
         <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em]">
           Qualisoft SMI • Checklist Conformité ISO 14001:2015 • Conforme au Code de l&apos;Environnement Sénégal
@@ -567,7 +615,17 @@ export default function ISO14001ChecklistPage() {
   );
 }
 
-function StatCard({ label, value, icon, color, target }: any) {
+// --- SOUS-COMPOSANTS ---
+
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+  target?: string;
+}
+
+function StatCard({ label, value, icon, color, target }: StatCardProps) {
   return (
     <div className={`${color} rounded-2xl p-5`}>
       <div className="flex items-center justify-between mb-3">
@@ -584,7 +642,16 @@ function StatCard({ label, value, icon, color, target }: any) {
   );
 }
 
-function EnvironmentalKpi({ title, value, trend, icon, color, target }: any) {
+interface EnvironmentalKpiProps {
+  title: string;
+  value: string;
+  trend: string;
+  icon: React.ReactNode;
+  color: string;
+  target: string;
+}
+
+function EnvironmentalKpi({ title, value, trend, icon, color, target }: EnvironmentalKpiProps) {
   return (
     <div className={`${color} rounded-2xl p-6`}>
       <div className="flex items-center justify-between mb-4">
@@ -605,14 +672,21 @@ function EnvironmentalKpi({ title, value, trend, icon, color, target }: any) {
   );
 }
 
-function EngagementCard({ title, description, status, color }: any) {
+interface EngagementCardProps {
+  title: string;
+  description: string;
+  status: 'Conforme' | 'En cours' | 'Non requis';
+  color: string;
+}
+
+function EngagementCard({ title, description, status, color }: EngagementCardProps) {
   const statusConfig = {
     'Conforme': { color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
     'En cours': { color: 'text-amber-400', bg: 'bg-amber-500/20' },
     'Non requis': { color: 'text-slate-400', bg: 'bg-slate-500/20' }
   };
   
-  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig['Non requis'];
+  const config = statusConfig[status] || statusConfig['Non requis'];
   
   return (
     <div className={`${color} rounded-xl p-5`}>
@@ -624,5 +698,3 @@ function EngagementCard({ title, description, status, color }: any) {
     </div>
   );
 }
-
-import { RefreshCw } from 'lucide-react';

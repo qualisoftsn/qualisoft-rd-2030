@@ -4,16 +4,14 @@
 
 import React, { useState } from 'react';
 import apiClient from '@/core/api/api-client';
-import { X, Save, Loader2, ShieldCheck, Zap, Droplets, Flame, Fuel } from 'lucide-react';
+import { X, Save, Loader2, Zap, Droplets, Flame, Fuel } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-interface ConsumptionFormProps {
-  onClose: () => void;
-  onSuccess: () => void;
-  sites: any[];
-}
-
-export default function ConsumptionForm({ onClose, onSuccess, sites }: ConsumptionFormProps) {
+/**
+ * 🛠️ FORMULAIRE DE SAISIE DES CONSOMMATIONS
+ * Interface pour indexer les ressources critiques (Électricité, Eau, Gaz, Carburant).
+ */
+export default function ConsumptionForm({ onClose, onSuccess, sites }: any) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     CON_Type: 'Électricité',
@@ -25,6 +23,9 @@ export default function ConsumptionForm({ onClose, onSuccess, sites }: Consumpti
     CON_SiteId: sites.length > 0 ? sites[0].S_Id : '',
   });
 
+  /**
+   * 💾 VALIDATION ET ENVOI AU SMI
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.CON_SiteId) return toast.error("VEUILLEZ SÉLECTIONNER UN SITE");
@@ -43,6 +44,9 @@ export default function ConsumptionForm({ onClose, onSuccess, sites }: Consumpti
     }
   };
 
+  /**
+   * 🔄 LOGIQUE DE CHANGEMENT D'UNITÉ
+   */
   const handleTypeChange = (type: string) => {
     let unit = 'kWh';
     if (type === 'Eau' || type === 'Gaz') unit = 'm³';
@@ -61,8 +65,8 @@ export default function ConsumptionForm({ onClose, onSuccess, sites }: Consumpti
     <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-500 flex items-center justify-center p-6 italic font-black uppercase">
       <div className="bg-[#0F172A] w-full max-w-2xl rounded-[4rem] border border-white/10 p-16 space-y-10 shadow-4xl animate-in zoom-in-95 duration-500">
         
-        {/* HEADER */}
-        <div className="flex justify-between items-start border-b border-white/10 pb-8">
+        {/* HEADER FORMULAIRE */}
+        <div className="flex justify-between items-start border-b border-white/10 pb-8 text-left">
           <div>
             <h2 className="text-4xl tracking-tighter text-white italic uppercase leading-none">
               SAISIE <span className="text-amber-500">MESURE</span>
@@ -74,8 +78,8 @@ export default function ConsumptionForm({ onClose, onSuccess, sites }: Consumpti
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* TYPE & SITE */}
+        <form onSubmit={handleSubmit} className="space-y-8 text-left">
+          {/* SÉLECTION RESSOURCE ET SITE */}
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-3">
               <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase font-black">TYPE DE RESSOURCE</label>
@@ -99,12 +103,12 @@ export default function ConsumptionForm({ onClose, onSuccess, sites }: Consumpti
                 required
               >
                 <option value="" className="bg-[#0F172A]">SÉLECTIONNER...</option>
-                {sites.map(s => <option key={s.S_Id} value={s.S_Id} className="bg-[#0F172A]">{s.S_Name}</option>)}
+                {sites.map((s:any) => <option key={s.S_Id} value={s.S_Id} className="bg-[#0F172A]">{s.S_Name}</option>)}
               </select>
             </div>
           </div>
 
-          {/* VALEUR / UNITE / COUT */}
+          {/* MESURES QUANTITATIVES */}
           <div className="grid grid-cols-3 gap-6">
             <div className="space-y-3">
               <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase">VALEUR</label>
@@ -124,7 +128,7 @@ export default function ConsumptionForm({ onClose, onSuccess, sites }: Consumpti
             </div>
           </div>
 
-          {/* PERIODE */}
+          {/* TEMPORALITÉ */}
           <div className="grid grid-cols-2 gap-8">
              <div className="space-y-3">
                 <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase">MOIS DE RÉFÉRENCE</label>
@@ -139,11 +143,11 @@ export default function ConsumptionForm({ onClose, onSuccess, sites }: Consumpti
           </div>
 
           <div className="flex flex-col gap-6 pt-6">
-            <button type="submit" disabled={loading} className="w-full bg-amber-600 py-8 rounded-[2.5rem] font-black uppercase text-white shadow-3xl hover:bg-amber-500 transition-all flex items-center justify-center gap-4 active:scale-95 italic tracking-widest">
+            <button type="submit" disabled={loading} className="w-full bg-amber-600 py-8 rounded-[2.5rem] font-black uppercase text-white shadow-3xl hover:bg-amber-500 transition-all flex items-center justify-center gap-4 active:scale-95 italic tracking-widest border-none cursor-pointer">
               {loading ? <Loader2 className="animate-spin" /> : <Save size={24} />}
               VALIDER L&apos;ENREGISTREMENT
             </button>
-            <button type="button" onClick={onClose} className="w-full text-[11px] text-slate-600 text-center hover:text-white transition-colors tracking-[0.5em] font-black">
+            <button type="button" onClick={onClose} className="w-full text-[11px] text-slate-600 text-center hover:text-white transition-colors tracking-[0.5em] font-black border-none bg-transparent cursor-pointer">
               ABANDONNER
             </button>
           </div>

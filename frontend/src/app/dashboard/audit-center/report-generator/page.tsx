@@ -1,21 +1,59 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/audit-center/report-generator/page.tsx
+ * Rôle : Générateur professionnel de rapports PDF d'Audit.
+ * * Fonctionnalités clés :
+ * 1. Sélection d'Audit : Permet de rechercher, filtrer et sélectionner un audit spécifique dans la base de données.
+ * 2. Choix du Référentiel (Modèles) : Offre des modèles adaptés aux exigences de différents certificateurs (ISO 9001, 14001, Légal Sénégal, NC).
+ * 3. Options de Personnalisation : Intègre des options pour inclure des photos, des signatures numériques ou prévoir un export modifiable (interfaces préparées pour l'évolution backend).
+ * 4. Génération & Export : Sollicite le backend pour compiler un rapport PDF complet qui se télécharge automatiquement.
+ * 5. Historisation : (En préparation) Visualisation des rapports précédemment générés pour éviter de refaire les exports.
+ * * Public cible : Responsables Qualité, Auditeurs Principaux, Direction.
+ */
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import apiClient from '@/core/api/api-client';
+import type { LucideIcon } from 'lucide-react';
 import { 
   FileText, Download, Printer, Mail, Calendar, 
   Users, Target, CheckCircle, AlertTriangle, 
   ChevronDown, Search, Filter, Plus, Loader2,
-  Leaf,
-  RefreshCw
+  Leaf, RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// --- INTERFACES STRICTES ---
+interface AuditLead {
+  U_FirstName?: string;
+  U_LastName?: string;
+}
+
+interface Audit {
+  AU_Id: string;
+  AU_Reference: string;
+  AU_Title: string;
+  AU_Scope: string;
+  AU_Type: string;
+  AU_Status: string;
+  AU_DateAudit: string;
+  AU_Lead?: AuditLead;
+  AU_NonConformites?: unknown[];
+}
+
+interface TemplateOption {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  color: string;
+}
+
 export default function ReportGeneratorPage() {
-  const [audits, setAudits] = useState<any[]>([]);
-  const [templates, setTemplates] = useState([
+  const [audits, setAudits] = useState<Audit[]>([]);
+  const [templates] = useState<TemplateOption[]>([
     { id: 'ISO_9001', label: 'ISO 9001:2015 - Qualité', icon: Target, color: 'text-blue-500' },
     { id: 'ISO_14001', label: 'ISO 14001:2015 - Environnement', icon: Leaf, color: 'text-green-500' },
     { id: 'LEGAL_SENEGAL', label: 'Conformité Légale Sénégal', icon: FileText, color: 'text-amber-500' },
@@ -36,7 +74,7 @@ export default function ReportGeneratorPage() {
   const fetchAudits = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/audits');
+      const res = await apiClient.get<Audit[]>('/audits');
       setAudits(res.data);
     } catch (error) {
       console.error('Erreur chargement audits:', error);
@@ -63,7 +101,7 @@ export default function ReportGeneratorPage() {
       });
       
       // Créer un lien de téléchargement
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
       const link = document.createElement('a');
       const audit = audits.find(a => a.AU_Id === selectedAudit);
       const templateName = templates.find(t => t.id === selectedTemplate)?.label || 'Rapport';
@@ -78,23 +116,21 @@ export default function ReportGeneratorPage() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      toast.success('Rapport généré et téléchargé avec succès !', {
-        duration: 5000
-      });
+      toast.success('Rapport généré et téléchargé avec succès !', { duration: 5000 });
       
-      // Optionnel : enregistrer dans l'historique des rapports
-      // await apiClient.post('/reports/history', { auditId: selectedAudit, template: selectedTemplate });
-      
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erreur génération rapport:', error);
-      if (error.code === 'ECONNABORTED') {
+      // Typage d'erreur sécurisé pour Axios
+      const axiosError = error as { code?: string; response?: { status?: number; data?: { message?: string } } };
+      
+      if (axiosError.code === 'ECONNABORTED') {
         toast.error('Le rapport prend plus de temps que prévu. Veuillez réessayer.');
-      } else if (error.response?.status === 404) {
+      } else if (axiosError.response?.status === 404) {
         toast.error('Audit non trouvé. Veuillez vérifier la sélection.');
-      } else if (error.response?.status === 500) {
+      } else if (axiosError.response?.status === 500) {
         toast.error('Erreur serveur lors de la génération du rapport');
       } else {
-        toast.error(error.response?.data?.message || 'Erreur lors de la génération du rapport');
+        toast.error(axiosError.response?.data?.message || 'Erreur lors de la génération du rapport');
       }
     } finally {
       setGenerating(false);
@@ -116,7 +152,7 @@ export default function ReportGeneratorPage() {
     return (
       <div className="ml-72 h-screen flex items-center justify-center bg-[#0B0F1A]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mb-6"></div>
+          <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mb-6 mx-auto"></div>
           <p className="text-slate-500 font-black uppercase italic text-[10px] tracking-widest">
             Chargement des audits disponibles...
           </p>
@@ -384,7 +420,15 @@ export default function ReportGeneratorPage() {
   );
 }
 
-function AuditCard({ audit, isSelected, onSelect }: any) {
+// --- SOUS-COMPOSANTS ---
+
+interface AuditCardProps {
+  audit: Audit;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+function AuditCard({ audit, isSelected, onSelect }: AuditCardProps) {
   return (
     <button
       onClick={onSelect}
@@ -437,12 +481,19 @@ function AuditCard({ audit, isSelected, onSelect }: any) {
   );
 }
 
-function OptionItem({ label, description, checked }: any) {
+interface OptionItemProps {
+  label: string;
+  description: string;
+  checked: boolean;
+}
+
+function OptionItem({ label, description, checked }: OptionItemProps) {
   return (
     <label className="flex items-start gap-3 p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors cursor-pointer">
       <input 
         type="checkbox" 
-        checked={checked} 
+        checked={checked}
+        readOnly
         className="w-5 h-5 rounded-lg border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 focus:ring-offset-transparent"
       />
       <div>
@@ -453,8 +504,15 @@ function OptionItem({ label, description, checked }: any) {
   );
 }
 
-function ReportHistoryItem({ title, date, template, status }: any) {
-  const templateConfig = {
+interface ReportHistoryItemProps {
+  title: string;
+  date: string;
+  template: string;
+  status: string;
+}
+
+function ReportHistoryItem({ title, date, template, status }: ReportHistoryItemProps) {
+  const templateConfig: Record<string, { icon: LucideIcon; color: string }> = {
     'ISO_9001': { icon: Target, color: 'text-blue-500' },
     'ISO_14001': { icon: Leaf, color: 'text-green-500' },
     'LEGAL_SENEGAL': { icon: FileText, color: 'text-amber-500' },
@@ -462,7 +520,7 @@ function ReportHistoryItem({ title, date, template, status }: any) {
     'REVUE_DIRECTION': { icon: Users, color: 'text-purple-500' }
   };
   
-  const config = templateConfig[template as keyof typeof templateConfig] || templateConfig['ISO_9001'];
+  const config = templateConfig[template] || templateConfig['ISO_9001'];
   const Icon = config.icon;
   
   return (
@@ -505,5 +563,3 @@ function ReportHistoryItem({ title, date, template, status }: any) {
     </div>
   );
 }
-
-//import { Leaf, RefreshCw } from 'lucide-react';

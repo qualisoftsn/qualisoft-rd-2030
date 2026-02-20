@@ -1,12 +1,21 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
 import { ClipboardCheck, Calendar, AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react';
 
+interface PlanRecord {
+  id: string;
+  planTitre: string;
+  planStatus: string;
+  dateFinPrevue?: string;
+  nonConformite?: { NCLibelle: string };
+  actions?: any[];
+}
+
 export default function ActionPlansPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<PlanRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadPlans = useCallback(async () => {
@@ -56,7 +65,7 @@ export default function ActionPlansPage() {
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                 <AlertTriangle size={12} className="text-red-500" /> Lié à la NC :
               </p>
-              <p className="text-sm font-bold text-slate-700 italic">&quot;{plan.nonConformite?.NCLibelle}&quot;</p>
+              <p className="text-sm font-bold text-slate-700 italic">&quot;{plan.nonConformite?.NCLibelle || 'Non rattaché'}&quot;</p>
             </div>
 
             <div className="flex justify-between items-center border-t border-slate-50 pt-6">

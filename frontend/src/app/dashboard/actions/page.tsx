@@ -1,19 +1,32 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
   CheckSquare, Filter, Search, Plus, 
-  ChevronRight, Clock, CheckCircle2, AlertCircle,
-  Tag, Calendar, User
+  ChevronRight, Clock, CheckCircle2,
+  Calendar, User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+export interface ActionRecord {
+  ACT_Id: string;
+  ACT_Code?: string;
+  ACT_Title: string;
+  ACT_Description?: string;
+  ACT_Status: string;
+  ACT_Origin: string;
+  ACT_Priority: string;
+  ACT_Deadline?: string;
+  ACT_Responsable?: {
+    U_FirstName: string;
+    U_LastName: string;
+  };
+}
+
 export default function ActionsPage() {
   const router = useRouter();
-  const [actions, setActions] = useState<any[]>([]);
+  const [actions, setActions] = useState<ActionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -31,16 +44,13 @@ export default function ActionsPage() {
     fetchActions();
   }, []);
 
-  // Filtrage dynamique
   const filteredActions = actions.filter(action => 
-    action.ACT_Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    action.ACT_Title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     action.ACT_Description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="p-8 bg-[#0B0F1A] min-h-screen text-white italic font-sans">
-      
-      {/* HEADER ACTIONS */}
       <header className="flex justify-between items-end mb-12">
         <div>
           <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none">
@@ -58,7 +68,6 @@ export default function ActionsPage() {
         </button>
       </header>
 
-      {/* BARRE DE RECHERCHE ET FILTRES */}
       <div className="flex gap-4 mb-8">
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -75,7 +84,6 @@ export default function ActionsPage() {
         </button>
       </div>
 
-      {/* LISTE DES ACTIONS */}
       <div className="space-y-4">
         {loading ? (
           <div className="animate-pulse space-y-4">
@@ -87,14 +95,13 @@ export default function ActionsPage() {
             <p className="text-slate-500 font-black uppercase text-[10px] tracking-widest">Aucune action trouvée</p>
           </div>
         ) : (
-          filteredActions.map((action: any) => (
+          filteredActions.map((action) => (
             <div 
               key={action.ACT_Id}
               onClick={() => router.push(`/dashboard/actions/${action.ACT_Id}`)}
               className="group bg-slate-900/40 border border-white/5 p-6 rounded-[2.5rem] flex items-center justify-between hover:bg-slate-900/60 hover:border-blue-500/30 transition-all cursor-pointer shadow-xl"
             >
               <div className="flex items-center gap-6 flex-1">
-                {/* STATUS ICON */}
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${
                   action.ACT_Status === 'CLOTUREE' 
                   ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 

@@ -52,7 +52,6 @@ export default function EnvironmentAnalyticsPage() {
 
   /**
    * 📊 GÉNÉRATEUR DE SÉRIES TEMPORELLES
-   * Logique : Calcule les points de données mensuels pour les graphiques
    */
   const chartData = useMemo(() => {
     const now = new Date();
@@ -183,6 +182,8 @@ export default function EnvironmentAnalyticsPage() {
         </div>
       </header>
 
+      
+
       {/* 📊 KPI GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-12">
         <KPIBox label="Énergie" value={`${kpis.totalEnergy} kWh`} icon={<Zap className="text-amber-400" />} color="bg-amber-500/5" />
@@ -256,9 +257,8 @@ export default function EnvironmentAnalyticsPage() {
   );
 }
 
-/**
- * 🏛️ COMPOSANT KPIBOX : L'UNITÉ DE MESURE ELITE
- */
+// --- SOUS-COMPOSANTS ANALYTIQUES ---
+
 function KPIBox({ label, value, icon, color, critical }: any) {
   return (
     <div className={`${color} border ${critical ? 'border-rose-500/50 animate-pulse' : 'border-white/5'} rounded-[2.5rem] p-8 transition-all hover:scale-105 hover:bg-white/5 shadow-xl`}>
@@ -272,9 +272,6 @@ function KPIBox({ label, value, icon, color, critical }: any) {
   );
 }
 
-/**
- * 📊 COMPOSANT CHARTCARD : VISUALISATION SOUVERAINE
- */
 function ChartCard({ title, data, values, color, unit }: any) {
   const max = Math.max(...values, 1);
   return (
@@ -289,11 +286,9 @@ function ChartCard({ title, data, values, color, unit }: any) {
         {values.map((v: number, i: number) => (
           <div key={i} className="flex-1 flex flex-col items-center group relative">
             <div className="w-full relative h-full flex items-end">
-                {/* TOOLTIP ELITE */}
                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 text-[10px] bg-white text-black px-3 py-1.5 rounded-xl font-black italic shadow-2xl z-10 whitespace-nowrap">
                    {v.toLocaleString()} {unit}
                 </div>
-                {/* BARRE DE DONNÉES */}
                 <div 
                    className="w-full rounded-2xl transition-all duration-1000 ease-out group-hover:brightness-150 shadow-lg group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]" 
                    style={{ 

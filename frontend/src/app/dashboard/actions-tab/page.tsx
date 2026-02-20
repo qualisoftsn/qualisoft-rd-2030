@@ -1,20 +1,27 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import apiClient from '@/core/api/api-client';
-import { Target, Plus, Search, Activity, Gauge, AlertCircle, Layers, Clock, X, CheckCircle2, Loader2, Calculator, TrendingUp, ChevronRight } from 'lucide-react';
+import { Target, Plus, Search, X, CheckCircle2, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useAuthStore } from '@/store/authStore';
 
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
+interface HubAction {
+  ACT_Id: string;
+  ACT_Title: string;
+  ACT_Description?: string;
+  ACT_Origin: string;
+  ACT_Deadline: string;
+  ACT_Responsable?: { U_FirstName: string; U_LastName: string };
+}
+
+interface HubProcess { PR_Id: string; PR_Code: string; PR_Libelle: string; }
+interface HubUser { U_Id: string; U_FirstName: string; U_LastName: string; }
 
 export default function ActionsHubPage() {
-  const { user } = useAuthStore();
-  const [actions, setActions] = useState<any[]>([]);
-  const [processes, setProcesses] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [actions, setActions] = useState<HubAction[]>([]);
+  const [processes, setProcesses] = useState<HubProcess[]>([]);
+  const [users, setUsers] = useState<HubUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -38,7 +45,25 @@ export default function ActionsHubPage() {
     return actions.filter(a => (a.ACT_Title || "").toLowerCase().includes(search.toLowerCase()));
   }, [actions, search]);
 
-  if (loading) return <div className="ml-72 flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-500 font-black italic uppercase tracking-[0.5em]">Initialisation...</div>;
+  const handleModalSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData.entries());
+    setLoading(true);
+    const tid = toast.loading("DÉPLOIEMENT...");
+    try {
+      await apiClient.post('/actions', data);
+      toast.success("ACTION INDEXÉE", { id: tid });
+      setIsModalOpen(false);
+      fetchData();
+    } catch (err) { 
+      toast.error("ERREUR DE LIAISON", { id: tid }); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
+  if (loading && actions.length === 0) return <div className="ml-72 flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-500 font-black italic uppercase tracking-[0.5em]">Initialisation...</div>;
 
   return (
     <div className="min-h-screen bg-[#0B0F1A] text-white italic font-sans ml-72 flex flex-col uppercase font-black overflow-hidden relative">
@@ -93,11 +118,11 @@ export default function ActionsHubPage() {
                   <td className="p-10">
                     <div className="flex justify-center">
                       <div className="w-12 h-12 rounded-2xl bg-blue-600/10 flex items-center justify-center text-[12px] text-blue-500 border border-blue-600/20 font-black italic">
-                         {action.ACT_Responsable?.U_FirstName?.[0]}{action.ACT_Responsable?.U_LastName?.[0]}
+                          {action.ACT_Responsable?.U_FirstName?.[0] || '?'}{action.ACT_Responsable?.U_LastName?.[0] || '?'}
                       </div>
                     </div>
                   </td>
-                  <td className="p-10 text-[11px] text-slate-400 font-black italic">{new Date(action.ACT_Deadline).toLocaleDateString()}</td>
+                  <td className="p-10 text-[11px] text-slate-400 font-black italic">{action.ACT_Deadline ? new Date(action.ACT_Deadline).toLocaleDateString() : 'N/A'}</td>
                   <td className="p-10 text-right">
                     <button className="p-4 bg-white/5 hover:bg-blue-600 rounded-2xl transition-all"><ChevronRight size={20} /></button>
                   </td>
@@ -109,47 +134,34 @@ export default function ActionsHubPage() {
       </main>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/98 backdrop-blur-3xl z-[1000] flex items-center justify-center p-8">
+        <div className="fixed inset-0 bg-black/98 backdrop-blur-3xl z-1000 flex items-center justify-center p-8">
           <div className="bg-[#0F172A] w-full max-w-2xl rounded-[4rem] border border-white/10 shadow-4xl flex flex-col max-h-[90vh]">
             <div className="p-12 border-b border-white/5 flex justify-between items-center bg-white/2 shrink-0">
               <h2 className="text-4xl tracking-tighter italic font-black uppercase">NOUVELLE <span className="text-blue-600">ACTION</span></h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-4 hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-all rounded-full"><X size={28} /></button>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="p-4 hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-all rounded-full"><X size={28} /></button>
             </div>
-            <form onSubmit={async (e: any) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const data = Object.fromEntries(formData.entries());
-              setLoading(true);
-              const tid = toast.loading("DÉPLOIEMENT...");
-              try {
-                await apiClient.post('/actions', data);
-                toast.success("ACTION INDEXÉE", { id: tid });
-                setIsModalOpen(false);
-                fetchData();
-              } catch (err) { toast.error("ERREUR DE LIAISON", { id: tid }); }
-              finally { setLoading(false); }
-            }} className="p-12 space-y-8 overflow-y-auto font-black uppercase italic">
+            <form onSubmit={handleModalSubmit} className="p-12 space-y-8 overflow-y-auto font-black uppercase italic">
               <div className="space-y-3">
                 <label className="text-[11px] text-slate-500 ml-6 tracking-[0.2em]">DÉSIGNATION TECHNIQUE *</label>
-                <input required name="ACT_Title" className="w-full bg-white/5 border border-white/10 p-7 rounded-[2rem] text-sm text-white outline-none focus:border-blue-600 italic uppercase" placeholder="INTITULÉ..." />
+                <input required name="ACT_Title" className="w-full bg-white/5 border border-white/10 p-7 rounded-4xl text-sm text-white outline-none focus:border-blue-600 italic uppercase" placeholder="INTITULÉ..." />
               </div>
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-3">
                   <label className="text-[11px] text-slate-500 ml-6 tracking-[0.2em]">PILOTE *</label>
-                  <select required name="ACT_ResponsableId" className="w-full bg-white/5 border border-white/10 p-7 rounded-[2rem] text-[11px] text-white outline-none italic">
+                  <select required name="ACT_ResponsableId" className="w-full bg-white/5 border border-white/10 p-7 rounded-4xl text-[11px] text-white outline-none italic">
                     <option value="">SÉLECTIONNER</option>
                     {users.map(u => <option key={u.U_Id} value={u.U_Id} className="bg-[#0F172A]">{u.U_FirstName} {u.U_LastName}</option>)}
                   </select>
                 </div>
                 <div className="space-y-3">
                   <label className="text-[11px] text-slate-500 ml-6 tracking-[0.2em]">ÉCHÉANCE *</label>
-                  <input required name="ACT_Deadline" type="date" className="w-full bg-white/5 border border-white/10 p-7 rounded-[2rem] text-sm text-white outline-none font-black" />
+                  <input required name="ACT_Deadline" type="date" className="w-full bg-white/5 border border-white/10 p-7 rounded-4xl text-sm text-white outline-none font-black" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-3">
                   <label className="text-[11px] text-slate-500 ml-6 tracking-[0.2em]">ORIGINE</label>
-                  <select name="ACT_Origin" className="w-full bg-white/5 border border-white/10 p-7 rounded-[2rem] text-[11px] text-white outline-none italic">
+                  <select name="ACT_Origin" className="w-full bg-white/5 border border-white/10 p-7 rounded-4xl text-[11px] text-white outline-none italic">
                     <option value="AUTRE">AUTRE / INTERNE</option>
                     <option value="AUDIT">AUDIT</option>
                     <option value="NON_CONFORMITE">NON-CONFORMITÉ</option>
@@ -157,7 +169,7 @@ export default function ActionsHubPage() {
                 </div>
                 <div className="space-y-3">
                   <label className="text-[11px] text-slate-500 ml-6 tracking-[0.2em]">PROCESSUS *</label>
-                  <select required name="PAQ_ProcessusId" className="w-full bg-white/5 border border-white/10 p-7 rounded-[2rem] text-[11px] text-white outline-none italic">
+                  <select required name="PAQ_ProcessusId" className="w-full bg-white/5 border border-white/10 p-7 rounded-4xl text-[11px] text-white outline-none italic">
                     <option value="">LIER AU PAQ...</option>
                     {processes.map(p => <option key={p.PR_Id} value={p.PR_Id} className="bg-[#0F172A]">{p.PR_Code} - {p.PR_Libelle}</option>)}
                   </select>

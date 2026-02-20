@@ -1,5 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/admin_rq/page.tsx
+ * Rôle : Cockpit Stratégique (Executive Dashboard) pour la Haute Direction et les Responsables Qualité (RQ).
+ * * Fonctionnalités clés :
+ * 1. Vue d'ensemble (KPIs) : Affiche la performance globale, le taux de conformité, et l'état de la gouvernance.
+ * 2. Score de Santé SMI : Calcule en temps réel la santé du système (Excellente, Alerte, Critique) en croisant les perfs, la gouvernance et les non-conformités.
+ * 3. Accueil (Welcome Modal) : Gère la toute première connexion d'un utilisateur pour "sceller" son compte.
+ * 4. Export : Permet de générer et télécharger un rapport consolidé du SMI au format PDF.
+ * 5. Activité Récente : Récupère et affiche le journal des événements (indicateurs mis à jour, audits, etc.).
+ * * Public cible : SUPER_ADMIN, DIRECTION, RQ (Responsable Qualité).
+ */
+
 "use client";
 
 import apiClient from "@/core/api/api-client";
@@ -24,7 +37,22 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-// --- INTERFACES ---
+// --- INTERFACES STRICTES ---
+interface RawChartItem {
+  label?: string;
+  value?: string | number;
+  target?: string | number;
+  trend?: "up" | "down" | "stable";
+}
+
+interface ChartItem {
+  label: string;
+  value: number;
+  target: number;
+  trend: "up" | "down" | "stable";
+  previousValue?: number;
+}
+
 interface DashboardStats {
   completionRate: number;
   globalPerformance: number;
@@ -34,7 +62,7 @@ interface DashboardStats {
   alertsCount?: number;
   nonConformities?: number;
   auditsPending?: number;
-  chartData?: any[];
+  chartData?: RawChartItem[];
 }
 
 interface GovernanceStats {
@@ -42,14 +70,6 @@ interface GovernanceStats {
   late: number;
   upcoming: number;
   critical: number;
-}
-
-interface ChartItem {
-  label: string;
-  value: number;
-  target: number;
-  trend: "up" | "down" | "stable";
-  previousValue?: number;
 }
 
 interface RecentActivity {
@@ -180,16 +200,16 @@ export default function ExecutiveDashboard() {
     try {
       setLoading(true);
       const results = await Promise.allSettled([
-        apiClient.get("/indicators/dashboard-stats"),
-        apiClient.get("/gouvernance/performance"),
-        apiClient.get("/dashboard/recent-activity"),
+        apiClient.get<DashboardStats>("/indicators/dashboard-stats"),
+        apiClient.get<GovernanceStats>("/gouvernance/performance"),
+        apiClient.get<RecentActivity[]>("/dashboard/recent-activity"),
       ]);
 
       if (results[0].status === "fulfilled" && results[0].value?.data) {
         const statsData = results[0].value.data;
         setData(statsData);
         setChartData(
-          (statsData.chartData || []).map((item: any) => ({
+          (statsData.chartData || []).map((item) => ({
             label: item.label || "Indicateur",
             value: Number(item.value) || 0,
             target: Number(item.target) || 1,
@@ -257,7 +277,6 @@ export default function ExecutiveDashboard() {
     }
   };
 
-  // ✅ CORRECTION DU TYPE TREND (L'ERREUR D'HIER)
   const performanceTrend = useMemo(() => {
     if (!data?.globalPerformance || !data?.previousPerformance)
       return { direction: "stable" as const, value: "0" };

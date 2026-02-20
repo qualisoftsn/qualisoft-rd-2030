@@ -1,22 +1,37 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// /frontend/src/app/dashboard/bibliotheque/page.tsx
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : /frontend/src/app/dashboard/bibliotheque/page.tsx
+ * Rôle : Gestion Électronique des Documents (GED) pour le SMI (Conforme ISO 9001 §7.5).
+ * * * Fonctionnalités clés :
+ * 1. Cycle de vie des documents : Création (Brouillon) -> Approbation -> Actif -> Révision -> Obsolète.
+ * 2. Tableau de bord & KPIs : Vue rapide sur les documents actifs, en attente, et les revues périodiques en retard.
+ * 3. Actions groupées : Sélection multiple et téléchargement en masse (Archive ZIP) des documents.
+ * 4. Modales interactives : 
+ * - Création (Upload avec métadonnées et tags)
+ * - Prévisualisation (Lecteur PDF intégré)
+ * - Historique (Traçabilité des versions et auteurs)
+ * - Révision (Upload d'une nouvelle version avec motif de modification)
+ * - Approbation (Validation par le pilote ou RQ)
+ * 5. Expérience Utilisateur : Vue Grille/Liste, filtres par catégorie, recherche debouncée.
+ */
 
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
+import type { LucideIcon } from 'lucide-react';
 import { 
-  UploadCloud, FileText, X, Save, Download, Trash2, 
-  History, Search, Plus, ShieldCheck, ChevronRight, 
-  AlertTriangle, FileEdit, CheckCircle2, Filter, Loader2,
-  GitCompare, Eye, Clock, User, Calendar, Tag, MoreVertical,
+  UploadCloud, FileText, X, Download, Trash2, 
+  History, Search, Plus, ShieldCheck, 
+  AlertTriangle, FileEdit, CheckCircle2, Loader2,
+  GitCompare, Eye, Clock, User, Calendar, 
   CheckSquare, XSquare, Archive, RefreshCw, AlertCircle,
-  FileWarning, ChevronDown, LayoutGrid, List, Maximize2,
-  Users
+  LayoutGrid, List
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { format, differenceInDays, addMonths, isPast, isWithinInterval } from 'date-fns';
+import { format, addMonths, isPast, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { clsx, type ClassValue } from 'clsx';
 
@@ -82,7 +97,7 @@ interface FilterState {
   tags: string[];
 }
 
-// --- HOOK PERSONNALISÉ ---
+// --- HOOK PERSONNALISÉ : Gestion de l'état de la GED ---
 const useDocumentLibrary = () => {
   const [documents, setDocuments] = useState<SMI_Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,11 +130,12 @@ const useDocumentLibrary = () => {
     }
   }, [filters]);
 
+  // Chargement initial et lors du changement des filtres
   useEffect(() => {
     fetchDocs();
   }, [fetchDocs]);
 
-  // Debounce recherche
+  // Debounce pour la recherche textuelle (évite de spammer l'API)
   useEffect(() => {
     const timer = setTimeout(() => {
       if (filters.search) fetchDocs();
@@ -127,6 +143,7 @@ const useDocumentLibrary = () => {
     return () => clearTimeout(timer);
   }, [fetchDocs, filters.search]);
 
+  // Calcul des statistiques de conformité
   const stats = useMemo(() => {
     const now = new Date();
     return {
@@ -151,11 +168,13 @@ export default function LibraryPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
   
+  // État centralisé pour gérer l'ouverture des différentes modales
   const [modalState, setModalState] = useState<{
     type: 'create' | 'revision' | 'history' | 'preview' | 'approve' | null;
     doc: SMI_Document | null;
   }>({ type: null, doc: null });
 
+  // Téléchargement d'un document spécifique
   const handleDownload = async (doc: SMI_Document, versionId?: string) => {
     try {
       const targetVersionId = versionId || doc.DOC_Versions[0]?.DV_Id;
@@ -182,9 +201,11 @@ export default function LibraryPage() {
       toast.success("Téléchargement terminé", { id: `dl-${doc.DOC_Id}` });
     } catch (error) {
       toast.error("Échec du téléchargement", { id: `dl-${doc.DOC_Id}` });
+      console.error(error);
     }
   };
 
+  // Téléchargement groupé (Archive ZIP)
   const handleBulkDownload = async () => {
     if (selectedDocs.size === 0) return;
     toast.loading("Préparation de l'archive...", { id: 'bulk' });
@@ -203,6 +224,7 @@ export default function LibraryPage() {
       toast.success("Archive créée", { id: 'bulk' });
     } catch (e) {
       toast.error("Erreur lors de la création de l'archive", { id: 'bulk' });
+      console.error(e);
     }
   };
 
@@ -216,7 +238,7 @@ export default function LibraryPage() {
   return (
     <div className="min-h-screen bg-[#0B0F1A] text-white italic font-sans ml-72 pb-24">
       
-      {/* HEADER */}
+      {/* HEADER FIXE */}
       <header className="sticky top-0 z-40 bg-[#0B0F1A]/95 backdrop-blur-2xl border-b border-white/5 px-8 py-6">
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -231,7 +253,7 @@ export default function LibraryPage() {
           <div className="flex gap-3">
             <button 
               onClick={() => setModalState({ type: 'create', doc: null })}
-              className="bg-blue-600 hover:bg-blue-500 px-6 py-4 rounded-4xl font-black uppercase text-[11px] flex items-center gap-3 transition-all shadow-lg shadow-blue-900/20"
+              className="bg-blue-600 hover:bg-blue-500 px-6 py-4 rounded-4xl font-black uppercase text-[11px] flex items-center gap-3 transition-all shadow-lg shadow-blue-900/20 cursor-pointer"
             >
               <Plus size={18} /> Nouveau Document
             </button>
@@ -269,9 +291,10 @@ export default function LibraryPage() {
           />
         </div>
 
-        {/* BARRE D'OUTILS */}
+        {/* BARRE D'OUTILS & FILTRES */}
         <div className="flex flex-col gap-4">
           <div className="flex gap-4 items-center">
+            {/* Recherche */}
             <div className="flex-1 relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={18} />
               <input 
@@ -279,14 +302,15 @@ export default function LibraryPage() {
                 value={filters.search}
                 onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
                 placeholder="Recherche par référence, titre..."
-                className="w-full bg-[#151B2B] border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm font-bold uppercase outline-none focus:border-blue-500/50 transition-all"
+                className="w-full bg-[#151B2B] border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm font-bold uppercase outline-none focus:border-blue-500/50 transition-all text-white"
               />
             </div>
             
+            {/* Filtre Catégorie */}
             <select 
               value={filters.category}
-              onChange={(e) => setFilters(f => ({ ...f, category: e.target.value as any }))}
-              className="bg-[#151B2B] border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-black uppercase outline-none focus:border-blue-500"
+              onChange={(e) => setFilters(f => ({ ...f, category: e.target.value as DocumentCategory | 'ALL' }))}
+              className="bg-[#151B2B] border border-white/10 rounded-2xl px-4 py-3 text-[11px] font-black uppercase outline-none focus:border-blue-500 text-white cursor-pointer"
             >
               <option value="ALL">Toutes Catégories</option>
               <option value="PROCEDURE">Procédures</option>
@@ -295,36 +319,38 @@ export default function LibraryPage() {
               <option value="ENREGISTREMENT">Enregistrements</option>
             </select>
 
+            {/* Filtre Rapide : Revues en retard */}
             <button 
               onClick={() => setFilters(f => ({ ...f, dateRange: f.dateRange === 'overdue' ? 'all' : 'overdue' }))}
               className={cn(
-                "px-4 py-3 rounded-2xl text-[11px] font-black uppercase border transition-all flex items-center gap-2",
+                "px-4 py-3 rounded-2xl text-[11px] font-black uppercase border transition-all flex items-center gap-2 cursor-pointer",
                 filters.dateRange === 'overdue' 
                   ? "bg-red-500/20 border-red-500 text-red-400" 
-                  : "bg-[#151B2B] border-white/10 hover:border-white/20"
+                  : "bg-[#151B2B] border-white/10 hover:border-white/20 text-white"
               )}
             >
               <AlertTriangle size={14} />
               Revues en retard
             </button>
 
+            {/* Bascule de Vue (Grille/Liste) */}
             <div className="flex bg-[#151B2B] rounded-2xl p-1 border border-white/10">
               <button 
                 onClick={() => setViewMode('grid')}
-                className={cn("p-2 rounded-xl transition-all", viewMode === 'grid' ? "bg-blue-600" : "hover:bg-white/5")}
+                className={cn("p-2 rounded-xl transition-all cursor-pointer", viewMode === 'grid' ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-white/5")}
               >
                 <LayoutGrid size={18} />
               </button>
               <button 
                 onClick={() => setViewMode('list')}
-                className={cn("p-2 rounded-xl transition-all", viewMode === 'list' ? "bg-blue-600" : "hover:bg-white/5")}
+                className={cn("p-2 rounded-xl transition-all cursor-pointer", viewMode === 'list' ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-white/5")}
               >
                 <List size={18} />
               </button>
             </div>
           </div>
 
-          {/* ACTIONS GROUPÉES */}
+          {/* ACTIONS GROUPÉES (Affichées si sélection en cours) */}
           {selectedDocs.size > 0 && (
             <div className="flex items-center gap-4 bg-blue-600/10 border border-blue-500/20 rounded-2xl px-4 py-2 animate-in slide-in-from-top-2">
               <span className="text-[11px] font-black uppercase text-blue-400">
@@ -333,13 +359,13 @@ export default function LibraryPage() {
               <div className="h-4 w-px bg-blue-500/30" />
               <button 
                 onClick={handleBulkDownload}
-                className="text-[11px] font-black uppercase text-blue-400 hover:text-white flex items-center gap-2"
+                className="text-[11px] font-black uppercase text-blue-400 hover:text-white flex items-center gap-2 cursor-pointer transition-colors"
               >
                 <Download size={14} /> Télécharger
               </button>
               <button 
                 onClick={() => setSelectedDocs(new Set())}
-                className="ml-auto text-[11px] font-black uppercase text-slate-500 hover:text-white"
+                className="ml-auto text-[11px] font-black uppercase text-slate-500 hover:text-white cursor-pointer transition-colors"
               >
                 <X size={14} />
               </button>
@@ -348,8 +374,8 @@ export default function LibraryPage() {
         </div>
       </header>
 
+      {/* ZONE PRINCIPALE : LISTE DES DOCUMENTS */}
       <main className="max-w-400 mx-auto p-8">
-        {/* GRILLE OU LISTE */}
         <div className={cn(
           "gap-6",
           viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "flex flex-col"
@@ -382,7 +408,7 @@ export default function LibraryPage() {
         </div>
       </main>
 
-      {/* MODALES */}
+      {/* RENDER DES MODALES */}
       {modalState.type === 'create' && (
         <CreateModal 
           onClose={() => setModalState({ type: null, doc: null })} 
@@ -420,6 +446,7 @@ export default function LibraryPage() {
           onClose={() => setModalState({ type: null, doc: null })}
           onApprove={async (approved) => {
             try {
+              // Appel API pour l'approbation du document
               await apiClient.post(`/documents/${modalState.doc!.DOC_Id}/versions/${modalState.doc!.DOC_Versions[0].DV_Id}/approve`, {
                 approved
               });
@@ -428,6 +455,7 @@ export default function LibraryPage() {
               setModalState({ type: null, doc: null });
             } catch (e) {
               toast.error("Erreur lors de l'approbation");
+              console.error(e);
             }
           }}
         />
@@ -438,7 +466,16 @@ export default function LibraryPage() {
 
 // --- SOUS-COMPOSANTS ---
 
-function StatCard({ label, value, total, color, icon: Icon, alert }: any) {
+interface StatCardProps {
+  label: string;
+  value: number;
+  total?: number;
+  color: 'blue' | 'amber' | 'red' | 'purple';
+  icon: LucideIcon;
+  alert?: boolean;
+}
+
+function StatCard({ label, value, total, color, icon: Icon, alert }: StatCardProps) {
   const colors: Record<string, string> = {
     blue: "bg-blue-500/10 border-blue-500/20 text-blue-400",
     amber: "bg-amber-500/10 border-amber-500/20 text-amber-400",
@@ -449,7 +486,7 @@ function StatCard({ label, value, total, color, icon: Icon, alert }: any) {
   return (
     <div className={cn("border rounded-2xl p-4 flex items-center gap-4", colors[color] || colors.blue)}>
       <div className={cn("p-3 rounded-xl bg-opacity-20", color === 'blue' ? 'bg-blue-500' : color === 'amber' ? 'bg-amber-500' : color === 'red' ? 'bg-red-500' : 'bg-purple-500')}>
-        <Icon size={20} />
+        <Icon size={20} className="text-current" />
       </div>
       <div>
         <p className="text-2xl font-black italic">{value}{total ? `/${total}` : ''}</p>
@@ -460,7 +497,7 @@ function StatCard({ label, value, total, color, icon: Icon, alert }: any) {
   );
 }
 
-function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, onPreview, onHistory, onRevise, onApprove }: {
+interface DocumentCardProps {
   doc: SMI_Document;
   viewMode: 'grid' | 'list';
   isSelected: boolean;
@@ -470,19 +507,23 @@ function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, o
   onHistory: () => void;
   onRevise: () => void;
   onApprove: () => void;
-}) {
+}
+
+function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, onPreview, onHistory, onRevise, onApprove }: DocumentCardProps) {
   const latestVersion = doc.DOC_Versions[0];
   const isOverdue = doc.DOC_NextReviewDate ? isPast(new Date(doc.DOC_NextReviewDate)) && doc.DOC_Status !== 'OBSOLETE' : false;
 
-  const statusConfig: Record<string, { color: string; label: string; icon: any }> = {
+  const statusConfig: Record<DocumentStatus, { color: string; label: string; icon: LucideIcon }> = {
     APPROVED: { color: 'emerald', label: 'Actif', icon: CheckCircle2 },
     PENDING_REVIEW: { color: 'amber', label: 'En Attente', icon: Clock },
     DRAFT: { color: 'slate', label: 'Brouillon', icon: FileEdit },
-    OBSOLETE: { color: 'red', label: 'Obsolète', icon: Archive }
+    OBSOLETE: { color: 'red', label: 'Obsolète', icon: Archive },
+    ARCHIVED: { color: 'slate', label: 'Archivé', icon: Archive }
   };
   
   const status = statusConfig[doc.DOC_Status] || statusConfig.DRAFT;
 
+  // Vue LISTE
   if (viewMode === 'list') {
     return (
       <div className={cn(
@@ -494,7 +535,7 @@ function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, o
           type="checkbox" 
           checked={isSelected}
           onChange={onToggleSelect}
-          className="w-5 h-5 rounded border-white/20 bg-transparent checked:bg-blue-600"
+          className="w-5 h-5 rounded border-white/20 bg-transparent checked:bg-blue-600 cursor-pointer"
         />
         <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
           <FileText size={24} className="text-blue-400" />
@@ -517,22 +558,22 @@ function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, o
             <p>{format(new Date(doc.DOC_UpdatedAt), 'dd/MM/yyyy')}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={onPreview} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Prévisualiser">
+            <button onClick={onPreview} className="p-2 hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-white" title="Prévisualiser">
               <Eye size={16} />
             </button>
-            <button onClick={onHistory} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Historique">
+            <button onClick={onHistory} className="p-2 hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-white" title="Historique">
               <History size={16} />
             </button>
-            <button onClick={onDownload} className="p-2 hover:bg-blue-600 rounded-lg transition-colors" title="Télécharger">
+            <button onClick={onDownload} className="p-2 hover:bg-blue-600 rounded-lg transition-colors cursor-pointer text-white" title="Télécharger">
               <Download size={16} />
             </button>
             {doc.DOC_Status === 'APPROVED' && (
-              <button onClick={onRevise} className="p-2 hover:bg-amber-600 rounded-lg transition-colors" title="Réviser">
+              <button onClick={onRevise} className="p-2 hover:bg-amber-600 rounded-lg transition-colors cursor-pointer text-white" title="Réviser">
                 <FileEdit size={16} />
               </button>
             )}
             {doc.DOC_Status === 'PENDING_REVIEW' && (
-              <button onClick={onApprove} className="p-2 hover:bg-emerald-600 rounded-lg transition-colors" title="Approuver">
+              <button onClick={onApprove} className="p-2 hover:bg-emerald-600 rounded-lg transition-colors cursor-pointer text-white" title="Approuver">
                 <CheckSquare size={16} />
               </button>
             )}
@@ -542,16 +583,18 @@ function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, o
     );
   }
 
+  // Vue GRILLE
   return (
     <div className={cn(
       "bg-[#151B2B] border rounded-[2.5rem] p-8 transition-all hover:border-blue-500/30 relative group",
       isSelected ? "border-blue-500 bg-blue-500/5" : "border-white/5",
       doc.DOC_Status === 'OBSOLETE' && "opacity-60"
     )}>
+      {/* Checkbox cachée par défaut, révélée au survol */}
       <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <button 
           onClick={onToggleSelect} 
-          className={cn("p-2 rounded-full transition-all", isSelected ? "bg-blue-600 text-white" : "bg-white/10 hover:bg-blue-600")}
+          className={cn("p-2 rounded-full transition-all cursor-pointer", isSelected ? "bg-blue-600 text-white" : "bg-white/10 hover:bg-blue-600 text-white")}
         >
           <CheckSquare size={16} />
         </button>
@@ -578,14 +621,15 @@ function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, o
         </div>
       </div>
 
-      <h3 className="text-2xl font-black uppercase italic text-white mb-3 leading-tight line-clamp-2">
+      <h3 className="text-2xl font-black uppercase italic text-white mb-3 leading-tight line-clamp-2" title={doc.DOC_Title}>
         {doc.DOC_Title}
       </h3>
       
-      <p className="text-[11px] text-slate-400 font-bold mb-6 line-clamp-2 uppercase">
+      <p className="text-[11px] text-slate-400 font-bold mb-6 line-clamp-2 uppercase" title={doc.DOC_Description}>
         {doc.DOC_Description || "Aucune description analytique disponible pour ce document qualité."}
       </p>
 
+      {/* Métadonnées ISO */}
       <div className="space-y-4 mb-6">
         <div className="flex justify-between items-center text-[10px] font-bold uppercase">
           <span className="text-slate-600 flex items-center gap-2"><User size={12} /> Pilote</span>
@@ -604,23 +648,24 @@ function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, o
         </div>
       </div>
 
+      {/* Boutons d'Action Rapide */}
       <div className="flex gap-3 pt-6 border-t border-white/5">
-        <button onClick={onPreview} className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2">
+        <button onClick={onPreview} className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2 cursor-pointer text-white">
           <Eye size={14} /> Voir
         </button>
-        <button onClick={onHistory} className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2">
+        <button onClick={onHistory} className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2 cursor-pointer text-white">
           <History size={14} /> Historique
         </button>
-        <button onClick={onDownload} className="flex-1 py-3 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2">
+        <button onClick={onDownload} className="flex-1 py-3 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2 cursor-pointer">
           <Download size={14} />
         </button>
         {doc.DOC_Status === 'APPROVED' && (
-          <button onClick={onRevise} className="flex-1 py-3 bg-amber-600/20 hover:bg-amber-600 text-amber-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2">
+          <button onClick={onRevise} className="flex-1 py-3 bg-amber-600/20 hover:bg-amber-600 text-amber-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2 cursor-pointer">
             <FileEdit size={14} /> Réviser
           </button>
         )}
         {doc.DOC_Status === 'PENDING_REVIEW' && (
-          <button onClick={onApprove} className="flex-1 py-3 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2">
+          <button onClick={onApprove} className="flex-1 py-3 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl text-[10px] font-black uppercase transition-all flex justify-center items-center gap-2 cursor-pointer">
             <CheckSquare size={14} /> Approuver
           </button>
         )}
@@ -628,6 +673,10 @@ function DocumentCard({ doc, viewMode, isSelected, onToggleSelect, onDownload, o
     </div>
   );
 }
+
+// ==========================================
+// MODALES ISO 9001
+// ==========================================
 
 function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState({
@@ -685,6 +734,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       onClose();
     } catch (e) {
       toast.error("Erreur lors de la création");
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -704,10 +754,11 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <h2 className="text-3xl font-black uppercase italic text-white flex items-center gap-4">
             <ShieldCheck className="text-blue-500" /> Nouveau Document ISO
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X size={28}/></button>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors cursor-pointer text-white"><X size={28}/></button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Zone de Drag & Drop */}
           <div 
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragLeave={() => setDragActive(false)}
@@ -752,7 +803,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               <select 
                 value={form.DOC_Category}
                 onChange={(e) => setForm(f => ({ ...f, DOC_Category: e.target.value as DocumentCategory }))}
-                className="w-full bg-[#0B0F1A] border border-white/10 rounded-2xl p-5 text-white font-black uppercase text-xs outline-none focus:border-blue-500"
+                className="w-full bg-[#0B0F1A] border border-white/10 rounded-2xl p-5 text-white font-black uppercase text-xs outline-none focus:border-blue-500 cursor-pointer"
               >
                 <option value="PROCEDURE">Procédure</option>
                 <option value="MANUEL">Manuel Qualité</option>
@@ -791,7 +842,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 {form.DOC_Tags.map(tag => (
                   <span key={tag} className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-[10px] font-bold uppercase flex items-center gap-2">
                     {tag}
-                    <button type="button" onClick={() => setForm(f => ({ ...f, DOC_Tags: f.DOC_Tags.filter(t => t !== tag) }))}>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, DOC_Tags: f.DOC_Tags.filter(t => t !== tag) }))} className="cursor-pointer">
                       <X size={12} />
                     </button>
                   </span>
@@ -805,7 +856,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   className="flex-1 bg-[#0B0F1A] border border-white/10 rounded-2xl p-4 text-white font-black uppercase text-xs outline-none focus:border-blue-500"
                   placeholder="Ajouter un tag..."
                 />
-                <button type="button" onClick={addTag} className="px-6 bg-white/5 hover:bg-white/10 rounded-2xl font-black uppercase text-xs transition-colors">
+                <button type="button" onClick={addTag} className="px-6 bg-white/5 hover:bg-white/10 rounded-2xl font-black uppercase text-xs transition-colors cursor-pointer text-white">
                   Ajouter
                 </button>
               </div>
@@ -815,7 +866,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <button 
             type="submit" 
             disabled={!file || loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:cursor-not-allowed py-6 rounded-3xl text-[13px] font-black uppercase italic shadow-2xl shadow-blue-900/40 transition-all flex justify-center items-center gap-3"
+            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:cursor-not-allowed py-6 rounded-3xl text-[13px] font-black uppercase italic shadow-2xl shadow-blue-900/40 transition-all flex justify-center items-center gap-3 text-white cursor-pointer"
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
             Créer et Soumettre pour Validation
@@ -849,6 +900,7 @@ function RevisionModal({ doc, onClose, onSuccess }: { doc: SMI_Document; onClose
       onClose();
     } catch (e) {
       toast.error("Erreur lors de la révision");
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -861,7 +913,7 @@ function RevisionModal({ doc, onClose, onSuccess }: { doc: SMI_Document; onClose
           <h2 className="text-3xl font-black uppercase italic text-white flex items-center gap-4">
             <GitCompare className="text-amber-500" /> Révision ISO
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full"><X size={28}/></button>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full cursor-pointer text-white"><X size={28}/></button>
         </div>
 
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 mb-8">
@@ -904,13 +956,13 @@ function RevisionModal({ doc, onClose, onSuccess }: { doc: SMI_Document; onClose
           </div>
 
           <div className="flex gap-4">
-            <button type="button" onClick={onClose} className="flex-1 py-5 rounded-2xl border border-white/10 font-black uppercase text-xs hover:bg-white/5 transition-all">
+            <button type="button" onClick={onClose} className="flex-1 py-5 rounded-2xl border border-white/10 font-black uppercase text-xs hover:bg-white/5 transition-all text-white cursor-pointer">
               Annuler
             </button>
             <button 
               type="submit" 
               disabled={!file || !changeDesc || loading}
-              className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 py-5 rounded-2xl font-black uppercase text-xs transition-all flex justify-center items-center gap-2"
+              className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 py-5 rounded-2xl font-black uppercase text-xs transition-all flex justify-center items-center gap-2 text-white cursor-pointer"
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : null}
               Publier v{doc.DOC_Versions[0].DV_VersionNumber + 1}.0
@@ -937,7 +989,7 @@ function HistoryModal({ doc, onClose, onDownload }: {
             </h2>
             <p className="text-slate-500 text-xs font-bold uppercase mt-1">{doc.DOC_Reference}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full"><X size={28}/></button>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full cursor-pointer text-white"><X size={28}/></button>
         </div>
 
         <div className="space-y-4">
@@ -972,7 +1024,7 @@ function HistoryModal({ doc, onClose, onDownload }: {
                 )}
                 <button 
                   onClick={() => onDownload(version.DV_Id)}
-                  className="ml-auto text-blue-400 hover:text-white flex items-center gap-2 transition-colors"
+                  className="ml-auto text-blue-400 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <Download size={12} /> Télécharger
                 </button>
@@ -997,6 +1049,7 @@ function PreviewModal({ doc, onClose, onDownload }: { doc: SMI_Document; onClose
         setPdfUrl(url);
       } catch (e) {
         toast.error("Impossible de charger la prévisualisation");
+        console.error(e);
       } finally {
         setLoading(false);
       }
@@ -1014,10 +1067,10 @@ function PreviewModal({ doc, onClose, onDownload }: { doc: SMI_Document; onClose
             <p className="text-xs text-slate-500 font-bold uppercase">Version {doc.DOC_Versions[0].DV_VersionNumber}.0 • {doc.DOC_Reference}</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={onDownload} className="px-6 py-3 bg-blue-600 rounded-2xl text-xs font-black uppercase flex items-center gap-2 hover:bg-blue-500 transition-colors">
+            <button onClick={onDownload} className="px-6 py-3 bg-blue-600 rounded-2xl text-xs font-black uppercase flex items-center gap-2 hover:bg-blue-500 transition-colors cursor-pointer text-white">
               <Download size={16} /> Télécharger
             </button>
-            <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-full transition-colors">
+            <button onClick={onClose} className="p-3 hover:bg-white/10 rounded-full transition-colors cursor-pointer text-white">
               <X size={24} />
             </button>
           </div>
@@ -1058,7 +1111,7 @@ function ApprovalModal({ doc, onClose, onApprove }: { doc: SMI_Document; onClose
           <h2 className="text-3xl font-black uppercase italic text-white flex items-center gap-4">
             <ShieldCheck className="text-emerald-500" /> Approbation ISO
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full"><X size={28}/></button>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full cursor-pointer text-white"><X size={28}/></button>
         </div>
 
         <div className="bg-white/5 rounded-2xl p-6 mb-8">
@@ -1081,14 +1134,14 @@ function ApprovalModal({ doc, onClose, onApprove }: { doc: SMI_Document; onClose
           <button 
             onClick={() => handleApprove(false)}
             disabled={loading}
-            className="flex-1 py-5 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-2xl font-black uppercase text-xs transition-all flex justify-center items-center gap-2"
+            className="flex-1 py-5 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-2xl font-black uppercase text-xs transition-all flex justify-center items-center gap-2 cursor-pointer"
           >
             <XSquare size={18} /> Rejeter
           </button>
           <button 
             onClick={() => handleApprove(true)}
             disabled={loading}
-            className="flex-1 py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs transition-all flex justify-center items-center gap-2"
+            className="flex-1 py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs transition-all flex justify-center items-center gap-2 cursor-pointer"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : <CheckSquare size={18} />}
             Approuver et Activer

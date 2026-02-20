@@ -191,6 +191,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Certifications", path: "/dashboard/tb-certif", icon: Zap, access: "ALL" },
           { title: "Actifs & Assets", path: "/dashboard/equipment", icon: AlertTriangle, access: "ALL" },
           { title: "Plan de Continuité - PCA", path: "/dashboard/organization", icon: FileText, access: "ALL" },
+          { title: "GED - Bibliothèque", path: "/dashboard/bibliotheque", icon: FileText, access: "ALL" },
           { title: "Archives", path: "/dashboard/archives", icon: FileText, access: "ALL" },
         ],
       },

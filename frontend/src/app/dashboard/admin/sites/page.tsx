@@ -1,30 +1,44 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
   MapPin, Plus, Loader2, Edit3, Trash2, X, Save, 
-  AlertCircle, Building2, Users, Layers, ShieldCheck 
+  AlertCircle, Building2, Users, Layers 
 } from 'lucide-react';
 
+interface SiteEntry {
+  S_Id: string;
+  S_Name: string;
+  S_Address: string;
+  _count?: {
+    S_Users: number;
+    S_Departments: number;
+  };
+}
+
+interface ModalState {
+  open: boolean;
+  mode: 'ADD' | 'EDIT';
+  data: Partial<SiteEntry>;
+}
+
 export default function SitesCrudPage() {
-  const [sites, setSites] = useState<any[]>([]);
+  const [sites, setSites] = useState<SiteEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modal, setModal] = useState<{open: boolean, mode: 'ADD' | 'EDIT', data: any}>({
+  const [modal, setModal] = useState<ModalState>({
     open: false, mode: 'ADD', data: { S_Name: '', S_Address: '' }
   });
 
-  // SYNCHRONISATION AVEC L'API /SITES (Pointée précédemment sur /admin/sites)
   const refreshData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiClient.get('/sites'); // Correction de la route
+      const res = await apiClient.get('/sites');
       setSites(res.data);
-    } catch (err: any) {
+    } catch (err) {
       setError("Défaut de synchronisation avec le serveur central Qualisoft.");
     } finally {
       setLoading(false);
@@ -49,14 +63,13 @@ export default function SitesCrudPage() {
       }
       setModal({ ...modal, open: false });
       refreshData();
-    } catch (err: any) { 
-      const msg = err.response?.data?.message || "Échec de l'opération.";
-      alert(msg); 
+    } catch (err: unknown) { 
+      alert("Échec de l'opération."); 
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("PROCÉDURE CRITIQUE : Supprimer ce site supprimera toutes les entités rattachées (Départements, SSE). Confirmer ?")) return;
+    if (!window.confirm("PROCÉDURE CRITIQUE : Supprimer ce site supprimera toutes les entités rattachées (Départements, SSE). Confirmer ?")) return;
     try {
       await apiClient.delete(`/sites/${id}`);
       refreshData();
@@ -96,7 +109,6 @@ export default function SitesCrudPage() {
         </div>
       )}
 
-      {/* GRILLE DES SITES AVEC STATISTIQUES _COUNT */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {sites.map(s => (
           <div key={s.S_Id} className="bg-slate-900/40 border border-white/5 p-8 rounded-[3rem] relative group hover:border-blue-500/40 transition-all duration-500 overflow-hidden shadow-2xl">
@@ -116,7 +128,6 @@ export default function SitesCrudPage() {
                 <p className="text-[10px] font-bold uppercase italic truncate">{s.S_Address || 'Défaut de localisation'}</p>
             </div>
 
-            {/* STATS RAPIDES (INTÉGRATION _COUNT) */}
             <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6">
                 <div className="flex items-center gap-3">
                     <Users size={14} className="text-blue-500" />
@@ -137,7 +148,6 @@ export default function SitesCrudPage() {
         ))}
       </div>
 
-      {/* MODAL CRUD RD 2030 */}
       {modal.open && (
         <div className="fixed inset-0 z-200 flex items-center justify-center p-6 backdrop-blur-xl bg-black/60">
           <form onSubmit={handleSave} className="relative bg-[#0B0F1A] border border-white/10 p-12 rounded-[4rem] w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300">
@@ -159,13 +169,13 @@ export default function SitesCrudPage() {
             <div className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Désignation Officielle</label>
-                <input required className="w-full bg-white/2 border border-white/5 rounded-2xl p-6 text-sm font-bold text-white outline-none focus:border-blue-500/50 focus:bg-white/5 transition-all" 
+                <input required className="w-full bg-white/5 border border-white/5 rounded-2xl p-6 text-sm font-bold text-white outline-none focus:border-blue-500/50 transition-all" 
                   placeholder="ex: SIÈGE DAKAR" value={modal.data.S_Name} onChange={e => setModal({...modal, data: {...modal.data, S_Name: e.target.value}})} />
               </div>
               
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic">Adresse / Zone Géographique</label>
-                <input required className="w-full bg-white/2 border border-white/5 rounded-2xl p-6 text-sm font-bold text-white outline-none focus:border-blue-500/50 focus:bg-white/5 transition-all" 
+                <input required className="w-full bg-white/5 border border-white/5 rounded-2xl p-6 text-sm font-bold text-white outline-none focus:border-blue-500/50 transition-all" 
                   placeholder="ex: Plateau, Rue 12 x 15" value={modal.data.S_Address} onChange={e => setModal({...modal, data: {...modal.data, S_Address: e.target.value}})} />
               </div>
 

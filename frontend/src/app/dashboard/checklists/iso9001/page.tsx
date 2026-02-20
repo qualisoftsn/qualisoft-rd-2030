@@ -1,24 +1,65 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/checklists/iso9001/page.tsx
+ * Rôle : Interface interactive pour l'évaluation de la conformité à la norme ISO 9001:2015.
+ * * * Fonctionnalités clés :
+ * 1. Évaluation par Clause : Affichage structuré des chapitres 4 à 10 de la norme.
+ * 2. Suivi de Progression : Calcul en temps réel du taux de conformité global.
+ * 3. Preuves & Traçabilité : Upload de documents (GED) et ajout de commentaires pour justifier les réponses.
+ * 4. Recommandations : Génération automatique d'actions correctives basées sur les écarts constatés.
+ * 5. Rapport d'Audit : Export PDF de la checklist et de ses résultats.
+ */
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
   ShieldCheck, Target, CheckCircle, XCircle, AlertTriangle, 
-  Download, Save, UploadCloud, FileText, Clock, TrendingUp,
-  ChevronDown, ChevronRight, Search, Filter, Plus,
-  RefreshCw
+  Download, UploadCloud, FileText, Clock,
+  ChevronDown, Search, RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// --- TYPES STRICTS ---
+type ResponseType = 'YES' | 'NO' | 'PARTIAL' | 'NA';
+type FilterStatus = 'ALL' | 'COMPLIANT' | 'NON_COMPLIANT' | 'PENDING';
+
+interface ChecklistResponse {
+  CR_ChecklistId: string;
+  CR_Response: ResponseType;
+  CR_Comment?: string;
+  CR_Evidence?: string;
+  CR_IsCompliant: boolean;
+}
+
+interface ChecklistItem {
+  LC_Id: string;
+  LC_Clause: string;
+  LC_Title: string;
+  LC_Description: string;
+  LC_Criteria: string;
+  LC_Reference?: string;
+  response?: ChecklistResponse;
+}
+
+interface ChecklistStats {
+  complianceRate: number;
+  compliant: number;
+  nonCompliant: number;
+  notAnswered: number;
+  total: number;
+}
+
 export default function ISO9001ChecklistPage() {
-  const [checklistItems, setChecklistItems] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  // --- ÉTATS ---
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [stats, setStats] = useState<ChecklistStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'COMPLIANT' | 'NON_COMPLIANT' | 'PENDING'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
   const [uploadingEvidence, setUploadingEvidence] = useState<string | null>(null);
 
@@ -33,6 +74,7 @@ export default function ISO9001ChecklistPage() {
     { id: '10', label: 'Amélioration (§10)', color: 'from-green-500 to-emerald-600' }
   ], []);
 
+  // --- CHARGEMENT DES DONNÉES ---
   useEffect(() => {
     fetchData();
   }, []);
@@ -41,8 +83,8 @@ export default function ISO9001ChecklistPage() {
     try {
       setLoading(true);
       const [checklistRes, statsRes] = await Promise.all([
-        apiClient.get('/checklist?standard=ISO_9001_2015'),
-        apiClient.get('/checklist/stats?standard=ISO_9001_2015')
+        apiClient.get<ChecklistItem[]>('/checklist?standard=ISO_9001_2015'),
+        apiClient.get<ChecklistStats>('/checklist/stats?standard=ISO_9001_2015')
       ]);
       setChecklistItems(checklistRes.data);
       setStats(statsRes.data);
@@ -54,6 +96,7 @@ export default function ISO9001ChecklistPage() {
     }
   };
 
+  // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
   const handleResponseChange = async (itemId: string, response: string) => {
     setSavingItemId(itemId);
     try {
@@ -62,7 +105,7 @@ export default function ISO9001ChecklistPage() {
         CR_Response: response
       });
       toast.success('Réponse enregistrée avec succès');
-      fetchData(); // Rafraîchir les données
+      fetchData(); // Rafraîchir les données pour recalculer les stats
     } catch (error) {
       console.error('Erreur sauvegarde réponse:', error);
       toast.error('Erreur lors de l\'enregistrement');
@@ -77,11 +120,11 @@ export default function ISO9001ChecklistPage() {
       const formData = new FormData();
       formData.append('file', file);
       
-      const res = await apiClient.post('/upload', formData, {
+      const res = await apiClient.post<{url: string}>('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      // Mettre à jour la réponse avec l'URL de la preuve
+      // Mettre à jour la réponse avec l'URL de la preuve téléchargée
       await apiClient.post('/checklist/response', {
         CR_ChecklistId: itemId,
         CR_Response: 'YES', // Marquer comme conforme si preuve fournie
@@ -119,11 +162,11 @@ export default function ISO9001ChecklistPage() {
   const handleGenerateReport = async () => {
     try {
       const response = await apiClient.post('/audit-report/generate', {
-        auditId: 'checklist-iso9001', // ID spécial pour checklist
+        auditId: 'checklist-iso9001', // ID spécial pour checklist globale
         template: 'ISO_9001'
       }, { responseType: 'blob' });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `checklist-iso9001-${new Date().toISOString().split('T')[0]}.pdf`);
@@ -138,7 +181,7 @@ export default function ISO9001ChecklistPage() {
     }
   };
 
-  // Filtrer les items selon les critères
+  // --- FILTRES ET REGROUPEMENTS ---
   const filteredItems = useMemo(() => {
     return checklistItems.filter(item => {
       const matchesSearch = 
@@ -157,9 +200,8 @@ export default function ISO9001ChecklistPage() {
     });
   }, [checklistItems, searchTerm, filterStatus]);
 
-  // Regrouper les items par section
   const groupedItems = useMemo(() => {
-    const groups: any = {};
+    const groups: Record<string, ChecklistItem[]> = {};
     clauseGroups.forEach(group => {
       groups[group.id] = filteredItems.filter(item => 
         item.LC_Clause.startsWith(group.id + '.') || item.LC_Clause === group.id
@@ -168,11 +210,12 @@ export default function ISO9001ChecklistPage() {
     return groups;
   }, [filteredItems, clauseGroups]);
 
+  // --- ÉTAT DE CHARGEMENT ---
   if (loading) {
     return (
       <div className="ml-72 h-screen flex items-center justify-center bg-[#0B0F1A]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-6"></div>
+          <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-6 mx-auto"></div>
           <p className="text-slate-500 font-black uppercase italic text-[10px] tracking-widest">
             Chargement de la checklist ISO 9001:2015...
           </p>
@@ -235,20 +278,20 @@ export default function ISO9001ChecklistPage() {
           <div className="flex gap-4">
             <button 
               onClick={handleGenerateReport}
-              className="bg-linear-to-r from-blue-600 to-cyan-700 hover:from-blue-700 hover:to-cyan-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg"
+              className="bg-linear-to-r from-blue-600 to-cyan-700 hover:from-blue-700 hover:to-cyan-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg cursor-pointer"
             >
               <Download size={18} /> Générer Rapport PDF
             </button>
             <button 
               onClick={fetchData}
-              className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all"
+              className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all cursor-pointer"
             >
-              <RefreshCw size={18} className="animate-spin" /> Actualiser
+              <RefreshCw size={18} className="hover:animate-spin" /> Actualiser
             </button>
           </div>
         </div>
 
-        {/* FILTRES */}
+        {/* BARRE DE FILTRES */}
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -263,8 +306,8 @@ export default function ISO9001ChecklistPage() {
           
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none min-w-45"
+            onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+            className="bg-[#151B2B] border border-white/10 rounded-xl px-4 py-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none min-w-45 cursor-pointer"
           >
             <option value="ALL">Tous les statuts</option>
             <option value="COMPLIANT">Conforme (Oui)</option>
@@ -316,11 +359,11 @@ export default function ISO9001ChecklistPage() {
         </div>
       </div>
 
-      {/* CHECKLIST PAR SECTION */}
+      {/* CHECKLIST PAR SECTION ISO */}
       <div className="space-y-8">
         {clauseGroups.map((group) => {
           const items = groupedItems[group.id];
-          if (items.length === 0) return null;
+          if (!items || items.length === 0) return null;
           
           const isExpanded = expandedSection === group.id;
           
@@ -328,7 +371,7 @@ export default function ISO9001ChecklistPage() {
             <section key={group.id} className="bg-slate-900/40 border border-white/5 rounded-3xl overflow-hidden">
               <button
                 onClick={() => setExpandedSection(isExpanded ? null : group.id)}
-                className="w-full p-6 text-left bg-linear-to-r hover:from-slate-800 hover:to-slate-900 transition-all"
+                className="w-full p-6 text-left bg-linear-to-r hover:from-slate-800 hover:to-slate-900 transition-all cursor-pointer"
                 style={{ 
                   background: isExpanded ? `linear-gradient(90deg, ${group.color.replace('from-', 'rgb(').replace(' to-', ',')})` : 'transparent'
                 }}
@@ -343,7 +386,7 @@ export default function ISO9001ChecklistPage() {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 text-[10px] font-black">
                       <CheckCircle className="text-emerald-500" size={16} />
-                      <span>{items.filter((i: { response: { CR_IsCompliant: any; }; }) => i.response?.CR_IsCompliant).length}</span>
+                      <span>{items.filter(i => i.response?.CR_IsCompliant).length}</span>
                       <span className="text-slate-500">/</span>
                       <span>{items.length}</span>
                     </div>
@@ -351,7 +394,7 @@ export default function ISO9001ChecklistPage() {
                       <div 
                         className="h-full bg-emerald-500" 
                         style={{ 
-                          width: `${Math.round((items.filter((i: { response: { CR_IsCompliant: any; }; }) => i.response?.CR_IsCompliant).length / items.length) * 100)}%` 
+                          width: `${Math.round((items.filter(i => i.response?.CR_IsCompliant).length / items.length) * 100)}%` 
                         }}
                       ></div>
                     </div>
@@ -365,7 +408,7 @@ export default function ISO9001ChecklistPage() {
               
               {isExpanded && (
                 <div className="divide-y divide-white/5">
-                  {items.map((item: any) => {
+                  {items.map((item) => {
                     const response = item.response;
                     const isCompliant = response?.CR_IsCompliant;
                     const hasEvidence = response?.CR_Evidence;
@@ -412,7 +455,7 @@ export default function ISO9001ChecklistPage() {
                                     key={resp}
                                     onClick={() => handleResponseChange(item.LC_Id, resp)}
                                     disabled={savingItemId === item.LC_Id}
-                                    className={`p-3 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                    className={`p-3 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${
                                       response?.CR_Response === resp
                                         ? resp === 'YES' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
                                           resp === 'NO' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
@@ -432,7 +475,7 @@ export default function ISO9001ChecklistPage() {
                             
                             <div>
                               <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block items-center gap-2">
-                                <UploadCloud size={14} className="text-blue-500" /> Preuve de conformité
+                                <UploadCloud size={14} className="text-blue-500 inline mr-1" /> Preuve de conformité
                               </label>
                               {hasEvidence ? (
                                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
@@ -494,7 +537,7 @@ export default function ISO9001ChecklistPage() {
         })}
       </div>
 
-      {/* RECOMMANDATIONS */}
+      {/* RECOMMANDATIONS AUTOMATIQUES */}
       {stats && stats.nonCompliant > 0 && (
         <section className="mt-10 bg-linear-to-r from-amber-900/30 to-red-900/30 border border-amber-500/20 rounded-3xl p-8">
           <h2 className="text-2xl font-black mb-4 flex items-center gap-3 text-amber-400">
@@ -526,6 +569,7 @@ export default function ISO9001ChecklistPage() {
         </section>
       )}
 
+      {/* FOOTER */}
       <footer className="mt-12 pt-8 border-t border-white/5 text-center">
         <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em]">
           Qualisoft SMI • Checklist Conformité ISO 9001:2015 • Conforme aux exigences ANSD Sénégal
@@ -538,7 +582,17 @@ export default function ISO9001ChecklistPage() {
   );
 }
 
-function StatCard({ label, value, icon, color, target }: any) {
+// --- SOUS-COMPOSANTS ---
+
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+  target?: string;
+}
+
+function StatCard({ label, value, icon, color, target }: StatCardProps) {
   return (
     <div className={`${color} rounded-2xl p-5`}>
       <div className="flex items-center justify-between mb-3">
@@ -555,14 +609,20 @@ function StatCard({ label, value, icon, color, target }: any) {
   );
 }
 
-function RecommendationItem({ priority, title, description }: any) {
+interface RecommendationItemProps {
+  priority: 'CRITIQUE' | 'ÉLEVÉE' | 'MOYENNE';
+  title: string;
+  description: string;
+}
+
+function RecommendationItem({ priority, title, description }: RecommendationItemProps) {
   const priorityConfig = {
     'CRITIQUE': { color: 'text-red-400', bg: 'bg-red-500/20' },
     'ÉLEVÉE': { color: 'text-amber-400', bg: 'bg-amber-500/20' },
     'MOYENNE': { color: 'text-blue-400', bg: 'bg-blue-500/20' }
   };
   
-  const config = priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig['MOYENNE'];
+  const config = priorityConfig[priority] || priorityConfig['MOYENNE'];
   
   return (
     <div className={`${config.bg} border border-current/30 rounded-xl p-4`}>
@@ -578,5 +638,3 @@ function RecommendationItem({ priority, title, description }: any) {
     </div>
   );
 }
-
-//import { RefreshCw } from 'lucide-react';

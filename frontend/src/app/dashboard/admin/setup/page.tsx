@@ -1,26 +1,40 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
 import Link from 'next/link';
-import { MapPin, Building2, Network, Plus, Loader2, CheckCircle2, Layers, Settings2, ExternalLink } from 'lucide-react';
+import { MapPin, Building2, Plus, Loader2, CheckCircle2, ExternalLink } from 'lucide-react';
+
+interface SiteData {
+  S_Id: string;
+  S_Name: string;
+  S_Address?: string;
+}
+
+interface DeptData {
+  D_Id: string;
+  D_Name: string;
+  D_Site?: { S_Name: string };
+}
+
+interface SetupData {
+  sites: SiteData[];
+  depts: DeptData[];
+}
 
 export default function SetupSmiPage() {
-  const [activeTab, setActiveTab] = useState('SITES'); 
+  const [activeTab, setActiveTab] = useState<'SITES' | 'DEP'>('SITES'); 
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState({ sites: [], depts: [], orgs: [] });
+  const [data, setData] = useState<SetupData>({ sites: [], depts: [] });
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ APPEL API : Utilise 'departements' avec un 'e'
       const [resS, resD] = await Promise.all([
         apiClient.get('/admin/sites'),
         apiClient.get('/admin/departements'),
       ]);
-      setData({ sites: resS.data, depts: resD.data, orgs: [] });
+      setData({ sites: resS.data, depts: resD.data });
     } catch (error) {
       console.error("Erreur Sync SMI:", error);
     } finally { setLoading(false); }
@@ -58,10 +72,10 @@ export default function SetupSmiPage() {
       <div className="bg-slate-900/40 border border-white/5 rounded-[3rem] p-10 shadow-2xl min-h-80 relative">
         {loading ? <Loader2 className="animate-spin text-blue-500 mx-auto mt-20" size={40} /> : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-500">
-            {activeTab === 'SITES' && data.sites.map((s: any) => (
+            {activeTab === 'SITES' && data.sites.map((s) => (
               <ConfigCard key={s.S_Id} title={s.S_Name} sub={s.S_Address || 'Aucune adresse'} type="Implantation" link="/dashboard/admin/sites" />
             ))}
-            {activeTab === 'DEP' && data.depts.map((d: any) => (
+            {activeTab === 'DEP' && data.depts.map((d) => (
               <ConfigCard key={d.D_Id} title={d.D_Name} sub={`Site : ${d.D_Site?.S_Name || 'Non rattaché'}`} type="Service" link="/dashboard/admin/departements" />
             ))}
           </div>
@@ -71,13 +85,15 @@ export default function SetupSmiPage() {
   );
 }
 
-function Tab({ icon: Icon, label, active, onClick }: any) {
+interface TabProps { icon: React.ElementType; label: string; active: boolean; onClick: () => void; }
+function Tab({ icon: Icon, label, active, onClick }: TabProps) {
   return (
     <button onClick={onClick} className={`px-8 py-4 rounded-2xl font-black uppercase italic text-[10px] flex items-center gap-3 border transition-all duration-300 ${active ? 'bg-blue-600 border-blue-500 text-white shadow-lg' : 'bg-white/5 border-white/10 text-slate-500 hover:text-white'}`}><Icon size={16} /> {label}</button>
   );
 }
 
-function ConfigCard({ title, sub, type, link }: any) {
+interface ConfigCardProps { title: string; sub: string; type: string; link: string; }
+function ConfigCard({ title, sub, type, link }: ConfigCardProps) {
   return (
     <Link href={link}>
       <div className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] h-full flex flex-col justify-between hover:border-blue-500/30 transition-all group cursor-pointer no-underline">

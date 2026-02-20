@@ -1,5 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/audit-center/page.tsx
+ * Rôle : Cockpit Exécutif de la supervision globale (Audit Center).
+ * * Fonctionnalités clés :
+ * 1. Synthèse de la Santé SMI : Calcule un score global de santé du système (Excellente, À surveiller, Critique) basé sur la performance, la gouvernance et les non-conformités.
+ * 2. Visualisation de la Performance : Graphiques en barres animés montrant l'atteinte des objectifs par axe stratégique.
+ * 3. Flux d'Activité en direct : Journal des derniers événements critiques (Audits, Indicateurs, NC, Actions).
+ * 4. Export Rapide : Génération d'un rapport PDF exécutif mensuel en un clic.
+ * 5. Expérience Utilisateur : Modale de bienvenue pour sceller la première connexion et présentation contextuelle (Souverain vs Stratégique).
+ * * Public cible : Super Admin, Direction, Responsable Qualité (RQ).
+ */
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -7,17 +19,13 @@ import Link from 'next/link';
 import apiClient from '@/core/api/api-client';
 import type { LucideIcon } from 'lucide-react';
 import { 
-  Loader2, 
-  FileDown, Sparkles, Layers, Activity, Target, 
+  Loader2, FileDown, Sparkles, Layers, Activity, Target, 
   ShieldCheck, TrendingUp, TrendingDown, BadgeCheck, Crown, CalendarCheck,
-  AlertTriangle, Clock, 
-  FileText,
-  Rocket, 
-  ChevronRight, 
+  AlertTriangle, Clock, FileText, Rocket, ChevronRight, 
   ArrowDown, ArrowUp
 } from 'lucide-react';
 
-// --- INTERFACES ---
+// --- INTERFACES STRICTES ---
 interface DashboardStats {
   completionRate: number;
   globalPerformance: number;
@@ -44,6 +52,14 @@ interface ChartItem {
   previousValue?: number;
 }
 
+interface RawChartItem {
+  label?: string;
+  value?: string | number;
+  target?: string | number;
+  trend?: 'up' | 'down' | 'stable';
+  previousValue?: string | number;
+}
+
 interface RecentActivity {
   id: string;
   type: 'indicator' | 'audit' | 'nc' | 'action';
@@ -66,7 +82,7 @@ interface UserSession {
   };
 }
 
-// Mapping des couleurs pour éviter les classes dynamiques Tailwind
+// Mapping des couleurs
 const HEALTH_COLORS = {
   emerald: {
     text: 'text-emerald-400',
@@ -85,7 +101,7 @@ const HEALTH_COLORS = {
   }
 };
 
-// WelcomeModal
+// --- COMPOSANTS INTERNES ---
 const WelcomeModal = ({ userName, onClose }: { userName: string; onClose: () => void }) => (
   <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
     <div className="bg-white rounded-[3rem] p-10 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-300">
@@ -127,29 +143,19 @@ export default function ExecutiveDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
 
-  // Horloge côté client
   useEffect(() => {
     setIsMounted(true);
     const formatDate = () => new Date().toLocaleDateString('fr-FR', { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long',
-      year: 'numeric'
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
     
     setCurrentTime(formatDate());
-    
-    const timer = setInterval(() => {
-      setCurrentTime(formatDate());
-    }, 60000);
-    
+    const timer = setInterval(() => setCurrentTime(formatDate()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Chargement utilisateur depuis localStorage (FONCTIONNALITÉ CONSERVÉE)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
     try {
       const stored = localStorage.getItem('user');
       if (stored) {
@@ -171,7 +177,6 @@ export default function ExecutiveDashboard() {
     ['SUPER_ADMIN', 'ADMIN', 'RQ'].includes(user?.U_Role || ''), 
   [user]);
 
-  // Données utilisateur sécurisées
   const userInitials = useMemo(() => {
     if (!user) return '??';
     const first = user.U_FirstName?.[0] ?? '';
@@ -184,13 +189,10 @@ export default function ExecutiveDashboard() {
     return [user.U_FirstName, user.U_LastName].filter(Boolean).join(' ') || 'Utilisateur';
   }, [user]);
 
-  // Fetch data
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
-    
     try {
       setLoading(true);
-      
       const results = await Promise.allSettled([
         apiClient.get('/indicators/dashboard-stats').catch(() => ({ data: null })),
         apiClient.get('/gouvernance/performance').catch(() => ({ data: { completionRate: 0, late: 0, upcoming: 0, critical: 0 } })),
@@ -210,13 +212,13 @@ export default function ExecutiveDashboard() {
           auditsPending: statsData.auditsPending || 0
         });
         
-        const rawChartData = statsData.chartData || [];
-        setChartData(rawChartData.map((item: any) => ({
+        const rawChartData: RawChartItem[] = statsData.chartData || [];
+        setChartData(rawChartData.map((item) => ({
           label: item.label || 'Indicateur',
           value: Number(item.value) || 0,
           target: Number(item.target) || 1,
           trend: item.trend || 'stable',
-          previousValue: item.previousValue || Math.floor((Number(item.value) || 0) * 0.9)
+          previousValue: Number(item.previousValue) || Math.floor((Number(item.value) || 0) * 0.9)
         })));
       }
 
@@ -245,13 +247,11 @@ export default function ExecutiveDashboard() {
     }
   }, [user]);
 
-  // CORRECTION CLÉ : Gestion du chargement selon présence utilisateur
   useEffect(() => {
     if (isMounted) {
       if (user) {
         fetchDashboardData();
       } else {
-        // CORRECTION : Si pas d'utilisateur, on arrête le chargement pour éviter la boucle infinie
         setLoading(false);
       }
     }
@@ -303,12 +303,11 @@ export default function ExecutiveDashboard() {
     }
   };
 
-  // Calculs métier
   const performanceTrend = useMemo(() => {
     if (!data?.globalPerformance || !data?.previousPerformance) return null;
     const diff = data.globalPerformance - data.previousPerformance;
     return {
-      direction: diff >= 0 ? 'up' : 'down',
+      direction: diff >= 0 ? 'up' as const : 'down' as const,
       value: Math.abs(diff).toFixed(1)
     };
   }, [data]);
@@ -331,7 +330,6 @@ export default function ExecutiveDashboard() {
   const healthStatus = getHealthStatus(healthScore);
   const healthColorClasses = HEALTH_COLORS[healthStatus.color];
 
-  // État de montage initial
   if (!isMounted) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#0B0F1A]">
@@ -340,7 +338,6 @@ export default function ExecutiveDashboard() {
     );
   }
 
-  // Chargement des données (uniquement si utilisateur connecté)
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-500 italic">
@@ -458,13 +455,12 @@ export default function ExecutiveDashboard() {
         <KPICard 
           title="Performance" 
           value={`${data?.globalPerformance || 0}%`} 
-          trend={{ direction: 'up', value: '2.4' }} 
+          trend={performanceTrend} 
           icon={Target} 
           color="emerald"
           subtitle="vs mois précédent"
           href="/dashboard/indicators"
         />
-        
         <KPICard 
           title="Conformité" 
           value={`${data?.completionRate || 0}%`} 
@@ -474,7 +470,6 @@ export default function ExecutiveDashboard() {
           subtitle="Objectifs SMI"
           href="/dashboard/compliance"
         />
-        
         <KPICard 
           title="Gouvernance" 
           value={`${govData?.completionRate || 0}%`} 
@@ -484,7 +479,6 @@ export default function ExecutiveDashboard() {
           subtitle={`${govData?.upcoming || 0} échéances`}
           href="/dashboard/gouvernance"
         />
-        
         <KPICard 
           title="Processus" 
           value={data?.totalProcessus || 0} 
@@ -670,7 +664,7 @@ export default function ExecutiveDashboard() {
   );
 }
 
-// SUB-COMPONENTS
+// --- SOUS-COMPOSANTS ---
 
 interface KPICardProps {
   title: string; 

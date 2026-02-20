@@ -1,5 +1,16 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/continuous-improvement/page.tsx
+ * Rôle : Hub centralisé pour l'Amélioration Continue (ISO 9001 §10).
+ * Fonctionnalités clés :
+ * 1. Suivi multi-sources : Centralise les actions issues d'audits, NC, réclamations, COPIL.
+ * 2. Vues multiples : Kanban (gestion de flux), Liste (détails et tri), Matrice d'Eisenhower (arbitrage stratégique).
+ * 3. Filtrage dynamique : Par source, statut, priorité et recherche textuelle.
+ * 4. KPIs en temps réel : Mesure de la réactivité (retards) et du taux d'avancement.
+ */
+
 "use client";
 
 import apiClient from "@/core/api/api-client";
@@ -29,7 +40,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-// --- TYPES SCELLÉS ---
+// --- TYPES SCELLÉS (STRICTS) ---
 type ActionSource =
   | "AUDIT_INTERNE"
   | "AUDIT_EXTERNE"
@@ -39,32 +50,39 @@ type ActionSource =
   | "REVUE_DIRECTION"
   | "ANALYSE_RISQUE"
   | "SUGGESTION"
-  | "AUTRE";
+  | "AUTRE"
+  | "ALL"; // Ajout de 'ALL' pour simplifier la logique de filtrage
+
 type ActionStatus =
   | "A_FAIRE"
   | "EN_COURS"
   | "A_VALIDER"
   | "TERMINEE"
   | "ANNULEE"
-  | "EN_RETARD";
-type ActionPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  | "EN_RETARD"
+  | "ALL";
+
+type ActionPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "ALL";
+type ViewMode = "kanban" | "list" | "matrix";
+
+interface Responsible {
+  id: string;
+  firstName: string;
+  lastName: string;
+  avatar?: string;
+}
 
 interface ActionItem {
   id: string;
   reference: string;
   title: string;
   description?: string;
-  source: ActionSource;
+  source: Exclude<ActionSource, "ALL">;
   sourceRef?: string;
-  status: ActionStatus;
-  priority: ActionPriority;
+  status: Exclude<ActionStatus, "ALL">;
+  priority: Exclude<ActionPriority, "ALL">;
   progress: number;
-  responsible: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    avatar?: string;
-  };
+  responsible: Responsible;
   deadline: string;
   createdAt: string;
   evidencesCount: number;
@@ -76,26 +94,28 @@ interface ActionItem {
 
 export default function ContinuousImprovementHub() {
   const router = useRouter();
-  const [viewMode, setViewMode] = useState<"kanban" | "list" | "matrix">("kanban");
+  
+  // --- ÉTATS ---
+  const [viewMode, setViewMode] = useState<ViewMode>("kanban");
   const [actions, setActions] = useState<ActionItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   const [selectedFilters, setSelectedFilters] = useState<{
-    source: ActionSource | "ALL";
-    status: ActionStatus | "ALL";
-    priority: ActionPriority | "ALL";
+    source: ActionSource;
+    status: ActionStatus;
+    priority: ActionPriority;
   }>({ source: "ALL", status: "ALL", priority: "ALL" });
-  const [showFilters, setShowFilters] = useState(false);
 
-  // --- FONCTION : CHARGEMENT DES ACTIONS ---
+  // --- CHARGEMENT DES DONNÉES ---
   const loadActions = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get("/continuous-improvement/actions");
+      const res = await apiClient.get<ActionItem[]>("/continuous-improvement/actions");
       setActions(res.data || []);
     } catch (err) {
       console.error("Erreur chargement amélioration continue:", err);
-      // Données de démo cohérentes (Fallback 2026)
+      // Fallback : Données de démonstration cohérentes
       setActions([
         {
           id: "1",
@@ -139,7 +159,7 @@ export default function ContinuousImprovementHub() {
     loadActions();
   }, [loadActions]);
 
-  // --- FONCTION : FILTRAGE INTELLIGENT ---
+  // --- FILTRAGE INTELLIGENT ---
   const filteredActions = useMemo(() => {
     return actions.filter((action) => {
       const matchesSearch =
@@ -155,7 +175,7 @@ export default function ContinuousImprovementHub() {
     });
   }, [actions, searchTerm, selectedFilters]);
 
-  // --- FONCTION : STATISTIQUES GLOBALES ---
+  // --- STATISTIQUES GLOBALES ---
   const stats = useMemo(() => ({
     total: actions.length,
     active: actions.filter((a) => ["A_FAIRE", "EN_COURS", "A_VALIDER"].includes(a.status)).length,
@@ -168,9 +188,9 @@ export default function ContinuousImprovementHub() {
     },
   }), [actions]);
 
-  // --- FONCTION : HELPER COULEURS STATUTS ---
+  // --- HELPERS UI ---
   const getStatusColor = (status: ActionStatus) => {
-    const colors = {
+    const colors: Record<string, string> = {
       A_FAIRE: "bg-slate-500/20 text-slate-400 border-slate-500/30",
       EN_COURS: "bg-blue-500/20 text-blue-400 border-blue-500/30",
       A_VALIDER: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -178,21 +198,9 @@ export default function ContinuousImprovementHub() {
       ANNULEE: "bg-red-500/20 text-red-400 border-red-500/30",
       EN_RETARD: "bg-red-600/20 text-red-500 border-red-600/30 animate-pulse",
     };
-    return colors[status] || colors["A_FAIRE"];
+    return colors[status as string] || colors["A_FAIRE"];
   };
 
-  // --- FONCTION : HELPER COULEURS PRIORITÉS ---
-  const getPriorityColor = (priority: ActionPriority) => {
-    const colors = {
-      CRITICAL: "text-red-500",
-      HIGH: "text-orange-400",
-      MEDIUM: "text-blue-400",
-      LOW: "text-slate-400",
-    };
-    return colors[priority];
-  };
-
-  // --- FONCTION : HELPER ICONES SOURCES ---
   const getSourceIcon = (source: ActionSource) => {
     switch (source) {
       case "AUDIT_INTERNE": return <FileText size={14} />;
@@ -227,6 +235,7 @@ export default function ContinuousImprovementHub() {
             </p>
           </div>
 
+          {/* ACTIONS D'EN-TÊTE */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-md">
               {[
@@ -236,7 +245,7 @@ export default function ContinuousImprovementHub() {
               ].map((mode) => (
                 <button
                   key={mode.id}
-                  onClick={() => setViewMode(mode.id as any)}
+                  onClick={() => setViewMode(mode.id as ViewMode)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-none cursor-pointer ${
                     viewMode === mode.id
                       ? "bg-blue-600 text-white shadow-lg"
@@ -299,6 +308,7 @@ export default function ContinuousImprovementHub() {
             </div>
           </div>
 
+          {/* PANNEAU DÉROULANT DES FILTRES */}
           {showFilters && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-white/5 animate-in slide-in-from-top-2 duration-500">
               <div className="space-y-2">
@@ -306,7 +316,7 @@ export default function ContinuousImprovementHub() {
                 <select
                   className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-blue-500 text-white italic"
                   value={selectedFilters.source}
-                  onChange={(e) => setSelectedFilters({ ...selectedFilters, source: e.target.value as any })}
+                  onChange={(e) => setSelectedFilters({ ...selectedFilters, source: e.target.value as ActionSource })}
                 >
                   <option value="ALL">Toutes sources</option>
                   <option value="AUDIT_INTERNE">Audit Interne</option>
@@ -323,7 +333,7 @@ export default function ContinuousImprovementHub() {
                 <select
                   className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-blue-500 text-white italic"
                   value={selectedFilters.status}
-                  onChange={(e) => setSelectedFilters({ ...selectedFilters, status: e.target.value as any })}
+                  onChange={(e) => setSelectedFilters({ ...selectedFilters, status: e.target.value as ActionStatus })}
                 >
                   <option value="ALL">Tous statuts</option>
                   <option value="A_FAIRE">À faire</option>
@@ -338,7 +348,7 @@ export default function ContinuousImprovementHub() {
                 <select
                   className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-blue-500 text-white italic"
                   value={selectedFilters.priority}
-                  onChange={(e) => setSelectedFilters({ ...selectedFilters, priority: e.target.value as any })}
+                  onChange={(e) => setSelectedFilters({ ...selectedFilters, priority: e.target.value as ActionPriority })}
                 >
                   <option value="ALL">Toutes priorités</option>
                   <option value="CRITICAL">Critique</option>
@@ -351,10 +361,10 @@ export default function ContinuousImprovementHub() {
           )}
         </div>
 
-        {/* CONTENT PAR VUE */}
+        {/* CONTENT PAR VUE : KANBAN */}
         {viewMode === "kanban" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in duration-500">
-            {["A_FAIRE", "EN_COURS", "A_VALIDER", "TERMINEE"].map((status) => {
+            {(["A_FAIRE", "EN_COURS", "A_VALIDER", "TERMINEE"] as const).map((status) => {
               const statusActions = filteredActions.filter((a) => a.status === status);
               const isLateColumn = status === "A_FAIRE" && statusActions.some((a) => isPast(new Date(a.deadline)));
 
@@ -389,6 +399,7 @@ export default function ContinuousImprovementHub() {
           </div>
         )}
 
+        {/* CONTENT PAR VUE : LISTE */}
         {viewMode === "list" && (
           <div className="bg-slate-900/30 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 duration-500">
             <table className="w-full text-left">
@@ -453,12 +464,17 @@ export default function ContinuousImprovementHub() {
           </div>
         )}
 
+        {/* CONTENT PAR VUE : MATRICE D'EISENHOWER */}
         {viewMode === "matrix" && (
           <div className="bg-slate-900/30 rounded-[4rem] border border-white/5 p-12 shadow-2xl animate-in zoom-in duration-500 overflow-hidden">
-            <h3 className="text-2xl font-black uppercase italic mb-10 flex items-center gap-4 tracking-tighter">
+            <h3 className="text-2xl font-black uppercase italic mb-6 flex items-center gap-4 tracking-tighter">
               <Target className="text-blue-500" size={32} /> Arbitrage Stratégique (Eisenhower Matrix)
             </h3>
-            <div className="grid grid-cols-2 gap-8 h-150">
+            
+            
+            
+            <div className="grid grid-cols-2 gap-8 h-150 mt-8">
+              {/* QUADRANT 1: DO (Urgent & Important) */}
               <div className="bg-red-500/5 border border-red-500/10 rounded-[3rem] p-8 relative overflow-hidden backdrop-blur-md">
                 <div className="absolute top-6 left-6 flex items-center gap-3">
                   <div className="w-8 h-8 bg-red-500/10 rounded-xl flex items-center justify-center border border-red-500/20"><AlertTriangle className="text-red-500" size={16} /></div>
@@ -469,6 +485,7 @@ export default function ContinuousImprovementHub() {
                 </div>
               </div>
 
+              {/* QUADRANT 2: SCHEDULE (Important, Non Urgent) */}
               <div className="bg-blue-500/5 border border-blue-500/10 rounded-[3rem] p-8 relative backdrop-blur-md">
                 <div className="absolute top-6 left-6 flex items-center gap-3">
                   <div className="w-8 h-8 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20"><Calendar className="text-blue-400" size={16} /></div>
@@ -479,6 +496,7 @@ export default function ContinuousImprovementHub() {
                 </div>
               </div>
 
+              {/* QUADRANT 3: DELEGATE (Urgent, Non Important) */}
               <div className="bg-amber-500/5 border border-amber-500/10 rounded-[3rem] p-8 relative backdrop-blur-md">
                 <div className="absolute top-6 left-6 flex items-center gap-3">
                   <div className="w-8 h-8 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20"><Users className="text-amber-400" size={16} /></div>
@@ -489,6 +507,7 @@ export default function ContinuousImprovementHub() {
                 </div>
               </div>
 
+              {/* QUADRANT 4: DELETE (Ni Urgent, Ni Important) */}
               <div className="bg-slate-500/5 border border-slate-500/10 rounded-[3rem] p-8 relative backdrop-blur-md">
                 <div className="absolute top-6 left-6 flex items-center gap-3">
                   <div className="w-8 h-8 bg-slate-500/10 rounded-xl flex items-center justify-center border border-slate-500/20"><Zap className="text-slate-400" size={16} /></div>
@@ -506,9 +525,19 @@ export default function ContinuousImprovementHub() {
   );
 }
 
-// --- SOUS-COMPOSANTS INTERNES ---
+// ============================================================================
+// SOUS-COMPOSANTS INTERNES
+// ============================================================================
 
-function StatCard({ title, value, icon: Icon, color, subtext }: any) {
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: React.ElementType;
+  color: "blue" | "emerald" | "amber" | "red" | "purple" | "orange";
+  subtext: string;
+}
+
+function StatCard({ title, value, icon: Icon, color, subtext }: StatCardProps) {
   const colorClasses = {
     blue: "text-blue-400 bg-blue-500/10 border-blue-500/20",
     emerald: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
@@ -520,7 +549,7 @@ function StatCard({ title, value, icon: Icon, color, subtext }: any) {
 
   return (
     <div className="bg-slate-900/60 border border-white/5 p-8 rounded-[2.5rem] hover:border-blue-500/30 transition-all group shadow-2xl backdrop-blur-md">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border group-hover:scale-110 transition-transform duration-500 ${colorClasses[color as keyof typeof colorClasses]}`}>
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border group-hover:scale-110 transition-transform duration-500 ${colorClasses[color]}`}>
         <Icon size={24} />
       </div>
       <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2 italic leading-none">{title}</p>
@@ -530,7 +559,12 @@ function StatCard({ title, value, icon: Icon, color, subtext }: any) {
   );
 }
 
-function ActionCard({ action, onClick }: { action: ActionItem; onClick: () => void }) {
+interface ActionCardProps {
+  action: ActionItem;
+  onClick: () => void;
+}
+
+function ActionCard({ action, onClick }: ActionCardProps) {
   const isLate = isPast(new Date(action.deadline)) && action.status !== "TERMINEE";
   const daysLeft = differenceInDays(new Date(action.deadline), new Date());
 
@@ -565,8 +599,13 @@ function ActionCard({ action, onClick }: { action: ActionItem; onClick: () => vo
   );
 }
 
-function MiniActionCard({ action }: { action: ActionItem }) {
+interface MiniActionCardProps {
+  action: ActionItem;
+}
+
+function MiniActionCard({ action }: MiniActionCardProps) {
   const priorityColor = action.priority === "CRITICAL" ? "bg-red-500" : action.priority === "HIGH" ? "bg-orange-400" : action.priority === "MEDIUM" ? "bg-blue-400" : "bg-slate-500";
+  
   return (
     <div className="bg-black/40 border border-white/5 p-4 rounded-2xl flex items-center justify-between hover:bg-white/5 hover:border-white/10 transition-all cursor-pointer shadow-md group">
       <div className="flex items-center gap-4 flex-1 truncate">

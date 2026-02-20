@@ -1,4 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/archives/page.tsx
+ * Rôle : Chambre Forte (Coffre-fort numérique) du système SMI Qualisoft.
+ * * Fonctionnalités clés :
+ * 1. Conformité ISO 9001 (§7.5.3) : Assure la traçabilité et la conservation des informations documentées supprimées du système actif.
+ * 2. Visualisation Globale : Affiche un tableau de bord des entités archivées (Documents, Processus, Équipements, Formations).
+ * 3. Filtrage & Recherche : Permet de retrouver une archive spécifique par son nom, sa référence ou son type (via des onglets).
+ * 4. Restauration Souveraine : Offre la possibilité aux administrateurs de "ressusciter" une entité archivée par erreur pour la réintégrer dans le flux actif du SMI.
+ * * Public cible : Administrateurs, Responsables Qualité (RQ), Direction.
+ */
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -6,13 +19,36 @@ import apiClient from '@/core/api/api-client';
 import { 
   Archive, RotateCcw, Search, Database, 
   FileText, GitBranch, Wrench, GraduationCap, 
-  AlertTriangle, Filter, Trash2, ShieldCheck,
-  RefreshCw, Calculator, Activity
+  ShieldCheck, RefreshCw, Activity, LucideIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// --- INTERFACES STRICTES ---
+interface ArchiveItem {
+  id: string;
+  type: 'DOCUMENT' | 'PROCESSUS' | 'EQUIPEMENT' | 'FORMATION' | string;
+  title: string;
+  ref?: string;
+  date: string;
+}
+
+interface StatCardProps {
+  title: string;
+  val: string | number;
+  icon: LucideIcon;
+  color: 'blue' | 'emerald' | 'amber';
+}
+
+interface TabBtnProps {
+  label: string;
+  type: string;
+  active: string;
+  onClick: (type: string) => void;
+  icon: LucideIcon;
+}
+
 export default function ArchivesPage() {
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<ArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('ALL');
@@ -20,10 +56,13 @@ export default function ArchivesPage() {
   const fetchArchives = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/archives');
+      const res = await apiClient.get<ArchiveItem[]>('/archives');
       setData(res.data || []);
-    } catch (e) { toast.error("Échec de connexion à la chambre forte"); }
-    finally { setLoading(false); }
+    } catch (e) { 
+      toast.error("Échec de connexion à la chambre forte"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   useEffect(() => { fetchArchives(); }, []);
@@ -33,12 +72,15 @@ export default function ArchivesPage() {
       await apiClient.post('/archives/restore', { id, type });
       toast.success(`${type} restauré avec succès`);
       fetchArchives();
-    } catch (e) { toast.error("Erreur de restauration"); }
+    } catch (e) { 
+      toast.error("Erreur de restauration"); 
+    }
   };
 
   const filtered = useMemo(() => {
     return data.filter(item => {
-      const matchSearch = item.title.toLowerCase().includes(search.toLowerCase()) || item.ref?.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = item.title.toLowerCase().includes(search.toLowerCase()) || 
+                          (item.ref && item.ref.toLowerCase().includes(search.toLowerCase()));
       const matchTab = activeTab === 'ALL' || item.type === activeTab;
       return matchSearch && matchTab;
     });
@@ -68,7 +110,7 @@ export default function ArchivesPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={16} />
             <input 
               type="text" placeholder="RECHERCHER DANS L'HISTORIQUE..." 
-              className="bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-6 text-[10px] font-black outline-none w-80 focus:border-blue-600 transition-all uppercase italic"
+              className="bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-6 text-[10px] font-black outline-none w-80 focus:border-blue-600 transition-all uppercase italic text-white"
               value={search} onChange={(e) => setSearch(e.target.value)}
             />
           </div>
@@ -112,8 +154,8 @@ export default function ArchivesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filtered.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-blue-600/5 transition-all group">
+                  {filtered.length > 0 ? filtered.map((item, idx) => (
+                    <tr key={item.id || idx} className="hover:bg-blue-600/5 transition-all group">
                       <td className="p-6">
                         <span className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 text-[9px] font-black uppercase text-slate-400">
                           {item.type}
@@ -129,13 +171,19 @@ export default function ArchivesPage() {
                       <td className="p-6 text-right">
                         <button 
                           onClick={() => handleRestore(item.id, item.type)}
-                          className="px-6 py-2.5 bg-blue-600/10 text-blue-500 border border-blue-600/20 rounded-xl text-[9px] font-black uppercase italic hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2 ml-auto"
+                          className="px-6 py-2.5 bg-blue-600/10 text-blue-500 border border-blue-600/20 rounded-xl text-[9px] font-black uppercase italic hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2 ml-auto cursor-pointer"
                         >
                           <RotateCcw size={14} /> Restaurer l&apos;entité
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={4} className="p-10 text-center text-slate-500 font-bold text-xs uppercase italic tracking-widest">
+                        Aucune archive ne correspond à vos critères.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
            </div>
@@ -147,15 +195,18 @@ export default function ArchivesPage() {
 
 // --- SOUS-COMPOSANTS ---
 
-function StatCard({ title, val, icon: Icon, color }: any) {
-  const themes: any = {
+function StatCard({ title, val, icon: Icon, color }: StatCardProps) {
+  const themes: Record<string, string> = {
     blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
     emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
     amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20'
   };
+
+  const themeClass = themes[color] || themes.blue;
+
   return (
     <div className="bg-[#0F172A]/40 border border-white/5 p-5 rounded-[2.5rem] flex items-center gap-6">
-      <div className={`p-4 rounded-2xl ${themes[color]}`}><Icon size={20} /></div>
+      <div className={`p-4 rounded-2xl ${themeClass}`}><Icon size={20} /></div>
       <div>
         <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">{title}</p>
         <p className="text-3xl font-black italic text-white tracking-tighter">{val}</p>
@@ -164,12 +215,12 @@ function StatCard({ title, val, icon: Icon, color }: any) {
   );
 }
 
-function TabBtn({ label, type, active, onClick, icon: Icon }: any) {
+function TabBtn({ label, type, active, onClick, icon: Icon }: TabBtnProps) {
   const isActive = active === type;
   return (
     <button 
       onClick={() => onClick(type)}
-      className={`px-6 py-3 rounded-2xl text-[9px] font-black uppercase italic flex items-center gap-2 transition-all ${isActive ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-500 hover:bg-white/5 hover:text-white'}`}
+      className={`px-6 py-3 rounded-2xl text-[9px] font-black uppercase italic flex items-center gap-2 transition-all cursor-pointer ${isActive ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-500 hover:bg-white/5 hover:text-white'}`}
     >
       <Icon size={14} /> {label}
     </button>

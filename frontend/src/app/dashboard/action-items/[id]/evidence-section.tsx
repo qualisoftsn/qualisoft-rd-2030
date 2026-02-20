@@ -1,12 +1,23 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState } from 'react';
 import { Paperclip, FileText, Trash2, ExternalLink, ShieldCheck } from 'lucide-react';
 
-export default function EvidenceSection({ itemId, initialEvidences = [] }: any) {
-  const [evidences, setEvidences] = useState(initialEvidences);
+interface EvidenceFile {
+  id: string;
+  evidenceTitre: string;
+  evidenceUrl: string;
+  uploadedBy?: { firstName: string };
+}
+
+interface EvidenceSectionProps {
+  itemId: string;
+  initialEvidences?: EvidenceFile[];
+}
+
+export default function EvidenceSection({ itemId, initialEvidences = [] }: EvidenceSectionProps) {
+  const [evidences] = useState<EvidenceFile[]>(initialEvidences);
 
   return (
     <div className="mt-8 bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl">
@@ -24,24 +35,24 @@ export default function EvidenceSection({ itemId, initialEvidences = [] }: any) 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {evidences.length > 0 ? evidences.map((ev: any) => (
+        {evidences.length > 0 ? evidences.map((ev) => (
           <div key={ev.id} className="bg-slate-800 p-5 rounded-3xl border border-slate-700 flex items-center justify-between group">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-slate-700 rounded-2xl text-green-400">
                 <FileText size={20} />
               </div>
               <div>
-                <p className="text-sm font-bold truncate max-w-37.5">{ev.evidenceTitre}</p>
-                <p className="text-[9px] font-black text-slate-500 uppercase italic">Par {ev.uploadedBy?.firstName}</p>
+                <p className="text-sm font-bold truncate max-w-37.5 md:max-w-50">{ev.evidenceTitre}</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase italic">Par {ev.uploadedBy?.firstName || 'Système'}</p>
               </div>
             </div>
             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <a href={ev.evidenceUrl} target="_blank" className="p-2 hover:text-green-400"><ExternalLink size={18}/></a>
+              <a href={ev.evidenceUrl} target="_blank" rel="noreferrer" className="p-2 hover:text-green-400"><ExternalLink size={18}/></a>
               <button className="p-2 hover:text-red-400"><Trash2 size={18}/></button>
             </div>
           </div>
         )) : (
-          <div className="col-span-2 py-10 border-2 border-dashed border-slate-800 rounded-4xl text-center text-slate-600 font-bold uppercase italic text-xs">
+          <div className="col-span-1 md:col-span-2 py-10 border-2 border-dashed border-slate-800 rounded-4xl text-center text-slate-600 font-bold uppercase italic text-xs">
             Aucun document n&apos;a été rattaché à cette action.
           </div>
         )}

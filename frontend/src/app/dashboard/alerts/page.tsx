@@ -1,17 +1,28 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/alerts/page.tsx
+ * Rôle : Cockpit Centralisé des Alertes et Notifications du système SMI.
+ * * Fonctionnalités clés :
+ * 1. Surveillance en Temps Réel : Affiche toutes les alertes (Retards, Échéances, Rappels, Infos).
+ * 2. Indicateurs Clés (KPIs) : Compteurs rapides pour les alertes non lues, critiques, en retard et le flux total.
+ * 3. Filtrage Avancé : Recherche par texte et filtrage par niveau de priorité (Critique, Élevée, etc.).
+ * 4. Gestion Interactive : Permet de "Marquer comme lu" pour nettoyer le flux, ou "d'Acquitter" une alerte (ce qui déclenche automatiquement la création d'une Action Corrective dans le backend).
+ * * Public cible : Pilotes de processus, Responsables Qualité, Direction.
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Bell, CheckCircle, AlertTriangle, Clock, Search, Filter, 
-  MoreVertical, Eye, CheckSquare, RefreshCw, MessageSquare,
-  ShieldAlert, Loader2, Zap
+  Bell, CheckCircle, Clock, Search, 
+  RefreshCw, ShieldAlert, Loader2, Zap
 } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
 import { toast } from 'sonner';
 
-// --- INTERFACE ALIGNÉE SUR LE SCHÉMA PRISMA ---
+// --- INTERFACES SCELLÉES ---
 interface Alert {
   AL_Id: string;
   AL_Title: string;
@@ -20,24 +31,31 @@ interface Alert {
   AL_Priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   AL_Status: 'NEW' | 'UNREAD' | 'READ' | 'ACKNOWLEDGED';
   AL_TriggerDate: string;
-  AL_DueDate: string;
+  AL_DueDate?: string; // Rendue optionnelle car toutes les alertes n'ont pas forcément une date de fin
+}
+
+interface AlertStats {
+  unread: number;
+  critical: number;
+  overdue: number;
+  total: number;
 }
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AlertStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('ALL');
 
   // --- TRADUCTION DES TYPES & PRIORITÉS ---
   const translateType = (type: string) => {
-    const map: any = { 'REMINDER': 'RAPPEL', 'DEADLINE': 'ÉCHÉANCE', 'OVERDUE': 'RETARD', 'INFO': 'INFORMATION' };
+    const map: Record<string, string> = { 'REMINDER': 'RAPPEL', 'DEADLINE': 'ÉCHÉANCE', 'OVERDUE': 'RETARD', 'INFO': 'INFORMATION' };
     return map[type] || type;
   };
 
   const translatePriority = (priority: string) => {
-    const map: any = { 'CRITICAL': 'CRITIQUE', 'HIGH': 'ÉLEVÉE', 'MEDIUM': 'MOYENNE', 'LOW': 'BASSE' };
+    const map: Record<string, string> = { 'CRITICAL': 'CRITIQUE', 'HIGH': 'ÉLEVÉE', 'MEDIUM': 'MOYENNE', 'LOW': 'BASSE' };
     return map[priority] || priority;
   };
 
@@ -46,7 +64,7 @@ export default function AlertsPage() {
     try {
       const [alertsRes, statsRes] = await Promise.all([
         apiClient.get<Alert[]>('/alerts'),
-        apiClient.get('/alerts/stats')
+        apiClient.get<AlertStats>('/alerts/stats')
       ]);
       setAlerts(alertsRes.data);
       setStats(statsRes.data);
@@ -91,14 +109,14 @@ export default function AlertsPage() {
   }, [alerts, searchTerm, filterPriority]);
 
   if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white italic">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white italic ml-72">
       <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
       <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.5em]">Synchronisation Matrix...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans italic selection:bg-blue-100">
+    <div className="min-h-screen bg-slate-50 p-8 font-sans italic selection:bg-blue-100 ml-72">
       
       {/* 🔝 EN-TÊTE DYNAMIQUE */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
@@ -134,7 +152,7 @@ export default function AlertsPage() {
 
       {/* 🔍 FILTRES DE PRÉCISION */}
       <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-white mb-8 flex flex-col md:flex-row gap-6 items-center">
-        <div className="relative flex-1">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
           <input 
             type="text" 
@@ -147,7 +165,7 @@ export default function AlertsPage() {
         <select 
           value={filterPriority} 
           onChange={(e) => setFilterPriority(e.target.value)}
-          className="px-8 py-5 bg-slate-50 border-none rounded-3xl font-black uppercase text-[10px] tracking-widest text-slate-500 outline-none cursor-pointer"
+          className="px-8 py-5 bg-slate-50 border-none rounded-3xl font-black uppercase text-[10px] tracking-widest text-slate-500 outline-none cursor-pointer w-full md:w-auto"
         >
           <option value="ALL">TOUTES LES PRIORITÉS</option>
           <option value="CRITICAL">CRITIQUE</option>
@@ -172,7 +190,7 @@ export default function AlertsPage() {
 
               {/* Contenu */}
               <div className="flex-1 space-y-3">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                   <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">
                     {alert.AL_Title}
                   </h3>
@@ -184,13 +202,13 @@ export default function AlertsPage() {
                 </div>
                 <p className="text-slate-500 font-bold text-sm leading-relaxed max-w-3xl italic">{alert.AL_Message}</p>
                 
-                <div className="flex items-center gap-6 pt-2 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">
+                <div className="flex flex-wrap items-center gap-6 pt-2 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">
                   <span className="flex items-center gap-2"><Clock size={12} /> {translateType(alert.AL_Type)}</span>
-                  <span>•</span>
+                  <span className="hidden md:inline">•</span>
                   <span>Déclenchement : {new Date(alert.AL_TriggerDate).toLocaleDateString()}</span>
                   {alert.AL_DueDate && (
                     <>
-                      <span>•</span>
+                      <span className="hidden md:inline">•</span>
                       <span className="text-rose-500">Échéance : {new Date(alert.AL_DueDate).toLocaleDateString()}</span>
                     </>
                   )}
@@ -198,26 +216,26 @@ export default function AlertsPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-4 self-end lg:self-center">
+              <div className="flex gap-4 self-end lg:self-center w-full lg:w-auto">
                 {alert.AL_Status !== 'ACKNOWLEDGED' && (
                   <>
                     <button 
                       onClick={() => handleMarkAsRead(alert.AL_Id)}
-                      className="p-4 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-2xl transition-all cursor-pointer border-none"
+                      className="p-4 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-2xl transition-all cursor-pointer border-none flex-1 lg:flex-none flex items-center justify-center"
                       title="Marquer comme lu"
                     >
                       <CheckCircle size={20} />
                     </button>
                     <button 
                       onClick={() => handleAcknowledge(alert.AL_Id)}
-                      className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition-all cursor-pointer border-none shadow-lg"
+                      className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition-all cursor-pointer border-none shadow-lg flex-1 lg:flex-none text-center"
                     >
                       Acquitter
                     </button>
                   </>
                 )}
                 {alert.AL_Status === 'ACKNOWLEDGED' && (
-                  <span className="px-6 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center gap-2 italic">
+                  <span className="px-6 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center justify-center gap-2 italic w-full lg:w-auto">
                     <CheckCircle size={14} /> Traité
                   </span>
                 )}

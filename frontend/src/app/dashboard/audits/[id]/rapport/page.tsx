@@ -1,5 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 💡 CE QUE FAIT CETTE PAGE :
+ * --------------------------
+ * Fichier : app/dashboard/audits/[id]/rapport/page.tsx
+ * Rôle : Interface de rédaction et de clôture du rapport d'audit.
+ * * Fonctionnalités clés :
+ * 1. Constats d'Audit : Ajout dynamique de constats (Points forts, Observations, Conformités, Non-Conformités).
+ * 2. Automatisation ISO : Si l'auditeur qualifie un constat en "NC Mineure" ou "NC Majeure", le système prépare automatiquement la déclaration de cette Non-Conformité dans le registre global.
+ * 3. Clôture Sécurisée : Bouton de validation qui transmet le rapport au backend, actant la fin de l'audit.
+ * * Public cible : Auditeurs, Lead Auditeurs.
+ */
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -10,28 +20,46 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-/**
- * PAGE : RAPPORT D'AUDIT
- * Correction du typage useParams pour compatibilité Build Production (Turbopack)
- */
+// --- INTERFACES STRICTES ---
+interface Processus {
+  PR_Libelle: string;
+}
+
+interface AuditDetails {
+  AU_Title: string;
+  AU_Reference: string;
+  AU_Processus?: Processus;
+}
+
+interface Finding {
+  FI_Description: string;
+  FI_Type: 'CONFORMITE' | 'POINT_FORT' | 'OBSERVATION' | 'NC_MINEURE' | 'NC_MAJEURE' | string;
+}
+
+interface NonConformityDraft {
+  index: number;
+  NC_Libelle: string;
+  NC_Description: string;
+  NC_Gravite: 'MAJEURE' | 'MINEURE';
+}
+
 export default function RapportAuditPage() {
-  // 🛡️ Correction : Typage explicite du paramètre d'URL
   const params = useParams();
   const id = params?.id as string; 
-  
   const router = useRouter();
-  const [audit, setAudit] = useState<any>(null);
+  
+  const [audit, setAudit] = useState<AuditDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const [findings, setFindings] = useState<any[]>([{ FI_Description: '', FI_Type: 'CONFORMITE' }]);
-  const [ncs, setNcs] = useState<any[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([{ FI_Description: '', FI_Type: 'CONFORMITE' }]);
+  const [ncs, setNcs] = useState<NonConformityDraft[]>([]);
 
   useEffect(() => {
     const fetchAudit = async () => {
       if (!id) return;
       try {
-        const res = await apiClient.get(`/audits/${id}`);
+        const res = await apiClient.get<AuditDetails>(`/audits/${id}`);
         setAudit(res.data);
       } catch (err) { 
         console.error("Erreur chargement rapport", err);
@@ -45,22 +73,38 @@ export default function RapportAuditPage() {
 
   const addFinding = () => setFindings([...findings, { FI_Description: '', FI_Type: 'CONFORMITE' }]);
   
-  const removeFinding = (idx: number) => setFindings(findings.filter((_, i) => i !== idx));
+  const removeFinding = (idx: number) => {
+    setFindings(findings.filter((_, i) => i !== idx));
+    // Optionnel : Retirer également la NC associée si elle existe
+    setNcs(ncs.filter((n) => n.index !== idx));
+  };
 
-  const updateFinding = (index: number, field: string, value: string) => {
+  const updateFinding = (index: number, field: keyof Finding, value: string) => {
     const newFindings = [...findings];
-    newFindings[index][field] = value;
+    newFindings[index] = { ...newFindings[index], [field]: value };
     setFindings(newFindings);
 
-    if (field === 'FI_Type' && (value === 'NC_MINEURE' || value === 'NC_MAJEURE')) {
-      if (!ncs.find(n => n.index === index)) {
-        setNcs([...ncs, { 
-          index, 
-          NC_Libelle: `Écart: ${audit?.AU_Title || 'Audit'}`, 
-          NC_Description: newFindings[index].FI_Description,
-          NC_Gravite: value === 'NC_MAJEURE' ? 'MAJEURE' : 'MINEURE'
-        }]);
+    if (field === 'FI_Type') {
+      if (value === 'NC_MINEURE' || value === 'NC_MAJEURE') {
+        // Ajoute la NC si elle n'existe pas encore pour cet index
+        if (!ncs.find(n => n.index === index)) {
+          setNcs([...ncs, { 
+            index, 
+            NC_Libelle: `Écart: ${audit?.AU_Title || 'Audit'}`, 
+            NC_Description: newFindings[index].FI_Description,
+            NC_Gravite: value === 'NC_MAJEURE' ? 'MAJEURE' : 'MINEURE'
+          }]);
+        } else {
+          // Met à jour la gravité si elle change entre mineure/majeure
+          setNcs(ncs.map(n => n.index === index ? { ...n, NC_Gravite: value === 'NC_MAJEURE' ? 'MAJEURE' : 'MINEURE' } : n));
+        }
+      } else {
+        // Supprime la NC si le type redevient une conformité/observation
+        setNcs(ncs.filter(n => n.index !== index));
       }
+    } else if (field === 'FI_Description') {
+      // Met à jour la description de la NC en temps réel si elle existe
+      setNcs(ncs.map(n => n.index === index ? { ...n, NC_Description: value } : n));
     }
   };
 
@@ -72,6 +116,7 @@ export default function RapportAuditPage() {
       toast.success("Rapport clôturé et transmis !");
       router.push('/dashboard/audits');
     } catch (err) { 
+      console.error(err);
       toast.error("Erreur lors de la clôture."); 
     } finally { 
       setSubmitting(false); 
@@ -91,7 +136,7 @@ export default function RapportAuditPage() {
       <div className="max-w-6xl mx-auto space-y-10">
         <header className="flex justify-between items-center border-b border-white/5 pb-10">
           <div className="flex items-center gap-6 text-left">
-            <button onClick={() => router.back()} className="p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all text-slate-400">
+            <button onClick={() => router.back()} className="p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all text-slate-400 cursor-pointer">
               <ArrowLeft size={20} />
             </button>
             <div>
@@ -106,7 +151,7 @@ export default function RapportAuditPage() {
           <button 
             onClick={handleSubmitReport} 
             disabled={submitting} 
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-5 rounded-3xl font-black uppercase italic text-xs shadow-2xl flex items-center gap-3 active:scale-95 disabled:opacity-50 transition-all"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-5 rounded-3xl font-black uppercase italic text-xs shadow-2xl flex items-center gap-3 active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
           >
             {submitting ? <Loader2 className="animate-spin" size={16} /> : <Save size={18} />} Clôturer Rapport
           </button>
@@ -117,7 +162,7 @@ export default function RapportAuditPage() {
             <h2 className="text-xl font-black uppercase italic flex items-center gap-3 text-white">
               <FileText className="text-blue-500" /> Constats terrain
             </h2>
-            <button onClick={addFinding} className="bg-blue-600 p-3 rounded-xl transition-all text-white shadow-xl">
+            <button onClick={addFinding} className="bg-blue-600 p-3 rounded-xl transition-all text-white shadow-xl hover:bg-blue-500 cursor-pointer">
               <Plus size={20} />
             </button>
           </div>
@@ -131,13 +176,13 @@ export default function RapportAuditPage() {
                     className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-xs font-bold text-white outline-none focus:border-blue-500 min-h-24 italic"
                     value={f.FI_Description} 
                     onChange={(e) => updateFinding(index, 'FI_Description', e.target.value)} 
-                    placeholder="..." 
+                    placeholder="Saisissez le constat ici..." 
                   />
                 </div>
                 <div className="col-span-3 space-y-3">
                   <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2">Classification</label>
                   <select 
-                    className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-[10px] font-black uppercase outline-none text-blue-400 italic"
+                    className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-[10px] font-black uppercase outline-none text-blue-400 italic cursor-pointer"
                     value={f.FI_Type} 
                     onChange={(e) => updateFinding(index, 'FI_Type', e.target.value)}
                   >
@@ -149,7 +194,7 @@ export default function RapportAuditPage() {
                   </select>
                 </div>
                 <div className="col-span-1 pt-12 text-right">
-                  <button onClick={() => removeFinding(index)} className="text-slate-700 hover:text-red-500 transition-all">
+                  <button onClick={() => removeFinding(index)} className="text-slate-700 hover:text-red-500 transition-all cursor-pointer">
                     <Trash2 size={20} />
                   </button>
                 </div>
@@ -167,9 +212,9 @@ export default function RapportAuditPage() {
               {ncs.map((nc, i) => (
                 <div key={i} className="flex justify-between items-center bg-white/5 p-6 rounded-2xl border border-white/5">
                   <p className="text-[10px] font-bold italic text-slate-300">
-                    &quot;{nc.NC_Description.substring(0, 120)}...&quot;
+                    &quot;{nc.NC_Description.substring(0, 120)}{nc.NC_Description.length > 120 ? '...' : ''}&quot;
                   </p>
-                  <span className="bg-red-600 text-[8px] font-black px-4 py-1.5 rounded-full uppercase italic text-white shadow-xl">
+                  <span className="bg-red-600 text-[8px] font-black px-4 py-1.5 rounded-full uppercase italic text-white shadow-xl shrink-0 ml-4">
                     {nc.NC_Gravite}
                   </span>
                 </div>

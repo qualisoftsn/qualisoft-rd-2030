@@ -1,32 +1,28 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
-  Truck, 
-  UserPlus, 
-  Search, 
-  Globe, 
-  MoreHorizontal, 
-  Loader2, 
-  Building,
-  Mail,
-  X,
-  Save,
-  CheckCircle2,
-  Filter
+  Truck, UserPlus, Search, Globe, MoreHorizontal, 
+  Loader2, Building, Mail, X, CheckCircle2
 } from 'lucide-react';
 
+interface TierEntry {
+  TR_Id: string;
+  TR_Name: string;
+  TR_Type: string;
+  TR_Email?: string;
+  TR_CodeExterne?: string;
+}
+
 export default function TiersRegistryPage() {
-  const [tiers, setTiers] = useState<any[]>([]);
+  const [tiers, setTiers] = useState<TierEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // État du formulaire pour un nouveau tiers
   const [formData, setFormData] = useState({
     TR_Name: '',
     TR_Type: 'CLIENT',
@@ -237,8 +233,8 @@ export default function TiersRegistryPage() {
 }
 
 // COMPOSANT STATS INTERNE
-function StatCard({ count, label, color }: { count: number, label: string, color: string }) {
-  const colorMap: any = {
+function StatCard({ count, label, color }: { count: number, label: string, color: 'blue' | 'emerald' }) {
+  const colorMap = {
     blue: "bg-blue-600/20 text-blue-500 border-blue-500/20",
     emerald: "bg-emerald-500/20 text-emerald-500 border-emerald-500/20"
   };

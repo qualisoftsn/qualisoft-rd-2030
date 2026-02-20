@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -10,10 +9,50 @@ import {
 } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
 
+interface Transaction {
+  TX_Id: string;
+  TX_Status: string;
+  TX_PaymentMethod: string;
+  TX_Reference: string;
+  TX_Amount: number;
+  tenant?: {
+    T_Name: string;
+    T_CeoName: string;
+  };
+}
+
+interface TenantData {
+  T_Transactions: Transaction[];
+}
+
+interface MasterStats {
+  totalRevenue: number;
+  activeCount: number;
+  pendingTrials: number;
+}
+
+interface MasterData {
+  stats: MasterStats;
+  tenants: TenantData[];
+}
+
+interface BackupFile {
+  name: string;
+  date: string;
+  size: string;
+}
+
+interface StatBoxProps {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  color: string;
+}
+
 export default function MasterDashboard() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<MasterData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [backups, setBackups] = useState<any[]>([]);
+  const [backups, setBackups] = useState<BackupFile[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,7 +76,7 @@ export default function MasterDashboard() {
   };
 
   const handleApproveTransaction = async (txId: string) => {
-    if (!confirm("Voulez-vous valider cet encaissement et activer l'accès Élite pour ce client ?")) return;
+    if (!window.confirm("Voulez-vous valider cet encaissement et activer l'accès Élite pour ce client ?")) return;
     setActionLoading(txId);
     try {
       await apiClient.post(`/admin/transactions/${txId}/validate`);
@@ -50,7 +89,7 @@ export default function MasterDashboard() {
     }
   };
 
-  if (loading) return (
+  if (loading || !data) return (
     <div className="h-screen flex flex-col items-center justify-center gap-4 bg-[#0B0F1A]">
       <Loader2 className="animate-spin text-blue-600" size={48} />
       <p className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-500 animate-pulse">Synchronisation avec le Noyau Master...</p>
@@ -103,9 +142,9 @@ export default function MasterDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {data.tenants.flatMap((t: any) => t.T_Transactions)
-                    .filter((tx: any) => tx.TX_Status === 'EN_COURS')
-                    .map((tx: any) => (
+                  {data.tenants.flatMap(t => t.T_Transactions)
+                    .filter(tx => tx.TX_Status === 'EN_COURS')
+                    .map(tx => (
                     <tr key={tx.TX_Id} className="group hover:bg-white/2 transition-all">
                       <td className="py-6">
                         <p className="text-sm font-black text-white uppercase tracking-tighter">{tx.tenant?.T_Name}</p>
@@ -173,7 +212,7 @@ export default function MasterDashboard() {
 }
 
 // COMPOSANT : CARTE STATISTIQUE MASTER
-function StatBox({ label, value, icon: Icon, color }: any) {
+function StatBox({ label, value, icon: Icon, color }: StatBoxProps) {
   return (
     <div className="bg-slate-900/40 border border-white/5 p-6 rounded-4xl min-w-45 backdrop-blur-md">
       <div className="flex items-center gap-3 mb-3">

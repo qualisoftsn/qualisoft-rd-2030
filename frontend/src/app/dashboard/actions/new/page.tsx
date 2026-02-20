@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-//* eslint-disable react/jsx-no-undef */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
-import { Save, X, Target, User, AlertCircle, Calendar, Loader2 } from 'lucide-react';
+import { Save, X, Target, User, Calendar, Loader2 } from 'lucide-react';
+
+interface MatrixUser { U_Id: string; U_FirstName: string; U_LastName: string; }
+interface PAQRecord { PAQ_Id: string; PAQ_Title: string; PAQ_Year: number; }
 
 export default function NewActionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
-  const [paqs, setPaqs] = useState<any[]>([]);
+  const [users, setUsers] = useState<MatrixUser[]>([]);
+  const [paqs, setPaqs] = useState<PAQRecord[]>([]);
 
   const [formData, setFormData] = useState({
     ACT_Title: '',
@@ -25,16 +26,15 @@ export default function NewActionPage() {
   });
 
   useEffect(() => {
-    // Charger les responsables et les PAQ pour les listes déroulantes
     const loadRefs = async () => {
       try {
         const [resU, resP] = await Promise.all([
           apiClient.get('/users'),
-          apiClient.get('/paq') // S'assurer que cette route existe
+          apiClient.get('/paq')
         ]);
         setUsers(resU.data);
         setPaqs(resP.data);
-      } catch (err) { console.error("Erreur refs actions"); }
+      } catch (err) { console.error("Erreur chargement des références actions"); }
     };
     loadRefs();
   }, []);
@@ -73,7 +73,7 @@ export default function NewActionPage() {
         <div className="bg-slate-900/40 border border-white/5 p-10 rounded-[3rem] shadow-2xl space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase text-slate-500 ml-4 tracking-widest">Intitulé de l&apos;action</label>
-            <input required className="w-full bg-white/2 border border-white/5 p-5 rounded-2xl font-bold text-white outline-none focus:border-blue-500" 
+            <input required className="w-full bg-white/5 border border-white/5 p-5 rounded-2xl font-bold text-white outline-none focus:border-blue-500" 
               placeholder="Ex: Mise en place du nouveau protocole SSE..."
               value={formData.ACT_Title} onChange={e => setFormData({...formData, ACT_Title: e.target.value})} />
           </div>
