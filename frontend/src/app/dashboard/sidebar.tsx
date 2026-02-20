@@ -96,6 +96,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Indicateurs de Performance", path: "/dashboard/indicators", icon: BarChart, access: "MANAGER" },
           { title: "Cartographie des Processus", path: "/dashboard/processus", icon: BarChart, access: "MANAGER" },
           { title: "Statistiques", path: "/dashboard/stats", icon: FileText, access: "ALL" },
+          { title: "Observateur", path: "/dashboard/observateur", icon: FileText, access: "ALL" },
         ],
       },
       {
@@ -131,6 +132,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Enquêtes & Satisfaction", path: "/dashboard/quality/surveys", icon: AlertTriangle, access: "ALL" },
           { title: "Revue de Direction", path: "/dashboard/management-review", icon: FileText, access: "ALL" },
           { title: "COPIL - Préparation", path: "/dashboard/gouvernance/copil", icon: FileText, access: "ALL" },
+          { title: "Veille légale - compliance", path: "/dashboard/gouvernance/compliance", icon: FileText, access: "ALL" },
         ],
       },
 
@@ -208,6 +210,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Processus", path: "/dashboard/processus", icon: Zap, access: "ALL" },
           { title: "Collaborateurs", path: "/dashboard/users", icon: Users, access: "ADMIN" },
           { title: "Paramètres Nœud", path: "/dashboard/admin/setup", icon: Settings2, access: "ADMIN" },
+          { title: "Menu Principal", path: "/dashboard/menu", icon: Settings2, access: "ADMIN" },
         ],
       },
     ];
