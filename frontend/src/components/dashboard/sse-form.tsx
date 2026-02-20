@@ -1,48 +1,41 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
+/**
+ * 🛰️ MODULE : SSE INCIDENT REPORT FORM
+ * -------------------------------------------------------------------------
+ * FONCTION : Collecte scellée des incidents et situations dangereuses.
+ * RÔLE : Alimenter le registre légal de l'organisation.
+ * SÉCURITÉ : Validation Zod avant injection dans le SDE du Tenant.
+ */
 
 import React from 'react';
-// 1. On ajoute useWatch et Control pour stabiliser le build Next.js
 import { useForm, SubmitHandler, useWatch, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import apiClient from '@/core/api/api-client';
-import { Loader2, Save, AlertCircle } from 'lucide-react';
+import { Loader2, Save, AlertCircle, Calendar, MapPin, Activity } from 'lucide-react';
+import { toast } from 'sonner';
 
-// Schéma strict
+// Schéma de validation souverain
 const sseSchema = z.object({
-  type: z.string().min(1, "Le type est requis"),
-  dateHeure: z.string().min(1, "La date est requise"),
-  lieu: z.string().min(1, "Le lieu est requis"),
-  description: z.string().min(10, "Description trop courte"),
+  type: z.string().min(1, "Type d'événement obligatoire"),
+  dateHeure: z.string().min(1, "Horodatage requis"),
+  lieu: z.string().min(1, "Périmètre géographique requis"),
+  description: z.string().min(10, "La description doit être circonstanciée"),
   avecArret: z.boolean(),
-  nbJoursArret: z.number(),
-  causesImmediates: z.string()
+  nbJoursArret: z.number().min(0),
+  causesImmediates: z.string().optional()
 });
 
-interface SSEFormData {
-  type: string;
-  dateHeure: string;
-  lieu: string;
-  description: string;
-  avecArret: boolean;
-  nbJoursArret: number;
-  causesImmediates: string;
-}
+type SSEFormData = z.infer<typeof sseSchema>;
 
 export function SSEForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // 2. On récupère "control" pour useWatch
-  const { 
-    register, 
-    handleSubmit, 
-    control, // Ajouté pour useWatch
-    formState: { errors } 
-  } = useForm<SSEFormData>({
+  const { register, handleSubmit, control, formState: { errors } } = useForm<SSEFormData>({
     resolver: zodResolver(sseSchema),
     defaultValues: {
       type: '',
@@ -55,87 +48,91 @@ export function SSEForm() {
     }
   });
 
-  // 3. LIGNE 60 CORRIGÉE : On utilise useWatch pour éviter l'erreur de mémorisation
-  // Cela sépare l'observation du champ de la logique principale de useForm
-  const avecArret = useWatch({
-    control,
-    name: "avecArret",
-  });
+  // Observation isolée du champ 'avecArret' pour l'affichage conditionnel
+  const avecArret = useWatch({ control, name: "avecArret" });
 
+  /**
+   * 🚀 MUTATION KERNEL
+   * Envoie le rapport au micro-service SSE du tenant actif.
+   */
   const mutation = useMutation({
     mutationFn: async (newReport: SSEFormData) => {
       const { data } = await apiClient.post('/sse/report', newReport);
       return data;
     },
     onSuccess: () => {
+      toast.success("Rapport SSE scellé au registre");
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       router.push('/dashboard');
       router.refresh();
     },
+    onError: () => {
+      toast.error("Échec de la transmission au noyau");
+    }
   });
 
-  const onSubmit: SubmitHandler<SSEFormData> = (data) => {
-    mutation.mutate(data);
-  };
+  const onSubmit: SubmitHandler<SSEFormData> = (data) => mutation.mutate(data);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 italic">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
-        {/* TYPE */}
-        <div className="space-y-2">
-          <label className="text-sm font-black text-slate-700 uppercase">Type d&apos;événement</label>
+        {/* TYPE D'ÉVÉNEMENT */}
+        <div className="space-y-3">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 flex items-center gap-2">
+            <Activity size={12} /> Nature du sinistre
+          </label>
           <select 
             {...register('type')}
-            className={`w-full p-4 bg-slate-50 border ${errors.type ? 'border-red-500' : 'border-slate-200'} rounded-2xl outline-none focus:ring-2 focus:ring-blue-500`}
+            className={`w-full p-5 bg-slate-50 border-2 ${errors.type ? 'border-red-500' : 'border-slate-100'} rounded-3xl font-bold outline-none focus:border-blue-500 transition-all text-sm uppercase`}
           >
-            <option value="">Sélectionnez...</option>
+            <option value="">-- CHOISIR --</option>
             <option value="ACCIDENT_TRAVAIL">Accident du Travail</option>
             <option value="SITUATION_DANGEREUSE">Situation Dangereuse</option>
             <option value="INCIDENT_ENVIRONNEMENTAL">Incident Environnemental</option>
           </select>
-          {errors.type && <p className="text-red-500 text-xs font-bold mt-1">{errors.type.message}</p>}
         </div>
 
         {/* DATE & HEURE */}
-        <div className="space-y-2">
-          <label className="text-sm font-black text-slate-700 uppercase">Date & Heure</label>
-          <input type="datetime-local" {...register('dateHeure')} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" />
+        <div className="space-y-3">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 flex items-center gap-2">
+            <Calendar size={12} /> Horodatage scellé
+          </label>
+          <input type="datetime-local" {...register('dateHeure')} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-3xl font-bold outline-none text-sm" />
         </div>
 
         {/* LIEU */}
-        <div className="md:col-span-2 space-y-2">
-          <label className="text-sm font-black text-slate-700 uppercase">Lieu précis</label>
-          <input {...register('lieu')} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" />
-          {errors.lieu && <p className="text-red-500 text-xs font-bold">{errors.lieu.message}</p>}
+        <div className="md:col-span-2 space-y-3">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 flex items-center gap-2">
+            <MapPin size={12} /> Localisation précise (§45001)
+          </label>
+          <input {...register('lieu')} placeholder="EX: ZONE DE STOCKAGE SUD..." className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-3xl font-bold outline-none text-sm uppercase" />
         </div>
 
         {/* DESCRIPTION */}
-        <div className="md:col-span-2 space-y-2">
-          <label className="text-sm font-black text-slate-700 uppercase">Description</label>
-          <textarea {...register('description')} rows={4} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" />
-          {errors.description && <p className="text-red-500 text-xs font-bold">{errors.description.message}</p>}
+        <div className="md:col-span-2 space-y-3">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Circonstances de l&apos;événement</label>
+          <textarea {...register('description')} rows={4} placeholder="DÉCRIRE LES FAITS DE MANIÈRE OBJECTIVE..." className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-4xl font-bold outline-none text-sm italic" />
         </div>
 
-        {/* OPTIONS ARRÊT */}
-        <div className="md:col-span-2 p-6 bg-blue-50 rounded-3xl flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        {/* GESTION DES ARRÊTS (§ SÉCURITÉ SOCIALE) */}
+        <div className="md:col-span-2 p-8 bg-blue-600/5 border-2 border-blue-600/10 rounded-[2.5rem] flex items-center justify-between group">
+          <label className="flex items-center gap-4 cursor-pointer">
             <input 
               type="checkbox" 
               {...register('avecArret')} 
-              className="h-6 w-6 text-blue-600 border-slate-300 rounded-lg focus:ring-blue-500 cursor-pointer" 
+              className="h-6 w-6 text-blue-600 border-slate-300 rounded-lg focus:ring-blue-500" 
             />
-            <span className="font-bold text-slate-900 uppercase text-sm">Avec arrêt de travail ?</span>
-          </div>
+            <span className="font-black text-slate-900 uppercase text-xs italic tracking-tighter">Impact sur la continuité de service (Arrêt)</span>
+          </label>
           
-          {/* L'affichage conditionnel utilise maintenant la valeur stable de useWatch */}
           {avecArret && (
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-blue-700">JOURS :</label>
+            <div className="flex items-center gap-4 animate-in slide-in-from-right duration-300">
+              <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Nb Jours :</span>
               <input 
                 type="number" 
                 {...register('nbJoursArret', { valueAsNumber: true })}
-                className="w-24 p-2 bg-white border border-blue-200 rounded-xl text-center font-bold outline-none"
+                className="w-24 p-3 bg-white border-2 border-blue-200 rounded-xl text-center font-black outline-none text-blue-600"
               />
             </div>
           )}
@@ -145,17 +142,11 @@ export function SSEForm() {
       <button 
         type="submit" 
         disabled={mutation.isPending}
-        className="w-full py-5 bg-slate-900 text-white rounded-4xl font-black uppercase tracking-widest shadow-xl hover:bg-blue-600 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+        className="w-full py-6 bg-slate-950 text-white rounded-4xl font-black uppercase tracking-[0.3em] shadow-2xl hover:bg-blue-600 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:opacity-50 border-none cursor-pointer"
       >
         {mutation.isPending ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-        {mutation.isPending ? 'ENREGISTREMENT...' : 'Valider la déclaration SSE'}
+        {mutation.isPending ? 'SCELLEMENT EN COURS...' : 'Valider la déclaration SSE'}
       </button>
-
-      {mutation.isError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm font-bold flex items-center gap-2">
-          <AlertCircle size={18} /> Erreur de connexion au noyau.
-        </div>
-      )}
     </form>
   );
 }

@@ -97,6 +97,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Cartographie des Processus", path: "/dashboard/processus", icon: BarChart, access: "MANAGER" },
           { title: "Statistiques", path: "/dashboard/stats", icon: FileText, access: "ALL" },
           { title: "Observateur", path: "/dashboard/observateur", icon: FileText, access: "ALL" },
+          { title: "Cockpit Exécutif SMI", path: "/dashboard/smi-global", icon: FileText, access: "ALL" },
         ],
       },
       {
@@ -119,6 +120,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Actifs & Assets", path: "/dashboard/equipment", icon: AlertTriangle, access: "ALL" },
           { title: "Tiers - Partenaires", path: "/dashboard/tiers", icon: FileText, access: "ALL" },
           { title: "Plan de Continuité - PCA", path: "/dashboard/process-review", icon: FileText, access: "ALL" },
+          { title: "Veille réglementaire & conformité", path: "/dashboard/requirements", icon: FileText, access: "ALL" },
         ],
       },
       {
@@ -176,7 +178,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
           { title: "Ressources humaines", path: "/dashboard/rh", icon: Zap, access: "ALL" },
           { title: "Formations", path: "/dashboard/formations", icon: Zap, access: "ALL" },
           { title: "Conformité", path: "/dashboard/gouvernance/compliance", icon: Zap, access: "ALL" },
-          { title: "Certifications", path: "/dashboard/tb-certif", icon: Zap, access: "ALL" },
+          { title: "Pilotage Certifications", path: "/dashboard/tb-certif", icon: Zap, access: "ALL" },
           { title: "Exigences", path: "/dashboard/requirements", icon: AlertTriangle, access: "ALL" },
           
         ],
@@ -187,7 +189,7 @@ export default function Sidebar({ user, isSuperAdmin }: { user: SidebarUser; isS
         label: "🛡️ SENEGAL LEGAL",
         icon: ShieldAlert,
         items: [
-          { title: "Légal", path: "/dashboard/senegal-legal", icon: Zap, access: "ALL" },
+          { title: "Regsitre Conformité légal", path: "/dashboard/senegal-legal", icon: Zap, access: "ALL" },
           { title: "ISO 9001", path: "/dashboard/checklists/iso9001", icon: Zap, access: "ALL" },
           { title: "ISO 14001", path: "/dashboard/checklists/iso14001", icon: FileText, access: "ALL" },
           { title: "Certifications", path: "/dashboard/tb-certif", icon: Zap, access: "ALL" },

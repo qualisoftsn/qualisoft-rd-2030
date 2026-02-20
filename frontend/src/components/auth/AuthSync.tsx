@@ -1,49 +1,68 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 🛰️ MODULE : AuthSync
+ * -------------------------------------------------------------------------
+ * FONCTION : Synchronisation bidirectionnelle NextAuth <-> Zustand Matrix Store.
+ * RÔLE : Injection des claims de session dans le store global pour l'isolation.
+ * SÉCURITÉ : Scellage du token et identification du périmètre Tenant.
+ */
+
 'use client';
 
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { useAuthStore, AuthUser } from "@/store/authStore"; // On importe le type du Store
+import { useAuthStore, AuthUser } from "@/store/authStore";
 import { Loader2 } from "lucide-react";
 
 export default function AuthSync({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   
-  // ✅ CORRECTION : On récupère uniquement setLogin qui est exposé par ton Store
+  // Accès aux méthodes de persistence du store souverain
   const setLogin = useAuthStore((state) => state.setLogin);
   const isAuthenticated = useAuthStore((state) => !!state.token);
 
   useEffect(() => {
-    // Si NextAuth est connecté MAIS que le Store Zustand est vide...
+    /**
+     * 🔐 PROTOCOLE D'INJECTION MATRIX
+     * Se déclenche dès que NextAuth valide la session mais que le store Matrix est vide.
+     */
     if (status === "authenticated" && session && !isAuthenticated) {
       
       const token = (session as any).accessToken;
-      const user = session.user as any; // On force le type car on sait ce qu'on reçoit de route.ts
+      const user = session.user as any; 
 
       if (token && user) {
-        console.log("🔄 [SYNC] Injection de l'identité Matrix dans le Store...");
-        
-        // 1. On construit l'objet User strict pour satisfaire TypeScript
+        // Validation de la présence du TenantId pour l'isolation multi-tenant
+        if (!user.tenantId && user.U_Role !== 'SUPER_ADMIN') {
+          console.error("🚨 [CRITICAL] Tentative de session sans ancrage organisationnel.");
+          return;
+        }
+
+        // 1. Construction de l'identité Matrix conforme au SMI
         const matrixUser: AuthUser = {
           U_Id: user.U_Id || user.id,
           U_Email: user.email || user.U_Email,
-          U_FirstName: user.U_FirstName,
-          U_LastName: user.U_LastName,
+          U_FirstName: user.U_FirstName || "",
+          U_LastName: user.U_LastName || "",
           U_Role: user.U_Role,
           tenantId: user.tenantId,
           U_TenantName: user.U_TenantName || "Organisation",
           assignedProcessId: user.assignedProcessId
         };
 
-        // 2. On appelle la méthode unique du Store
+        console.log(`🔄 [SYNC] Scellage session pour : ${matrixUser.U_Email} (Tenant: ${matrixUser.tenantId})`);
+        
+        // 2. Hydratation du Store global (Zustand)
         setLogin({
           token: token,
           user: matrixUser
         });
 
-        // 3. On force le LocalStorage pour l'API Client (Ceinture de sécurité)
+        // 3. Persistence physique (Ceinture de sécurité pour les appels API hors-React)
         localStorage.setItem('token', token);
+        localStorage.setItem('qs_tenant_id', user.tenantId); // Stockage explicite du tenant
+        
         if (user.U_Role === 'SUPER_ADMIN') {
             localStorage.setItem('master_token', token);
         }
@@ -51,9 +70,9 @@ export default function AuthSync({ children }: { children: React.ReactNode }) {
     }
   }, [session, status, isAuthenticated, setLogin]);
 
-  // Optionnel : Petit loader pendant la synchro (évite le flash de contenu non-connecté)
+  // Protection du rendu pendant la phase de vérification du jeton
   if (status === "loading") {
-      return null; // Ou un spinner <Loader2 ... />
+      return null;
   }
 
   return <>{children}</>;

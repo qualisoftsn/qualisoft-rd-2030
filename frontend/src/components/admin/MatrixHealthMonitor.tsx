@@ -1,4 +1,11 @@
 "use client";
+/**
+ * 🛰️ MODULE : MATRIX HEALTH MONITOR
+ * -------------------------------------------------------------------------
+ * FONCTION : Surveillance proactive de l'infrastructure multi-tenant.
+ * RÔLE : Diagnostic en temps réel de la latence, de la BDD et de la charge Kernel.
+ * SÉCURITÉ : Vue "Souveraine" réservée aux administrateurs Matrix.
+ */
 
 import React, { useState, useEffect } from "react";
 import { 
@@ -6,9 +13,6 @@ import {
   Terminal, Server, LucideIcon, RefreshCw 
 } from "lucide-react";
 
-/**
- * 🛰️ INTERFACE DES MÉTRIQUES SYSTÈME
- */
 interface MatrixMetrics {
   apiLatency: string;
   dbStatus: "SCELLÉ" | "SYNCHRO" | "MAINTENANCE";
@@ -19,11 +23,12 @@ interface MatrixMetrics {
 
 /**
  * 🧩 COMPOSANT INTERNE : CARTE DE STATUT HAUTE-VISIBILITÉ
+ * Affiche une métrique système avec un indicateur de tendance dynamique.
  */
 const MetricCard = ({ icon: Icon, label, value, color, trend }: { 
   icon: LucideIcon, label: string, value: string | number, color: string, trend?: string 
 }) => (
-  <div className="bg-white p-6 rounded-4xl border-2 border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-500 transition-all group relative overflow-hidden">
+  <div className="bg-white p-6 rounded-4xl border-2 border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-500 transition-all group relative overflow-hidden text-left">
     <div className={`absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity ${color}`}>
       <Icon size={120} />
     </div>
@@ -42,21 +47,21 @@ const MetricCard = ({ icon: Icon, label, value, color, trend }: {
   </div>
 );
 
-/**
- * 🏛️ UNITÉ DE SURVEILLANCE SOUVERAINE
- */
 export default function MatrixHealthMonitor() {
   const [metrics, setMetrics] = useState<MatrixMetrics>({
     apiLatency: "22ms",
     dbStatus: "SCELLÉ",
     activeSessions: 42,
     cpuUsage: "12%",
-    nodesActive: 0
+    nodesActive: 5
   });
 
   const [logs, setLogs] = useState<{time: string, msg: string, type: 'success' | 'info' | 'warn'}[]>([]);
 
-  // Simulation du monitoring dynamique (Prêt pour intégration API réelle)
+  /**
+   * 🔄 NEURO-SYCHRONISATION
+   * Simulation active des métriques pour un cockpit vivant et réactif.
+   */
   useEffect(() => {
     const updateMetrics = () => {
       setMetrics(prev => ({
@@ -72,7 +77,7 @@ export default function MatrixHealthMonitor() {
       setLogs(prev => [{ time, msg, type }, ...prev].slice(0, 5));
     };
 
-    // Initialisation
+    // LOGS D'INITIALISATION SOUVERAINE
     addLog("Initialisation du Neuro-Cortex Matrix...", "success");
     addLog("Synchronisation avec les nœuds SDE et PAD établie.", "info");
 
@@ -83,74 +88,55 @@ export default function MatrixHealthMonitor() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 font-sans italic">
       
-      {/* --- HEADER SOC --- */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-4 border-slate-50 pb-8">
+      {/* HEADER DU SOC (Security Operations Center) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-4 border-slate-50 pb-8 text-left">
         <div>
           <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter flex items-center gap-4">
             <Activity className="text-blue-600 animate-pulse" size={40} /> 
             Matrix <span className="text-blue-600 underline">Health</span> Monitor
           </h2>
           <p className="text-[11px] font-black uppercase text-slate-400 tracking-[0.4em] mt-3 pl-1">
-            Diagnostic souverain du noyau Qualisoft Elite RD 2030
+            Diagnostic souverain du noyau Qualisoft Elite RD 2026
           </p>
         </div>
         
         <div className="flex items-center gap-4">
             <div className="hidden md:flex flex-col items-end">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Uptime Global</span>
-                <span className="text-sm font-black text-slate-900">99.99% SANS INTERRUPTION</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Uptime Global</span>
+                <span className="text-sm font-black text-slate-900 uppercase italic tracking-tighter">99.99% sans interruption</span>
             </div>
             <div className="bg-emerald-500 px-8 py-4 rounded-3xl flex items-center gap-3 shadow-xl shadow-emerald-500/20">
                 <div className="w-3 h-3 bg-white rounded-full animate-ping" />
-                <span className="text-xs font-black text-white uppercase tracking-widest">Système Scellé</span>
+                <span className="text-xs font-black text-white uppercase tracking-widest italic">Système Scellé</span>
             </div>
         </div>
       </div>
 
-      {/* --- GRILLE DE MÉTRIQUES --- */}
+      {/* GRILLE DES KPI SYSTÈME */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard 
-          icon={Globe} label="Latence Backbone" 
-          value={metrics.apiLatency} color="text-blue-600" trend="-2ms" 
-        />
-        <MetricCard 
-          icon={Database} label="État Base de Données" 
-          value={metrics.dbStatus} color="text-emerald-600" 
-        />
-        <MetricCard 
-          icon={Cpu} label="Charge Kernel" 
-          value={metrics.cpuUsage} color="text-orange-600" trend="STABLE" 
-        />
-        <MetricCard 
-          icon={Zap} label="Sessions Concurrentes" 
-          value={metrics.activeSessions} color="text-indigo-600" 
-        />
+        <MetricCard icon={Globe} label="Latence Backbone" value={metrics.apiLatency} color="text-blue-600" trend="-2ms" />
+        <MetricCard icon={Database} label="État Base de Données" value={metrics.dbStatus} color="text-emerald-600" />
+        <MetricCard icon={Cpu} label="Charge Kernel" value={metrics.cpuUsage} color="text-orange-600" trend="STABLE" />
+        <MetricCard icon={Zap} label="Sessions Concurrentes" value={metrics.activeSessions} color="text-indigo-600" />
       </div>
 
-      {/* --- CONSOLE D'AUDIT ET INFRA --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* TERMINAL LOGS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
+        {/* CONSOLE DE LOGS MASTER */}
         <div className="lg:col-span-2 bg-slate-950 rounded-[2.5rem] p-8 text-white relative border-4 border-slate-900 shadow-2xl overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
              <ShieldCheck size={180} />
           </div>
-          
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-blue-500 flex items-center gap-3">
               <Terminal size={18} /> Console d&apos;Audit en Temps Réel
             </h3>
             <RefreshCw size={14} className="text-slate-700 animate-spin-slow" />
           </div>
-
           <div className="space-y-3 font-mono text-[12px] relative z-10">
             {logs.map((log, i) => (
               <div key={i} className="flex gap-4 animate-in slide-in-from-left duration-300">
                 <span className="text-slate-600 shrink-0">[{log.time}]</span>
-                <span className={`font-bold uppercase shrink-0 ${
-                  log.type === 'success' ? 'text-emerald-500' : 
-                  log.type === 'warn' ? 'text-orange-500' : 'text-blue-400'
-                }`}>
+                <span className={`font-bold uppercase shrink-0 ${log.type === 'success' ? 'text-emerald-500' : log.type === 'warn' ? 'text-orange-500' : 'text-blue-400'}`}>
                   {log.type === 'success' ? '✓ OK' : log.type === 'warn' ? '⚠ WARN' : 'ℹ INFO'} :
                 </span>
                 <span className="text-slate-300 italic truncate">{log.msg}</span>
@@ -163,36 +149,33 @@ export default function MatrixHealthMonitor() {
           </div>
         </div>
 
-        {/* CLUSTER MONITOR */}
+        {/* CLUSTER MONITOR INFRASTRUCTURE */}
         <div className="bg-white rounded-[2.5rem] p-10 border-4 border-slate-50 shadow-xl flex flex-col justify-between group">
           <div>
             <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-8 italic">État de l&apos;Infrastructure</h3>
             <div className="space-y-8">
               <div className="flex justify-between items-end">
                 <div>
-                    <p className="text-6xl font-black text-slate-900 tracking-tighter leading-none">05</p>
-                    <p className="text-[10px] font-black uppercase text-blue-600 mt-2 tracking-widest">Nœuds Clients Actifs</p>
+                    <p className="text-6xl font-black text-slate-900 tracking-tighter leading-none italic">0{metrics.nodesActive}</p>
+                    <p className="text-[10px] font-black uppercase text-blue-600 mt-2 tracking-widest italic">Nœuds Clients Actifs</p>
                 </div>
                 <Server className="text-slate-100 group-hover:text-blue-100 transition-colors" size={60} />
               </div>
-
               <div className="space-y-2">
                 <div className="flex justify-between text-[9px] font-black uppercase italic">
-                    <span className="text-slate-400">Capacité Serveur</span>
+                    <span className="text-slate-400">Capacité Serveur Globale</span>
                     <span className="text-slate-900">68%</span>
                 </div>
-                <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden p-1 border border-slate-200">
+                <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden p-1 border border-slate-200 shadow-inner">
                    <div className="h-full bg-blue-600 rounded-full shadow-[0_0_12px_rgba(37,99,235,0.6)] transition-all duration-1000" style={{ width: '68%' }} />
                 </div>
               </div>
             </div>
           </div>
-
-          <button className="w-full py-5 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.3em] hover:bg-blue-600 transition-all cursor-pointer shadow-lg shadow-slate-900/20 active:scale-95 mt-8">
+          <button className="w-full py-5 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.3em] hover:bg-blue-600 transition-all cursor-pointer shadow-lg shadow-slate-900/20 active:scale-95 mt-8 border-none italic">
               Lancer Scan Complet
           </button>
         </div>
-
       </div>
     </div>
   );

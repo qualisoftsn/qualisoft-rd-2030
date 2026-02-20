@@ -1,47 +1,68 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
+/**
+ * 👤 MODULE : USER NAVIGATION (L'IDENTITÉ MATRICIELLE)
+ * -------------------------------------------------------------------------
+ * FONCTION : Affichage du profil utilisateur et de son accréditation (Rôle).
+ * RÔLE : Identifier le citoyen actif dans l'instance du Tenant.
+ * PHILOSOPHIE : Design Elite, typographie souveraine, chargement asynchrone protégé.
+ */
+
 import React, { useEffect, useState } from 'react';
-import { User as UserIcon } from 'lucide-react';
+import { User as UserIcon, ShieldCheck } from 'lucide-react';
 
 export default function UserNav() {
   const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
+    // 🧬 Extraction du scellé utilisateur depuis le stockage local
     const stored = localStorage.getItem('user');
     if (stored) {
       try {
         setUserData(JSON.parse(stored));
       } catch (e) {
-        console.error("Erreur storage");
+        console.error("Erreur de déchiffrement du profil local");
       }
     }
   }, []);
 
-  // Si pas encore chargé, on affiche un squelette simple
+  // 🦴 SQUELETTE DE CHARGEMENT (Évite le Cumulative Layout Shift)
   if (!userData) return (
-    <div className="flex items-center gap-3 opacity-50">
-      <div className="w-8 h-3 bg-slate-200 rounded animate-pulse" />
-      <div className="w-10 h-10 bg-slate-100 rounded-full animate-pulse" />
+    <div className="flex items-center gap-4 opacity-30 animate-pulse">
+      <div className="flex flex-col items-end gap-1">
+        <div className="w-24 h-3 bg-slate-300 rounded-full" />
+        <div className="w-16 h-2 bg-slate-200 rounded-full" />
+      </div>
+      <div className="w-11 h-11 bg-slate-200 rounded-2xl" />
     </div>
   );
 
+  // Génération des initiales pour l'avatar de secours
   const initials = `${userData.U_FirstName?.[0] || ''}${userData.U_LastName?.[0] || ''}`.toUpperCase();
 
   return (
-    <div className="flex items-center gap-3 cursor-pointer group">
+    <div className="flex items-center gap-4 cursor-pointer group select-none italic">
+      {/* MÉTADONNÉES DE L'AGENT */}
       <div className="text-right hidden sm:block">
-        <p className="text-xs font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase italic">
+        <p className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tighter leading-none">
           {userData.U_FirstName} {userData.U_LastName}
         </p>
-        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">
-          {userData.U_Role === 'ADMIN' ? 'Responsable Qualité' : userData.U_Role} • ELITE
-        </p>
+        <div className="flex items-center justify-end gap-1.5 mt-1.5">
+          <ShieldCheck size={10} className="text-blue-500" />
+          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest leading-none">
+            {userData.U_Role === 'ADMIN' ? 'Responsable Qualité' : userData.U_Role} • ELITE
+          </p>
+        </div>
       </div>
-      <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg border border-white/10">
-        {initials || <UserIcon size={20} />}
+
+      {/* AVATAR SOUVERAIN */}
+      <div className="w-11 h-11 bg-slate-950 text-white rounded-2xl flex items-center justify-center font-black text-sm shadow-xl border border-white/5 group-hover:bg-blue-600 group-hover:scale-105 transition-all duration-300">
+        <span className="group-hover:animate-pulse">
+          {initials || <UserIcon size={20} />}
+        </span>
       </div>
     </div>
   );
