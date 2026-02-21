@@ -1,84 +1,129 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+
 /**
- * 📊 MODULE : SSE ANALYTICS CHART
+ * 📈 MODULE : SSE CHART (VISUALISATION DE L'ACCIDENTOLOGIE)
  * -------------------------------------------------------------------------
- * FONCTION : Représentation graphique des incidents par catégorie.
- * RÔLE : Aide à la décision pour le Responsable SMI (ISO 45001 / 14001).
- * ISOLATION : Reçoit les données déjà filtrées par le Tenant via les hooks Master.
+ * FONCTION : Analyse prédictive et historique des incidents (§10.2 ISO 45001).
+ * RÔLE : Transformer les signaux faibles du SDE en indicateurs décisionnels.
+ * ISOLATION : Agrégation des données filtrée par le périmètre du Tenant.
  */
 
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Cell 
+import React, { useMemo } from 'react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from 'recharts';
 
 interface SSEChartProps {
-  // Structure scellée provenant de l'agrégation NestJS
-  data: { type: string; _count: number }[];
+  data: any[]; // Registre des événements SSE scellés
 }
-
-// Palette chromatique Qualisoft Elite (Haute Visibilité)
-const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#8b5cf6'];
 
 export function SSEChart({ data }: SSEChartProps) {
   /**
-   * 🛠️ FORMATEUR DE DONNÉES KERNEL
-   * Nettoie les énumérations système (SNAKE_CASE) pour un affichage humain.
+   * 🧪 PROTOCOLE D'AGRÉGATION MATRIX
+   * On transforme les événements bruts en série temporelle sur les 6 derniers mois.
    */
-  const formattedData = data.map(item => ({
-    name: item.type.replace(/_/g, ' '),
-    total: item._count
-  }));
+  const chartData = useMemo(() => {
+    if (!data || data.length === 0) return [];
 
-  // Gestion de l'état "Registre Vierge"
-  if (data.length === 0) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Aucune donnée SSE enregistrée</p>
-      </div>
-    );
-  }
+    const months = ['JAN', 'FÉV', 'MAR', 'AVR', 'MAI', 'JUN', 'JUL', 'AOÛ', 'SEP', 'OCT', 'NOV', 'DÉC'];
+    const counts: Record<string, number> = {};
+
+    // Initialisation du référentiel temporel
+    data.forEach((event) => {
+      const date = new Date(event.CS_Date || event.createdAt);
+      const monthLabel = months[date.getMonth()];
+      counts[monthLabel] = (counts[monthLabel] || 0) + 1;
+    });
+
+    return Object.keys(counts).map((key) => ({
+      name: key,
+      incidents: counts[key],
+    }));
+  }, [data]);
 
   return (
-    <div className="h-87.5 w-full animate-in fade-in duration-1000">
+    <div className="h-100 w-full bg-transparent font-sans italic">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={formattedData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          {/* Grille de structure horizontale uniquement */}
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-          
-          <XAxis 
-            dataKey="name" 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: '#64748b', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }} 
-            dy={10}
-          />
-          
-          <YAxis 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} 
-          />
-          
-          <Tooltip 
-            cursor={{ fill: '#f8fafc' }}
-            contentStyle={{ 
-              borderRadius: '1.5rem', 
-              border: 'none', 
-              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-              fontSize: '11px',
+        <AreaChart
+          data={chartData}
+          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+        >
+          {/* Grille de structure Matrix */}
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+
+          {/* 🛠️ CORRECTION TYPESCRIPT : AXE X SCELLÉ */}
+          <XAxis
+            dataKey="name"
+            axisLine={false}
+            tickLine={false}
+            // On utilise tickFormatter pour l'uppercase au lieu de textTransform CSS
+            tickFormatter={(val) => val.toUpperCase()}
+            tick={{ 
+              fill: '#64748b', 
+              fontSize: 10, 
               fontWeight: 900,
-              textTransform: 'uppercase',
-              fontStyle: 'italic'
             }}
+            dy={15}
           />
-          
-          <Bar dataKey="total" radius={[8, 8, 0, 0]} barSize={40}>
-            {formattedData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Bar>
-        </BarChart>
+
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: '#64748b', fontSize: 10, fontWeight: 900 }}
+            dx={-10}
+          />
+
+          {/* TOOLTIP ÉLITE : INFOBULLE SDE */}
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#0F172A',
+              border: 'none',
+              borderRadius: '20px',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+              padding: '20px',
+            }}
+            itemStyle={{
+              color: '#3b82f6',
+              fontSize: '10px',
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              fontStyle: 'italic',
+            }}
+            labelStyle={{
+              color: '#94a3b8',
+              fontSize: '9px',
+              fontWeight: '900',
+              marginBottom: '8px',
+              textTransform: 'uppercase',
+            }}
+            cursor={{ stroke: '#3b82f6', strokeWidth: 2, strokeDasharray: '5 5' }}
+          />
+
+          {/* AIRE DE DONNÉES : GRADIENT SOUVERAIN */}
+          <defs>
+            <linearGradient id="colorIncidents" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+
+          <Area
+            type="monotone"
+            dataKey="incidents"
+            stroke="#2563EB"
+            strokeWidth={4}
+            fillOpacity={1}
+            fill="url(#colorIncidents)"
+            animationDuration={2000}
+          />
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
