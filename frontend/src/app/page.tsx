@@ -24,7 +24,8 @@ import {
   Phone,
   Facebook,
   Linkedin,
-  Twitter
+  Twitter,
+  FileDown
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -193,6 +194,18 @@ export default function LandingPage() {
               </div>
             )}
           </div>
+
+            {/* Ajoutez ceci sous votre bouton "DÉMARRER MON ESSAI ÉLITE" dans le formulaire d'essai */}
+            <div className="mt-8 pt-8 border-t border-white/5">
+              <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-4">Besoin de plus d&apos;informations ?</p>
+              <Link 
+                href="/resources/download" 
+                className="flex items-center justify-center gap-3 text-[10px] font-black text-blue-400 hover:text-white transition-colors uppercase tracking-widest group"
+              >
+                <FileDown size={16} className="group-hover:translate-y-1 transition-transform" />
+                Télécharger le Guide Stratégique ISO 2026
+              </Link>
+            </div>
 
           {/* --- PLANS & TARIFS CONSOLIDÉS (Responsive Amélioré) --- */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 text-left">
