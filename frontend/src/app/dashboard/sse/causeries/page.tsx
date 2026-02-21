@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-no-undef */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
@@ -154,7 +155,7 @@ interface AttendanceQRModalProps {
   onClose: () => void;
 }
 
-function AttendanceQRModal({ causerieId, theme, onClose }: AttendanceQRModalProps) {
+function AttendanceQRModal2({ causerieId, theme, onClose }: AttendanceQRModalProps) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
