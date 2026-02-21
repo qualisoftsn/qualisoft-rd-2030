@@ -1,13 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * CHEMIN : /frontend/src/services/adminService.ts
- * RÔLE : Fichier de COMPATIBILITÉ (Bridge).
- * Il redirige les anciens appels vers le nouveau matrixApi pour éviter les erreurs de build.
+ * 🌉 MODULE : ADMIN SERVICE (BRIDGE DE COMPATIBILITÉ)
+ * -------------------------------------------------------------------------
+ * RÔLE : Intergiciel de transition vers l'architecture Matrix API.
+ * FONCTION : Rediriger les appels de provisionnement hérités vers le 
+ * nouveau contrôleur sécurisé sans casser la structure existante.
  */
 
 import { matrixApi, ProvisioningPayload } from './matrix.service';
 
-// On garde les anciens types pour satisfaire le compilateur
+// Conservation stricte de l'interface d'origine pour la sécurité des types
 export interface TenantStats {
   T_Id: string;
   T_Name: string;
@@ -19,26 +21,27 @@ export interface TenantStats {
 
 export const adminService = {
   /**
-   * Redirige l'ancienne demande de liste vers la nouvelle API
+   * 📡 Récupération de l'annuaire souverain
+   * Délégation transparente au Matrix Controller.
    */
   getTenants: async () => {
     return await matrixApi.getTenants();
   },
 
   /**
-   * Redirige l'ancienne demande de déploiement vers la nouvelle API
-   * en adaptant les données à la volée.
+   * 🚀 Déploiement d'Instance (SDE)
+   * Nettoie et formate les données héritées pour correspondre au 
+   * payload strict exigé par la Matrice Qualisoft.
    */
   deployInstance: async (data: any) => {
-    // Conversion des données pour éviter les crashs
     const payload: ProvisioningPayload = {
-        companyName: data.name || data.companyName,
+        companyName: data.name || data.companyName || 'Organisation Inconnue',
         email: data.adminEmail || data.email,
         ceoName: data.ceoName || 'Non renseigné',
-        adminFirstName: data.adminFirstName || 'Admin',
-        adminLastName: data.adminLastName || 'System',
-        address: data.address || 'Dakar',
-        phone: data.phone || '770000000'
+        adminFirstName: data.adminFirstName || 'Administrateur',
+        adminLastName: data.adminLastName || 'Système',
+        address: data.address || 'Siège Social',
+        phone: data.phone || '000000000'
     };
     return await matrixApi.initialize(payload);
   }

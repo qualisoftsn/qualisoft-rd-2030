@@ -1,10 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+/**
+ * ✍️ MODULE : ReclamationForm
+ * -------------------------------------------------------------------------
+ * RÔLE : Formulaire de saisie des réclamations Tiers.
+ * FONCTION : Indexation initiale des faits, affectation au processus métier 
+ * et définition de la gravité (§8.2.1 ISO 9001).
+ */
+
 import React, { useState } from 'react';
-import axios from 'axios';
-import { Plus } from 'lucide-react';
+import apiClient from '@/core/api/api-client'; // Utilisation du client scellé
+import { Plus, Save, Loader2 } from 'lucide-react';
 import Modal from '../shared/Modal';
 import TierForm from '../tiers/TierForm';
 
@@ -13,7 +21,7 @@ interface Props {
   U_Id: string;
   tiers: any[];
   processus: any[];
-  onSuccess: () => void; // Fonction pour rafraîchir les données de la page
+  onSuccess: () => void;
 }
 
 export default function ReclamationForm({ T_Id, U_Id, tiers, processus, onSuccess }: Props) {
@@ -34,16 +42,17 @@ export default function ReclamationForm({ T_Id, U_Id, tiers, processus, onSucces
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('https://elite.qualisoft.sn/api/reclamations', {
+      // On utilise le chemin relatif via apiClient pour hériter des headers multi-tenant
+      await apiClient.post('/reclamations', {
         ...form,
         tenantId: T_Id,
         REC_OwnerId: U_Id
       });
-      alert("Réclamation Qualisoft enregistrée.");
+      
       setForm({ ...form, REC_Object: '', REC_Description: '', REC_TierId: '', REC_ProcessusId: '' });
       onSuccess();
     } catch (err) {
-      alert("Erreur lors de l'enregistrement de la plainte.");
+      console.error("Qualisoft : Erreur de capture réclamation.");
     } finally {
       setLoading(false);
     }
@@ -51,29 +60,32 @@ export default function ReclamationForm({ T_Id, U_Id, tiers, processus, onSucces
 
   return (
     <>
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
-        <h2 className="text-xl font-black text-slate-900 mb-6 uppercase italic tracking-tighter">
-          Saisie de la plainte
+      <div className="bg-white p-8 rounded-4xl border border-slate-200 shadow-xl relative overflow-hidden text-left">
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+        <h2 className="text-xl font-black text-slate-900 mb-8 uppercase italic tracking-tighter">
+          Saisie de l&apos;écart / Plainte
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* OBJET */}
           <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Objet (REC_Object)</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest italic ml-1">Objet de la plainte</label>
             <input
               required
-              className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 font-bold text-slate-800"
+              className="w-full mt-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-600 font-bold text-slate-800"
               value={form.REC_Object}
               onChange={(e) => setForm({ ...form, REC_Object: e.target.value })}
+              placeholder="Ex: Retard livraison lot #402"
             />
           </div>
 
+          {/* TIERS / CLIENT */}
           <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Client Concerné</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest italic ml-1">Client / Tiers Concerné</label>
             <div className="flex gap-2 mt-1">
               <select
                 required
-                className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 cursor-pointer"
+                className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 cursor-pointer outline-none focus:ring-2 focus:ring-blue-600"
                 value={form.REC_TierId}
                 onChange={(e) => setForm({ ...form, REC_TierId: e.target.value })}
               >
@@ -82,23 +94,22 @@ export default function ReclamationForm({ T_Id, U_Id, tiers, processus, onSucces
                   <option key={t.TR_Id} value={t.TR_Id}>{t.TR_Name}</option>
                 ))}
               </select>
-              {/* Bouton pour ouvrir la modal de création de tiers */}
               <button
                 type="button"
                 onClick={() => setIsTierModalOpen(true)}
-                className="p-3 bg-blue-600 text-white rounded-xl hover:bg-slate-900 transition-all shadow-md"
-                title="Ajouter un nouveau client"
+                className="p-4 bg-blue-600 text-white rounded-2xl hover:bg-slate-900 transition-all shadow-lg"
               >
-                <Plus size={20} />
+                <Plus size={24} />
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 text-left">
+            {/* PROCESSUS */}
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Processus Imputé</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest italic ml-1">Processus Imputé</label>
               <select
-                className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                className="w-full mt-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold cursor-pointer outline-none focus:ring-2 focus:ring-blue-600"
                 value={form.REC_ProcessusId}
                 onChange={(e) => setForm({ ...form, REC_ProcessusId: e.target.value })}
               >
@@ -108,10 +119,11 @@ export default function ReclamationForm({ T_Id, U_Id, tiers, processus, onSucces
                 ))}
               </select>
             </div>
+            {/* GRAVITE */}
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Gravité</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest italic ml-1">Gravité de l&apos;impact</label>
               <select
-                className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                className="w-full mt-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold cursor-pointer outline-none focus:ring-2 focus:ring-blue-600"
                 value={form.REC_Gravity}
                 onChange={(e) => setForm({ ...form, REC_Gravity: e.target.value })}
               >
@@ -123,38 +135,33 @@ export default function ReclamationForm({ T_Id, U_Id, tiers, processus, onSucces
             </div>
           </div>
 
+          {/* DESCRIPTION */}
           <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Description des faits</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest italic ml-1">Description des faits (Preuves)</label>
             <textarea
               required
               rows={4}
-              className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 font-medium"
+              className="w-full mt-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-600 font-medium italic"
               value={form.REC_Description}
               onChange={(e) => setForm({ ...form, REC_Description: e.target.value })}
+              placeholder="Détaillez l'écart constaté..."
             />
           </div>
 
+          {/* SUBMIT */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase italic tracking-tighter hover:bg-blue-700 transition-all shadow-lg"
+            className="w-full py-5 bg-slate-950 text-white rounded-2xl font-black uppercase italic tracking-widest hover:bg-blue-600 transition-all shadow-2xl flex items-center justify-center gap-3"
           >
-            {loading ? "SYNCHRONISATION..." : "ENREGISTRER LA RÉCLAMATION"}
+            {loading ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
+            {loading ? "SCELLAGE KERNEL..." : "ARCHIVER LA RÉCLAMATION"}
           </button>
         </form>
       </div>
 
-      {/* Modal pour le nouveau tiers */}
-      <Modal 
-        isOpen={isTierModalOpen} 
-        onClose={() => setIsTierModalOpen(false)} 
-        title="Ajouter un Tiers"
-      >
-        <TierForm 
-          T_Id={T_Id} 
-          onSuccess={onSuccess} 
-          onClose={() => setIsTierModalOpen(false)} 
-        />
+      <Modal isOpen={isTierModalOpen} onClose={() => setIsTierModalOpen(false)} title="Nouveau Tiers">
+        <TierForm T_Id={T_Id} onSuccess={onSuccess} onClose={() => setIsTierModalOpen(false)} />
       </Modal>
     </>
   );

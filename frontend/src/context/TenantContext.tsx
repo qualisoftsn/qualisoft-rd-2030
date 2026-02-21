@@ -1,14 +1,15 @@
-/**
- * DIRECTIVE : "use client"
- * RÔLE : Marque ce fichier comme composant client pour autoriser l'usage des Hooks 
- * et l'accès à l'objet global 'window' (indispensable pour la détection du sous-domaine).
- */
 "use client";
+/**
+ * 🛰️ MODULE : TENANT CONTEXT (L'ANCRE D'ISOLATION)
+ * -------------------------------------------------------------------------
+ * FONCTION : Détection dynamique du sous-domaine pour l'ancrage organisationnel.
+ * RÔLE : Injecter l'ID du client (Tenant) dans l'arbre de composants.
+ * PHILOSOPHIE : "Sovereign First" - Pas de session sans identification du périmètre.
+ */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '../lib/axios';
 
-// --- INTERFACES CONSERVÉES ---
 interface TenantConfig {
   id: string;
   name: string;
@@ -23,51 +24,47 @@ interface TenantContextData {
   isError: boolean;
 }
 
-// Initialisation du contexte avec les valeurs par défaut de Qualisoft
 const TenantContext = createContext<TenantContextData>({
   tenant: null,
   isLoading: true,
   isError: false,
 });
 
-/**
- * PROVIDER : TenantProvider
- * FONCTION : Détermine l'identité du client Qualisoft via le sous-domaine
- * et injecte la configuration visuelle et modulaire correspondante.
- */
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
   useEffect(() => {
+    /**
+     * 🔐 MOTEUR DE DÉTECTION DE PÉRIMÈTRE
+     * Analyse l'URL pour identifier si nous sommes sur une instance client scellée.
+     */
     const loadConfig = async () => {
       try {
-        // 🛡️ SÉCURITÉ : Vérification de l'existence de window pour le build Next.js
         if (typeof window === 'undefined') return;
 
         const hostname = window.location.hostname;
         const subdomain = hostname.split('.')[0];
 
-        /**
-         * LOGIQUE MÉTIER : 
-         * On ne charge la config que si on est sur un sous-domaine client.
-         * Exclut localhost, elite (admin) et www.
-         */
-        if (subdomain && subdomain !== 'localhost' && subdomain !== 'elite' && subdomain !== 'www') {
+        // Exclusion des domaines système pour éviter les collisions de routage
+        const isSystemDomain = ['localhost', 'elite', 'www', 'app'].includes(subdomain);
+
+        if (subdomain && !isSystemDomain) {
+          // Appel au Kernel pour récupérer la configuration spécifique du client
           const { data } = await api.get(`/tenants/config/${subdomain}`);
           setTenant(data);
         } else {
-          // Configuration par défaut : Registre Central Qualisoft RD 2030
+          // Configuration par défaut : Registre Central Qualisoft RD 2026
           setTenant({
-            id: 'elite',
-            name: 'Qualisoft RD 2030',
+            id: 'central_matrix',
+            name: 'Qualisoft Elite RD 2026',
             logo: '/assets/logo-elite.png',
-            modules: ['ALL'],
+            modules: ['ALL_ACCESS'],
           });
         }
       } catch (error) {
-        console.error('💥 Erreur chargement configuration Tenant Qualisoft:', error);
+        console.error('💥 Rupture de liaison avec le Kernel Tenant:', error);
         setIsError(true);
       } finally {
         setIsLoading(false);
@@ -84,8 +81,4 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-/**
- * HOOK : useTenant
- * USAGE : Accès rapide à la configuration de l'organisation courante.
- */
 export const useTenant = () => useContext(TenantContext);

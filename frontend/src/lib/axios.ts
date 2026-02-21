@@ -1,20 +1,27 @@
 import axios from 'axios';
 
 /**
- * CONFIGURATION AXIOS - QUALISOFT RD 2030
- * Instance centralisée avec gestion dynamique du Multi-Tenancy.
+ * 📡 PROTOCOLE RÉSEAU : AXIOS INTERCEPTOR (MATRICE MULTI-TENANT)
+ * -------------------------------------------------------------------------
+ * FONCTION : Client HTTP centralisé avec injection dynamique du SDE.
+ * RÔLE : Garantir que chaque requête vers le Kernel soit scellée avec
+ * l'identifiant du Tenant actif, extrait du sous-domaine.
+ * SÉCURITÉ : Protection contre les fuites de données inter-organisations.
  */
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://api.qualisoft.sn/api',
   withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
 });
 
-// Intercepteur pour injecter automatiquement le contexte du Tenant
+// 🛡️ INTERCEPTEUR DE REQUÊTES (SCELLAGE SDE)
 api.interceptors.request.use(
   (config) => {
-    // 1. Détection des routes publiques (Liste des tenants, Login, etc.)
-    // On ne doit PAS injecter de header spécifique ici pour ne pas bloquer la sélection
+    // 1. Détection des routes agnostiques (Ex: Login global, Ping)
     const publicPaths = ['/auth/public', '/auth/login', '/tenants/config'];
     const isPublic = publicPaths.some(path => config.url?.includes(path));
 
@@ -23,32 +30,35 @@ api.interceptors.request.use(
         const hostname = window.location.hostname;
         const parts = hostname.split('.');
 
-        // Extraction du sous-domaine (ex: 'pad' depuis 'pad.qualisoft.sn')
+        // 2. Extraction du sous-domaine (Isolation physique)
+        // Exemple: 'senelec.qualisoft.sn' -> 'senelec'
         const subdomain = parts.length > 2 ? parts[0] : null;
 
-        if (subdomain && subdomain !== 'localhost' && subdomain !== 'www' && subdomain !== 'elite') {
+        // Exclusion des domaines de développement et d'administration
+        if (subdomain && !['localhost', 'www', 'elite', 'app'].includes(subdomain)) {
           config.headers['x-tenant-id'] = subdomain;
         } else {
-          // Par défaut pour l'administration centrale
-          config.headers['x-tenant-id'] = 'elite';
+          // Fallback : Accès au Registre Central (Master Console)
+          config.headers['x-tenant-id'] = 'elite_master';
         }
       }
     }
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Intercepteur pour la gestion globale des erreurs (401, 403)
+// 🚨 INTERCEPTEUR DE RÉPONSES (MONITORING SÉCURITÉ)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.warn('🔐 Session expirée ou accès non autorisé.');
-      // Optionnel : Redirection vers le login du tenant actuel
+      console.warn('🔒 QUALISOFT KERNEL : Rejet d\'accréditation (Token expiré ou non valide).');
+      // Redirection optionnelle gérée côté composant/provider
+    }
+    if (error.response?.status === 403) {
+      console.error('🚫 QUALISOFT KERNEL : Violation de périmètre (Accès refusé au SDE).');
     }
     return Promise.reject(error);
   }

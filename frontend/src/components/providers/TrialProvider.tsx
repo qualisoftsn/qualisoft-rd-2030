@@ -1,11 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
+/**
+ * ⏳ MODULE : TrialProvider
+ * -------------------------------------------------------------------------
+ * RÔLE : Surveillance du cycle de vie de la licence du Tenant.
+ * FONCTION : Vérifie l'état de l'abonnement (TRIAL/ACTIVE) et verrouille 
+ * l'accès en cas d'expiration pour protéger l'intégrité du SDE.
+ */
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
 
-// --- INTERFACE CONSERVÉE ---
 interface TrialContextType {
   isTrial: boolean;
   daysLeft: number;
@@ -23,58 +30,54 @@ export function TrialProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // 🛡️ SÉCURISATION BUILD : Protection contre le pathname null (Next.js 16)
-    // On sort immédiatement si le pathname n'est pas encore résolu par le moteur de Next
+    // 🛡️ SÉCURISATION BUILD : Protection contre le pathname null
     if (!pathname) return;
 
-    // Ne vérifier que sur les routes protégées
+    // Périmètre de surveillance : Uniquement les routes internes
     if (!pathname.startsWith('/trial') && !pathname.startsWith('/dashboard')) {
       return;
     }
 
+    /**
+     * 🛰️ checkStatus
+     * Interroge le noyau Matrix pour récupérer l'état du Tenant courant.
+     * Le backend extrait le TenantId du token JWT pour garantir l'isolation.
+     */
     const checkStatus = async () => {
       try {
         const res = await apiClient.get('/tenant/status');
         
-        if (res.data?.subscriptionStatus === 'TRIAL') {
-          setTrialData({
-            isTrial: true,
-            daysLeft: res.data.daysLeft,
-            isExpired: res.data.isExpired,
-            tenantName: res.data.tenantName,
-            showBanner: true,
-            // Logique de mise à jour de l'état conservée
-            setShowBanner: (show) => setTrialData(prev => prev ? { ...prev, showBanner: show } : null)
-          });
-          
-          // Redirection vers ta page d'expiration Qualisoft
-          if (res.data.isExpired) {
-            router.push('/essai/expire');
-          }
-        } else {
-          // Cas d'un compte standard (non TRIAL)
-          setTrialData({
-            isTrial: false,
-            daysLeft: 0,
-            isExpired: false,
-            tenantName: '',
-            showBanner: false,
-            setShowBanner: () => {}
-          });
+        // Mapping de l'état du Tenant
+        const isTrialMode = res.data?.subscriptionStatus === 'TRIAL';
+        
+        setTrialData({
+          isTrial: isTrialMode,
+          daysLeft: res.data.daysLeft || 0,
+          isExpired: res.data.isExpired || false,
+          tenantName: res.data.tenantName || 'Instance Elite',
+          showBanner: isTrialMode,
+          setShowBanner: (show) => setTrialData(prev => prev ? { ...prev, showBanner: show } : null)
+        });
+        
+        // 🚨 Redirection automatique si le délai de grâce est dépassé
+        if (res.data.isExpired && !pathname.includes('/essai/expire')) {
+          router.push('/essai/expire');
         }
       } catch (err) {
-        // Erreur silencieuse si pas authentifié (ton choix conservé)
+        // En cas d'erreur de communication, on reste silencieux pour ne pas 
+        // bloquer l'UI, mais l'accès API reste protégé par le token.
+        console.warn("Qualisoft Kernel : Erreur de synchronisation Trial.");
       }
     };
 
     checkStatus();
     
-    // Intervalle de 5 minutes conservé pour la précision du SMI
+    // Fréquence de rafraîchissement (5 minutes) pour la précision du pilotage
     const interval = setInterval(checkStatus, 300000); 
     return () => clearInterval(interval);
   }, [pathname, router]);
 
-  // Si les données ne sont pas encore chargées, on rend les enfants sans contexte (fallback)
+  // Fallback pendant l'hydratation du contexte
   if (!trialData) {
     return <>{children}</>;
   }
