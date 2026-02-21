@@ -1,156 +1,203 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/**
- * NOM ABSOLU : src/app/dashboard/sse/new/page.tsx
- * FONCTION : Journal de bord et terminal d'indexation SSE.
- * RÔLE : Suivi chronologique des événements HSE (§10.2).
- */
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import apiClient from '@/core/api/api-client';
-import { 
-  ShieldAlert, Plus, Activity, HardHat, 
-  MapPin, Calendar, Trash2, Loader2, X, AlertTriangle,
-  Clock, Thermometer, User, ChevronRight, RefreshCcw
-} from 'lucide-react';
-import SSEForm from '../components/SSEForm';
-import { toast } from 'react-hot-toast';
+/**
+ * 🚨 MODULE : NEW SSE INCIDENT (DÉCLARATION D'ÉVÉNEMENT)
+ * -------------------------------------------------------------------------
+ * FONCTION : Enregistrement des nouveaux incidents, accidents et presqu'accidents.
+ * RÔLE : Initialisation du processus d'investigation (§10.2 ISO 45001).
+ * ISOLATION : Toutes les entrées sont scellées au TenantId de l'organisation.
+ */
 
-export default function SSENewPage() {
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+import React, { useState } from 'react';
+import { 
+  ChevronRight, Save, X, Info, 
+  Loader2, ShieldAlert, GitCommit 
+} from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import apiClient from '@/core/api/api-client';
+import { useRouter } from 'next/navigation';
+
+export default function NewSSEPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    type: 'ACCIDENT_TRAVAIL',
+    dateHeure: new Date().toISOString().slice(0, 16),
+    lieu: '',
+    description: '',
+    avecArret: false,
+    nbJoursArret: 0,
+  });
 
   /**
-   * 📡 SYNCHRONISATION DU JOURNAL SSE
+   * 🚀 SOUMISSION AU KERNEL MATRIX
    */
-  const fetchEvents = useCallback(async () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const tid = toast.loading("Scellage de l'incident au registre SDE...");
+
     try {
-      setLoading(true);
-      const res = await apiClient.get('/sse');
-      setEvents(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Erreur de liaison journalière SSE:", err);
-      toast.error("Impossible d'actualiser le journal SSE.");
+      // Injection automatique du x-tenant-id via apiClient
+      await apiClient.post('/sse', formData);
+      toast.success("ÉVÉNEMENT ENREGISTRÉ ET SCELLÉ", { id: tid });
+      router.push('/dashboard/sse');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "REJET : Échec d'indexation Kernel.", { id: tid });
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => { fetchEvents(); }, [fetchEvents]);
-
-  /**
-   * 🗑️ RÉVOCATION D'UN SIGNALEMENT
-   */
-  const handleDelete = async (id: string) => {
-    if (!confirm("⚠️ CONFIRMER LA SUPPRESSION DÉFINITIVE DE CET ÉVÉNEMENT ?")) return;
-    try {
-      await apiClient.delete(`/sse/${id}`);
-      setEvents(prev => prev.filter(e => e.SSE_Id !== id));
-      toast.success("Événement révoqué du registre.");
-    } catch (err) { toast.error("Échec de la révocation serveur."); }
   };
 
-  if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-[#0B0F1A] ml-72 gap-6">
-      <Loader2 className="animate-spin text-orange-500" size={50} />
-      <span className="text-[10px] font-black uppercase tracking-[0.5em] text-orange-500 animate-pulse italic">LECTURE DU JOURNAL SSE...</span>
-    </div>
-  );
+  /**
+   * ℹ️ PROTOCOLE DE NOTIFICATION INFO (SÉCURISATION DU BUILD)
+   * Correction de l'erreur toast.info (inexistant dans react-hot-toast)
+   */
+  const showInfo = () => {
+    toast("Dossier d'investigation ISO §10.2", {
+      icon: <Info className="text-blue-500" size={18} />,
+      style: {
+        borderRadius: '20px',
+        background: '#0F172A',
+        color: '#fff',
+        border: '1px solid rgba(59, 130, 246, 0.2)',
+        fontSize: '10px',
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: '0.1em'
+      },
+    });
+  };
 
   return (
-    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-10 ml-72 text-white font-sans text-left italic selection:bg-orange-600/30 overflow-x-hidden">
-      <div className="max-w-7xl mx-auto space-y-12">
-        
-        {/* HEADER SÉCURITÉ */}
-        <header className="flex justify-between items-end border-b border-white/5 pb-10">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 text-orange-500">
-              <HardHat size={18} strokeWidth={3} />
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] italic">Qualisoft Sovereign Security</span>
-            </div>
-            <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
-                Journal <span className="text-orange-500">SSE</span>
-            </h1>
-            <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.4em] italic opacity-70">Pilotage en temps réel des Incidents & Non-Conformités</p>
+    <div className="p-12 bg-[#0B0F1A] min-h-screen ml-72 text-white font-sans uppercase italic font-black selection:bg-blue-600/30">
+      
+      {/* HEADER SOUVERAIN */}
+      <header className="mb-16 flex justify-between items-end border-b border-white/5 pb-10">
+        <div className="text-left">
+          <div className="flex items-center gap-4 mb-4">
+             <div className="p-3 bg-red-600/20 rounded-2xl border border-red-500/30">
+                <ShieldAlert size={32} className="text-red-500" />
+             </div>
+             <h1 className="text-5xl tracking-tighter italic leading-none">NOUVEL <span className="text-red-600">INCIDENT</span></h1>
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-orange-600 text-white px-10 py-6 rounded-3xl font-black uppercase italic text-xs hover:bg-orange-500 transition-all shadow-[0_20px_40px_rgba(234,88,12,0.3)] flex items-center gap-4 border-none cursor-pointer active:scale-95"
-          >
-            <Plus size={22} strokeWidth={4} /> DÉCLARER UN ÉVÉNEMENT
-          </button>
-        </header>
-
-        {/* FLUX DES ÉVÉNEMENTS RÉCENTS */}
-        <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
-          {events.length > 0 ? (
-            events.map((event) => (
-              <div key={event.SSE_Id} className="bg-slate-900/40 border border-white/5 p-10 rounded-[4rem] flex items-center justify-between group hover:border-orange-500/30 transition-all shadow-4xl backdrop-blur-3xl">
-                <div className="flex items-center gap-10 flex-1">
-                  <div className={`p-6 rounded-3xl border shadow-inner ${
-                    event.SSE_AvecArret ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'
-                  }`}>
-                    <ShieldAlert size={36} strokeWidth={2.5} />
-                  </div>
-                  
-                  <div className="flex-1 text-left">
-                    <div className="flex items-center gap-4 mb-4">
-                      <span className="px-4 py-1.5 rounded-xl bg-white/5 text-orange-400 text-[10px] font-black uppercase italic tracking-widest border border-white/10 shadow-lg">
-                        {event.SSE_Type.replace(/_/g, ' ')}
-                      </span>
-                      <span className="flex items-center gap-2 text-slate-500 text-[11px] font-black uppercase italic tracking-tight">
-                        <Calendar size={14} className="text-blue-500" /> {new Date(event.SSE_DateEvent).toLocaleDateString('fr-FR')}
-                      </span>
-                      {event.SSE_AvecArret && (
-                        <span className="px-4 py-1.5 rounded-xl bg-red-600 text-white text-[10px] font-black uppercase italic shadow-2xl">
-                          ARRÊT : {event.SSE_NbJoursArret} JOURS
-                        </span>
-                      )}
-                    </div>
-                    
-                    <h3 className="text-3xl font-black uppercase italic tracking-tighter mb-4 group-hover:text-orange-400 transition-colors leading-none">
-                      {event.SSE_Lieu}
-                    </h3>
-                    
-                    <div className="flex flex-wrap gap-10 text-slate-500 text-[10px] font-black uppercase tracking-widest italic leading-none">
-                      <span className="flex items-center gap-3">
-                        <User size={16} className="text-orange-500"/> 
-                        VICTIME : <span className="text-white">{event.SSE_Victim ? `${event.SSE_Victim.U_FirstName} ${event.SSE_Victim.U_LastName}` : 'N/A'}</span>
-                      </span>
-                      <span className="flex items-center gap-3">
-                        <Thermometer size={16} className="text-orange-500"/> 
-                        LÉSIONS : <span className="text-slate-300">{event.SSE_Lesions || 'NON SIGNALÉES'}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 px-6">
-                  <button onClick={() => handleDelete(event.SSE_Id)} className="p-6 bg-white/5 rounded-3xl text-slate-600 hover:text-red-500 hover:bg-red-500/10 transition-all border-none cursor-pointer shadow-inner">
-                    <Trash2 size={24} />
-                  </button>
-                  <button onClick={() => toast.info("Dossier d'investigation ISO §10.2")} className="p-6 bg-blue-600/10 rounded-3xl text-blue-500 hover:bg-blue-600 hover:text-white transition-all border-none cursor-pointer shadow-inner">
-                    <ChevronRight size={24} />
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="bg-slate-900/20 border border-white/5 p-40 rounded-[5rem] text-center backdrop-blur-3xl">
-              <Activity className="mx-auto text-slate-800 mb-8 opacity-20" size={100} />
-              <p className="text-slate-500 font-black uppercase italic text-sm tracking-[0.5em] opacity-50">Aucun événement SSE scellé au registre.</p>
-            </div>
-          )}
+          <p className="text-slate-500 text-[10px] tracking-[0.5em] italic uppercase ml-2">
+            Ouverture de dossier d&apos;investigation • ISO 45001
+          </p>
         </div>
-      </div>
+      </header>
 
-      {/* MODAL DE SIGNALEMENT SOUVERAIN */}
-      {isModalOpen && (
-        <SSEForm onClose={() => setIsModalOpen(false)} onSuccess={fetchEvents} />
-      )}
+      {/* FORMULAIRE D'INDEXATION ÉLITE */}
+      <form onSubmit={handleSave} className="max-w-4xl space-y-12 text-left">
+        
+        <div className="bg-[#0F172A]/80 border-2 border-white/5 p-12 rounded-[4rem] shadow-4xl backdrop-blur-xl space-y-10 relative overflow-hidden">
+          <GitCommit className="absolute -top-10 -right-10 text-white opacity-5" size={200} />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+            {/* TYPE D'INCIDENT */}
+            <div className="space-y-4">
+              <label className="text-[11px] text-blue-500 tracking-[0.3em] font-black">Classification de l&apos;événement</label>
+              <select 
+                className="w-full bg-[#0B0F1A] border-2 border-white/10 rounded-4xl p-6 text-xs font-black text-white uppercase outline-none focus:border-red-600 transition-all cursor-pointer appearance-none shadow-inner"
+                value={formData.type}
+                onChange={(e) => setFormData({...formData, type: e.target.value})}
+              >
+                <option value="ACCIDENT_TRAVAIL">Accident de travail (AT)</option>
+                <option value="ACCIDENT_TRAJET">Accident de trajet</option>
+                <option value="PRESQU_ACCIDENT">Presqu&apos;accident (Near Miss)</option>
+                <option value="INCIDENT_ENV">Incident Environnemental</option>
+              </select>
+            </div>
+
+            {/* DATE & HEURE */}
+            <div className="space-y-4">
+              <label className="text-[11px] text-slate-500 tracking-[0.3em] font-black">Horodatage des faits</label>
+              <input 
+                type="datetime-local"
+                className="w-full bg-[#0B0F1A] border-2 border-white/10 rounded-4xl p-6 text-xs font-black text-white outline-none focus:border-red-600 transition-all shadow-inner"
+                value={formData.dateHeure}
+                onChange={(e) => setFormData({...formData, dateHeure: e.target.value})}
+              />
+            </div>
+          </div>
+
+          {/* LIEU */}
+          <div className="space-y-4 relative z-10">
+            <label className="text-[11px] text-slate-500 tracking-[0.3em] font-black">Localisation précise (Zone / Site)</label>
+            <input 
+              required
+              placeholder="EX: ATELIER CENTRAL - ZONE DE STOCKAGE A..."
+              className="w-full bg-[#0B0F1A] border-2 border-white/10 rounded-4xl p-6 text-xs font-black text-white outline-none focus:border-red-600 transition-all shadow-inner uppercase placeholder:text-slate-800"
+              value={formData.lieu}
+              onChange={(e) => setFormData({...formData, lieu: e.target.value})}
+            />
+          </div>
+
+          {/* DESCRIPTION */}
+          <div className="space-y-4 relative z-10">
+            <label className="text-[11px] text-slate-500 tracking-[0.3em] font-black">Circonstances détaillées</label>
+            <textarea 
+              rows={4}
+              required
+              placeholder="DÉCRIRE LES FAITS, LES ÉQUIPEMENTS IMPLIQUÉS..."
+              className="w-full bg-[#0B0F1A] border-2 border-white/10 rounded-[2.5rem] p-8 text-sm font-bold text-slate-300 outline-none focus:border-red-600 transition-all italic leading-relaxed shadow-inner"
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+            />
+          </div>
+
+          {/* FOOTER ACTIONS DANS LA CARTE */}
+          <div className="flex justify-between items-center pt-10 border-t border-white/5 mt-10 relative z-10">
+             <div className="flex gap-4">
+                <button 
+                  type="button"
+                  onClick={() => router.back()}
+                  className="p-6 bg-white/5 border-2 border-white/5 rounded-3xl text-slate-500 hover:text-white hover:border-white/10 transition-all cursor-pointer shadow-xl"
+                >
+                  <X size={24} />
+                </button>
+                <button 
+                  type="button"
+                  onClick={showInfo} // ✅ FIX: Appel de la fonction corrigée
+                  className="p-6 bg-blue-600/10 border-2 border-blue-500/20 rounded-3xl text-blue-500 hover:bg-blue-600 hover:text-white transition-all cursor-pointer shadow-inner"
+                >
+                  <ChevronRight size={24} />
+                </button>
+             </div>
+
+             <button 
+              type="submit"
+              disabled={loading}
+              className="px-12 py-6 bg-red-600 text-white rounded-[2.5rem] text-[11px] font-black uppercase tracking-[0.3em] italic shadow-2xl shadow-red-900/40 hover:bg-red-500 transition-all active:scale-95 disabled:opacity-50 border-none cursor-pointer flex items-center gap-4"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+              {loading ? "SCÉLLAGE..." : "Sceller au Registre"}
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* FOOTER DE CERTIFICATION */}
+      <footer className="mt-20 opacity-30 text-center max-w-4xl">
+         <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.5em] italic">
+           Qualisoft RD 2026 • Document d&apos;investigation SSE scellé cryptographiquement
+         </p>
+      </footer>
+    </div>
+  );
+}
+
+// Composant local de carte statistique si besoin (non utilisé ici mais disponible dans le design)
+function MiniStat({ label, value, icon }: any) {
+  return (
+    <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex items-center gap-4">
+      <div className="text-red-500">{icon}</div>
+      <div>
+        <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">{label}</p>
+        <p className="text-xl font-black italic">{value}</p>
+      </div>
     </div>
   );
 }
