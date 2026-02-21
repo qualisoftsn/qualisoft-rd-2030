@@ -117,7 +117,7 @@ export default function LandingPage() {
           {/* LOGO INSERTION : Utilisation du fichier QsLogo.svg scellé */}
           <div className="w-12 h-12 flex items-center justify-center relative overflow-hidden group">
             <img
-              src="/QsLogo.svg"
+              src="/QSLogo.PNG"
               alt="Qualisoft Logo"
               className="w-full h-full object-contain filter brightness-110 group-hover:scale-110 transition-transform duration-500"
             />
@@ -155,6 +155,11 @@ export default function LandingPage() {
             alt="Fond Matrix Qualisoft"
             className="w-full h-full object-cover"
           />
+           <img
+            src="/qsimage1.png"
+            alt="Fond Matrix Qualisoft"
+            className="w-full h-full object-cover"
+          />
           <div className="absolute inset-0 bg-linear-to-b from-[#0B0F1A] via-[#0B0F1A]/80 to-[#0B0F1A]"></div>
         </div>
 
@@ -165,13 +170,13 @@ export default function LandingPage() {
               <div className="p-2 bg-blue-600/20 rounded-full">
                 <Rocket size={20} className="text-blue-400 animate-bounce" />
               </div>
-              <span className="text-[11px] md:text-xs font-black uppercase tracking-[0.4em] text-transparent bg-clip-text bg-linear-to-r from-blue-400 via-white to-blue-400 animate-[pulse_2.5s_ease-in-out_infinite]">
+              <span className="text-[13px] md:text-xs font-black uppercase tracking-[0.4em] text-transparent bg-clip-text bg-linear-to-r from-blue-400 via-white to-blue-400 animate-[pulse_2.5s_ease-in-out_infinite]">
                 Lancement Officiel : 02 Mars 2026
               </span>
             </div>
           </div>
 
-          <h1 className="text-6xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter leading-[0.85] mb-10 italic drop-shadow-2xl">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter leading-[0.85] mb-10 italic drop-shadow-2xl">
             Pilotez votre <br />
             <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-500 via-indigo-400 to-blue-600">
               Conformité.
@@ -199,7 +204,7 @@ export default function LandingPage() {
               >
                 <div className="text-left space-y-3">
                   <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 ml-4 italic">
-                    Réserver mon accès prioritaire (14 Jours)
+                    Réserver mon ESSAI prioritaire (14 Jours)
                   </label>
                   <div className="relative group">
                     <Mail
@@ -231,7 +236,7 @@ export default function LandingPage() {
                     Accès Réservé !
                   </h3>
                   <p className="text-slate-400 text-[11px] font-black uppercase italic tracking-widest leading-relaxed">
-                    Le Kernel a enregistré votre demande.
+                    Nous avons enregistré votre demande.
                     <br />
                     L&apos;équipe Qualisoft vous contactera sous 48h.
                   </p>
@@ -249,7 +254,7 @@ export default function LandingPage() {
               className="flex items-center justify-center gap-3 text-[10px] font-black text-blue-400 hover:text-white transition-colors uppercase tracking-widest group"
             >
               <FileDown
-                size={16}
+                size={13}
                 className="group-hover:translate-y-1 transition-transform"
               />
               Télécharger le Guide Stratégique ISO 2026
@@ -341,7 +346,7 @@ export default function LandingPage() {
               >
                 <div className="w-20 h-20 rounded-4xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-blue-600 group-hover:border-blue-500 transition-all duration-500 shadow-xl">
                   <f.icon
-                    size={32}
+                    size={30}
                     className="text-blue-500 group-hover:text-white transition-colors"
                   />
                 </div>
