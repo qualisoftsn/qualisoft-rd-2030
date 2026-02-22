@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 🗺️ MODULE : GESTION DES SITES & IMPLANTATIONS
+ * 🌍 MODULE : GESTION DES SITES & IMPLANTATIONS (VERSION ELITE SCELLÉE)
  * -------------------------------------------------------------------------
- * RÔLE : Centralisation des entités physiques de l'organisation.
- * USAGE : Segmentation territoriale pour le SMI (Système de Management Intégré).
- * CONFORMITÉ : ISO 9001, 14001, 45001 - Gestion multi-sites.
+ * RÔLE : Point d'ancrage géographique du Système de Management Intégré (SMI).
+ * ARCHITECTURE : Multi-Tenant Sovereign Data Environment (SDE).
+ * RÉFÉRENTIEL : types/elite-sde.ts (Prisma Core).
+ * CONFORMITÉ : ISO 9001:2015 (§4.4), ISO 14001, ISO 45001.
  */
 
 'use client';
@@ -12,14 +14,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   MapPin, Plus, Trash2, Loader2, Globe, 
-  Building, Navigation, CheckCircle2, AlertCircle 
+  Building, Navigation, CheckCircle2, AlertCircle,
+  ShieldCheck, RefreshCcw, Info
 } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
 import { toast } from 'sonner';
 
-// --- INTERFACES DE DONNÉES ---
+// --- IMPORTATION DU RÉFÉRENTIEL SDE ---
+// Note : On définit l'interface locale pour correspondre exactement à types/elite-sde.ts
 interface Site {
   S_Id: string;
+  S_Name: string;
+  S_Address: string | null;
+  S_City: string | null;
+  S_Country: string | null;
+  S_IsActive: boolean;
+  tenantId: string;
+  S_CreatedAt: string | Date;
+  S_UpdatedAt: string | Date;
+}
+
+/**
+ * @interface SiteFormData
+ * @description Structure de données pour l'indexation d'une nouvelle entité physique.
+ */
+interface SiteFormData {
   S_Name: string;
   S_Address: string;
   S_City: string;
@@ -27,14 +46,14 @@ interface Site {
 }
 
 export default function SitesPage() {
-  // --- ÉTATS DE GESTION DES DONNÉES ---
+  // --- ÉTATS DE GESTION DU RÉFÉRENTIEL ---
   const [sites, setSites] = useState<Site[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // --- ÉTAT DU FORMULAIRE D'INDEXATION ---
-  const [formData, setFormData] = useState({
+  // --- ÉTAT DU FORMULAIRE D'INDEXATION (SDE ALIGNED) ---
+  const [formData, setFormData] = useState<SiteFormData>({
     S_Name: '',
     S_Address: '',
     S_City: '',
@@ -42,47 +61,71 @@ export default function SitesPage() {
   });
 
   /**
-   * 📡 SYNCHRONISATION DU RÉFÉRENTIEL
-   * Récupère la liste exhaustive des implantations depuis le serveur.
-   * Gère les formats de réponse imbriqués ou plats pour une compatibilité maximale.
+   * 📡 SYNCHRONISATION DU RÉFÉRENTIEL GÉOGRAPHIQUE
+   * @function fetchSites
+   * @description Récupère les implantations rattachées au tenant actif.
+   * L'isolation est garantie par le middleware backend via le token de session.
    */
   const fetchSites = useCallback(async () => {
     try {
       setLoading(true);
+      setErrorMessage(null);
+      
+      // Appel au Kernel Matrix
       const res = await apiClient.get('/sites');
+      
+      // Gestion des formats de réponse API Qualisoft (Data Wrapping)
       const data = res.data?.data || res.data;
-      setSites(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Erreur critique chargement sites:", err);
-      toast.error("Rupture de liaison avec le registre des sites.");
+      
+      if (Array.isArray(data)) {
+        setSites(data);
+      } else {
+        console.warn("Format de données non standard détecté");
+        setSites([]);
+      }
+    } catch (err: unknown) {
+      console.error("❌ Erreur critique SDE (FetchSites):", err);
+      const msg = "Rupture de liaison avec le registre des sites. Vérifiez l'état du Kernel.";
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Déclenchement automatique au montage du composant
+  // Déclenchement automatique au montage du module
   useEffect(() => {
     fetchSites();
   }, [fetchSites]);
 
   /**
-   * 💾 PROTOCOLE DE CRÉATION
-   * Valide et transmet les données d'une nouvelle implantation au noyau.
-   * Inclut une extraction granulaire des messages d'erreur du validateur NestJS.
+   * 💾 PROTOCOLE D'INDEXATION (POST)
+   * @function handleSubmit
+   * @description Valide et scelle une nouvelle implantation dans le coffre-fort de données.
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation de surface
+    if (!formData.S_Name.trim()) {
+      toast.error("La désignation du site est obligatoire pour le scellage.");
+      return;
+    }
+
     setSubmitting(true);
     setErrorMessage(null);
 
     try {
-      // Envoi du payload vers l'endpoint /sites
-      await apiClient.post('/sites', formData);
+      /**
+       * Le payload respecte strictement la nomenclature Prisma S_Id, S_Name, etc.
+       * Le tenantId est injecté par le backend pour garantir l'isolation.
+       */
+      const response = await apiClient.post('/sites', formData);
 
-      // Notification de succès souveraine
-      toast.success(`Entité "${formData.S_Name}" indexée avec succès.`);
+      // Notification de succès avec feedback nominal
+      toast.success(`Entité "${formData.S_Name}" scellée avec succès dans le SDE.`);
       
-      // Réinitialisation du formulaire à l'état initial
+      // Reset du formulaire
       setFormData({
         S_Name: '',
         S_Address: '',
@@ -90,27 +133,24 @@ export default function SitesPage() {
         S_Country: 'Sénégal',
       });
       
-      // Rafraîchissement du registre local
+      // Rafraîchissement synchrone du registre
       fetchSites();
 
     } catch (err: any) {
-      console.error("❌ Erreur lors de l'indexation site:", err);
+      console.error("❌ Échec d'indexation Site:", err);
       
-      // Moteur de décodage des erreurs API
-      let message = "Une anomalie technique empêche l'enregistrement.";
+      let message = "Une anomalie technique empêche l'enregistrement souverain.";
       
+      // Parsing des erreurs NestJS / Prisma
       if (err.response) {
         const backendMsg = err.response.data?.message;
-        // Gestion des erreurs de validation (Array) vs erreurs simples (String)
         if (Array.isArray(backendMsg)) {
           message = backendMsg.join(' • ');
         } else if (backendMsg) {
           message = backendMsg;
-        } else if (err.response.status === 401) {
-          message = "Authentification requise pour cette opération.";
+        } else if (err.response.status === 403) {
+          message = "Privilèges insuffisants pour modifier le référentiel géographique.";
         }
-      } else if (err.message) {
-        message = err.message;
       }
 
       setErrorMessage(message);
@@ -121,39 +161,51 @@ export default function SitesPage() {
   };
 
   /**
-   * 🗑️ RÉVOCATION D'IMPLANTATION
-   * Supprime un site du référentiel après validation humaine.
-   * Utilise une mise à jour optimiste pour une interface ultra-réactive.
+   * 🗑️ RÉVOCATION D'IMPLANTATION (DELETE)
+   * @function handleDelete
+   * @param id Identifiant S_Id unique de l'entité
+   * @param name Désignation pour confirmation visuelle
    */
   const handleDelete = async (id: string, name: string) => {
-    // Validation de sécurité avant destruction
-    if (!window.confirm(`Voulez-vous révoquer définitivement l'implantation "${name}" ?`)) return;
+    // Double validation de sécurité RD 2030
+    const confirmDestruction = window.confirm(
+      `ALERTE SÉCURITÉ : Voulez-vous révoquer définitivement l'implantation "${name}" ? \nCette action est irréversible dans le SMI.`
+    );
+    
+    if (!confirmDestruction) return;
 
-    const toastId = toast.loading("Destruction de l'entité en cours...");
+    const toastId = toast.loading("Révocation de l'entité en cours...");
 
     try {
       await apiClient.delete(`/sites/${id}`);
-      toast.dismiss(toastId);
-      toast.success(`Le site "${name}" a été retiré du référentiel.`);
       
-      // Mutation optimiste de l'état pour supprimer l'élément sans rechargement complet
+      toast.dismiss(toastId);
+      toast.success(`Le site "${name}" a été purgé du référentiel.`);
+      
+      // Mutation optimiste pour garantir une UI ultra-fluide
       setSites(current => current.filter(s => s.S_Id !== id));
       
     } catch (err: any) {
       toast.dismiss(toastId);
-      console.error("Erreur lors de la révocation:", err);
+      console.error("❌ Erreur de révocation:", err);
       const msg = err.response?.data?.message || "Échec de l'opération de suppression.";
       toast.error(Array.isArray(msg) ? msg[0] : msg);
     }
   };
 
-  // --- ÉCRAN DE SYNCHRONISATION INITIALE ---
+  // --- ÉCRAN DE SYNCHRONISATION INITIALE (LOADER SDE) ---
   if (loading) return (
     <div className="flex h-screen flex-col items-center justify-center bg-slate-50 gap-4">
-      <Loader2 className="animate-spin text-blue-600" size={50} />
-      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600 italic animate-pulse">
-        Initialisation du référentiel géographique...
-      </p>
+      <div className="relative">
+        <Loader2 className="animate-spin text-blue-600" size={60} strokeWidth={1.5} />
+        <ShieldCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-600/30" size={20} />
+      </div>
+      <div className="text-center space-y-2">
+        <p className="text-[11px] font-black uppercase tracking-[0.5em] text-blue-600 italic animate-pulse">
+          Initialisation du référentiel géographique...
+        </p>
+        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Sovereign Data Environment 2030</p>
+      </div>
     </div>
   );
 
@@ -161,32 +213,54 @@ export default function SitesPage() {
     <div className="p-8 space-y-8 bg-slate-50 min-h-screen italic font-sans selection:bg-blue-600/30">
       
       {/* 🏛️ EN-TÊTE SOUVERAIN */}
-      <div className="animate-in slide-in-from-top-4 duration-500">
-        <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 flex items-center gap-3 italic">
-          <MapPin className="text-blue-600" size={30} strokeWidth={2.5} /> Sites & Implantations
-        </h1>
-        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.5em] mt-3 ml-1 opacity-70">
-          Cartographie opérationnelle des pôles d&apos;activité • Périmètre SMI
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in slide-in-from-top-4 duration-500">
+        <div>
+          <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 flex items-center gap-4 italic">
+            <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-600/20">
+              <MapPin size={28} strokeWidth={2.5} />
+            </div>
+            Sites & Implantations
+          </h1>
+          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.5em] mt-4 ml-1 opacity-70 flex items-center gap-2">
+            <ShieldCheck size={12} className="text-blue-500" />
+            Cartographie opérationnelle des pôles d&apos;activité • Périmètre SMI
+          </p>
+        </div>
+        
+        <button 
+          onClick={() => fetchSites()} 
+          className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors border-b border-transparent hover:border-blue-600 pb-1"
+        >
+          <RefreshCcw size={14} /> Rafraîchir le registre
+        </button>
+      </div>
+
+      {/* VISUALISATION HIÉRARCHIQUE */}
+      <div className="bg-blue-600/5 border border-blue-600/10 p-4 rounded-3xl flex items-center gap-4 animate-in fade-in duration-1000">
+        <Info className="text-blue-600 shrink-0" size={20} />
+        <p className="text-[10px] font-bold text-blue-800 uppercase tracking-tighter leading-relaxed">
+          
+
+[Image of organizational site hierarchy]
+ - Cette cartographie assure la segmentation territoriale de vos processus et la traçabilité des audits multi-sites selon le référentiel ISO.
         </p>
       </div>
 
-      
-
-[Image of organizational site hierarchy]
-
-
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
         
-        {/* 📋 COLONNE GAUCHE : FORMULAIRE D'INDEXATION */}
+        {/* 📋 COLONNE GAUCHE : FORMULAIRE D'INDEXATION SCELLÉ */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 sticky top-8 animate-in slide-in-from-left-4 duration-700">
-            <h2 className="text-[11px] font-black uppercase mb-8 text-slate-800 flex items-center gap-3 border-b border-slate-100 pb-5 italic">
-              <Plus size={18} className="text-blue-600" strokeWidth={3} /> Nouvelle Implantation
-            </h2>
+            <div className="mb-8 border-b border-slate-100 pb-5">
+              <h2 className="text-[11px] font-black uppercase text-slate-800 flex items-center gap-3 italic">
+                <Plus size={18} className="text-blue-600" strokeWidth={3} /> Nouvelle Implantation
+              </h2>
+              <p className="text-[8px] text-slate-400 font-bold uppercase mt-2 tracking-widest">Indexation au SDE Matrix</p>
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               
-              {/* NOM DU SITE */}
+              {/* NOM DU SITE (S_Name) */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Désignation du Site *</label>
                 <div className="relative group">
@@ -201,7 +275,7 @@ export default function SitesPage() {
                 </div>
               </div>
 
-              {/* ADRESSE PHYSIQUE */}
+              {/* ADRESSE PHYSIQUE (S_Address) */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Localisation Précise *</label>
                 <div className="relative group">
@@ -216,7 +290,7 @@ export default function SitesPage() {
                 </div>
               </div>
 
-              {/* VILLE & PAYS */}
+              {/* VILLE (S_City) & PAYS (S_Country) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Ville *</label>
@@ -240,7 +314,7 @@ export default function SitesPage() {
                 </div>
               </div>
 
-              {/* FEEDBACK DES ERREURS API */}
+              {/* FEEDBACK DES ERREURS API (DÉCODAGE MATRIX) */}
               {errorMessage && (
                 <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-[10px] font-black uppercase italic text-red-600 animate-in fade-in slide-in-from-top-2">
                   <AlertCircle size={16} className="shrink-0" />
@@ -248,13 +322,13 @@ export default function SitesPage() {
                 </div>
               )}
 
-              {/* BOUTON D'ACTION PRINCIPAL */}
+              {/* BOUTON D'ACTION PRINCIPAL SCELLÉ */}
               <button 
                 type="submit" 
                 disabled={submitting} 
                 className="w-full bg-slate-900 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black uppercase py-5 rounded-2xl text-[11px] shadow-2xl hover:shadow-blue-500/40 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer tracking-[0.2em] italic active:scale-95"
               >
-                {submitting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />}
                 {submitting ? 'TRAITEMENT EN COURS...' : 'SCELLER L\'IMPLANTATION'}
               </button>
 
@@ -262,57 +336,84 @@ export default function SitesPage() {
           </div>
         </div>
 
-        {/* 🌐 COLONNE DROITE : REGISTRE DES ENTITÉS */}
+        {/* 🌐 COLONNE DROITE : REGISTRE DES ENTITÉS GÉOGRAPHIQUES */}
         <div className="lg:col-span-3">
           <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-hidden min-h-160 animate-in slide-in-from-right-4 duration-700">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 backdrop-blur-md">
-                <div className="flex items-center gap-3">
-                    <Globe size={22} className="text-blue-600" />
-                    <h3 className="font-black uppercase italic text-[13px] text-slate-800 tracking-tighter leading-none">Implantations Actives <span className="text-blue-600 font-black ml-1">[{sites.length}]</span></h3>
+                <div className="flex items-center gap-4">
+                    <div className="p-2 bg-blue-600/10 rounded-xl">
+                      <Globe size={22} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-black uppercase italic text-[13px] text-slate-800 tracking-tighter leading-none">
+                        Implantations Actives 
+                        <span className="text-blue-600 font-black ml-2 bg-blue-50 px-3 py-1 rounded-full text-[11px]">
+                          {sites.length}
+                        </span>
+                      </h3>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">Sovereign Asset Core • Tenant ID Secured</p>
+                    </div>
                 </div>
-                <div className="text-[10px] font-black uppercase italic text-slate-400 tracking-widest opacity-60">Sovereign Asset Core</div>
+                <div className="hidden md:block text-[9px] font-black uppercase italic text-slate-400 tracking-widest opacity-60">
+                  © 2026 QUALISOFT RD 2030
+                </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 p-8 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 p-8 gap-8">
               {sites.map((site) => (
-                <div key={site.S_Id} className="group relative p-6 rounded-4xl border border-slate-100 bg-slate-50/40 hover:bg-white hover:border-blue-600/30 hover:shadow-xl transition-all duration-500 ease-out">
+                <div key={site.S_Id} className="group relative p-8 rounded-4xl border border-slate-100 bg-slate-50/40 hover:bg-white hover:border-blue-600/30 hover:shadow-[0_20px_50px_rgba(37,99,235,0.1)] transition-all duration-500 ease-out">
                   <div className="flex justify-between items-start">
-                    <div className="flex gap-5 items-start">
-                      {/* Icône dynamique avec état Hover */}
-                      <div className="w-14 h-14 bg-white border border-slate-100 rounded-3xl flex items-center justify-center text-blue-600 shadow-md group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 shrink-0">
-                        <MapPin size={24} strokeWidth={2.5} />
+                    <div className="flex gap-6 items-start">
+                      {/* Icône dynamique ELITE */}
+                      <div className="w-16 h-16 bg-white border border-slate-100 rounded-3xl flex items-center justify-center text-blue-600 shadow-sm group-hover:bg-blue-600 group-hover:text-white group-hover:rotate-6 transition-all duration-500 shrink-0">
+                        <MapPin size={28} strokeWidth={2.5} />
                       </div>
-                      <div className="text-left">
-                        <h4 className="text-[13px] font-black uppercase italic text-slate-900 group-hover:text-blue-700 transition-colors tracking-tighter leading-none">{site.S_Name}</h4>
-                        <p className="text-[10px] text-slate-500 mt-3 font-bold italic leading-relaxed max-w-50 opacity-80">{site.S_Address}</p>
-                        <div className="flex items-center gap-2 mt-4">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">{site.S_City}, {site.S_Country}</p>
+                      <div className="text-left space-y-1">
+                        <div className="flex items-center gap-3">
+                          <h4 className="text-[15px] font-black uppercase italic text-slate-900 group-hover:text-blue-700 transition-colors tracking-tighter leading-none">{site.S_Name}</h4>
+                          {!site.S_IsActive && <span className="text-[8px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-full uppercase">Inactif</span>}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-3 font-bold italic leading-relaxed max-w-64 opacity-80">{site.S_Address || "Aucune adresse spécifiée"}</p>
+                        <div className="flex items-center gap-2 mt-5">
+                          <span className={`w-2 h-2 rounded-full ${site.S_IsActive ? 'bg-emerald-500' : 'bg-slate-300'} animate-pulse`}></span>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] italic">
+                            {site.S_City}, {site.S_Country}
+                          </p>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Actions de pilotage */}
-                    <button 
-                      onClick={() => handleDelete(site.S_Id, site.S_Name)}
-                      className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100 border-none cursor-pointer"
-                      title="Révoquer l'implantation"
-                    >
-                      <Trash2 size={20} />
-                    </button>
+                    {/* Terminal de Pilotage d'Entité */}
+                    <div className="flex flex-col gap-2">
+                      <button 
+                        onClick={() => handleDelete(site.S_Id, site.S_Name)}
+                        className="p-3 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100 border-none cursor-pointer flex items-center justify-center"
+                        title="Révoquer l'implantation"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Metadata de Scellage (Invisible par défaut) */}
+                  <div className="absolute bottom-4 right-8 opacity-0 group-hover:opacity-40 transition-opacity">
+                    <p className="text-[7px] font-black text-slate-400 uppercase">SDE_ID: {site.S_Id.substring(0, 8)}...</p>
                   </div>
                 </div>
               ))}
 
-              {/* ÉTAT VIDE : AUCUNE DONNÉE INDEXÉE */}
+              {/* ÉTAT VIDE : NÉANT GÉOGRAPHIQUE */}
               {sites.length === 0 && !loading && (
-                <div className="col-span-1 md:col-span-2 py-32 flex flex-col items-center justify-center text-slate-400 gap-6 border-4 border-dashed border-slate-100 rounded-[3rem] m-2">
-                  <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center shadow-inner">
-                    <Globe size={48} className="opacity-10 text-slate-900" />
+                <div className="col-span-1 md:col-span-2 py-40 flex flex-col items-center justify-center text-slate-400 gap-8 border-4 border-dashed border-slate-100 rounded-[4rem] m-2 animate-in zoom-in duration-700">
+                  <div className="w-28 h-28 bg-slate-50 rounded-full flex items-center justify-center shadow-inner relative">
+                    <Globe size={56} className="opacity-10 text-slate-900 animate-spin-slow" />
+                    <AlertCircle className="absolute top-0 right-0 text-blue-600/40" size={24} />
                   </div>
-                  <div className="text-center space-y-2">
-                    <p className="font-black uppercase text-xs italic tracking-widest text-slate-600 opacity-60">Néant géographique</p>
-                    <p className="text-[10px] font-bold italic opacity-40 uppercase tracking-tighter">Utilisez le terminal de gauche pour sceller votre première entité.</p>
+                  <div className="text-center space-y-3">
+                    <p className="font-black uppercase text-sm italic tracking-[0.3em] text-slate-600">Néant géographique détecté</p>
+                    <p className="text-[10px] font-bold italic opacity-40 uppercase tracking-tighter max-w-xs mx-auto leading-relaxed">
+                      L&apos;infrastructure Qualisoft Elite nécessite au moins une implantation physique pour activer les modules SMI. Utilisez le terminal d&apos;indexation.
+                    </p>
                   </div>
                 </div>
               )}
@@ -323,3 +424,6 @@ export default function SitesPage() {
     </div>
   );
 }
+
+// Styles additionnels pour les animations
+// @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

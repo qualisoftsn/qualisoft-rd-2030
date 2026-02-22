@@ -1,5 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 🛠️ MODULE : DOSSIER DÉTAILLÉ DE NON-CONFORMITÉ (NC) — ELITE CORE SDE
+ * -------------------------------------------------------------------------
+ * RÔLE : Pilotage expert du cycle Correctif/Préventif (§10.2 ISO 9001).
+ * RÉFÉRENTIEL : types/elite-sde.ts (SCELLAGE PRISMA STRICT).
+ * WORKFLOW : DETECTION -> ANALYSE -> ACTION_EN_COURS -> VERIFICATION -> CLOTURE.
+ * DESIGN : Cockpit Matrix Full-Space (max-w-500).
+ * -------------------------------------------------------------------------
+ */
+
 'use client';
 
 import React, { useEffect, useState, useCallback, use } from 'react';
@@ -8,292 +18,311 @@ import apiClient from '@/core/api/api-client';
 import { 
   ArrowLeft, Printer, Save, CheckCircle2, AlertOctagon, 
   Clock, User, Loader2, PlayCircle, Lock, ShieldCheck, 
-  Plus, Calendar, 
-  FileText
+  Plus, Calendar, FileText, Activity, Zap, Fingerprint, Target
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'sonner';
 
-/**
- * 🛠️ MODULE : DOSSIER DÉTAILLÉ DE NON-CONFORMITÉ (NC)
- * -------------------------------------------------------------------------
- * RÔLE : 
- * Cette page permet de piloter le traitement d'un écart spécifique après sa 
- * détection. Elle structure la réponse en trois phases normatives :
- * 1. Diagnostic : Analyse des causes racines (Root Cause Analysis).
- * 2. Correction : Mise en place d'un plan d'actions correctives (CAPA).
- * 3. Clôture : Validation de l'efficacité et archivage du dossier.
- * -------------------------------------------------------------------------
- */
+// --- 🏗️ RÉFÉRENTIEL ÉLITE-SDE (PRISMA SCHEMA) ---
+import { 
+  NonConformite as INonConformite, 
+  Action as IAction,
+  NCStatus,
+  ActionStatus,
+  ActionOrigin,
+  ActionType,
+  Priority
+} from '@/types/elite-sde';
 
-// Importation des types pour la cohérence des objets Quality
-import { NonConformite, ActionCorrective } from '@/types/quality';
+const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
 export default function DetailNonConformitePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  
-  // Déballage des paramètres d'URL (Next.js 15+ pattern)
   const resolvedParams = use(params);
   const id = resolvedParams.id;
   
-  // --- ÉTATS DU DOSSIER ---
-  const [nc, setNc] = useState<NonConformite | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [analyse, setAnalyse] = useState('');
+  // --- 📦 ÉTATS DU DOSSIER EXPERT (Relations mappées : Processus, Detector, Actions) ---
+  const [nc, setNc] = useState<any>(null); 
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [analyse, setAnalyse] = useState<string>('');
   
-  // --- ÉTATS POUR LE WORKFLOW DES ACTIONS (CAPA) ---
-  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
-  const [newActionTitle, setNewActionTitle] = useState('');
-  const [newActionDeadline, setNewActionDeadline] = useState('');
+  // --- 📟 WORKFLOW CAPA (ISO 9001:2015) ---
+  const [isActionModalOpen, setIsActionModalOpen] = useState<boolean>(false);
+  const [newActionTitle, setNewActionTitle] = useState<string>('');
+  const [newActionDeadline, setNewActionDeadline] = useState<string>('');
 
   /**
-   * 📡 CHARGEMENT DES DONNÉES DU DOSSIER
-   * Récupère l'intégralité de la fiche NC incluant les relations (détecteur, actions).
+   * 📡 CHARGEMENT DE LA FICHE NC SDE
+   * @description Récupération du dossier avec inclusion des relations SDE.
    */
   const chargerDetails = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<NonConformite>(`/non-conformites/${id}`);
-      setNc(res.data);
-      // Initialise le champ d'analyse avec les données existantes en base
-      setAnalyse(res.data.NC_Diagnostic || '');
-    } catch (e) {
-      toast.error("Échec de la récupération du dossier NC");
+      const res = await apiClient.get(`/non-conformites/${id}`);
+      const data = res.data?.data || res.data;
+      setNc(data);
+      setAnalyse(data.NC_Diagnostic || '');
+    } catch (e: unknown) {
+      toast.error("RUPTURE DE LIAISON : DOSSIER NC INTROUVABLE.");
       router.push('/dashboard/non-conformites');
     } finally { 
       setLoading(false); 
     }
   }, [id, router]);
 
-  useEffect(() => { 
-    chargerDetails(); 
-  }, [chargerDetails]);
+  useEffect(() => { chargerDetails(); }, [chargerDetails]);
 
   /**
-   * 💾 PHASE 01 : ENREGISTREMENT DU DIAGNOSTIC
-   * Met à jour le diagnostic (Causes racines) et fait progresser le workflow vers "ANALYSE".
+   * 💾 PHASE 01 : ENREGISTREMENT DU DIAGNOSTIC (§10.2.1 b)
+   * @description Scelle l'analyse des causes racines et fait progresser le statut vers 'ANALYSE'.
    */
   const sauvegarderAnalyse = async () => {
-    if (!analyse.trim()) {
-      toast.error("Le diagnostic ne peut pas être vide (Exigence ISO)");
-      return;
-    }
+    if (!analyse.trim()) return toast.error("Le diagnostic est une exigence normative obligatoire.");
 
     setIsSaving(true);
+    const tid = toast.loading("Archivage du diagnostic Causes-Racines...");
     try {
+      // ✅ SCELLAGE SDE : NC_Statut (Enum NCStatus.ANALYSE)
       await apiClient.patch(`/non-conformites/${id}`, { 
         NC_Diagnostic: analyse, 
-        NC_Statut: 'ANALYSE' 
+        NC_Statut: NCStatus.ANALYSE 
       });
-      toast.success("Analyse des causes racines validée");
-      chargerDetails(); // Rafraîchissement pour refléter le changement de statut
+      toast.success("Analyse des causes validée.", { id: tid });
+      chargerDetails();
     } catch {
-      toast.error("Erreur lors de la mise à jour du diagnostic");
+      toast.error("ERREUR DE MUTATION SDE.", { id: tid });
     } finally { 
       setIsSaving(false); 
     }
   };
 
   /**
-   * ⚡ PHASE 02 : DÉCLENCHEMENT D'UNE ACTION CORRECTIVE
-   * Crée une action dans le plan d'amélioration globale en la liant à cette NC.
+   * ⚡ PHASE 02 : DÉCLENCHEMENT ACTION CORRECTIVE (§10.2.1 c)
+   * @description Indexation d'une action liée au dossier NC (Traçabilité SDE).
    */
   const creerAction = async (e: React.FormEvent) => {
     e.preventDefault();
+    const tid = toast.loading("Indexation du plan d'action...");
     try {
       await apiClient.post('/actions', {
         ACT_Title: newActionTitle,
         ACT_Deadline: newActionDeadline,
-        ACT_Status: 'OPEN',
-        ACT_OriginType: 'NC', // Tag d'origine pour la traçabilité §7.5
-        ACT_OriginId: id      // Clé étrangère vers ce dossier NC
+        ACT_Status: ActionStatus.A_FAIRE,
+        ACT_Origin: ActionOrigin.NON_CONFORMITE,
+        ACT_Type: ActionType.CORRECTIVE,
+        ACT_Priority: Priority.HIGH,
+        ACT_NCId: id
       });
-      toast.success("Nouvelle Action Corrective indexée");
+      // ✅ Transition automatique vers ACTION_EN_COURS si première action
+      if (nc.NC_Statut === NCStatus.ANALYSE || nc.NC_Statut === NCStatus.DETECTION) {
+          await apiClient.patch(`/non-conformites/${id}`, { NC_Statut: NCStatus.ACTION_EN_COURS });
+      }
+      toast.success("Action Corrective indexée avec succès.", { id: tid });
       setIsActionModalOpen(false);
       setNewActionTitle('');
       setNewActionDeadline('');
-      chargerDetails(); // Mise à jour pour afficher l'action dans la liste
+      chargerDetails();
     } catch {
-      toast.error("Échec du déclenchement de l'action");
+      toast.error("ÉCHEC DU DÉCLENCHEMENT CAPA.", { id: tid });
     }
   };
 
   /**
-   * 🛡️ PHASE 03 : CLÔTURE DÉFINITIVE DU DOSSIER
-   * Verrouille le dossier après vérification de l'efficacité des actions.
+   * 🛡️ PHASE 03 : SCELLAGE DÉFINITIF DU DOSSIER (§10.2.2)
+   * @description Verrouillage immuable après vérification de l'efficacité.
    */
   const cloturerNC = async () => {
-    // Vérification de sécurité avant verrouillage immuable
-    if(!confirm("CONFIRMATION DE CLÔTURE : Cette action verrouille le diagnostic. Avez-vous vérifié l'efficacité des actions correctives ?")) return;
+    if(!confirm("ALERTE SCELLAGE : Cette action verrouille le diagnostic de manière immuable. Confirmer la clôture ?")) return;
     
+    const tid = toast.loading("Scellage final du dossier NC...");
     try {
-      await apiClient.patch(`/non-conformites/${id}`, { NC_Statut: 'CLOSED' });
-      toast.success("Dossier NC officiellement clôturé et scellé");
+      await apiClient.patch(`/non-conformites/${id}`, { NC_Statut: NCStatus.CLOTURE });
+      toast.success("Dossier NC officiellement scellé et archivé.", { id: tid });
       chargerDetails();
     } catch { 
-      toast.error("Erreur lors du scellage du dossier"); 
+      toast.error("ERREUR DE VÉRIFICATION FINALE.", { id: tid }); 
     }
-  }
+  };
 
-  // --- RENDU DE CHARGEMENT SYSTÈME ---
   if (loading || !nc) return (
-    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A]">
-      <Loader2 className="animate-spin text-red-600" size={50} />
-      <span className="text-[10px] font-black uppercase text-red-600 mt-6 italic tracking-[0.4em] animate-pulse">
-        Accès au coffre NC #{id.slice(0, 8)}...
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-8">
+      <Loader2 className="animate-spin text-red-600" size={60} strokeWidth={1.5} />
+      <span className="text-[11px] font-black uppercase text-red-600 italic tracking-[0.5em] animate-pulse">
+        Accès au coffre NC-{id.slice(0, 8).toUpperCase()}...
       </span>
     </div>
   );
 
   return (
-    <div className="px-10 py-10 bg-[#0B0F1A] min-h-screen ml-72 text-white italic font-sans text-left relative selection:bg-red-500/30">
+    <div className="p-16 bg-[#0B0F1A] min-h-screen ml-72 text-white italic font-sans text-left relative selection:bg-red-500/30 overflow-x-hidden">
+      <Toaster position="top-right" richColors />
       
-      {/* 🔝 HEADER : ACTIONS DE GOUVERNANCE DU DOSSIER */}
-      <div className="mb-10 flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-500">
+      {/* 🔝 HEADER EXPERT (FULL WIDTH max-w-500) */}
+      <div className="mb-16 flex justify-between items-center w-full max-w-500 mx-auto border-b border-white/5 pb-12">
         <button 
           onClick={() => router.back()} 
-          className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-all bg-white/5 px-6 py-3 rounded-2xl border border-white/5 cursor-pointer shadow-inner"
+          className="flex items-center gap-6 text-[11px] font-black uppercase text-slate-500 hover:text-white transition-all bg-white/5 px-10 py-5 rounded-2xl border border-white/5 cursor-pointer shadow-xl"
         >
-          <ArrowLeft size={16} /> Retour Registre
+          <ArrowLeft size={18} /> Retour Registre NC
         </button>
-        <div className="flex gap-4">
-          {nc.NC_Statut !== 'CLOSED' && (
+        
+        <div className="flex gap-8">
+          {nc.NC_Statut !== NCStatus.CLOTURE && (
              <button 
               onClick={cloturerNC} 
-              className="px-8 py-3 bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 rounded-2xl text-[10px] font-black uppercase flex items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all italic cursor-pointer shadow-lg"
+              className="px-12 py-5 bg-emerald-600/10 border-2 border-emerald-500/20 text-emerald-500 rounded-4xl text-[11px] font-black uppercase flex items-center gap-5 hover:bg-emerald-600 hover:text-white transition-all italic cursor-pointer shadow-2xl"
              >
-               <ShieldCheck size={16} /> Clôturer le Dossier
+               <ShieldCheck size={20} /> Clôturer le Dossier
              </button>
           )}
           <button 
             onClick={() => window.print()} 
-            className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase flex items-center gap-3 hover:bg-white/10 transition-all italic cursor-pointer"
+            className="px-10 py-5 bg-white/5 border-2 border-white/10 rounded-4xl text-[11px] font-black uppercase flex items-center gap-5 hover:bg-white/10 transition-all italic cursor-pointer"
           >
-            <Printer size={16} /> Imprimer PV
+            <Printer size={20} /> Imprimer PV Officiel
           </button>
           <button 
             onClick={sauvegarderAnalyse} 
-            disabled={isSaving || nc.NC_Statut === 'CLOSED'} 
-            className="px-8 py-3 bg-red-600 rounded-2xl text-[10px] font-black uppercase flex items-center gap-3 shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:bg-red-500 transition-all italic cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none"
+            disabled={isSaving || nc.NC_Statut === NCStatus.CLOTURE} 
+            className="px-14 py-5 bg-red-600 rounded-4xl text-[11px] font-black uppercase flex items-center gap-6 shadow-[0_20px_50px_rgba(220,38,38,0.3)] hover:bg-white hover:text-red-600 transition-all italic cursor-pointer border-none disabled:opacity-30"
           >
-            {isSaving ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> Enregistrer l&apos;analyse</>}
+            {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Sceller l&apos;Analyse RCA
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-10">
+      <div className="grid grid-cols-12 gap-16 w-full max-w-500 mx-auto items-start">
         
         {/* 📋 COLONNE GAUCHE : CONTEXTE DE DÉTECTION (STATIQUE) */}
-        <div className="col-span-12 lg:col-span-4 space-y-8 text-left animate-in fade-in slide-in-from-left-4 duration-700">
-          <div className="bg-[#151A2D] border border-white/10 rounded-[3.5rem] p-10 shadow-2xl relative overflow-hidden">
-            {/* Décoration Matrix */}
-            <div className="absolute -top-10 -right-10 p-10 opacity-[0.03] rotate-12 bg-red-500 rounded-full blur-3xl w-60 h-60 pointer-events-none"></div>
+        <div className="col-span-12 lg:col-span-4 space-y-12 animate-in fade-in slide-in-from-left-8 duration-1000">
+          <div className="bg-[#151A2D] border-2 border-white/5 rounded-[5rem] p-16 shadow-4xl relative overflow-hidden group">
+            <div className="absolute -top-10 -right-10 p-10 opacity-[0.05] rotate-12 bg-red-600 rounded-full blur-3xl w-80 h-80" />
             
-            <div className="flex justify-between items-start mb-10">
-                <span className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border italic shadow-inner ${
-                  nc.NC_Statut === 'CLOSED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-600/10 text-red-500 border-red-500/20 animate-pulse'
-                }`}>
-                    STATUT : {nc.NC_Statut}
-                </span>
-                <AlertOctagon size={32} className="text-slate-700" />
+            <div className="flex justify-between items-center mb-16 relative z-10">
+                <div className={cn(
+                  "px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] border italic shadow-inner",
+                  nc.NC_Statut === NCStatus.CLOTURE ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-600/10 text-red-600 border-red-600/20 animate-pulse'
+                )}>
+                    STATUS : {nc.NC_Statut}
+                </div>
+                <AlertOctagon size={44} className="text-red-600 opacity-20" />
             </div>
             
-            <h1 className="text-3xl font-black uppercase tracking-tighter leading-tight mb-8 text-white italic">
+            <h1 className="text-5xl font-black uppercase tracking-tighter leading-[0.9] mb-12 text-white italic">
               {nc?.NC_Libelle}
             </h1>
             
-            <div className="space-y-6 pt-10 border-t border-white/5 italic">
-              <div className="flex items-center gap-5 text-[11px] font-black text-slate-400">
-                  <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center"><Clock size={16} className="text-red-500" /></div>
-                  <span className="uppercase tracking-[0.2em]">Ouverture : {new Date(nc?.NC_CreatedAt).toLocaleDateString()}</span>
+            <div className="space-y-10 pt-12 border-t-2 border-white/5 relative z-10 text-left">
+              <div className="flex items-center gap-6">
+                  <div className="w-14 h-14 bg-red-600/10 rounded-2xl flex items-center justify-center shadow-lg"><Clock size={24} className="text-red-600" /></div>
+                  <div className="text-left">
+                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic mb-1">DÉTECTION SDE</p>
+                      <p className="text-lg font-black text-slate-300 uppercase italic leading-none">{new Date(nc?.NC_CreatedAt).toLocaleDateString()}</p>
+                  </div>
               </div>
-              <div className="flex items-center gap-5 text-[11px] font-black text-slate-400">
-                  <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center"><User size={16} className="text-blue-500" /></div>
-                  <span className="uppercase tracking-[0.2em]">Détecteur : {nc?.NC_Detector?.U_FirstName || 'Origine Système'}</span>
+              <div className="flex items-center gap-6">
+                  <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center shadow-lg"><User size={24} className="text-blue-600" /></div>
+                  <div className="text-left">
+                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic mb-1">DÉCLARANT SMI</p>
+                      {/* ✅ SCELLAGE SDE : Relation Detector */}
+                      <p className="text-lg font-black text-slate-300 uppercase italic leading-none">{nc?.Detector?.U_FirstName} {nc?.Detector?.U_LastName || 'KERNEL'}</p>
+                  </div>
+              </div>
+              <div className="flex items-center gap-6">
+                  <div className="w-14 h-14 bg-emerald-600/10 rounded-2xl flex items-center justify-center shadow-lg"><Activity size={24} className="text-emerald-600" /></div>
+                  <div className="text-left">
+                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic mb-1">PROCESSUS LIÉ (§4.4)</p>
+                      {/* ✅ SCELLAGE SDE : Relation Processus */}
+                      <p className="text-lg font-black text-blue-400 uppercase italic leading-none">{nc?.Processus?.PR_Libelle || 'TRANSVERSAL'}</p>
+                  </div>
               </div>
             </div>
 
-            <div className="mt-12 p-8 bg-black/30 rounded-[2.5rem] border border-white/5 italic shadow-inner relative">
-              <div className="absolute top-4 right-6 opacity-10"><FileText size={20} /></div>
-              <p className="text-[10px] font-black uppercase text-slate-600 mb-4 tracking-[0.3em] flex items-center gap-2">
-                <ArrowLeft size={12} className="rotate-180 text-red-500"/> Constat Factuel Déclaré
+            <div className="mt-16 p-12 bg-black/40 rounded-[4rem] border-2 border-white/5 italic shadow-inner relative text-left group/box">
+              <Fingerprint className="absolute top-8 right-10 text-slate-800 group-hover/box:text-red-600 transition-colors" size={32} />
+              <p className="text-[11px] font-black uppercase text-slate-500 mb-8 tracking-[0.5em] flex items-center gap-4 italic leading-none">
+                <Target size={14} className="text-red-600"/> Constat Factuel Déclaré
               </p>
-              <p className="text-[13px] leading-relaxed text-slate-300 italic font-medium">
+              <p className="text-[17px] leading-relaxed text-slate-300 italic font-medium">
                 {nc?.NC_Description}
               </p>
             </div>
           </div>
         </div>
 
-        {/* ⚙️ COLONNE DROITE : TRAITEMENT & RÉSOLUTION (DYNAMIQUE) */}
-        <div className="col-span-12 lg:col-span-8 space-y-10 text-left animate-in fade-in slide-in-from-right-4 duration-1000">
+        {/* ⚙️ COLONNE DROITE : RÉSOLUTION CAPA (DYNAMIQUE) */}
+        <div className="col-span-12 lg:col-span-8 space-y-12 animate-in fade-in slide-in-from-right-8 duration-1000">
           
-          {/* 🔍 ÉTAPE 01 : DIAGNOSTIC & ANALYSE DES CAUSES */}
-          <div className="bg-[#151A2D] border border-white/10 rounded-[3.5rem] p-12 shadow-2xl flex flex-col relative group transition-all hover:border-red-500/20">
-            <div className="absolute left-0 top-12 w-1.5 h-20 bg-red-600 rounded-r-full shadow-[0_0_15px_rgba(220,38,38,0.5)]"></div>
-            <div className="flex justify-between items-center mb-10">
-              <h2 className="text-2xl font-black uppercase italic flex items-center gap-5 text-slate-200 tracking-tight">
-                  <span className="text-red-600 text-5xl opacity-40 leading-none">01.</span> Diagnostic & Causes
+          {/* RCA (§10.2.1 b) */}
+          <div className="bg-[#151A2D] border-2 border-white/5 rounded-[6rem] p-16 shadow-4xl relative group">
+            <div className="absolute left-0 top-16 w-2 h-24 bg-red-600 rounded-r-full shadow-[0_0_20px_rgba(220,38,38,0.6)]" />
+            <div className="flex justify-between items-center mb-12">
+              <h2 className="text-4xl font-black uppercase italic flex items-center gap-8 text-white tracking-tighter">
+                  <span className="text-red-600 text-7xl opacity-20 leading-none">01.</span> Diagnostic & Causes
               </h2>
-              <div className="text-[9px] font-black uppercase text-slate-500 tracking-widest border border-white/10 px-4 py-2 rounded-full">Méthodologie Ishikawa / 5P</div>
+              <div className="text-[11px] font-black uppercase text-slate-500 tracking-[0.5em] bg-white/5 px-8 py-3 rounded-full border border-white/5 italic leading-none shadow-inner">Méthode Ishikawa / 5P</div>
             </div>
             <textarea 
                 value={analyse} 
                 onChange={(e) => setAnalyse(e.target.value)} 
-                disabled={nc.NC_Statut === 'CLOSED'}
-                placeholder="Rédigez ici l'analyse détaillée des causes racines. Pourquoi cet écart s'est-il produit ?" 
-                className="w-full p-10 bg-black/40 border-2 border-white/5 rounded-[3rem] text-[15px] font-medium text-white outline-none focus:border-red-600 min-h-62.5 leading-relaxed italic placeholder-slate-800 transition-all focus:bg-black/60 disabled:opacity-30 shadow-inner resize-none" 
+                disabled={nc.NC_Statut === NCStatus.CLOTURE}
+                placeholder="Rédiger ici l'analyse structurée des causes racines (Root Cause Analysis)..." 
+                className="w-full p-14 bg-black/40 border-4 border-white/5 rounded-[4rem] text-xl font-medium text-white outline-none focus:border-red-600 min-h-87.5 leading-relaxed italic placeholder-slate-900 transition-all focus:bg-black/60 disabled:opacity-30 shadow-inner resize-none text-left" 
             />
           </div>
 
-          {/* ⚡ ÉTAPE 02 : PLAN D'ACTIONS CORRECTIVES (CAPA) */}
-          <div className="bg-[#151A2D] border border-white/10 rounded-[3.5rem] p-12 shadow-2xl text-left relative group transition-all hover:border-blue-500/20">
-            <div className="absolute left-0 top-12 w-1.5 h-20 bg-blue-600 rounded-r-full shadow-[0_0_15px_rgba(37,99,235,0.5)]"></div>
+          {/* CAPA (§10.2.1 c) */}
+          <div className="bg-[#151A2D] border-2 border-white/5 rounded-[6rem] p-16 shadow-4xl relative group">
+            <div className="absolute left-0 top-16 w-2 h-24 bg-blue-600 rounded-r-full shadow-[0_0_20px_rgba(37,99,235,0.6)]" />
             
-            <div className="flex justify-between items-center mb-12">
-                <h2 className="text-2xl font-black uppercase italic flex items-center gap-5 text-slate-200 tracking-tight">
-                    <span className="text-blue-600 text-5xl opacity-40 leading-none">02.</span> Plan d&apos;Actions Correctives
+            <div className="flex justify-between items-center mb-16">
+                <h2 className="text-4xl font-black uppercase italic flex items-center gap-8 text-white tracking-tighter leading-none">
+                    <span className="text-blue-600 text-7xl opacity-20 leading-none">02.</span> Plan Correctif
                 </h2>
                 <button 
                   onClick={() => setIsActionModalOpen(true)} 
-                  disabled={nc.NC_Statut === 'CLOSED'}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-20 px-8 py-4 rounded-3xl text-[10px] font-black uppercase text-white flex items-center gap-3 transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer border-none"
+                  disabled={nc.NC_Statut === NCStatus.CLOTURE}
+                  className="bg-blue-600 hover:bg-white hover:text-blue-600 disabled:opacity-20 px-12 py-5 rounded-[2.5rem] text-[11px] font-black uppercase text-white flex items-center gap-5 transition-all shadow-4xl active:scale-95 cursor-pointer border-none italic"
                 >
-                    <Plus size={18} strokeWidth={3} /> Nouvelle Action
+                    <Plus size={24} strokeWidth={3} /> Lancer CAPA
                 </button>
             </div>
 
-            <div className="grid gap-6">
-              {nc?.NC_Actions && nc.NC_Actions.length > 0 ? nc.NC_Actions.map((action: any) => (
-                <div key={action.ACT_Id} className="p-8 bg-black/40 border border-white/5 rounded-[2.5rem] flex items-center justify-between italic hover:border-blue-500/40 transition-all group/item shadow-inner">
-                  <div className="flex items-center gap-8">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${action.ACT_Status === 'DONE' ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/20' : 'bg-slate-800/50 text-slate-600 border border-white/5'}`}>
-                        <PlayCircle size={28} className={action.ACT_Status === 'OPEN' ? 'animate-pulse' : ''} />
+            <div className="grid gap-10">
+              {/* ✅ SCELLAGE SDE : Relation Actions */}
+              {nc?.Actions?.length > 0 ? nc.Actions.map((action: IAction) => (
+                <div key={action.ACT_Id} className="p-12 bg-black/40 border-2 border-white/5 rounded-[4.5rem] flex items-center justify-between italic hover:border-blue-600/40 transition-all group/item shadow-inner">
+                  <div className="flex items-center gap-10">
+                    <div className={cn(
+                      "w-22 h-22 rounded-4xl flex items-center justify-center shadow-2xl transition-all border",
+                      action.ACT_Status === ActionStatus.TERMINEE ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-900 text-slate-700 border-white/10'
+                    )}>
+                        <PlayCircle size={44} className={action.ACT_Status === ActionStatus.A_FAIRE ? 'animate-pulse text-blue-600' : ''} />
                     </div>
-                    <div>
-                      <p className="text-lg font-black uppercase text-white tracking-tighter leading-none mb-2 group-hover/item:text-blue-400 transition-colors">
+                    <div className="text-left">
+                      <p className="text-2xl font-black uppercase text-white tracking-tighter leading-none mb-4 group-hover/item:text-blue-400 transition-colors italic">
                         {action.ACT_Title}
                       </p>
-                      <p className="text-[10px] font-black text-slate-500 uppercase italic mt-1 flex items-center gap-3 tracking-[0.2em]">
-                        <Calendar size={14} className="text-blue-500"/> ÉCHÉANCE PRÉVISIONNELLE : {new Date(action.ACT_Deadline).toLocaleDateString()}
-                      </p>
+                      <div className="flex items-center gap-6 text-[11px] font-black text-slate-500 uppercase italic tracking-[0.3em] leading-none">
+                        <Calendar size={18} className="text-blue-600"/> ÉCHÉANCE : {new Date(action.ACT_Deadline!).toLocaleDateString()}
+                        <span className="text-slate-800">•</span>
+                        <span className="text-blue-600/50">REF: {action.ACT_Id.slice(0, 8).toUpperCase()}</span>
+                      </div>
                     </div>
                   </div>
-                  <span className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase italic border tracking-widest ${
-                    action.ACT_Status === 'DONE' 
-                      ? 'bg-emerald-600 text-white border-transparent shadow-lg' 
-                      : 'bg-slate-900 text-slate-500 border-white/10'
-                  }`}>
-                      {action.ACT_Status === 'DONE' ? 'TERMINÉ' : 'EN COURS'}
-                  </span>
+                  <div className={cn(
+                    "px-10 py-4 rounded-2xl text-[12px] font-black uppercase italic border tracking-[0.5em] shadow-lg",
+                    action.ACT_Status === ActionStatus.TERMINEE ? 'bg-emerald-600 text-white border-transparent' : 'bg-[#0F172A] text-slate-600 border-white/5'
+                  )}>
+                      {action.ACT_Status}
+                  </div>
                 </div>
               )) : (
-                <div className="py-20 border-2 border-dashed border-white/5 rounded-[3.5rem] text-center flex flex-col items-center justify-center">
-                    <ShieldCheck className="text-slate-800 mb-6" size={50} />
-                    <p className="text-[11px] text-slate-600 uppercase font-black italic tracking-[0.4em]">
-                      Aucune Action Corrective rattachée.
+                <div className="py-32 border-4 border-dashed border-white/5 rounded-[6rem] text-center flex flex-col items-center justify-center opacity-20 italic">
+                    <Activity className="text-slate-500 mb-10" size={80} />
+                    <p className="text-[14px] text-slate-600 uppercase font-black italic tracking-[0.6em] leading-relaxed">
+                      Plan CAPA Vierge pour ce Dossier.<br/>L&apos;indexation d&apos;actions est requise pour la clôture.
                     </p>
-                    <p className="text-[9px] text-slate-700 mt-2 uppercase font-bold italic tracking-widest">Le plan CAPA est requis pour la clôture §10.2.1</p>
                 </div>
               )}
             </div>
@@ -301,67 +330,43 @@ export default function DetailNonConformitePage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      {/* 🚀 MODAL DE CRÉATION RAPIDE D'ACTION (SLIDE-IN) */}
+      {/* 🚀 MODAL CAPA SDE (FULL BLUR) */}
       {isActionModalOpen && (
-        <div className="fixed inset-0 bg-[#0B0F1A]/95 backdrop-blur-xl z-200 flex items-center justify-center p-6 animate-in fade-in duration-300">
-            <div className="bg-[#151A2D] border border-white/10 rounded-[4rem] p-16 w-full max-w-xl shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-500 relative">
-                <header className="mb-12 border-b border-white/5 pb-8">
-                  <h3 className="text-4xl font-black uppercase italic text-white tracking-tighter leading-none mb-4">Lancer une Action</h3>
-                  <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.3em]">Cible : Résolution de l&apos;écart NC #{id.slice(0, 8)}</p>
+        <div className="fixed inset-0 bg-[#0B0F1A]/98 backdrop-blur-3xl z-200 flex items-center justify-center p-12 animate-in fade-in duration-500">
+            <div className="bg-[#151A2D] border-2 border-white/10 rounded-[6rem] p-24 w-full max-w-2xl shadow-4xl text-left animate-in zoom-in-95 duration-700 italic">
+                <header className="mb-16 border-b-2 border-white/5 pb-12">
+                  <h3 className="text-5xl font-black uppercase italic text-white tracking-tighter leading-[0.8] mb-6">Initialiser CAPA</h3>
+                  <p className="text-slate-600 text-[12px] font-black uppercase tracking-[0.6em] italic leading-none">Correction de l&apos;Écart NC-{id.slice(0, 8).toUpperCase()}</p>
                 </header>
-
-                <form onSubmit={creerAction} className="space-y-10">
-                    <div className="space-y-4">
-                        <label className="text-[11px] font-black uppercase text-slate-500 ml-6 block italic tracking-widest">Désignation de l&apos;action</label>
-                        <input 
-                          autoFocus 
-                          required 
-                          value={newActionTitle} 
-                          onChange={e => setNewActionTitle(e.target.value.toUpperCase())} 
-                          className="w-full bg-black/40 border-2 border-white/10 rounded-2xl p-6 text-[13px] font-black italic text-white outline-none focus:border-blue-600 shadow-inner placeholder:text-slate-800" 
-                          placeholder="EX: RÉVISION DE LA PROCÉDURE DE CONTRÔLE RÉCEPTION..." 
-                        />
+                <form onSubmit={creerAction} className="space-y-12 text-left">
+                    <div className="space-y-6 text-left">
+                        <label className="text-[13px] font-black uppercase text-slate-500 ml-10 block italic tracking-[0.4em]">Désignation de la mesure (§10.2.1)</label>
+                        <input autoFocus required value={newActionTitle} onChange={e => setNewActionTitle(e.target.value.toUpperCase())} className="w-full bg-black/40 border-4 border-white/10 rounded-[2.5rem] p-10 text-xl font-black italic text-white outline-none focus:border-blue-600 shadow-inner" placeholder="EX: RÉVISION PROTOCOLE DE SÉCURITÉ..." />
                     </div>
-                    <div className="space-y-4">
-                        <label className="text-[11px] font-black uppercase text-slate-500 ml-6 block italic tracking-widest">Date limite de réalisation</label>
-                        <input 
-                          required 
-                          type="date" 
-                          value={newActionDeadline} 
-                          onChange={e => setNewActionDeadline(e.target.value)} 
-                          className="w-full bg-black/40 border-2 border-white/10 rounded-2xl p-6 text-[13px] font-black italic text-white outline-none focus:border-blue-600 shadow-inner uppercase cursor-pointer" 
-                        />
+                    <div className="space-y-6 text-left">
+                        <label className="text-[13px] font-black uppercase text-slate-500 ml-10 block italic tracking-[0.4em]">Échéance SDE Matrix</label>
+                        <input required type="date" value={newActionDeadline} onChange={e => setNewActionDeadline(e.target.value)} className="w-full bg-black/40 border-4 border-white/10 rounded-[2.5rem] p-10 text-xl font-black italic text-white outline-none focus:border-blue-600 shadow-inner uppercase cursor-pointer" />
                     </div>
-                    <div className="flex gap-6 pt-10">
-                        <button 
-                          type="button" 
-                          onClick={() => setIsActionModalOpen(false)} 
-                          className="flex-1 py-6 bg-white/5 hover:bg-white/10 rounded-3xl text-[11px] font-black uppercase text-slate-500 transition-all cursor-pointer border-none"
-                        >
-                          Annuler
-                        </button>
-                        <button 
-                          type="submit" 
-                          className="flex-2 py-6 bg-blue-600 hover:bg-blue-500 rounded-3xl text-[11px] font-black uppercase text-white shadow-2xl transition-all cursor-pointer border-none group"
-                        >
-                          Lancer l&apos;Action Corrective
-                        </button>
+                    <div className="flex gap-10 pt-16">
+                        <button type="button" onClick={() => setIsActionModalOpen(false)} className="flex-1 py-8 bg-white/5 hover:bg-white/10 rounded-[2.5rem] text-[12px] font-black uppercase text-slate-500 transition-all border-none cursor-pointer">Annuler</button>
+                        <button type="submit" className="flex-[2.5] py-8 bg-blue-600 hover:bg-white hover:text-blue-600 rounded-[2.5rem] text-[12px] font-black uppercase text-white shadow-4xl transition-all border-none active:scale-95 cursor-pointer leading-none">Sceller l&apos;Action Corrective</button>
                     </div>
                 </form>
             </div>
         </div>
       )}
 
-      {/* 🔐 PIED DE PAGE : TRAÇABILITÉ SMI */}
-      <footer className="mt-20 pt-10 border-t border-white/5 flex justify-between items-center opacity-30">
-        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-slate-500">
-          Qualisoft Node-SMI 2026 • Dossier Immuable • Sécurité Matrix Validée
-        </p>
-        <div className="flex gap-6">
-           <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-           <div className="w-2 h-2 rounded-full bg-blue-600" />
-           <div className="w-2 h-2 rounded-full bg-emerald-600" />
-        </div>
+      {/* 🧩 FOOTER TRAÇABILITÉ RD 2030 */}
+      <footer className="mt-40 pt-16 border-t-2 border-white/5 flex justify-between items-center opacity-20 w-full max-w-500 mx-auto">
+          <div className="flex items-center gap-6">
+              <Fingerprint size={24} className="text-red-600" />
+              <p className="text-[11px] font-black uppercase tracking-[0.8em] text-slate-500 italic">Sovereign Data Registry • Qualisoft RD 2030 Matrix</p>
+          </div>
+          <div className="flex gap-4">
+              <div className="w-2 h-2 rounded-full bg-red-600" />
+              <div className="w-2 h-2 rounded-full bg-blue-600" />
+              <div className="w-2 h-2 rounded-full bg-emerald-600" />
+          </div>
       </footer>
     </div>
   );
