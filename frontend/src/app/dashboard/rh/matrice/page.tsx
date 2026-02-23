@@ -1,31 +1,40 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * NOM ABSOLU : src/app/dashboard/rh/matrice/page.tsx
- * FONCTION : Matrice de compétences avancée avec diagnostic de liaison SMI.
- * LOGIQUE : Synchronisation bidirectionnelle avec le Noyau Auth et GPEC.
+ * 💡 NOM ABSOLU : src/app/dashboard/rh/matrice/page.tsx
+ * -------------------------------------------------------------------------
+ * FONCTION : Matrice de compétences avancée avec diagnostic de liaison SMI (§7.2).
+ * ARCHITECTURE : Full-Space Matrix Design, liaison Auth sécurisée.
+ * CONSOLIDATION : 
+ * 1. Style Matrix Elite massifié (max-w-500, font-black, etc).
+ * 2. Sticky Headers parfaits pour naviguer de grandes quantités de data.
+ * 3. Typage et diagnostic console préservés.
+ * -------------------------------------------------------------------------
  */
 
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
-  Plus, Loader2, 
-  Settings2, Search, Activity, UserCheck
+  Loader2, 
+  Search, Activity, UserCheck, Fingerprint
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'sonner';
 
+// --- 🏗️ INTERFACES SCELLÉES ---
 interface MatrixData { users: any[]; competences: any[]; }
 
 export default function RHMasterMatrixDiagnostic() {
+  // --- 📦 ÉTATS SCELLÉS ---
   const [data, setData] = useState<MatrixData>({ users: [], competences: [] });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // 1️⃣ RÉCUPÉRATION DU CONTEXTE DE SÉCURITÉ (Tenant ID)
+  // 1️⃣ RÉCUPÉRATION DU CONTEXTE DE SÉCURITÉ (Tenant ID LocalStorage Fallback)
   useEffect(() => {
     setIsMounted(true);
     const storage = localStorage.getItem('qualisoft-auth-storage');
@@ -34,7 +43,7 @@ export default function RHMasterMatrixDiagnostic() {
         const parsed = JSON.parse(storage);
         const tid = parsed.state?.user?.tenantId;
         if (tid) setTenantId(tid);
-      } catch (e) { console.error("🚨 Échec lecture contexte auth"); }
+      } catch (e) { console.error("🚨 Échec lecture contexte auth SDE"); }
     }
   }, []);
 
@@ -43,129 +52,160 @@ export default function RHMasterMatrixDiagnostic() {
     if (!tenantId) return;
     try {
       setLoading(true);
-      const matrixRes = await apiClient.get<MatrixData>('/competences/matrix');
+      const matrixRes = await apiClient.get('/competences/matrix');
+      const payload = matrixRes.data?.data || matrixRes.data;
       
-      // Journalisation pour diagnostic technique
-      console.log("📡 [NOYAU RH] Payload Matrix reçu :", matrixRes.data);
+      // Journalisation pour diagnostic technique SDE
+      console.log("📡 [NOYAU RH SDE] Payload Matrix reçu :", payload);
 
       setData({
-        users: Array.isArray(matrixRes.data?.users) ? matrixRes.data.users : [],
-        competences: Array.isArray(matrixRes.data?.competences) ? matrixRes.data.competences : []
+        users: Array.isArray(payload?.users) ? payload.users : [],
+        competences: Array.isArray(payload?.competences) ? payload.competences : []
       });
     } catch (error: any) {
-      toast.error("Rupture de liaison noyau RH");
-      console.error("🚨 [DIAGNOSTIC CRITIQUE] :", {
+      toast.error("RUPTURE DE LIAISON NOYAU RH.");
+      console.error("🚨 [DIAGNOSTIC CRITIQUE SDE] :", {
         status: error.response?.status,
         message: error.response?.data?.message || error.message
       });
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+    }
   }, [tenantId]);
 
-  useEffect(() => { if (isMounted && tenantId) fetchData(); }, [isMounted, tenantId, fetchData]);
+  useEffect(() => { if (isMounted && tenantId) fetchData(); }, [isMounted, tenantId]);
 
   /** ⚡ ACTION : MISE À JOUR DU NIVEAU D'APTITUDE (§7.2) */
   const handleUpdateLevel = async (userId: string, compId: string, current: number) => {
+    const tid = toast.loading("Mutation Matrix...");
     try {
       const next = current >= 4 ? 0 : current + 1;
       await apiClient.post('/competences/evaluate', { userId, competenceId: compId, level: next });
+      toast.success("MUTATION SCELLÉE.", { id: tid });
       await fetchData();
-    } catch { toast.error("Échec de la mutation du niveau"); }
+    } catch { 
+      toast.error("ÉCHEC DE LA MUTATION SDE.", { id: tid }); 
+    }
   };
 
   const filteredUsers = useMemo(() => 
     (data.users || []).filter(u => 
       `${u.U_FirstName} ${u.U_LastName}`.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [data.users, searchTerm]);
+    ), [data.users, searchTerm]
+  );
 
   if (!isMounted) return null;
 
   return (
-    <div className="p-12 bg-[#0B0F1A] min-h-screen text-white italic ml-72 font-sans selection:bg-blue-600/30">
+    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-16 ml-72 text-white font-sans italic text-left selection:bg-blue-600/30 overflow-x-hidden">
+      <Toaster position="top-right" richColors theme="dark" />
       
-      {/* HEADER DE DIAGNOSTIC */}
-      <header className="flex justify-between items-end border-b border-white/5 pb-10 mb-10">
-        <div className="text-left">
-          <div className="flex items-center gap-4 text-blue-500 mb-4 font-black uppercase tracking-[0.5em] text-[10px] italic">
-            <Activity size={18} className="animate-pulse" /> Diagnostic Matrice GPEC §7.2
-          </div>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none">
-            RH <span className="text-blue-600">Master Matrix</span>
-          </h1>
-        </div>
-        <div className="bg-white/5 px-8 py-5 rounded-2xl border border-white/10 flex items-center gap-4 shadow-inner">
-           <UserCheck className="text-blue-400" size={20} />
-           <span className="text-[10px] font-black uppercase tracking-[0.2em] italic text-slate-400">Total Collaborateurs: {data.users.length}</span>
-        </div>
-      </header>
+      <div className="w-full max-w-500 mx-auto space-y-20 animate-in fade-in duration-1000">
 
-      {/* RECHERCHE ET ÉTAT DE LIAISON */}
-      <div className="bg-slate-900/30 border border-white/5 rounded-[3.5rem] overflow-hidden shadow-3xl backdrop-blur-xl animate-in fade-in duration-700">
-        <div className="p-10 border-b border-white/5 flex items-center gap-6">
-          <Search size={22} className="text-slate-600" />
-          <input 
-            type="text" 
-            placeholder="SCANNER LA MATRICE PAR NOM OU PRÉNOM..." 
-            className="bg-transparent outline-none font-black uppercase text-[12px] w-full text-white placeholder-slate-800 italic tracking-[0.2em]" 
-            value={searchTerm} 
-            onChange={e => setSearchTerm(e.target.value)} 
-          />
-        </div>
-
-        {loading ? (
-          <div className="flex h-120 flex-col items-center justify-center gap-6 text-blue-500">
-            <Loader2 className="animate-spin" size={60} />
-            <span className="font-black uppercase text-[10px] tracking-[0.5em] italic">Lecture des données en cours...</span>
+        {/* 🔝 HEADER DE DIAGNOSTIC */}
+        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 border-b-4 border-white/5 pb-16">
+          <div className="space-y-8">
+            <div className="flex items-center gap-6 text-blue-500 bg-blue-500/5 w-fit px-8 py-3 rounded-full border border-blue-500/10 shadow-inner">
+              <Activity size={24} className="animate-pulse" />
+              <span className="font-black uppercase tracking-[0.5em] text-[12px] italic">Diagnostic Matrice GPEC §7.2</span>
+            </div>
+            <h1 className="text-8xl font-black uppercase italic tracking-tighter leading-none text-white">
+              RH <span className="text-blue-600">Master Matrix</span>
+            </h1>
           </div>
-        ) : (
-          <div className="overflow-x-auto scrollbar-hide">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white/5 text-[11px] font-black uppercase text-slate-500 italic tracking-widest">
-                    <th className="p-12 sticky left-0 bg-[#0B0F1A] border-r border-white/5 z-20 shadow-xl">Structure Effectif</th>
-                    {data.competences.map(c => (
-                        <th key={c.CP_Id} className="p-10 border-l border-white/5 text-center min-w-50 leading-tight">
-                            <span className="text-slate-200 block mb-2">{c.CP_Name}</span>
-                            <span className="text-[8px] text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full">SEUIL: L{c.CP_NiveauRequis}</span>
-                        </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {filteredUsers.length > 0 ? filteredUsers.map(u => (
-                    <tr key={u.U_Id} className="hover:bg-blue-600/5 transition-all group">
-                      <td className="p-12 sticky left-0 bg-[#0B0F1A] border-r border-white/5 z-10 group-hover:bg-slate-900/50 text-left">
-                        <p className="font-black uppercase text-2xl italic tracking-tighter leading-none text-white">{u.U_FirstName} {u.U_LastName}</p>
-                        <p className="text-[9px] text-slate-600 font-bold uppercase mt-3 tracking-[0.2em] italic">{u.U_Role} • {u.U_Email}</p>
-                      </td>
-                      {data.competences.map(c => {
-                        const level = u.U_Competences?.find((uc: any) => uc.UC_CompetenceId === c.CP_Id)?.UC_NiveauActuel || 0;
-                        const isCompliant = level >= c.CP_NiveauRequis;
-                        return (
-                          <td key={c.CP_Id} className="p-8 text-center border-l border-white/5">
-                            <button 
-                                onClick={() => handleUpdateLevel(u.U_Id, c.CP_Id, level)} 
-                                className={`mx-auto w-16 h-16 rounded-3xl flex items-center justify-center font-black text-xl border-2 transition-all shadow-2xl active:scale-90 cursor-pointer ${
-                                    isCompliant ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 hover:bg-blue-600 hover:text-white' : 'bg-white/2 text-slate-700 border-white/5 hover:border-blue-500/30'
-                                }`}
-                            >
-                                {level}
-                            </button>
-                          </td>
-                        );
-                      })}
+
+          <div className="bg-[#151A2D] px-10 py-8 rounded-[3rem] border-4 border-white/5 flex items-center gap-6 shadow-4xl backdrop-blur-3xl min-w-87.5 justify-between">
+             <div className="flex items-center gap-6">
+                <div className="p-4 bg-blue-600/20 rounded-2xl border border-blue-600/30"><UserCheck className="text-blue-500" size={28} /></div>
+                <span className="text-[12px] font-black uppercase tracking-[0.4em] italic text-slate-500 leading-tight">Total<br/>Collaborateurs</span>
+             </div>
+             <span className="text-5xl font-black italic tracking-tighter text-white">{data.users.length}</span>
+          </div>
+        </header>
+
+        {/* 🧭 RECHERCHE TACTIQUE */}
+        <div className="bg-[#151A2D] border-4 border-white/5 rounded-[4rem] shadow-4xl backdrop-blur-3xl animate-in slide-in-from-bottom-10 duration-700 relative z-20 overflow-hidden">
+          <div className="p-12 border-b-4 border-white/5 flex items-center gap-8 bg-black/40">
+            <Search size={32} className="text-blue-600" />
+            <input 
+              type="text" 
+              placeholder="SCANNER LA MATRICE PAR NOM OU PRÉNOM..." 
+              className="bg-transparent outline-none font-black uppercase text-[16px] w-full text-white placeholder-slate-700 italic tracking-[0.4em]" 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)} 
+            />
+          </div>
+
+          {loading ? (
+            <div className="flex h-150 flex-col items-center justify-center gap-10 text-blue-500 bg-[#0B0F1A]/95">
+              <Loader2 className="animate-spin" size={100} strokeWidth={1} />
+              <span className="font-black uppercase text-[14px] tracking-[1em] italic animate-pulse">Lecture des données Matrix...</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto h-175 custom-scrollbar bg-[#0B0F1A]">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-black/95 backdrop-blur-3xl z-40 shadow-2xl">
+                    <tr className="text-[12px] font-black uppercase text-slate-500 italic tracking-[0.4em] border-b-4 border-white/5">
+                      <th className="p-12 sticky left-0 bg-black/95 border-r-4 border-white/5 z-50 min-w-100">
+                        <div className="flex items-center gap-4 text-blue-500"><Fingerprint size={20} /> Structure Effectif</div>
+                      </th>
+                      {data.competences.map(c => (
+                          <th key={c.CP_Id} className="p-10 border-l-2 border-white/5 text-center min-w-70 leading-tight">
+                              <span className="text-white text-[14px] block mb-4 truncate px-4">{c.CP_Name}</span>
+                              <span className="text-[10px] text-blue-400 bg-blue-600/20 border border-blue-600/30 px-5 py-2 rounded-2xl shadow-inner">SEUIL REQUIS: L{c.CP_NiveauRequis}</span>
+                          </th>
+                      ))}
                     </tr>
-                  )) : (
-                    <tr>
-                        <td colSpan={50} className="p-32 text-center text-slate-600 font-black uppercase text-xs italic tracking-widest opacity-20">
-                            Aucune correspondance détectée dans le noyau RH.
+                  </thead>
+                  <tbody className="divide-y-2 divide-white/5">
+                    {filteredUsers.length > 0 ? filteredUsers.map(u => (
+                      <tr key={u.U_Id} className="hover:bg-white/5 transition-all group">
+                        <td className="p-12 sticky left-0 bg-[#151A2D] group-hover:bg-[#1e2540] border-r-4 border-white/5 z-20 text-left transition-colors">
+                          <p className="font-black uppercase text-3xl italic tracking-tighter leading-none text-white mb-3">{u.U_FirstName} {u.U_LastName}</p>
+                          <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.4em] italic flex items-center gap-4">
+                            <span className="bg-white/5 px-4 py-1.5 rounded-lg border border-white/10 text-slate-400">{u.U_Role}</span> 
+                            <span className="truncate max-w-50 opacity-50">{u.U_Email}</span>
+                          </p>
                         </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-          </div>
-        )}
+                        {data.competences.map(c => {
+                          const level = u.U_Competences?.find((uc: any) => uc.UC_CompetenceId === c.CP_Id)?.UC_NiveauActuel || 0;
+                          const isCompliant = level >= c.CP_NiveauRequis;
+                          return (
+                            <td key={c.CP_Id} className="p-8 text-center border-l-2 border-white/5">
+                              <button 
+                                  onClick={() => handleUpdateLevel(u.U_Id, c.CP_Id, level)} 
+                                  className={`mx-auto w-20 h-20 rounded-4xl flex items-center justify-center font-black text-3xl border-4 transition-all shadow-xl active:scale-90 cursor-pointer ${
+                                      isCompliant 
+                                        ? 'bg-blue-600/10 text-blue-500 border-blue-600/30 hover:bg-blue-600 hover:text-white shadow-[0_0_20px_rgba(37,99,235,0.2)]' 
+                                        : 'bg-black/40 text-slate-600 border-white/5 hover:border-blue-500/40 hover:text-white'
+                                  }`}
+                              >
+                                  {level}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    )) : (
+                      <tr>
+                          <td colSpan={50} className="p-32 text-center text-slate-600 font-black uppercase text-[12px] italic tracking-[0.5em] opacity-30">
+                              Aucune correspondance détectée dans le noyau RH.
+                          </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+            </div>
+          )}
+        </div>
       </div>
+      
+      <style jsx global>{`
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 20px; border: 2px solid #0b0f1a; }
+        ::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+      `}</style>
     </div>
   );
 }
