@@ -629,10 +629,10 @@ export interface Finding {
 }
 
 export interface NonConformite {
-  NC_Code: ReactNode;
-  NC_Code: ReactNode;
-  NC_Title: ReactNode;
   NC_Id: string;
+  NC_Code: string;
+  NC_Title: string;
+ // NC_Id: string;
   NC_Libelle: string;
   NC_Description: string;
   NC_Diagnostic?: string | null;
