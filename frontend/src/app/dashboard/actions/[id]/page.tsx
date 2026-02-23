@@ -35,7 +35,7 @@ import { toast, Toaster } from "sonner";
 // --- 🏗️ RÉFÉRENTIEL ÉLITE-SDE STRICT ---
 import { ActionStatus, Priority } from "@/types/elite-sde";
 
-import EvidenceSection from "../id/evidence-section";
+import EvidenceSection from "@/app/dashboard/action-items/[id]/evidence-section";
 
 // --- 🛠️ UTILITAIRES DE CALCUL ---
 const cn = (...classes: (string | boolean | undefined | null)[]) =>
