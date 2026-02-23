@@ -65,19 +65,19 @@ export async function POST(request: NextRequest) {
     await transporter.sendMail({
       from: '"Qualisoft" <ab.thiongane@qualisoft.sn>',
       to: userEmail,
-      subject: 'Qualisoft - Votre demande d\'activation a été transmise',
+      subject: 'Qualisoft - notre demande d\'activation a été transmise',
       html: `
         <div style="font-family: Arial, sans-serif;">
           <h2 style="color: #059669;">Demande reçue avec succès ! ✅</h2>
           <p>Bonjour ${userName},</p>
-          <p>Votre demande d'activation a été transmise à notre équipe commerciale.</p>
+          <p>notre demande d'activation a été transmise à notre équipe commerciale.</p>
           <p><strong>Prochaines étapes :</strong></p>
           <ol>
             <li>Notre équipe vous contactera sous 24h ouvrées</li>
             <li>Présentation des formules adaptées à vos besoins</li>
             <li>Activation immédiate après validation</li>
           </ol>
-          <p style="margin-top: 30px; color: #666;">L'équipe Qualisoft reste à votre disposition.</p>
+          <p style="margin-top: 30px; color: #666;">L'équipe Qualisoft reste à notre disposition.</p>
         </div>
       `,
     });

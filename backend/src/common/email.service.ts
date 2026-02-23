@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { Attachment } from 'nodemailer/lib/mailer';
@@ -115,7 +115,7 @@ export class EmailService implements OnModuleInit {
           </a>
         </div>
         <p style="margin-top: 40px; font-size: 11px; color: #94a3b8; text-align: center; font-style: italic;">
-          Ceci est une notification automatique. Sécurité Zero-Trust : changez votre mot de passe dès l'accès.
+          Ceci est une notification automatique. Sécurité Zero-Trust : changez notre mot de passe dès l'accès.
         </p>
       </div>
     `;

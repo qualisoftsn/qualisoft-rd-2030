@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ActionStatus } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ActionsTabService {
@@ -55,7 +55,7 @@ export class ActionsTabService {
 
   /**
    * Archivage Souverain (§7.5.3 ISO 9001)
-   * Seul le RQ ou SuperAdmin peut sceller une action
+   * Seul le RQ ou SuperAdmin peut Valider une action
    */
   async sealAction(tenantId: string, actionId: string, userRole: string) {
     if (!['RQ', 'SUPER_ADMIN'].includes(userRole)) {

@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Role } from '@prisma/client';
 import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Role } from '@prisma/client';
 
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
@@ -32,7 +32,7 @@ export class SubscriptionGuard implements CanActivate {
     const isExpired = tenant.T_SubscriptionEndDate && new Date() > tenant.T_SubscriptionEndDate;
     
     if (isExpired && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
-      throw new ForbiddenException("ESSAI TERMINÉ : Passage en LECTURE SEULE. Veuillez renouveler votre licence Qualisoft Elite.");
+      throw new ForbiddenException("ESSAI TERMINÉ : Passage en LECTURE SEULE. Veuillez renouveler notre licence Qualisoft Elite.");
     }
     
     return true;

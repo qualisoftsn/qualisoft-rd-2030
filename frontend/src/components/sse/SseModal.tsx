@@ -214,7 +214,7 @@ export default function SseModal({ onClose, onSuccess }: any) {
             ) : (
               <ShieldAlert size={24} />
             )}
-            Sceller le rapport de sinistre
+            Valider le rapport de sinistre
           </button>
         </form>
       </div>

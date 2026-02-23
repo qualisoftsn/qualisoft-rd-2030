@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from 'next/server';
-import { differenceInDays, parseISO, startOfDay } from 'date-fns';
 import nodemailer from 'nodemailer';
 
 // Configuration SMTP (à adapter avec vos credentials)
@@ -29,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     if (type === 'MID_TRIAL' && daysLeft === 7) {
       // Email au prospect à J-7
-      subject = 'Qualisoft - Mi-parcours de votre essai (7 jours restants)';
+      subject = 'Qualisoft - Mi-parcours de notre essai (7 jours restants)';
       content = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #f59e0b;">Vous êtes à mi-parcours ! 🚀</h2>
@@ -38,26 +37,26 @@ export async function POST(request: NextRequest) {
           <p>N'oubliez pas :</p>
           <ul>
             <li>✅ Créer vos premiers processus</li>
-            <li>✅ Inviter votre équipe</li>
+            <li>✅ Inviter notre équipe</li>
             <li>✅ Tester les audits et indicateurs</li>
           </ul>
-          <p>Besoin d'aide ? Répondez à cet email ou cliquez sur le bouton "Activer" dans votre dashboard.</p>
+          <p>Besoin d'aide ? Répondez à cet email ou cliquez sur le bouton "Activer" dans notre dashboard.</p>
           <a href="https://qualisoft.sn/dashboard" style="background: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; margin-top: 20px;">Continuer mon essai</a>
         </div>
       `;
     } else if (type === 'CRITICAL_12D' && daysLeft === 2) {
       // Email au prospect à J-12 (2 jours restants)
-      subject = '⚠️ Qualisoft - Votre essai expire dans 2 jours';
+      subject = '⚠️ Qualisoft - notre essai expire dans 2 jours';
       content = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #dc2626;">Votre essai expire bientôt ! ⏰</h2>
+          <h2 style="color: #dc2626;">notre essai expire bientôt ! ⏰</h2>
           <p>Bonjour,</p>
-          <p>Plus que <strong>2 jours</strong> avant la fin de votre période d'essai de 14 jours.</p>
-          <p><strong>Passé ce délai, votre accès passera en lecture seule.</strong></p>
+          <p>Plus que <strong>2 jours</strong> avant la fin de notre période d'essai de 14 jours.</p>
+          <p><strong>Passé ce délai, notre accès passera en lecture seule.</strong></p>
           <p>Pour conserver l'accès complet à vos données et continuer à utiliser Qualisoft :</p>
           <ol>
-            <li>Cliquez sur "Activer mon compte" dans votre dashboard</li>
-            <li>Choisissez votre formule (Émergence, Croissance ou Entreprise)</li>
+            <li>Cliquez sur "Activer mon compte" dans notre dashboard</li>
+            <li>Choisissez notre formule (Émergence, Croissance ou Entreprise)</li>
             <li>Notre équipe vous contactera sous 24h</li>
           </ol>
           <p style="color: #666; font-size: 12px; margin-top: 30px;">Besoin d'une extension ? Contactez-nous immédiatement.</p>

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Plan, SubscriptionStatus } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class SubscriptionsService {
@@ -55,7 +55,7 @@ export class SubscriptionsService {
     const isExpired = tenant.T_SubscriptionEndDate && tenant.T_SubscriptionEndDate < now;
 
     if (isExpired && isWriteOperation) {
-      throw new ForbiddenException("Accès en LECTURE SEULE : Votre abonnement a expiré.");
+      throw new ForbiddenException("Accès en LECTURE SEULE : notre abonnement a expiré.");
     }
 
     if (tenant.T_SubscriptionStatus === SubscriptionStatus.SUSPENDED) {

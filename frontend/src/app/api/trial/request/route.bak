@@ -47,12 +47,12 @@ export async function POST(request: Request) {
       
       await sendEmail({
         to: email,
-        subject: 'Votre code d\'accès Qualisoft (14 jours)',
+        subject: 'notre code d\'accès Qualisoft (14 jours)',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 40px; border-radius: 20px;">
             <h1 style="color: #2563eb; font-style: italic;">QUALISOFT <span style="font-weight: 100;">SMI</span></h1>
             <h2 style="color: #1f2937;">Accès Essai 14 Jours</h2>
-            <p style="color: #4b5563;">Utilisez le code ci-dessous pour accéder à votre espace :</p>
+            <p style="color: #4b5563;">Utilisez le code ci-dessous pour accéder à notre espace :</p>
             <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 25px; background: #eff6ff; border-radius: 12px; margin: 25px 0; text-align: center; color: #1e40af; border: 1px dashed #3b82f6;">
               20256
             </div>
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 40px; border-radius: 20px;">
           <h1 style="color: #2563eb; font-style: italic;">QUALISOFT <span style="font-weight: 100;">SMI</span></h1>
-          <p style="color: #4b5563;">Bienvenue ! Voici votre code pour démarrer votre essai de 14 jours :</p>
+          <p style="color: #4b5563;">Bienvenue ! Voici notre code pour démarrer notre essai de 14 jours :</p>
           <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 25px; background: #eff6ff; border-radius: 12px; margin: 25px 0; text-align: center; color: #1e40af; border: 1px dashed #3b82f6;">
             ${code}
           </div>

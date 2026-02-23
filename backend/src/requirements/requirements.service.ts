@@ -135,7 +135,7 @@ export class RequirementsService {
         select: {
           AU_Id: true,
           AU_Title: true,
-          AU_DateAudit: true, // Assurez-vous que c'est le bon champ dans votre schéma
+          AU_DateAudit: true, // Assurez-vous que c'est le bon champ dans notre schéma
           AU_Type: true
         }
       }),

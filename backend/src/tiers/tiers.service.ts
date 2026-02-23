@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -62,7 +62,7 @@ export class TiersService {
     });
 
     if (!tier) {
-      throw new NotFoundException(`Tiers avec l'ID ${id} introuvable dans votre organisation.`);
+      throw new NotFoundException(`Tiers avec l'ID ${id} introuvable dans notre organisation.`);
     }
 
     // Calcul des statistiques d'intelligence pour le panneau latéral

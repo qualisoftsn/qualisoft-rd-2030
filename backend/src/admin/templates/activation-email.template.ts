@@ -1,4 +1,8 @@
-export const getActivationEmailTemplate = (tenantName: string, planName: string, expiryDate: string) => `
+export const getActivationEmailTemplate = (
+  tenantName: string,
+  planName: string,
+  expiryDate: string,
+) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -26,7 +30,7 @@ export const getActivationEmailTemplate = (tenantName: string, planName: string,
       <div class="plan-badge">Activation Licence Élite</div>
       <h2 style="font-style: italic; text-transform: uppercase; letter-spacing: -0.5px;">Bienvenue dans le Noyau, ${tenantName}</h2>
       
-      <p>Nous avons le plaisir de vous confirmer que votre paiement a été validé par notre service financier. Le <strong>Mode Lecture Seule</strong> a été levé sur votre instance.</p>
+      <p>Nous avons le plaisir de vous confirmer que notre paiement a été validé par notre service financier. Le <strong>Mode Lecture Seule</strong> a été levé sur notre instance.</p>
       
       <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; margin: 25px 0;">
         <p style="margin: 0; font-size: 13px;"><strong>Plan activé :</strong> <span class="highlight">${planName}</span></p>
@@ -40,7 +44,7 @@ export const getActivationEmailTemplate = (tenantName: string, planName: string,
         <a href="https://app.qualisoft.sn/dashboard" class="btn">Accéder à mon Dashboard</a>
       </div>
       
-      <p style="margin-top: 30px; font-size: 12px; color: #64748b;">Besoin d'assistance ? Notre équipe support à Dakar est à votre disposition.</p>
+      <p style="margin-top: 30px; font-size: 12px; color: #64748b;">Besoin d'assistance ? Notre équipe support à Dakar est à notre disposition.</p>
     </div>
     
     <div class="footer">

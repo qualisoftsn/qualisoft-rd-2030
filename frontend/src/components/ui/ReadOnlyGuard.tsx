@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-'use client';
+"use client";
 /**
  * 🔒 MODULE : READ ONLY GUARD (SENTINELLE DE LICENCE)
  * -------------------------------------------------------------------------
@@ -8,9 +8,9 @@
  * PHILOSOPHIE : "Compliance Continuity" - On peut voir l'histoire, mais plus l'écrire.
  */
 
-import React from 'react';
-import { useTrialStatus } from '@/hooks/useTrialStatus'; // Hook simulant la vérification de licence
-import { Lock, ShieldAlert } from 'lucide-react';
+import { useTrialStatus } from "@/hooks/useTrialStatus"; // Hook simulant la vérification de licence
+import { Lock } from "lucide-react";
+import React from "react";
 
 interface ReadOnlyGuardProps {
   children: React.ReactNode;
@@ -31,8 +31,12 @@ export function ReadOnlyGuard({ children, fallback }: ReadOnlyGuardProps) {
               <Lock size={32} />
             </div>
             <div>
-              <h4 className="font-black text-slate-950 uppercase italic tracking-tighter text-xl">Instance Verrouillée</h4>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Votre période d&apos;essai Qualisoft a expiré</p>
+              <h4 className="font-black text-slate-950 uppercase italic tracking-tighter text-xl">
+                Instance Verrouillée
+              </h4>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">
+                notre période d&apos;essai Qualisoft a expiré
+              </p>
             </div>
             <button className="mt-4 px-8 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase italic tracking-[0.2em] shadow-lg shadow-red-900/20 active:scale-95 transition-all">
               Régulariser ma licence

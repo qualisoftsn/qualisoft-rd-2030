@@ -1,24 +1,22 @@
-import { 
-  ForbiddenException, 
-  Injectable, 
-  InternalServerErrorException, 
-  Logger, 
-  NotFoundException 
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException
 } from '@nestjs/common';
-import { 
-  Plan, 
-  Site, 
-  SubscriptionStatus, 
-  Tenant, 
-  Ticket, 
-  TicketStatus, 
-  TransactionStatus 
+import {
+  Site,
+  SubscriptionStatus,
+  Tenant,
+  Ticket,
+  TicketStatus,
+  TransactionStatus
 } from '@prisma/client';
-import { addDays, addMonths } from 'date-fns';
+import { addMonths } from 'date-fns';
 import { EmailService } from '../common/email.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BackupTaskService } from './tasks/backup-task.service';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { BackupTaskService } from './tasks/backup-task.service';
 
 import { getInvoiceEmailTemplate } from './templates/invoice-email.template';
 import { generateInvoicePDF } from './utils/pdf-invoice.util';
@@ -89,7 +87,7 @@ async findAllTenants() {
       await this.emailService.sendMail({
         to: tenant.T_Email,
         subject: `📄 Facture Pro-forma Qualisoft RD 2030 - Plan ${plan.name}`,
-        html: `<p>Bonjour, veuillez trouver ci-joint votre facture pro-forma Qualisoft.</p>`,
+        html: `<p>Bonjour, veuillez trouver ci-joint notre facture pro-forma Qualisoft.</p>`,
         attachments: [{ filename: `Proforma_${plan.id}.pdf`, content: pdfBuffer }]
       });
       return { success: true, message: "Pro-forma envoyée." };

@@ -32,16 +32,16 @@ export const getInvoiceEmailTemplate = (tenantName: string, amount: string) => `
       
       <div class="content">
         <div class="badge">Paiement Reçu & Validé</div>
-        <h2 style="font-size: 20px; margin-bottom: 15px;">Merci de votre confiance, ${tenantName}</h2>
+        <h2 style="font-size: 20px; margin-bottom: 15px;">Merci de notre confiance, ${tenantName}</h2>
         
-        <p>Nous vous confirmons que votre règlement a été traité avec succès par notre service financier à Dakar. Votre licence d'exploitation est désormais **active pour une durée de 24 mois**.</p>
+        <p>Nous vous confirmons que notre règlement a été traité avec succès par notre service financier à Dakar. notre licence d'exploitation est désormais **active pour une durée de 24 mois**.</p>
         
         <div class="amount-box">
           <span style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Montant Total Acquitté</span>
           <span class="amount-val">${amount} XOF TTC</span>
         </div>
 
-        <p>Veuillez trouver ci-joint votre <strong>facture finale acquittée</strong> au format PDF pour votre comptabilité. Ce document certifie votre accès complet au Noyau Qualisoft.</p>
+        <p>Veuillez trouver ci-joint notre <strong>facture finale acquittée</strong> au format PDF pour notre comptabilité. Ce document certifie notre accès complet au Noyau Qualisoft.</p>
         
         <div style="text-align: center;">
           <a href="https://app.qualisoft.sn/dashboard" class="btn">Accéder à mon Instance Élite</a>

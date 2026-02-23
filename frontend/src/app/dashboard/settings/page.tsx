@@ -11,8 +11,14 @@
 
 import apiClient from "@/core/api/api-client";
 import {
-  ArrowRight, Check, CheckCircle2, Clock, Crown,
-  Loader2, Lock, ShieldCheck, X,
+  Check,
+  CheckCircle2,
+  Clock,
+  Crown,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -112,7 +118,9 @@ export default function BillingPage() {
     }
   }, []);
 
-  useEffect(() => { loadTenantData(); }, [loadTenantData]);
+  useEffect(() => {
+    loadTenantData();
+  }, [loadTenantData]);
 
   /**
    * 🛡️ CALCUL DU RANG DE LICENCE
@@ -148,18 +156,18 @@ export default function BillingPage() {
     }
   };
 
-  if (loading || !tenant) return (
-    <div className="ml-72 flex h-screen flex-col items-center justify-center bg-[#0B0F1A] gap-4">
-      <Loader2 className="animate-spin text-blue-500" size={32} />
-      <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 italic animate-pulse">
-        Vérification des Droits Elite...
-      </span>
-    </div>
-  );
+  if (loading || !tenant)
+    return (
+      <div className="ml-72 flex h-screen flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+        <Loader2 className="animate-spin text-blue-500" size={32} />
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 italic animate-pulse">
+          Vérification des Droits Elite...
+        </span>
+      </div>
+    );
 
   return (
     <div className="flex-1 bg-[#0B0F1A] min-h-screen p-10 ml-72 text-white italic font-sans text-left relative overflow-hidden selection:bg-blue-600/30">
-      
       {/* 🛰️ HEADER DE L'INSTANCE */}
       <header className="mb-12 border-b border-white/5 pb-10 flex justify-between items-end max-w-7xl mx-auto w-full">
         <div className="space-y-4 text-left">
@@ -167,7 +175,8 @@ export default function BillingPage() {
             Gestion <span className="text-blue-600">Licence</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] italic">
-            Instance : {tenant.T_Name} • Statut : <span className="text-blue-400">{tenant.T_SubscriptionStatus}</span>
+            Instance : {tenant.T_Name} • Statut :{" "}
+            <span className="text-blue-400">{tenant.T_SubscriptionStatus}</span>
           </p>
         </div>
         <div className="flex items-center gap-4 bg-white/5 px-8 py-4 rounded-3xl border border-white/10 shadow-inner">
@@ -179,7 +188,6 @@ export default function BillingPage() {
       </header>
 
       <div className="max-w-7xl mx-auto w-full flex flex-col items-center">
-        
         {/* ÉTAPE 1 : MATRICE DES OFFRES */}
         {step === 1 && (
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000">
@@ -193,22 +201,47 @@ export default function BillingPage() {
                   className={`relative p-8 rounded-[3rem] border flex flex-col transition-all duration-700 ${isCurrent ? "bg-blue-600 border-white/20 shadow-2xl scale-105 z-10" : "bg-slate-900/40 border-white/5 hover:border-white/10"}`}
                 >
                   <div className="flex justify-between items-start mb-6">
-                    <div className={`p-3 rounded-xl ${isCurrent ? "bg-white/20" : "bg-blue-600/10"}`}>
-                      <Crown className={isCurrent ? "text-white" : "text-blue-500"} size={16} />
+                    <div
+                      className={`p-3 rounded-xl ${isCurrent ? "bg-white/20" : "bg-blue-600/10"}`}
+                    >
+                      <Crown
+                        className={isCurrent ? "text-white" : "text-blue-500"}
+                        size={16}
+                      />
                     </div>
-                    {isCurrent && <span className="bg-white/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Actif</span>}
+                    {isCurrent && (
+                      <span className="bg-white/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">
+                        Actif
+                      </span>
+                    )}
                   </div>
 
-                  <h3 className="text-2xl font-black uppercase italic mb-1 tracking-tighter leading-none">{p.name}</h3>
+                  <h3 className="text-2xl font-black uppercase italic mb-1 tracking-tighter leading-none">
+                    {p.name}
+                  </h3>
                   <div className="flex items-baseline gap-1 mb-8">
-                    <span className="text-3xl font-black italic">{p.price.toLocaleString()}</span>
-                    <span className="text-[8px] font-bold text-white/50 uppercase tracking-widest">XOF / AN</span>
+                    <span className="text-3xl font-black italic">
+                      {p.price.toLocaleString()}
+                    </span>
+                    <span className="text-[8px] font-bold text-white/50 uppercase tracking-widest">
+                      XOF / AN
+                    </span>
                   </div>
 
                   <ul className="space-y-3 mb-10 flex-1 text-left">
                     {p.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[10px] font-bold uppercase tracking-tight italic leading-tight">
-                        <Check size={12} className={isCurrent ? "text-white" : "text-emerald-500"} strokeWidth={3} /> {f}
+                      <li
+                        key={i}
+                        className="flex items-start gap-2 text-[10px] font-bold uppercase tracking-tight italic leading-tight"
+                      >
+                        <Check
+                          size={12}
+                          className={
+                            isCurrent ? "text-white" : "text-emerald-500"
+                          }
+                          strokeWidth={3}
+                        />{" "}
+                        {f}
                       </li>
                     ))}
                   </ul>
@@ -216,16 +249,23 @@ export default function BillingPage() {
                   {isLocked ? (
                     <div className="p-4 bg-black/30 rounded-2xl flex items-center justify-center gap-3 text-slate-600 border border-white/5">
                       <Lock size={12} />
-                      <span className="text-[8px] font-black uppercase tracking-widest italic leading-none text-center">Plan inférieur</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest italic leading-none text-center">
+                        Plan inférieur
+                      </span>
                     </div>
                   ) : isCurrent ? (
                     <div className="p-4 bg-white/10 rounded-2xl flex items-center justify-center gap-3 text-white border border-white/20">
                       <CheckCircle2 size={12} />
-                      <span className="text-[8px] font-black uppercase tracking-widest italic text-center">Option Actuelle</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest italic text-center">
+                        Option Actuelle
+                      </span>
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setSelectedPlan(p); setStep(2); }}
+                      onClick={() => {
+                        setSelectedPlan(p);
+                        setStep(2);
+                      }}
                       className="w-full py-5 bg-blue-600 hover:bg-white hover:text-blue-600 rounded-4xl text-[9px] font-black uppercase tracking-[0.3em] shadow-xl transition-all border-none cursor-pointer italic"
                     >
                       Activer
@@ -241,30 +281,47 @@ export default function BillingPage() {
         {step === 2 && selectedPlan && (
           <div className="w-full max-w-4xl bg-slate-900/60 border border-white/10 rounded-[4rem] p-16 shadow-[0_50px_100px_rgba(0,0,0,0.5)] animate-in slide-in-from-right duration-500 backdrop-blur-3xl text-left">
             <div className="flex items-center gap-8 mb-16">
-              <button onClick={() => setStep(1)} className="p-5 bg-white/5 rounded-2xl hover:bg-red-600/20 text-white transition-all border-none cursor-pointer shadow-inner">
+              <button
+                onClick={() => setStep(1)}
+                className="p-5 bg-white/5 rounded-2xl hover:bg-red-600/20 text-white transition-all border-none cursor-pointer shadow-inner"
+              >
                 <X size={24} />
               </button>
               <div>
                 <h3 className="text-5xl font-black uppercase italic leading-none tracking-tighter">
-                  Mise à niveau <span className="text-blue-500">{selectedPlan.name}</span>
+                  Mise à niveau{" "}
+                  <span className="text-blue-500">{selectedPlan.name}</span>
                 </h3>
-                <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mt-3">Règlement via réseau Mobile Money Sénégal</p>
+                <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mt-3">
+                  Règlement via réseau Mobile Money Sénégal
+                </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
               <div className="space-y-10">
                 <div className="p-10 bg-blue-600/10 border border-blue-500/20 rounded-[3rem] shadow-inner">
-                  <p className="text-[10px] font-black uppercase text-blue-500 mb-6 tracking-widest italic leading-none">1. Montant de la licence</p>
-                  <p className="text-6xl font-black italic text-white tracking-tighter leading-none">{selectedPlan.price.toLocaleString()} <span className="text-sm">XOF</span></p>
+                  <p className="text-[10px] font-black uppercase text-blue-500 mb-6 tracking-widest italic leading-none">
+                    1. Montant de la licence
+                  </p>
+                  <p className="text-6xl font-black italic text-white tracking-tighter leading-none">
+                    {selectedPlan.price.toLocaleString()}{" "}
+                    <span className="text-sm">XOF</span>
+                  </p>
                   <div className="mt-8 pt-8 border-t border-blue-500/10 space-y-3">
-                    <p className="text-[11px] font-black uppercase text-slate-400">Canal Wave / Orange Money :</p>
-                    <p className="text-3xl font-black italic text-blue-400 leading-none">+221 77 441 09 02</p>
+                    <p className="text-[11px] font-black uppercase text-slate-400">
+                      Canal Wave / Orange Money :
+                    </p>
+                    <p className="text-3xl font-black italic text-blue-400 leading-none">
+                      +221 77 441 09 02
+                    </p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-6 tracking-widest italic">2. Référence de la transaction SMS</label>
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-6 tracking-widest italic">
+                    2. Référence de la transaction SMS
+                  </label>
                   <input
                     required
                     className="w-full p-8 bg-[#0B0F1A] border border-white/10 rounded-3xl text-2xl font-black text-blue-500 outline-none focus:border-blue-500 uppercase italic shadow-inner"
@@ -281,8 +338,11 @@ export default function BillingPage() {
                     <Clock size={20} /> Analyse sous 48h
                   </div>
                   <p className="text-xs text-slate-400 font-bold leading-relaxed uppercase tracking-tighter">
-                    L&apos;activation est subordonnée à la vérification physique du crédit sur nos comptes. <br /><br />
-                    Toute référence invalide entraînera le gel immédiat de l&apos;instance Qualisoft pour motif de sécurité financière.
+                    L&apos;activation est subordonnée à la vérification physique
+                    du crédit sur nos comptes. <br />
+                    <br />
+                    Toute référence invalide entraînera le gel immédiat de
+                    l&apos;instance Qualisoft pour motif de sécurité financière.
                   </p>
                 </div>
                 <button
@@ -290,8 +350,12 @@ export default function BillingPage() {
                   disabled={!paymentRef || submitting}
                   className="w-full py-10 bg-blue-600 hover:bg-blue-500 disabled:opacity-20 rounded-[2.5rem] font-black uppercase italic text-xs tracking-[0.5em] flex items-center justify-center gap-5 shadow-2xl transition-all border-none cursor-pointer text-white active:scale-95"
                 >
-                  {submitting ? <Loader2 className="animate-spin" /> : <ShieldCheck size={24} />}
-                  SCELLER LE RÈGLEMENT
+                  {submitting ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <ShieldCheck size={24} />
+                  )}
+                  Valider LE RÈGLEMENT
                 </button>
               </div>
             </div>
@@ -308,10 +372,16 @@ export default function BillingPage() {
               Demande <span className="text-blue-500">Transmise</span>
             </h3>
             <p className="text-slate-500 text-[11px] font-black italic leading-relaxed mb-12 uppercase tracking-widest max-w-md">
-              Votre référence de transaction est en cours de rapprochement bancaire. <br /><br />
-              Le statut de votre instance passera en <span className="text-white">ACTIF</span> dès confirmation.
+              notre référence de transaction est en cours de rapprochement
+              bancaire. <br />
+              <br />
+              Le statut de notre instance passera en{" "}
+              <span className="text-white">ACTIF</span> dès confirmation.
             </p>
-            <button onClick={() => setStep(1)} className="px-12 py-5 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest italic hover:bg-white hover:text-blue-600 transition-all border-none cursor-pointer">
+            <button
+              onClick={() => setStep(1)}
+              className="px-12 py-5 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest italic hover:bg-white hover:text-blue-600 transition-all border-none cursor-pointer"
+            >
               Retour au Dashboard
             </button>
           </div>

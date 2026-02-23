@@ -1,10 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service'; // 👈 IMPORT CRUCIAL
-import { 
-  NCSource, NCStatus, NCGravity, 
-  ActionStatus, ActionOrigin, NotificationType 
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+    ActionOrigin,
+    ActionStatus,
+    NCGravity,
+    NCSource, NCStatus,
+    NotificationType
 } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service'; // 👈 IMPORT CRUCIAL
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class NonConformiteService {
@@ -87,7 +90,7 @@ export class NonConformiteService {
         await this.notifService.createNotification(
           nc.NC_Processus.PR_PiloteId,
           "⚠️ NOUVELLE NC DÉTECTÉE",
-          `Une non-conformité "${nc.NC_Libelle}" a été ouverte sur votre processus ${nc.NC_Processus.PR_Libelle}.`,
+          `Une non-conformité "${nc.NC_Libelle}" a été ouverte sur notre processus ${nc.NC_Processus.PR_Libelle}.`,
           NotificationType.WARNING,
           tenantId
         );

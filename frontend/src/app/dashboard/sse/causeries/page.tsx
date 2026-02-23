@@ -31,7 +31,7 @@ import { toast } from "react-hot-toast";
 
 // 🔗 IMPORTS SCELLÉS (Les composants doivent être dans leurs fichiers respectifs)
 import AttendanceQRModal from "./AttendanceQRModal";
-// Vous devez créer ce fichier 'CauserieForm.tsx' dans votre dossier de composants
+// Vous devez créer ce fichier 'CauserieForm.tsx' dans notre dossier de composants
 //import CauserieForm from '@/components/sse/CauserieForm';
 import CauserieForm from "../components/SSEForm";
 
@@ -262,7 +262,7 @@ export default function CauseriesSSEPage() {
             />
             <p className="text-slate-500 font-black italic uppercase tracking-[0.5em] opacity-80 leading-relaxed text-[11px]">
               Le registre des causeries est vierge.
-              <br /> Initiez votre première session pour sceller la conformité.
+              <br /> Initiez notre première session pour Valider la conformité.
             </p>
           </div>
         )}

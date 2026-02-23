@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Simuler une base de données ou appel à votre backend réel
+// Simuler une base de données ou appel à notre backend réel
 const mockIndicatorsDB = [
   { id: '1', label: 'Satisfaction Client', value: 92, target: 90, trend: 'up', previousValue: 88 },
   { id: '2', label: 'Conformité Processus', value: 87, target: 95, trend: 'down', previousValue: 89 },

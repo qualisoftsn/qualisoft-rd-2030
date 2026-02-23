@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { NotificationType, WorkflowStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { WorkflowStatus, NotificationType } from '@prisma/client';
 
 @Injectable()
 export class WorkflowReminderService {
@@ -41,7 +41,7 @@ export class WorkflowReminderService {
             tenantId: step.tenantId,
             userId: step.AW_ApproverId,
             N_Title: '⚠️ RELANCE CRITIQUE : Workflow Stagnant',
-            N_Message: `L'étape "${step.AW_Comment}" pour l'entité ${step.AW_EntityType} attend votre validation depuis plus de 48h.`,
+            N_Message: `L'étape "${step.AW_Comment}" pour l'entité ${step.AW_EntityType} attend notre validation depuis plus de 48h.`,
             N_Type: NotificationType.DEADLINE_ALERT,
           },
         }),

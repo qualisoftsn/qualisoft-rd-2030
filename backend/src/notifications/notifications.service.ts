@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { NotificationType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class NotificationsService {
@@ -174,7 +174,7 @@ export class NotificationsService {
             await this.createNotification(
               hab.userId,
               "🛡️ EXPIRATION HABILITATION",
-              `Votre habilitation "${hab.UH_Label}" expire le ${hab.UH_ExpiryDate?.toLocaleDateString()}.`,
+              `notre habilitation "${hab.UH_Label}" expire le ${hab.UH_ExpiryDate?.toLocaleDateString()}.`,
               NotificationType.WARNING,
               tenantId
             );

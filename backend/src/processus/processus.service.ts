@@ -1,12 +1,12 @@
-import { 
-  Injectable, 
-  NotFoundException, 
-  ConflictException, 
-  ForbiddenException,
-  Logger
+import {
+    ConflictException,
+    ForbiddenException,
+    Injectable,
+    Logger,
+    NotFoundException
 } from '@nestjs/common';
+import { ProcessFamily } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { RiskStatus, ProcessFamily } from '@prisma/client';
 
 @Injectable()
 export class ProcessusService {
@@ -117,7 +117,7 @@ export class ProcessusService {
         }
       });
     } catch (e: any) {
-      if (e.code === 'P2002') throw new ConflictException('Le code processus existe déjà dans votre cartographie.');
+      if (e.code === 'P2002') throw new ConflictException('Le code processus existe déjà dans notre cartographie.');
       throw e;
     }
   }

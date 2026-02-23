@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 
@@ -50,7 +50,7 @@ export class ServicesService {
 
       // On lève une exception NestJS propre pour le Frontend
       throw new InternalServerErrorException(
-        `Impossible de créer l'unité organique. Vérifiez que le Type d'unité (${data.OU_TypeId}) et le Site (${data.OU_SiteId}) existent dans votre instance.`
+        `Impossible de créer l'unité organique. Vérifiez que le Type d'unité (${data.OU_TypeId}) et le Site (${data.OU_SiteId}) existent dans notre instance.`
       );
     }
   }

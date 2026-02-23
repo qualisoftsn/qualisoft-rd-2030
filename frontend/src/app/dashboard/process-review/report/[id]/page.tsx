@@ -1,26 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 📄 MODULE : RAPPORT FINAL PV (MODÈLE A4 PRINTABLE)
+ * -------------------------------------------------------------------------
+ * RÔLE : Génération du Procès-Verbal officiel pour archivage réglementaire.
+ * CONSOLIDATION : Maintien strict de la structure A4 (210x297mm).
+ * -------------------------------------------------------------------------
+ */
+
 "use client";
 
 import React, { useEffect, useState, use } from 'react';
 import apiClient from '@/core/api/api-client';
-import { Printer, ArrowLeft, FileCheck, ShieldCheck, Award, Lock, Shield } from 'lucide-react';
+import { Printer, ArrowLeft, FileCheck, ShieldCheck, Award } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-/**
- * 📄 MODULE : RAPPORT FINAL PV (MODÈLE A4)
- * -------------------------------------------------------------------------
- * RÔLE : 
- * Génère le Procès-Verbal officiel pour archivage réglementaire.
- * Structure alignée sur les audits de certification ISO 9001.
- * -------------------------------------------------------------------------
- */
-
-interface ReportProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function RapportRevueFinalPage({ params }: ReportProps) {
+export default function RapportRevueFinalPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const resolvedParams = use(params);
   const id = resolvedParams.id;
@@ -29,17 +24,12 @@ export default function RapportRevueFinalPage({ params }: ReportProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchReportData = async () => {
-      try {
-        const res = await apiClient.get(`/process-reviews/${id}`);
-        setData(res.data);
-      } catch (err) {
-        console.error("Crash du moteur de rendu PDF :", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id) fetchReportData();
+    if (id) {
+      apiClient.get(`/process-reviews/${id}`)
+        .then(res => setData(res.data?.data || res.data))
+        .catch(err => console.error("Crash PV :", err))
+        .finally(() => setLoading(false));
+    }
   }, [id]);
 
   if (loading) return (
@@ -55,8 +45,8 @@ export default function RapportRevueFinalPage({ params }: ReportProps) {
       {/* BARRE D'OUTILS SOUVERAINE (MASQUÉE À L'IMPRESSION) */}
       <nav className="print:hidden sticky top-0 z-50 bg-[#0B0F1A] text-white p-8 flex justify-between items-center shadow-[0_15px_40px_rgba(0,0,0,0.5)] border-b border-white/5">
         <button 
-            onClick={() => router.back()} 
-            className="flex items-center gap-4 text-[11px] font-black uppercase tracking-[0.2em] hover:text-blue-500 transition-all border-none bg-transparent cursor-pointer italic"
+          onClick={() => router.back()} 
+          className="flex items-center gap-4 text-[11px] font-black uppercase tracking-[0.2em] hover:text-blue-500 transition-all border-none bg-transparent cursor-pointer italic"
         >
           <ArrowLeft size={18}/> Quitter le mode lecture
         </button>
@@ -74,15 +64,13 @@ export default function RapportRevueFinalPage({ params }: ReportProps) {
         </div>
       </nav>
 
-      {/* 📑 FEUILLE A4 RÉGLEMENTAIRE (MASTER SMI) */}
+      {/* 📑 FEUILLE A4 RÉGLEMENTAIRE (MASTER SMI) EXACTEMENT CONSERVÉE */}
       <div className="mx-auto my-16 print:my-0 bg-white w-full max-w-[210mm] min-h-[297mm] p-[30mm] text-black relative shadow-[0_50px_100px_rgba(0,0,0,0.15)] print:shadow-none border border-slate-300 print:border-none text-left">
         
-        {/* FILIGRANE DE SÉCURITÉ */}
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none rotate-45">
             <div className="text-[120px] font-black uppercase tracking-widest">SMI MASTER</div>
         </div>
 
-        {/* ENTÊTE ISO 9001 (CADRE OFFICIEL) */}
         <header className="border-[3px] border-black flex mb-16 relative z-10">
           <div className="w-1/3 border-r-[3px] border-black p-10 flex flex-col items-center justify-center bg-slate-50">
              <div className="font-black text-4xl tracking-tighter uppercase italic leading-none">Qualisoft</div>
@@ -99,7 +87,6 @@ export default function RapportRevueFinalPage({ params }: ReportProps) {
           </div>
         </header>
 
-        {/* SECTION : CARTOGRAPHIE & IDENTIFICATION */}
         <div className="grid grid-cols-2 border-[3px] border-black mb-16 relative z-10">
           <div className="p-8 border-r-[3px] border-b-[3px] border-black text-left">
             <p className="text-[9px] font-black text-slate-400 uppercase mb-3 italic tracking-[0.2em]">Périmètre du Processus</p>
@@ -121,23 +108,22 @@ export default function RapportRevueFinalPage({ params }: ReportProps) {
           </div>
         </div>
 
-        {/* SECTION : CORP DU RAPPORT (§9.3.2) */}
         <div className="space-y-16 text-justify relative z-10 mb-20">
           <section className="text-left">
             <h3 className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase mb-8 italic tracking-[0.3em] flex items-center gap-4 leading-none">
               <span className="w-1.5 h-4 bg-blue-500 rounded-full"></span> I. État d&apos;avancement & Performance (KPI)
             </h3>
-            <div className="text-[13px] leading-relaxed pl-10 border-l-4 border-slate-100 italic text-slate-800 font-bold uppercase tracking-tighter">
-              {data?.PRV_PerformanceAnalysis || "Aucun écart de performance signalé sur le tableau de bord (§9.1.3)."}
+            <div className="text-[13px] leading-relaxed pl-10 border-l-4 border-slate-100 italic text-slate-800 font-bold uppercase tracking-tighter whitespace-pre-wrap">
+              {data?.PRV_PerformanceAnalysis || "Aucun écart signalé sur la période."}
             </div>
           </section>
 
           <section className="text-left">
             <h3 className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase mb-8 italic tracking-[0.3em] flex items-center gap-4 leading-none">
-               <span className="w-1.5 h-4 bg-red-600 rounded-full"></span> II. Revue des Risques & Non-Conformités
+               <span className="w-1.5 h-4 bg-red-600 rounded-full"></span> II. Revue des Audits & Non-Conformités
             </h3>
-            <div className="text-[13px] leading-relaxed pl-10 border-l-4 border-slate-100 italic text-slate-800 font-bold uppercase tracking-tighter">
-              {data?.PRV_RiskAnalysis || "Analyse de risques statique. Aucune menace critique identifiée sur la période (§6.1)."}
+            <div className="text-[13px] leading-relaxed pl-10 border-l-4 border-slate-100 italic text-slate-800 font-bold uppercase tracking-tighter whitespace-pre-wrap">
+              {data?.PRV_AuditAnalysis || "Analyse de NC non complétée."}
             </div>
           </section>
 
@@ -146,13 +132,12 @@ export default function RapportRevueFinalPage({ params }: ReportProps) {
             <h3 className="text-[12px] font-black uppercase mb-8 italic text-blue-700 underline decoration-[3px] underline-offset-10 decoration-blue-700/30 tracking-widest leading-none">
               III. Décisions Stratégiques & Plan d&apos;Action Qualité (PAQ)
             </h3>
-            <div className="text-[16px] font-black italic leading-relaxed text-slate-950 uppercase tracking-tighter border-l-4 border-blue-600/30 pl-8">
-              {data?.PRV_Decisions || "Conformité validée. Poursuite des objectifs SMI sans mesure corrective immédiate."}
+            <div className="text-[16px] font-black italic leading-relaxed text-slate-950 uppercase tracking-tighter border-l-4 border-blue-600/30 pl-8 whitespace-pre-wrap">
+              {data?.PRV_Decisions || "Maintien des objectifs en l'état."}
             </div>
           </section>
         </div>
 
-        {/* SECTION : VISAS & SIGNATURES DIGITALES */}
         <div className="mt-32 grid grid-cols-2 gap-16 relative z-10 text-left">
           <div className="border-[3px] border-black p-10 h-64 relative rounded-tr-[4rem] group hover:bg-slate-50 transition-colors">
             <span className="absolute -top-4 left-10 bg-white px-5 text-[10px] font-black uppercase italic tracking-[0.3em]">Visa Pilote Processus</span>
@@ -176,7 +161,6 @@ export default function RapportRevueFinalPage({ params }: ReportProps) {
           </div>
         </div>
 
-        {/* PIED DE PAGE RÉGLEMENTAIRE */}
         <footer className="absolute bottom-12 left-[30mm] right-[30mm] border-t-2 border-slate-100 pt-8 flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-[0.5em] italic">
            <span>PROPRIÉTÉ EXCLUSIVE : {data?.PRV_TenantName || "QUALISOFT ELITE SENEGAL"}</span>
            <span>PAGE 01 / 01 - QUALISOFT SMI v2.4</span>

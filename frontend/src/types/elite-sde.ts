@@ -153,7 +153,8 @@ export enum NCStatus {
   ANALYSE = "ANALYSE",
   ACTION_EN_COURS = "ACTION_EN_COURS",
   VERIFICATION = "VERIFICATION",
-  CLOTURE = "CLOTURE"
+  CLOTURE = "CLOTURE",
+  EN_COURS = "EN_COURS"
 }
 
 export enum NCSource {
@@ -628,6 +629,9 @@ export interface Finding {
 }
 
 export interface NonConformite {
+  NC_Code: ReactNode;
+  NC_Code: ReactNode;
+  NC_Title: ReactNode;
   NC_Id: string;
   NC_Libelle: string;
   NC_Description: string;

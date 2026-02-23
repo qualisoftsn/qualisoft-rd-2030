@@ -58,7 +58,7 @@ describe('🏛️  MATRIX : PROVISIONING SYSTEM', () => {
     await app.close();
   });
 
-  it('🚀 [SUCCESS] Devrait sceller un nouveau Tenant (Transaction Complète)', async () => {
+  it('🚀 [SUCCESS] Devrait Valider un nouveau Tenant (Transaction Complète)', async () => {
     const payload = {
       companyName: 'TEST ORG',
       domain: 'test-org',

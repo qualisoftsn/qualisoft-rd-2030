@@ -1,9 +1,9 @@
 import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-  ForbiddenException,
+    CanActivate,
+    ExecutionContext,
+    ForbiddenException,
+    Injectable,
+    UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
@@ -49,7 +49,7 @@ export class TenantGuard implements CanActivate {
     // On compare l'ID contenu dans le Token avec celui demandé par le sous-domaine
     if (user.tenantId !== requestedTenantId && user.tenantSlug !== requestedTenantId) {
       throw new ForbiddenException(
-        `Accès refusé : Votre session est liée au client [${user.tenantId}], pas à [${requestedTenantId}].`
+        `Accès refusé : notre session est liée au client [${user.tenantId}], pas à [${requestedTenantId}].`
       );
     }
 

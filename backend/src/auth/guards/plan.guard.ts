@@ -1,8 +1,8 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { SubscriptionsService } from '../../subscriptions/subscriptions.service';
-import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
+import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
+import { SubscriptionsService } from '../../subscriptions/subscriptions.service';
 
 @Injectable()
 export class PlanGuard implements CanActivate {
@@ -37,7 +37,7 @@ export class PlanGuard implements CanActivate {
     const features = subDetails.availableFeatures || [];
     
     if (!features.includes(requiredFeature) && !features.includes('ALL_ACCESS')) {
-      throw new ForbiddenException(`Module [${requiredFeature}] non inclus dans votre plan.`);
+      throw new ForbiddenException(`Module [${requiredFeature}] non inclus dans notre plan.`);
     }
     
     return true;

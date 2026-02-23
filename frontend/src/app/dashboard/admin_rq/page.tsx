@@ -7,7 +7,7 @@
  * * Fonctionnalités clés :
  * 1. Vue d'ensemble (KPIs) : Affiche la performance globale, le taux de conformité, et l'état de la gouvernance.
  * 2. Score de Santé SMI : Calcule en temps réel la santé du système (Excellente, Alerte, Critique) en croisant les perfs, la gouvernance et les non-conformités.
- * 3. Accueil (Welcome Modal) : Gère la toute première connexion d'un utilisateur pour "sceller" son compte.
+ * 3. Accueil (Welcome Modal) : Gère la toute première connexion d'un utilisateur pour "Valider" son compte.
  * 4. Export : Permet de générer et télécharger un rapport consolidé du SMI au format PDF.
  * 5. Activité Récente : Récupère et affiche le journal des événements (indicateurs mis à jour, audits, etc.).
  * * Public cible : SUPER_ADMIN, DIRECTION, RQ (Responsable Qualité).
@@ -126,7 +126,7 @@ const WelcomeModal = ({
           Bienvenue, {userName}
         </h2>
         <p className="text-slate-500 mb-10 font-bold uppercase text-[10px] tracking-widest leading-relaxed">
-          Initialisation de votre cockpit de conformité terminée. Vos
+          Initialisation de notre cockpit de conformité terminée. Vos
           indicateurs sont désormais synchronisés.
         </p>
         <button

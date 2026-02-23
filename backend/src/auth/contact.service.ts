@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
@@ -69,7 +69,7 @@ export class ContactService {
       });
 
       this.logger.log(`✅ Demande envoyée pour : ${company}`);
-      return { success: true, message: "Votre demande a été transmise avec succès." };
+      return { success: true, message: "notre demande a été transmise avec succès." };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Erreur inconnue";
       this.logger.error(`❌ Échec envoi mail prospect : ${msg}`);

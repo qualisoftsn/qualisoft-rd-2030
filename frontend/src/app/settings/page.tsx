@@ -10,8 +10,18 @@
 
 import apiClient from "@/core/api/api-client";
 import {
-  Activity, AlertCircle, Building2, Calendar, ChevronRight,
-  CreditCard, Globe, Loader2, Lock, Mail, Save, ShieldCheck,
+  Activity,
+  AlertCircle,
+  Building2,
+  Calendar,
+  ChevronRight,
+  CreditCard,
+  Globe,
+  Loader2,
+  Lock,
+  Mail,
+  Save,
+  ShieldCheck,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -52,13 +62,15 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.error("Défaut de synchronisation paramètres:", err);
-      setError("Erreur d'accès aux droits du Tenant. Vérifiez votre session.");
+      setError("Erreur d'accès aux droits du Tenant. Vérifiez notre session.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadSettings(); }, [loadSettings]);
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   /**
    * 💾 PERSISTENCE DES MODIFICATIONS
@@ -82,33 +94,45 @@ export default function SettingsPage() {
    * Action critique révoquant les accès de tous les utilisateurs.
    */
   const handleSuspend = async () => {
-    if (!confirm("⚠️ ALERTE CRITIQUE : Suspendre l'instance ? Tous les accès seront révoqués.")) return;
+    if (
+      !confirm(
+        "⚠️ ALERTE CRITIQUE : Suspendre l'instance ? Tous les accès seront révoqués.",
+      )
+    )
+      return;
     try {
       // Logique de suspension à implémenter selon le endpoint
       toast.error("Action de suspension enregistrée dans l'Audit Log.");
-    } catch (e) { toast.error("Erreur de protocole."); }
+    } catch (e) {
+      toast.error("Erreur de protocole.");
+    }
   };
 
-  if (loading) return (
-    <div className="ml-72 flex h-screen flex-col items-center justify-center bg-[#0B0F1A]">
-      <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
-      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 italic animate-pulse">
-        Analyse des privilèges Qualisoft...
-      </p>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="ml-72 flex h-screen flex-col items-center justify-center bg-[#0B0F1A]">
+        <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 italic animate-pulse">
+          Analyse des privilèges Qualisoft...
+        </p>
+      </div>
+    );
 
-  if (error || !tenant) return (
-    <div className="ml-72 flex h-screen flex-col items-center justify-center bg-[#0B0F1A] p-10">
-      <AlertCircle className="text-red-500 mb-4" size={48} />
-      <p className="text-sm font-black uppercase text-white italic text-center max-w-md">
-        {error || "Échec critique de l'analyse des droits."}
-      </p>
-      <button onClick={() => window.location.reload()} className="mt-8 px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase italic hover:bg-white/10 transition-all text-white">
-        Réinitialiser la connexion
-      </button>
-    </div>
-  );
+  if (error || !tenant)
+    return (
+      <div className="ml-72 flex h-screen flex-col items-center justify-center bg-[#0B0F1A] p-10">
+        <AlertCircle className="text-red-500 mb-4" size={48} />
+        <p className="text-sm font-black uppercase text-white italic text-center max-w-md">
+          {error || "Échec critique de l'analyse des droits."}
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-8 px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase italic hover:bg-white/10 transition-all text-white"
+        >
+          Réinitialiser la connexion
+        </button>
+      </div>
+    );
 
   return (
     <div className="flex-1 bg-[#0B0F1A] min-h-screen p-10 ml-72 text-white font-sans italic text-left relative overflow-x-hidden">
@@ -130,7 +154,11 @@ export default function SettingsPage() {
           disabled={saving}
           className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-5 rounded-2xl font-black uppercase italic text-xs shadow-2xl shadow-blue-900/40 flex items-center gap-3 transition-all active:scale-95 disabled:opacity-50 border-none cursor-pointer"
         >
-          {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+          {saving ? (
+            <Loader2 className="animate-spin" size={18} />
+          ) : (
+            <Save size={18} />
+          )}
           Sauvegarder les modifications
         </button>
       </header>
@@ -143,29 +171,61 @@ export default function SettingsPage() {
               <div className="w-12 h-12 bg-blue-600/10 rounded-2xl flex items-center justify-center text-blue-500 border border-blue-500/20">
                 <Building2 size={24} />
               </div>
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter">Identité de l&apos;Organisation</h2>
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter">
+                Identité de l&apos;Organisation
+              </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3 text-left">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">Désignation Sociale</label>
-                <input type="text" value={tenant.T_Name} onChange={(e) => setTenant({ ...tenant, T_Name: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold focus:border-blue-500 outline-none transition-all italic shadow-inner text-white" />
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">
+                  Désignation Sociale
+                </label>
+                <input
+                  type="text"
+                  value={tenant.T_Name}
+                  onChange={(e) =>
+                    setTenant({ ...tenant, T_Name: e.target.value })
+                  }
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold focus:border-blue-500 outline-none transition-all italic shadow-inner text-white"
+                />
               </div>
               <div className="space-y-3 text-left">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">Domaine d&apos;activité</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">
+                  Domaine d&apos;activité
+                </label>
                 <div className="relative">
-                  <Globe className="absolute left-5 top-5 text-slate-500" size={20} />
-                  <input type="text" value={tenant.T_Domain} onChange={(e) => setTenant({ ...tenant, T_Domain: e.target.value })}
-                    className="w-full pl-14 pr-5 py-5 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold outline-none focus:border-blue-500 transition-all italic text-white" />
+                  <Globe
+                    className="absolute left-5 top-5 text-slate-500"
+                    size={20}
+                  />
+                  <input
+                    type="text"
+                    value={tenant.T_Domain}
+                    onChange={(e) =>
+                      setTenant({ ...tenant, T_Domain: e.target.value })
+                    }
+                    className="w-full pl-14 pr-5 py-5 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold outline-none focus:border-blue-500 transition-all italic text-white"
+                  />
                 </div>
               </div>
               <div className="space-y-3 md:col-span-2 text-left">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">Contact Administratif principal</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">
+                  Contact Administratif principal
+                </label>
                 <div className="relative">
-                  <Mail className="absolute left-5 top-5 text-slate-500" size={20} />
-                  <input type="email" value={tenant.T_Email} onChange={(e) => setTenant({ ...tenant, T_Email: e.target.value })}
-                    className="w-full pl-14 pr-5 py-5 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold outline-none focus:border-blue-500 transition-all italic text-white" />
+                  <Mail
+                    className="absolute left-5 top-5 text-slate-500"
+                    size={20}
+                  />
+                  <input
+                    type="email"
+                    value={tenant.T_Email}
+                    onChange={(e) =>
+                      setTenant({ ...tenant, T_Email: e.target.value })
+                    }
+                    className="w-full pl-14 pr-5 py-5 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold outline-none focus:border-blue-500 transition-all italic text-white"
+                  />
                 </div>
               </div>
             </div>
@@ -177,21 +237,34 @@ export default function SettingsPage() {
               <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 border border-emerald-500/20">
                 <ShieldCheck size={24} />
               </div>
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter">Sûreté & Traçabilité</h2>
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter">
+                Sûreté & Traçabilité
+              </h2>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between p-8 bg-white/5 rounded-4xl border border-white/5 group hover:bg-white/10 transition-all">
                 <div>
-                  <p className="text-xs font-black uppercase italic tracking-tight">Statut de Certification de l&apos;Instance</p>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase mt-2 italic tracking-widest">Vérifié par Qualisoft Master Guard</p>
+                  <p className="text-xs font-black uppercase italic tracking-tight">
+                    Statut de Certification de l&apos;Instance
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase mt-2 italic tracking-widest">
+                    Vérifié par Qualisoft Master Guard
+                  </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-[10px] font-black uppercase text-emerald-500 italic tracking-widest">Actif & Sécurisé</span>
+                  <span className="text-[10px] font-black uppercase text-emerald-500 italic tracking-widest">
+                    Actif & Sécurisé
+                  </span>
                   <div className="w-4 h-4 bg-emerald-500 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] animate-pulse" />
                 </div>
               </div>
               <p className="text-[9px] text-slate-500 font-bold uppercase ml-8 italic tracking-widest">
-                Initialisation du Tenant : {new Date(tenant.T_CreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                Initialisation du Tenant :{" "}
+                {new Date(tenant.T_CreatedAt).toLocaleDateString("fr-FR", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
               </p>
             </div>
           </section>
@@ -207,12 +280,22 @@ export default function SettingsPage() {
                   STATUS: {tenant.T_SubscriptionStatus}
                 </span>
               </div>
-              <p className="text-blue-100 text-[10px] font-black uppercase tracking-[0.4em] mb-4 italic">Plan de Licence</p>
-              <h3 className="text-6xl font-black text-white italic uppercase tracking-tighter mb-12 leading-none">{tenant.T_Plan}</h3>
+              <p className="text-blue-100 text-[10px] font-black uppercase tracking-[0.4em] mb-4 italic">
+                Plan de Licence
+              </p>
+              <h3 className="text-6xl font-black text-white italic uppercase tracking-tighter mb-12 leading-none">
+                {tenant.T_Plan}
+              </h3>
               <div className="pt-10 border-t border-white/20 space-y-6 text-white/80 text-[11px] font-bold italic">
                 <div className="flex justify-between items-center uppercase tracking-tighter">
-                  <span className="flex items-center gap-3"><Calendar size={16} /> Renouvellement</span>
-                  <span className="text-white font-black">{new Date(tenant.T_SubscriptionEndDate).toLocaleDateString("fr-FR")}</span>
+                  <span className="flex items-center gap-3">
+                    <Calendar size={16} /> Renouvellement
+                  </span>
+                  <span className="text-white font-black">
+                    {new Date(tenant.T_SubscriptionEndDate).toLocaleDateString(
+                      "fr-FR",
+                    )}
+                  </span>
                 </div>
                 <button className="w-full bg-white text-blue-600 py-5 rounded-2xl transition-all font-black uppercase text-[10px] flex items-center justify-center gap-3 mt-6 shadow-xl active:scale-95 hover:bg-blue-50 border-none cursor-pointer">
                   Upgrade Master Plan <ChevronRight size={16} />
@@ -226,11 +309,17 @@ export default function SettingsPage() {
             <div className="flex gap-6">
               <Lock className="text-red-500 shrink-0" size={28} />
               <div>
-                <p className="text-sm font-black text-red-500 uppercase italic leading-none mb-4">Isolement de l&apos;Instance</p>
-                <p className="text-[10px] text-red-500/60 font-bold italic leading-relaxed uppercase tracking-tight">
-                  La suspension entraînera l&apos;arrêt des services. Cette action est irréversible depuis ce terminal.
+                <p className="text-sm font-black text-red-500 uppercase italic leading-none mb-4">
+                  Isolement de l&apos;Instance
                 </p>
-                <button onClick={handleSuspend} className="mt-8 px-10 py-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 rounded-2xl text-[9px] font-black uppercase italic transition-all duration-500 border-none cursor-pointer">
+                <p className="text-[10px] text-red-500/60 font-bold italic leading-relaxed uppercase tracking-tight">
+                  La suspension entraînera l&apos;arrêt des services. Cette
+                  action est irréversible depuis ce terminal.
+                </p>
+                <button
+                  onClick={handleSuspend}
+                  className="mt-8 px-10 py-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 rounded-2xl text-[9px] font-black uppercase italic transition-all duration-500 border-none cursor-pointer"
+                >
                   Exécuter Suspension
                 </button>
               </div>

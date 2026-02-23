@@ -13,5 +13,5 @@ export interface DashboardStats {
   };
   securite: any[]; // Liste des événements SSE récents
   statutGlobal: string; // Ex: 'CERTIFIÉ', 'STABLE', 'EN ALERTE'
-  // Ajoutez ici d'autres champs si votre backend en renvoie
+  // Ajoutez ici d'autres champs si notre backend en renvoie
 }
