@@ -233,7 +233,7 @@ export default function Sidebar({
             access: "MANAGER",
           },
           {
-            title: "Enqêtes",
+            title: "Enquêtes",
             path: "/dashboard/quality/surveys",
             icon: Leaf,
             access: "MANAGER",
@@ -331,7 +331,7 @@ export default function Sidebar({
             access: "ALL",
           },
           {
-            title: "Registre ANSD (Sénégal)",
+            title: "Registre Veille",
             path: "/dashboard/senegal-legal",
             icon: Scale,
             access: "ALL",
@@ -376,7 +376,7 @@ export default function Sidebar({
         items: [
           {
             title: "Hub Santé/Sécurité (SSE)",
-            path: "/dashboard/sse",
+            path: "/dashboard/environment",
             icon: HardHat,
             access: "ALL",
           },

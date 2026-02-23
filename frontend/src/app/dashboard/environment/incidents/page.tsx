@@ -1,5 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 🚨 MODULE : REGISTRE SÉCURISÉ DES INCIDENTS SSE (ELITE KERNEL)
+ * -------------------------------------------------------------------------
+ * NORME : ISO 14001:2015 §8.2 (Préparation et réponse aux situations d'urgence).
+ * DESIGN : High-Density / No-Scroll / Real-Time Financial Impact.
+ * -------------------------------------------------------------------------
+ */
+
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
@@ -8,255 +17,346 @@ import apiClient from '@/core/api/api-client';
 import { 
   AlertTriangle, Plus, Search, MapPin, Trash2, 
   RefreshCcw, ChevronRight, ShieldCheck, 
-  DollarSign, Activity, Microscope, Flame
+  DollarSign, Activity, Microscope, Flame, X, Save, Calendar, User
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import IncidentForm from './IncidentForm';
+import { toast, Toaster } from 'sonner';
 
-/**
- * 🚨 REGISTRE DES INCIDENTS ENVIRONNEMENTAUX
- * Gère le pilotage des situations d'urgence et le coût de non-qualité (CNQ).
- */
+// --- 🛠️ UTILITAIRE DE CLASSE ---
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
+
 export default function EnvironmentIncidentsPage() {
   const router = useRouter();
+  
+  // --- 📦 ÉTATS DU NOYAU ---
   const [incidents, setIncidents] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [editingIncident, setEditingIncident] = useState<any>(null);
+  
+  // --- 🔍 FILTRES ---
+  const [search, setSearch] = useState('');
   const [selectedSite, setSelectedSite] = useState('ALL');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  /**
-   * 📡 SYNC : Récupération des évènements SSE et métadonnées sites/users
-   */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [incidentsRes, sitesRes, usersRes] = await Promise.all([
+      const [iRes, sRes, uRes] = await Promise.all([
         apiClient.get('/sse-events'), 
         apiClient.get('/sites'),
         apiClient.get('/users')
       ]);
-      setIncidents(incidentsRes.data || []);
-      setSites(sitesRes.data || []);
-      setUsers(usersRes.data || []);
-    } catch (error) {
-      toast.error("ERREUR DE SYNCHRONISATION REGISTRE");
+      setIncidents(iRes.data?.data || iRes.data || []);
+      setSites(sRes.data?.data || sRes.data || []);
+      setUsers(uRes.data?.data || uRes.data || []);
+    } catch (e) {
+      toast.error("RUPTURE DE SYNCHRONISATION REGISTRE SSE");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  /**
-   * 🚀 ANALYTICS CEO : Calculs de gravité et financier
-   */
-  const executiveStats = useMemo(() => {
+  // --- 📊 KPI ANALYTICS (§10.2) ---
+  const stats = useMemo(() => {
     const total = incidents.length;
     const critical = incidents.filter(i => i.SSE_AvecArret).length;
-    const estimatedCNQ = incidents.reduce((acc, i) => acc + (i.SSE_NbJoursArret * 75000), 0);
-    const severityRate = total > 0 ? (critical / total) * 100 : 0;
-    
-    return {
-      total,
-      critical,
-      estimatedCNQ: estimatedCNQ.toLocaleString(),
-      severityRate: Math.round(severityRate),
-      complianceStatus: severityRate < 20 ? 'CONFORME' : 'VIGILANCE'
+    const totalDays = incidents.reduce((acc, i) => acc + (Number(i.SSE_NbJoursArret) || 0), 0);
+    const cnq = totalDays * 85000; // Coût moyen journée d'arrêt
+    return { 
+      total, 
+      critical, 
+      cnq: cnq.toLocaleString(), 
+      severity: total > 0 ? Math.round((critical / total) * 100) : 0 
     };
   }, [incidents]);
 
-  /**
-   * 🔍 FILTRAGE MULTI-CRITÈRES
-   */
-  const filteredIncidents = useMemo(() => {
-    return incidents.filter(incident => {
-      const matchesSearch = 
-        incident.SSE_Lieu.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        incident.SSE_Description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        incident.SSE_Type.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesSite = selectedSite === 'ALL' || incident.SSE_SiteId === selectedSite;
-      
-      const date = new Date(incident.SSE_DateEvent);
-      const matchesPeriod = (date.getMonth() + 1 === selectedMonth) && (date.getFullYear() === selectedYear);
-
-      return matchesSearch && matchesSite && matchesPeriod;
-    });
-  }, [incidents, searchTerm, selectedSite, selectedMonth, selectedYear]);
+  const filtered = useMemo(() => {
+    return incidents.filter(i => 
+      (i.SSE_Description?.toLowerCase().includes(search.toLowerCase()) || i.SSE_Lieu?.toLowerCase().includes(search.toLowerCase())) &&
+      (selectedSite === 'ALL' || i.SSE_SiteId === selectedSite)
+    );
+  }, [incidents, search, selectedSite]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('AUDIT : CONFIRMER LA SUPPRESSION DÉFINITIVE DU REGISTRE ?')) return;
+    if (!confirm('SCELLAGE : CONFIRMER LA SUPPRESSION DÉFINITIVE DU REGISTRE ?')) return;
     try {
       await apiClient.delete(`/sse-events/${id}`);
-      toast.success('INCIDENT CLASSÉ ET SUPPRIMÉ');
+      toast.success('INCIDENT CLASSÉ');
       fetchData();
-    } catch {
-      toast.error('ERREUR LORS DE LA SUPPRESSION');
-    }
+    } catch { toast.error('ERREUR DE SUPPRESSION'); }
   };
 
   if (loading) return (
-    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-6">
-      <RefreshCcw className="animate-spin text-red-500" size={50} />
-      <p className="text-red-500 font-black uppercase italic text-xs tracking-[0.5em]">Ouverture du Registre ISO 14001...</p>
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+      <RefreshCcw className="animate-spin text-red-600" size={40} />
+      <span className="text-red-600 font-black uppercase text-[10px] tracking-[0.5em] animate-pulse">Syncing SSE Registry...</span>
     </div>
   );
 
   return (
-    <div className="p-10 bg-[#0B0F1A] min-h-screen ml-72 text-white font-sans uppercase italic font-black">
+    <div className="ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden selection:bg-red-600/30">
+      <Toaster position="top-right" richColors theme="dark" />
       
-      {/* HEADER SECTION */}
-      <header className="mb-12 flex justify-between items-end border-b border-white/5 pb-10">
-        <div className="space-y-4 text-left">
+      {/* 🔝 HEADER TACTIQUE (Shrink-0) */}
+      <header className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0">
+        <div className="space-y-1">
           <div className="flex items-center gap-3">
-             <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black border ${executiveStats.complianceStatus === 'CONFORME' ? 'border-emerald-500 text-emerald-500 bg-emerald-500/10' : 'border-red-500 text-red-500 bg-red-500/10'}`}>
-               SMI STATUS: {executiveStats.complianceStatus}
-             </span>
-             <span className="bg-white/5 text-slate-500 px-4 py-1.5 rounded-xl text-[9px] border border-white/10 italic font-black">ISO 14001 §8.2</span>
+            <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse shadow-[0_0_10px_red]" />
+            <p className="text-slate-500 font-black text-[9px] uppercase tracking-[0.4em] m-0 leading-none">ISO 14001:2015 §8.2 • Crisis Matrix</p>
           </div>
-          <h1 className="text-6xl tracking-tighter italic leading-none">
-            REGISTRE <span className="text-red-500">INCIDENTS</span>
-          </h1>
-          <p className="text-slate-500 text-xs tracking-[0.4em] uppercase">Pilotage des Situations d&apos;Urgence</p>
+          <h1 className="text-3xl font-black uppercase tracking-tighter m-0 leading-none">Registre <span className="text-red-600">Incidents</span></h1>
         </div>
-        <div className="flex gap-4">
-          <button onClick={fetchData} className="p-5 bg-white/5 border border-white/10 rounded-3xl text-slate-400 hover:text-white transition-all hover:rotate-180 duration-500 cursor-pointer">
-            <RefreshCcw size={22} />
-          </button>
-          <button onClick={() => setIsFormOpen(true)} className="bg-red-600 px-10 py-5 rounded-[2.5rem] text-[11px] shadow-[0_20px_60px_rgba(220,38,38,0.4)] flex items-center gap-4 hover:bg-red-500 transition-all active:scale-95 group border-none text-white cursor-pointer">
-            <Plus size={20} strokeWidth={3} className="group-hover:rotate-90 transition-transform" /> 
-            DÉCLARER INCIDENT
+        
+        <div className="flex gap-3">
+          <button onClick={fetchData} className="p-2 bg-white/5 rounded-xl border border-white/10 text-slate-400 hover:text-white transition-all"><RefreshCcw size={18}/></button>
+          <button 
+            onClick={() => { setEditingIncident(null); setIsFormOpen(true); }} 
+            className="bg-red-600 hover:bg-white hover:text-red-600 px-6 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 border-none cursor-pointer transition-all italic shadow-lg"
+          >
+            <Plus size={16} strokeWidth={3} /> Déclarer Écart
           </button>
         </div>
       </header>
 
-      {/* DASHBOARD STATS */}
-      <div className="grid grid-cols-4 gap-8 mb-12">
-        <StatCard label="Fréquence" value={executiveStats.total} icon={<Activity className="text-red-400" />} color="bg-red-500/5" />
-        <StatCard label="Gravité" value={`${executiveStats.severityRate}%`} icon={<Flame className="text-amber-400" />} color="bg-amber-500/5" progress={executiveStats.severityRate} />
-        <StatCard label="Estimation CNQ" value={`${executiveStats.estimatedCNQ} XOF`} icon={<DollarSign className="text-emerald-400" />} color="bg-emerald-500/5" />
-        <StatCard label="Performance" value="98%" icon={<ShieldCheck className="text-blue-400" />} color="bg-blue-500/5" progress={98} />
+      {/* 📊 INDICATEURS TACTIQUES (Shrink-0) */}
+      <div className="grid grid-cols-4 gap-4 mb-6 shrink-0">
+        <KPICard label="Incidents Totaux" value={stats.total} icon={<Activity size={16}/>} color="text-red-500" />
+        <KPICard label="Taux de Gravité" value={`${stats.severity}%`} icon={<Flame size={16}/>} color="text-amber-500" />
+        <KPICard label="Estimation CNQ" value={`${stats.cnq} XOF`} icon={<DollarSign size={16}/>} color="text-emerald-500" />
+        <KPICard label="SMI Status" value="VIGILANCE" icon={<ShieldCheck size={16}/>} color="text-blue-500" />
       </div>
 
-      
-
-      {/* FILTRES SECTION */}
-      <div className="bg-slate-900/40 border border-white/5 rounded-[3.5rem] p-8 mb-10 flex flex-wrap lg:flex-nowrap gap-6 backdrop-blur-2xl">
+      {/* 🔍 FILTRAGE (Shrink-0) */}
+      <div className="flex gap-4 mb-6 shrink-0 bg-white/5 p-3 rounded-2xl border border-white/5">
         <div className="flex-1 relative">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input 
-            placeholder="RECHERCHER DANS LE REGISTRE..." 
-            className="w-full bg-black/20 border border-white/10 rounded-4xl py-5 pl-16 pr-8 text-[11px] font-black outline-none focus:border-red-500 transition-all text-white italic"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="RECHERCHER DANS LE REGISTRE SDE..." 
+            className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-[10px] font-black uppercase outline-none focus:border-red-600 transition-all italic"
           />
         </div>
-        <select className="bg-black/40 border border-white/10 rounded-4xl px-8 py-5 text-[10px] font-black outline-none focus:border-red-500 cursor-pointer text-white italic" value={selectedSite} onChange={e => setSelectedSite(e.target.value)}>
+        <select 
+          value={selectedSite} onChange={e => setSelectedSite(e.target.value)}
+          className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-[9px] font-black uppercase italic outline-none text-white cursor-pointer"
+        >
           <option value="ALL">TOUS LES SITES</option>
-          {sites.map((s:any) => <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>)}
+          {sites.map(s => <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>)}
         </select>
-        <div className="flex gap-2">
-           <select className="bg-black/40 border border-white/10 rounded-4xl px-6 py-5 text-[10px] font-black text-white" value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))}>
-             {Array.from({length:12}, (_,i) => <option key={i+1} value={i+1}>M{i+1}</option>)}
-           </select>
-           <select className="bg-black/40 border border-white/10 rounded-4xl px-6 py-5 text-[10px] font-black text-white" value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}>
-             {[2026, 2025, 2024].map(y => <option key={y} value={y}>{y}</option>)}
-           </select>
-        </div>
       </div>
 
-      {/* TABLEAU DES INCIDENTS SCELLÉS */}
-      <div className="bg-slate-900/40 border border-white/5 rounded-[4rem] overflow-hidden shadow-3xl backdrop-blur-xl">
-        <table className="w-full text-left">
-          <thead className="bg-white/5 text-[11px] text-slate-500 tracking-[0.3em]">
-            <tr>
-              <th className="p-10">MÉTA-DONNÉES</th>
-              <th className="p-10">TYPOLOGIE ISO</th>
-              <th className="p-10">DESCRIPTION DES FAITS</th>
-              <th className="p-10 text-right">DOSSIER</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {filteredIncidents.length > 0 ? (
-              filteredIncidents.map((i) => (
-                <tr key={i.SSE_Id} className="hover:bg-white/5 transition-all group">
-                  <td className="p-10">
-                    <div className="flex flex-col gap-2">
-                      <span className="text-lg font-black italic">{new Date(i.SSE_DateEvent).toLocaleDateString()}</span>
-                      <span className="flex items-center gap-2 text-[10px] text-slate-500"><MapPin size={12} className="text-red-500" /> {i.SSE_Lieu}</span>
-                    </div>
-                  </td>
-                  <td className="p-10">
-                    <span className={`px-5 py-2 rounded-2xl text-[10px] font-black border ${i.SSE_AvecArret ? 'border-red-600 text-red-500 bg-red-500/10' : 'border-amber-500 text-amber-500 bg-amber-500/10'}`}>
-                      {i.SSE_Type.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="p-10 max-w-xl">
-                    <p className="text-[11px] line-clamp-2 text-slate-300 normal-case font-medium italic">
-                      {i.SSE_Description}
-                    </p>
-                  </td>
-                  <td className="p-10 text-right">
-                    <div className="flex justify-end gap-4 opacity-0 group-hover:opacity-100 transition-all">
-                      <button onClick={() => handleDelete(i.SSE_Id)} className="p-5 bg-white/5 rounded-2xl text-slate-500 hover:text-red-500 transition-all border-none cursor-pointer">
-                        <Trash2 size={20}/>
-                      </button>
-                      <button onClick={() => router.push(`/dashboard/sse/analytics/${i.SSE_Id}`)} className="p-5 bg-white/5 rounded-2xl text-slate-500 hover:text-blue-500 transition-all border-none cursor-pointer">
-                        <Microscope size={20}/>
-                      </button>
-                      <button className="p-5 bg-white/5 rounded-2xl text-slate-500 hover:text-white transition-all border-none cursor-pointer">
-                        <ChevronRight size={22}/>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={4} className="p-32 text-center">
-                   <ShieldCheck size={64} className="mx-auto text-slate-800 mb-8 opacity-10" />
-                   <p className="text-slate-600 font-black uppercase italic tracking-[0.5em] text-sm leading-relaxed">
-                     AUCUN INCIDENT TROUVÉ DANS LE REGISTRE
-                   </p>
-                </td>
+      {/* 📋 REGISTRE DENSE (Flex-1) */}
+      <main className="flex-1 min-h-0 bg-[#151A2D] border border-white/5 rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 bg-[#151A2D] z-10 border-b border-white/10 shadow-sm">
+              <tr className="text-[8px] text-slate-500 uppercase font-black italic tracking-widest">
+                <th className="px-6 py-3">Méta-Données</th>
+                <th className="px-6 py-3">Typologie & Sévérité</th>
+                <th className="px-6 py-3">Exposé des Faits</th>
+                <th className="px-6 py-3 text-right">Pilotage</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filtered.length === 0 ? (
+                <tr><td colSpan={4} className="p-20 text-center opacity-10 font-black uppercase text-xl italic tracking-widest">Registre Vierge</td></tr>
+              ) : (
+                filtered.map((i) => (
+                  <tr key={i.SSE_Id} className="group hover:bg-red-600/5 transition-all">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black text-white italic leading-none mb-2">{new Date(i.SSE_DateEvent).toLocaleDateString()}</span>
+                        <span className="flex items-center gap-2 text-[8px] text-slate-500 uppercase font-black tracking-widest leading-none">
+                          <MapPin size={10} className="text-red-600" /> {i.SSE_Lieu}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase italic border shadow-inner", 
+                          i.SSE_AvecArret ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                        )}>
+                          {i.SSE_Type?.replace('_', ' ') || 'INCIDENT'}
+                        </span>
+                        {i.SSE_AvecArret && <span className="text-[8px] font-black text-amber-500 uppercase italic">⚠️ ARRÊT : {i.SSE_NbJoursArret}J</span>}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 max-w-md">
+                      <p className="text-[10px] text-slate-300 italic leading-relaxed line-clamp-2 uppercase font-medium m-0 tracking-wide">
+                        {i.SSE_Description}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => { setEditingIncident(i); setIsFormOpen(true); }} className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-amber-500"><Microscope size={14}/></button>
+                        <button onClick={() => handleDelete(i.SSE_Id)} className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-red-500"><Trash2 size={14}/></button>
+                        <button className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-white"><ChevronRight size={14}/></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </main>
 
-      {isFormOpen && <IncidentForm onClose={() => setIsFormOpen(false)} onSuccess={fetchData} sites={sites} users={users} />}
+      {/* 🧾 MODAL FORMULAIRE SSE (Pop-up scellé) */}
+      {isFormOpen && (
+        <SSEFormOverlay 
+          sites={sites} 
+          users={users} 
+          data={editingIncident} 
+          onClose={() => setIsFormOpen(false)} 
+          onSuccess={() => { fetchData(); setIsFormOpen(false); }}
+        />
+      )}
+
+      {/* 🧩 FOOTER TACTIQUE (Shrink-0) */}
+      <footer className="mt-6 pt-4 border-t border-white/5 flex justify-between items-center opacity-30 shrink-0 italic">
+        <div className="flex items-center gap-4">
+          <AlertTriangle size={24} className="text-red-600" />
+          <div className="text-left leading-none">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] m-0 mb-1">SSE Sovereign Hub</p>
+            <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest m-0 leading-none">Matrice de Prévention • ISO 14001 Integration</p>
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse shadow-[0_0_10px_red]" />
+          <div className="w-2 h-2 rounded-full bg-slate-800" />
+        </div>
+      </footer>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #ef4444; }
+      `}</style>
     </div>
   );
 }
 
-// --- SOUS-COMPOSANT STATCARDS ---
+// --- 🧩 SOUS-COMPOSANTS ---
 
-function StatCard({ label, value, icon, color, progress }: any) {
+function KPICard({ label, value, icon, color }: any) {
   return (
-    <div className={`${color} border border-white/5 rounded-[3rem] p-10 transition-all hover:scale-[1.03] shadow-2xl`}>
-      <div className="flex justify-between items-start mb-8">
-        <div className="p-5 bg-black/40 rounded-2xl text-white">
-          {icon}
-        </div>
-        {progress !== undefined && (
-          <div className="w-20 h-2 bg-white/5 rounded-full overflow-hidden self-center border border-white/5">
-            <div 
-              className={`h-full ${progress > 20 ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-emerald-500'}`} 
-              style={{width: `${progress}%`}}
-            ></div>
-          </div>
-        )}
+    <div className="bg-white/5 border border-white/5 p-4 rounded-3xl flex items-center justify-between shadow-xl">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-black/40 rounded-xl text-white">{icon}</div>
+        <span className="text-[8px] font-black uppercase text-slate-500 italic tracking-widest">{label}</span>
       </div>
-      <p className="text-[11px] text-slate-500 tracking-[0.3em] uppercase italic font-black mb-1">{label}</p>
-      <p className="text-4xl font-black italic tracking-tighter leading-none text-white">{value}</p>
+      <span className={cn("text-xl font-black italic m-0 tracking-tighter", color)}>{value}</span>
     </div>
+  );
+}
+
+function SSEFormOverlay({ sites, users, data, onClose, onSuccess }: any) {
+  const [form, setForm] = useState({
+    SSE_DateEvent: data?.SSE_DateEvent ? new Date(data.SSE_DateEvent).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    SSE_Lieu: data?.SSE_Lieu || "",
+    SSE_Type: data?.SSE_Type || "INCIDENT",
+    SSE_Description: data?.SSE_Description || "",
+    SSE_AvecArret: data?.SSE_AvecArret || false,
+    SSE_NbJoursArret: data?.SSE_NbJoursArret || 0,
+    SSE_SiteId: data?.SSE_SiteId || "",
+    SSE_ReporterId: data?.SSE_ReporterId || ""
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const tid = toast.loading("Scellage de l'incident...");
+    try {
+      if (data?.SSE_Id) await apiClient.patch(`/sse-events/${data.SSE_Id}`, form);
+      else await apiClient.post('/sse-events', form);
+      toast.success("REGISTRE MIS À JOUR", { id: tid });
+      onSuccess();
+    } catch { toast.error("ERREUR DE SCELLAGE", { id: tid }); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-6">
+      <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-[#151A2D] border border-white/10 rounded-[3rem] w-full max-w-xl p-8 shadow-4xl italic overflow-hidden animate-in zoom-in-95">
+        <div className="absolute top-0 right-0 p-12 opacity-[0.02] -rotate-12 pointer-events-none"><AlertTriangle size={300}/></div>
+        
+        <header className="flex justify-between items-center mb-8 border-b border-white/5 pb-4">
+           <h3 className="text-xl font-black uppercase tracking-tighter m-0 italic flex items-center gap-3">
+             <Plus size={20} className="text-red-600"/> Déclaration <span className="text-red-600">SSE</span>
+           </h3>
+           <X size={20} className="cursor-pointer text-slate-500 hover:text-white" onClick={onClose} />
+        </header>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2 italic leading-none flex items-center gap-2"><Calendar size={10}/> Date Événement *</label>
+              <input type="date" required value={form.SSE_DateEvent} onChange={e => setForm({...form, SSE_DateEvent: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-black text-white outline-none focus:border-red-600 italic" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2 italic leading-none flex items-center gap-2"><MapPin size={10}/> Lieu Précis *</label>
+              <input required value={form.SSE_Lieu} onChange={e => setForm({...form, SSE_Lieu: e.target.value.toUpperCase()})} placeholder="EX: ATELIER A2" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-black text-white outline-none focus:border-red-600 italic uppercase" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2 italic leading-none flex items-center gap-2"><Activity size={10}/> Typologie ISO</label>
+              <select value={form.SSE_Type} onChange={e => setForm({...form, SSE_Type: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-black text-white outline-none focus:border-red-600 italic appearance-none cursor-pointer">
+                <option value="INCIDENT">INCIDENT ENV</option>
+                <option value="ACCIDENT_SANS_ARRET">ACCIDENT (SANS ARRET)</option>
+                <option value="ACCIDENT_AVEC_ARRET">ACCIDENT (AVEC ARRET)</option>
+                <option value="PRESQUE_ACCIDENT">PRESQUE ACCIDENT</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2 italic leading-none flex items-center gap-2"><Building2Icon size={10}/> Site d&apos;attache (§4.4) *</label>
+              <select required value={form.SSE_SiteId} onChange={e => setForm({...form, SSE_SiteId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-black text-white outline-none focus:border-red-600 italic appearance-none cursor-pointer">
+                <option value="">CHOISIR SITE...</option>
+                {sites.map((s:any) => <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2 italic leading-none flex items-center gap-2"><User size={10}/> Agent Déclarant *</label>
+            <select required value={form.SSE_ReporterId} onChange={e => setForm({...form, SSE_ReporterId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-black text-white outline-none focus:border-red-600 italic appearance-none cursor-pointer">
+              <option value="">SÉLECTIONNER COLLABORATEUR...</option>
+              {users.map((u:any) => <option key={u.U_Id} value={u.U_Id}>{u.U_FirstName} {u.U_LastName}</option>)}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 p-4 bg-red-600/5 border border-red-600/10 rounded-2xl items-center">
+             <div className="flex items-center gap-3">
+                <input type="checkbox" checked={form.SSE_AvecArret} onChange={e => setForm({...form, SSE_AvecArret: e.target.checked})} className="w-5 h-5 cursor-pointer accent-red-600" />
+                <label className="text-[9px] font-black text-red-500 uppercase italic">Incapacité / Arrêt ?</label>
+             </div>
+             {form.SSE_AvecArret && (
+               <div className="flex items-center gap-2">
+                 <label className="text-[8px] font-black text-slate-500 uppercase italic">Nb Jours :</label>
+                 <input type="number" value={form.SSE_NbJoursArret} onChange={e => setForm({...form, SSE_NbJoursArret: parseInt(e.target.value)})} className="w-20 bg-black/40 border border-white/10 rounded-lg p-2 text-[10px] font-black text-white outline-none" />
+               </div>
+             )}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Récit CIRCONSTANCIÉ DES FAITS</label>
+            <textarea required value={form.SSE_Description} onChange={e => setForm({...form, SSE_Description: e.target.value})} rows={5} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] font-medium text-slate-300 outline-none focus:border-red-600 italic resize-none uppercase" placeholder="DÉCRIRE PRÉCISÉMENT LES ÉCARTS..." />
+          </div>
+
+          <button type="submit" className="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase text-[10px] italic shadow-lg hover:bg-white hover:text-red-600 transition-all border-none flex items-center justify-center gap-3 cursor-pointer active:scale-95">
+            <Save size={16}/> Valider le Scellage SSE
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Building2Icon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M16 18h.01"/></svg>
   );
 }

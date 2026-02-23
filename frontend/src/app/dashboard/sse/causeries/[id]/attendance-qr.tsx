@@ -26,7 +26,7 @@ export default function AttendanceQR({ causerieId, token }: { causerieId: string
           level="H"
           includeMargin={true}
           imageSettings={{
-            src: "/logo-qualisoft.png", // Assure-toi que le logo est dans /public
+            src: "/QSLogo.PNG", // Assure-toi que le logo est dans /public
             x: undefined,
             y: undefined,
             height: 50,

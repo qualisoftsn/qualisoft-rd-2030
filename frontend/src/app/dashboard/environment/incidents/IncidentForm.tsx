@@ -1,155 +1,179 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 🚨 MODULE : FORMULAIRE DE SCELLAGE INCIDENT (SDE KERNEL)
+ * -------------------------------------------------------------------------
+ * RÔLE : Enregistrement immuable des écarts SSE (§8.2 / §10.2).
+ * DESIGN : Elite High-Density / Matrix Cockpit / No-Overflow.
+ * -------------------------------------------------------------------------
+ */
+
 'use client';
 
 import React, { useState } from 'react';
 import apiClient from '@/core/api/api-client';
-import { X, Save, Loader2, AlertTriangle, MapPin, Calendar, ShieldAlert } from 'lucide-react';
+import { X, Save, Loader2, ShieldAlert, MapPin, Calendar, Activity, User, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { cn } from '@/core/utils/cn';
 
-/**
- * 🚨 FORMULAIRE DE DÉCLARATION INCIDENT SSE
- * Implémentation du protocole d'urgence §8.2 et des actions correctives §10.2 ISO 14001.
- */
-export default function IncidentForm({ onClose, onSuccess, sites, users }: any) {
+interface IncidentFormProps {
+  onClose: () => void;
+  onSuccess: () => void;
+  sites: any[];
+  users: any[];
+}
+
+export default function IncidentForm({ onClose, onSuccess, sites, users }: IncidentFormProps) {
   const [loading, setLoading] = useState(false);
+  
+  // --- 📦 ÉTAT INITIAL SCELLÉ (Référentiel SDE) ---
   const [formData, setFormData] = useState({
-    SSE_Type: 'DOMMAGE_MATERIEL',
+    SSE_Type: 'INCIDENT',
     SSE_DateEvent: new Date().toISOString().slice(0, 16),
     SSE_Lieu: '',
     SSE_Description: '',
     SSE_AvecArret: false,
     SSE_NbJoursArret: 0,
-    SSE_SiteId: sites[0]?.S_Id || '',
+    SSE_SiteId: sites?.[0]?.S_Id || '',
     SSE_ReporterId: '',
-    SSE_VictimId: ''
   });
 
-  /**
-   * 💾 VALIDATION ET INDEXATION
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.SSE_ReporterId) return toast.error("VEUILLEZ SÉLECTIONNER UN REPORTER");
+    if (!formData.SSE_ReporterId) return toast.error("REPORTER OBLIGATOIRE (§7.2)");
     
     setLoading(true);
-    const toastId = toast.loading("INDEXATION INCIDENT §10.2...");
+    const tid = toast.loading("TRANSMISSION AU NOYAU SSE...");
     
     try {
-      // ✅ NORMALISATION DES TYPES (Correction Erreur 400)
       const payload = {
         ...formData,
         SSE_NbJoursArret: Number(formData.SSE_NbJoursArret),
         SSE_DateEvent: new Date(formData.SSE_DateEvent).toISOString(),
-        SSE_VictimId: formData.SSE_VictimId || null
+        SSE_Description: formData.SSE_Description.toUpperCase(),
+        SSE_Lieu: formData.SSE_Lieu.toUpperCase()
       };
 
-      await apiClient.post('/sse', payload);
-      toast.success("INCIDENT ENREGISTRÉ", { id: toastId });
+      await apiClient.post('/sse-events', payload);
+      toast.success("INCIDENT SCELLÉ DANS LE REGISTRE", { id: tid });
       onSuccess();
       onClose();
     } catch (err: any) {
-      const msg = err.response?.data?.message || "ERREUR DE VALIDATION";
-      toast.error(Array.isArray(msg) ? msg[0] : msg, { id: toastId });
+      toast.error(err.response?.data?.message || "ERREUR DE MUTATION SDE", { id: tid });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-500 flex items-center justify-center p-6 italic font-black uppercase">
-      <div className="bg-[#0F172A] w-full max-w-3xl rounded-[4rem] border border-white/10 p-16 space-y-10 shadow-4xl animate-in zoom-in-95 duration-500 overflow-y-auto max-h-[90vh] scrollbar-hide">
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-600 flex items-center justify-center p-4 selection:bg-red-600/30">
+      <div className="bg-[#0F172A] w-full max-w-2xl rounded-[2.5rem] border border-white/10 flex flex-col shadow-4xl animate-in zoom-in-95 duration-300 max-h-[95vh] overflow-hidden italic font-black uppercase">
         
-        {/* HEADER PROTOCOLE */}
-        <div className="flex justify-between items-start border-b border-white/10 pb-8 text-left">
-          <div>
-            <h2 className="text-4xl tracking-tighter text-white italic uppercase leading-none">DÉCLARATION <span className="text-red-500">INCIDENT</span></h2>
-            <p className="text-[10px] text-slate-500 tracking-[0.3em] mt-3 italic">PROTOCOLE D&apos;URGENCE ISO 14001</p>
+        {/* 🔝 HEADER COMPACT */}
+        <header className="p-6 border-b border-white/5 flex justify-between items-center bg-white/2 shrink-0">
+          <div className="flex items-center gap-4 text-left">
+            <div className="p-3 bg-red-600/10 rounded-xl border border-red-600/20">
+              <ShieldAlert size={20} className="text-red-600 animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-xl tracking-tighter text-white m-0 leading-none italic">DÉCLARATION <span className="text-red-500">SSE</span></h2>
+              <p className="text-[8px] text-slate-500 tracking-[0.4em] mt-1 m-0">PROTOCOLE D&apos;URGENCE ISO 14001</p>
+            </div>
           </div>
-          <ShieldAlert className="text-red-500" size={48} />
-        </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer text-slate-500"><X size={20}/></button>
+        </header>
 
-        <form onSubmit={handleSubmit} className="space-y-8 text-left">
-          {/* TYPE ET DATE */}
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-3">
-              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase font-black">TYPE D&apos;INCIDENT *</label>
-              <select className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase cursor-pointer"
+        {/* 📋 CORPS DU FORMULAIRE (Scrollable si nécessaire) */}
+        <form onSubmit={handleSubmit} className="p-6 flex-1 overflow-y-auto custom-scrollbar space-y-6 text-left">
+          
+          {/* Section 1 : Nature & Timing */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[8px] text-slate-500 ml-2 tracking-widest leading-none flex items-center gap-2"><Activity size={10}/> TYPE D&apos;ÉCART *</label>
+              <select className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-[10px] text-white outline-none focus:border-red-600 font-black italic uppercase cursor-pointer appearance-none"
                 value={formData.SSE_Type} onChange={(e) => setFormData({...formData, SSE_Type: e.target.value})}>
-                <option value="DOMMAGE_MATERIEL">DOMMAGE MATÉRIEL</option>
-                <option value="POLLUTION">POLLUTION / DÉVERSEMENT</option>
+                <option value="INCIDENT">INCIDENT ENV</option>
+                <option value="ACCIDENT">ACCIDENT TRAVAIL</option>
+                <option value="POLLUTION">POLLUTION / FUITE</option>
+                <option value="DOMMAGE">DOMMAGE MATÉRIEL</option>
                 <option value="SITUATION_DANGEREUSE">SITUATION DANGEREUSE</option>
-                <option value="PRESQU_ACCIDENT">PRESQU&apos;ACCIDENT</option>
               </select>
             </div>
-            <div className="space-y-3">
-              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase font-black">DATE & HEURE *</label>
-              <input type="datetime-local" required className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic"
+            <div className="space-y-1">
+              <label className="text-[8px] text-slate-500 ml-2 tracking-widest leading-none flex items-center gap-2"><Calendar size={10}/> DATE & HEURE *</label>
+              <input type="datetime-local" required className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-[10px] text-white outline-none focus:border-red-600 font-black italic appearance-none"
                 value={formData.SSE_DateEvent} onChange={(e) => setFormData({...formData, SSE_DateEvent: e.target.value})} />
             </div>
           </div>
 
-          {/* LIEU ET SITE */}
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-3">
-              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase font-black">LIEU PRÉCIS *</label>
-              <input required className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase"
-                value={formData.SSE_Lieu} onChange={(e) => setFormData({...formData, SSE_Lieu: e.target.value})} placeholder="EX: ZONE DE STOCKAGE" />
+          {/* Section 2 : Localisation */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[8px] text-slate-500 ml-2 tracking-widest leading-none flex items-center gap-2"><MapPin size={10}/> LIEU PRÉCIS *</label>
+              <input required className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-[10px] text-white outline-none focus:border-red-600 font-black italic uppercase"
+                value={formData.SSE_Lieu} onChange={(e) => setFormData({...formData, SSE_Lieu: e.target.value})} placeholder="EX: ZONE DE DÉPOT" />
             </div>
-            <div className="space-y-3">
-              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase font-black">SITE CONCERNÉ *</label>
-              <select className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase cursor-pointer"
+            <div className="space-y-1">
+              <label className="text-[8px] text-slate-500 ml-2 tracking-widest leading-none flex items-center gap-2"><AlertTriangle size={10}/> SITE (§4.4) *</label>
+              <select required className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-[10px] text-white outline-none focus:border-red-600 font-black italic cursor-pointer appearance-none"
                 value={formData.SSE_SiteId} onChange={(e) => setFormData({...formData, SSE_SiteId: e.target.value})}>
+                <option value="">SÉLECTIONNER SITE...</option>
                 {sites.map((s: any) => (
-                  <option key={String(s.S_Id)} value={String(s.S_Id)}>{String(s.S_Name)}</option>
+                  <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* ACTEURS ET GRAVITÉ */}
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-3">
-              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase font-black">REPORTER (DÉCLARANT) *</label>
-              <select required className="w-full bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white outline-none focus:border-red-500 font-black italic uppercase cursor-pointer"
+          {/* Section 3 : Identification & Gravité */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[8px] text-slate-500 ml-2 tracking-widest leading-none flex items-center gap-2"><User size={10}/> REPORTER *</label>
+              <select required className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-[10px] text-white outline-none focus:border-red-600 font-black italic cursor-pointer appearance-none"
                 value={formData.SSE_ReporterId} onChange={(e) => setFormData({...formData, SSE_ReporterId: e.target.value})}>
-                <option value="">SÉLECTIONNER...</option>
-                  {users.map((u: any) => (
-                    <option key={String(u.U_Id)} value={String(u.U_Id)}>{String(u.U_FirstName)} {String(u.U_LastName)}</option>
-                  ))}
+                <option value="">CHOISIR AGENT...</option>
+                {users.map((u: any) => (
+                  <option key={u.U_Id} value={u.U_Id}>{u.U_FirstName} {u.U_LastName}</option>
+                ))}
               </select>
             </div>
-            <div className="space-y-3">
-              <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase italic font-black">AVEC ARRÊT DE TRAVAIL ?</label>
-              <div className="flex gap-4">
+            <div className="space-y-1">
+              <label className="text-[8px] text-slate-500 ml-2 tracking-widest leading-none">ARRÊT DE TRAVAIL ?</label>
+              <div className="flex gap-2 h-9.5">
                 <button type="button" onClick={() => setFormData({...formData, SSE_AvecArret: !formData.SSE_AvecArret})} 
-                  className={`flex-1 p-6 rounded-4xl border transition-all font-black italic uppercase cursor-pointer ${formData.SSE_AvecArret ? 'bg-red-600 border-red-500 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>
-                  {formData.SSE_AvecArret ? 'OUI (CRITIQUE)' : 'NON (MINEUR)'}
+                  className={cn("flex-1 rounded-xl border transition-all font-black italic text-[9px] cursor-pointer", 
+                  formData.SSE_AvecArret ? "bg-red-600 border-red-500 text-white" : "bg-white/5 border-white/10 text-slate-600")}>
+                  {formData.SSE_AvecArret ? 'OUI' : 'NON'}
                 </button>
                 {formData.SSE_AvecArret && (
-                  <input type="number" className="w-24 bg-white/5 border border-white/10 p-6 rounded-4xl text-sm text-white text-center font-black italic"
+                  <input type="number" className="w-16 bg-white/5 border border-white/10 rounded-xl text-center text-[10px] font-black italic text-white"
                     value={formData.SSE_NbJoursArret} onChange={(e) => setFormData({...formData, SSE_NbJoursArret: parseInt(e.target.value) || 0})} />
                 )}
               </div>
             </div>
           </div>
 
-          {/* DESCRIPTION ANALYTIQUE */}
-          <div className="space-y-3">
-            <label className="text-[10px] text-slate-500 ml-6 tracking-widest uppercase italic font-black">DESCRIPTION DÉTAILLÉE DES FAITS (§10.2)</label>
-            <textarea required className="w-full bg-white/5 border border-white/10 p-8 rounded-[3rem] text-sm text-white outline-none h-40 focus:border-red-500 resize-none font-black italic uppercase leading-relaxed"
-              value={formData.SSE_Description} onChange={(e) => setFormData({...formData, SSE_Description: e.target.value})} placeholder="DÉCRIVEZ L'INCIDENT ET LES MESURES IMMÉDIATES..." />
+          {/* Section 4 : Récit des faits */}
+          <div className="space-y-1">
+            <label className="text-[8px] text-slate-500 ml-2 tracking-widest leading-none">DESCRIPTION ANALYTIQUE (§10.2)</label>
+            <textarea required className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl text-[10px] text-white outline-none h-24 focus:border-red-600 resize-none font-black italic uppercase leading-relaxed placeholder:opacity-10"
+              value={formData.SSE_Description} onChange={(e) => setFormData({...formData, SSE_Description: e.target.value})} placeholder="DÉCRIRE PRÉCISÉMENT LES ÉCARTS ET ÉVIDENCES..." />
           </div>
 
-          <div className="flex flex-col gap-6 pt-6">
-            <button type="submit" disabled={loading} className="w-full bg-red-600 py-8 rounded-[3rem] font-black uppercase text-white shadow-3xl hover:bg-red-500 transition-all flex items-center justify-center gap-4 active:scale-95 italic tracking-widest border-none cursor-pointer">
-              {loading ? <Loader2 className="animate-spin" /> : <Save size={24} />}
-              VALIDER LA DÉCLARATION
+          {/* 🏁 ACTIONS FINALES */}
+          <div className="flex flex-col gap-3 pt-4">
+            <button type="submit" disabled={loading} className="w-full bg-red-600 py-4 rounded-2xl font-black uppercase text-white shadow-xl hover:bg-white hover:text-red-600 transition-all flex items-center justify-center gap-3 active:scale-95 italic text-[10px] border-none cursor-pointer">
+              {loading ? <Loader2 className="animate-spin" size={16}/> : <Save size={16} />} VALIDER LE SCELLAGE SDE
             </button>
-            <button type="button" onClick={onClose} className="w-full text-[11px] text-slate-600 text-center hover:text-white transition-colors tracking-[0.5em] font-black italic border-none bg-transparent cursor-pointer">ABANDONNER</button>
+            <button type="button" onClick={onClose} className="w-full text-[9px] text-slate-600 hover:text-white transition-colors tracking-widest font-black italic border-none bg-transparent cursor-pointer">ABANDONNER LA PROCÉDURE</button>
           </div>
         </form>
       </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+      `}</style>
     </div>
   );
 }

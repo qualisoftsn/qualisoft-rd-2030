@@ -1,117 +1,84 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🛰️ MODULE : GESTION DES UNITÉS ORGANIQUES (ORG-UNITS) — ÉDITION ÉLITE SÉCURISÉE
+ * 🛰️ MODULE : CARTOGRAPHIE DES UNITÉS ORGANIQUES (SDE KERNEL)
  * -------------------------------------------------------------------------
- * RÔLE : Cartographie de l'arborescence structurelle (SMI Matrix).
- * ARCHITECTURE : Multi-Tenant Sovereign Data Environment (SDE).
- * RÉFÉRENTIEL DB : types/elite-sde.ts (Prisma Core).
- * CORRECTIFS : Suppression des ternaires orphelines (L.260) & Sécurisation Initiales.
+ * RÔLE : Gestion de l'arborescence et des autorités (§5.3 ISO 9001).
+ * RÉFÉRENTIEL : types/elite-sde.ts (Prisma Strict).
+ * DESIGN : Elite High-Density / No-Scroll / Sovereign Tree view.
  * -------------------------------------------------------------------------
  */
 
 "use client";
 
 import apiClient from "@/core/api/api-client";
+import { cn } from "@/core/utils/cn";
 import {
   OrgUnit as IOrgUnit,
   OrgUnitType as IOrgUnitType,
   Site as ISite,
-  User as IUser,
 } from "@/types/elite-sde";
 import {
   Activity,
   Archive,
-  Boxes,
-  Briefcase,
   Building2,
   ChevronDown,
   ChevronRight,
   Edit3,
   Fingerprint,
-  GitGraph,
-  Hash,
+  GitBranch,
   Layers,
   Loader2,
   Plus,
-  Rocket,
+  RefreshCw,
+  Save,
   Search,
-  ShieldCheck,
   Users,
-  X,
+  Zap,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
-
-// --- 🏗️ INTERFACES SYSTÈME ÉTENDUES ---
 
 interface ExtendedOrgUnit extends IOrgUnit {
   OU_Type?: IOrgUnitType;
   OU_Site?: ISite;
-  OU_Parent?: { OU_Id: string; OU_Name: string } | null;
-  OU_Users?: IUser[];
-  _count?: {
-    OU_Children: number;
-    OU_Users: number;
-  };
   children?: ExtendedOrgUnit[];
-}
-
-interface OrgUnitFormData {
-  OU_Name: string;
-  OU_Code: string;
-  OU_TypeId: string;
-  OU_SiteId: string;
-  OU_ParentId: string | null;
+  _count?: { OU_Users: number };
 }
 
 export default function OrgUnitsPage() {
-  // --- 📦 ÉTATS DE DONNÉES SCELLÉS ---
   const [units, setUnits] = useState<ExtendedOrgUnit[]>([]);
   const [sites, setSites] = useState<ISite[]>([]);
-  const [unitTypes, setUnitTypes] = useState<IOrgUnitType[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [types, setTypes] = useState<IOrgUnitType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
 
-  // --- 🖥️ ÉTATS INTERFACE (MODALS MATRIX) ---
-  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
-  const [selectedUnit, setSelectedUnit] = useState<ExtendedOrgUnit | null>(
-    null,
-  );
-
-  // --- 🔍 ÉTATS DE NAVIGATION & FORMULAIRE ---
-  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [submitting, setSubmitting] = useState<boolean>(false);
-
-  const [formData, setFormData] = useState<OrgUnitFormData>({
+  const [formData, setFormData] = useState({
+    OU_Id: "",
     OU_Name: "",
     OU_Code: "",
     OU_TypeId: "",
     OU_SiteId: "",
-    OU_ParentId: null,
+    OU_ParentId: "",
   });
 
-  /**
-   * 📡 SYNCHRONISATION MULTI-FLUX
-   * @description Extraction du maillage organique depuis le Kernel.
-   */
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const [uRes, sRes, tRes] = await Promise.all([
-        apiClient.get("/org-units?includeArchived=false"),
+        apiClient.get("/org-units"),
         apiClient.get("/sites"),
         apiClient.get("/org-unit-types"),
       ]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const extract = (res: any) => res.data?.data || res.data || [];
-      const flatUnits: ExtendedOrgUnit[] = extract(uRes);
-      setUnits(buildHierarchy(flatUnits));
-      setSites(extract(sRes));
-      setUnitTypes(extract(tRes));
-    } catch (err: unknown) {
-      toast.error("Rupture de synchronisation avec le registre SDE.");
+      const flat = uRes.data?.data || uRes.data || [];
+      setUnits(buildHierarchy(flat));
+      setSites(sRes.data?.data || sRes.data || []);
+      setTypes(tRes.data?.data || tRes.data || []);
+    } catch (e) {
+      toast.error("RUPTURE DE SYNCHRONISATION SDE");
     } finally {
       setLoading(false);
     }
@@ -119,509 +86,427 @@ export default function OrgUnitsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, []);
 
-  /**
-   * 🌳 LOGIQUE DE CONSTRUCTION HIÉRARCHIQUE
-   * @description Conversion de la liste plate en arbre récursif.
-   */
-  const buildHierarchy = (flatUnits: ExtendedOrgUnit[]): ExtendedOrgUnit[] => {
-    const unitMap = new Map<string, ExtendedOrgUnit>();
+  const buildHierarchy = (flat: ExtendedOrgUnit[]) => {
+    const map = new Map<string, ExtendedOrgUnit>();
     const roots: ExtendedOrgUnit[] = [];
-    flatUnits.forEach((unit) => {
-      unitMap.set(unit.OU_Id, { ...unit, children: [] });
-    });
-    unitMap.forEach((unit) => {
-      const parentId = unit.OU_ParentId;
-      if (parentId && unitMap.has(parentId)) {
-        unitMap.get(parentId)!.children?.push(unit);
+    flat.forEach((u) => map.set(u.OU_Id, { ...u, children: [] }));
+    flat.forEach((u) => {
+      if (u.OU_ParentId && map.has(u.OU_ParentId)) {
+        map.get(u.OU_ParentId)!.children!.push(map.get(u.OU_Id)!);
       } else {
-        roots.push(unit);
+        roots.push(map.get(u.OU_Id)!);
       }
     });
     return roots;
   };
 
-  /**
-   * 📐 MÉMOÏSATION DE LA LISTE PLATE POUR LES SÉLECTEURS
-   */
-  const flatListForSelect = useMemo(() => {
-    const flat: (ExtendedOrgUnit & { depth: number })[] = [];
-    const recurse = (list: ExtendedOrgUnit[], depth = 0) => {
-      list.forEach((u) => {
-        flat.push({ ...u, depth });
-        if (u.children && u.children.length > 0) recurse(u.children, depth + 1);
-      });
-    };
-    recurse(units);
-    return flat;
-  }, [units]);
-
-  // --- ⚡ ACTIONS DE GESTION MATRIX ---
-
-  const handleAutoInit = async () => {
-    setSubmitting(true);
-    try {
-      const payload: OrgUnitFormData = {
-        OU_Name: "DIRECTION GÉNÉRALE",
-        OU_Code: "DG-001",
-        OU_TypeId: unitTypes[0].OUT_Id,
-        OU_SiteId: sites[0].S_Id,
-        OU_ParentId: null,
-      };
-      await apiClient.post("/org-units", payload);
-      toast.success("Direction Générale scellée.");
-      fetchData();
-    } catch (err: unknown) {
-      toast.error("Erreur d'initialisation souveraine.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    const tid = toast.loading("Scellage organique...");
     try {
       const payload = {
         ...formData,
-        OU_ParentId: formData.OU_ParentId === "" ? null : formData.OU_ParentId,
+        OU_ParentId: formData.OU_ParentId || null,
       };
-      await apiClient.post("/org-units", payload);
-      toast.success("Nouveau segment organique indexé.");
+      if (formData.OU_Id)
+        await apiClient.patch(`/org-units/${formData.OU_Id}`, payload);
+      else await apiClient.post("/org-units", payload);
+      toast.success("SEGMENT SCELLÉ §5.3", { id: tid });
       setFormData({
+        OU_Id: "",
         OU_Name: "",
         OU_Code: "",
         OU_TypeId: "",
         OU_SiteId: "",
-        OU_ParentId: null,
+        OU_ParentId: "",
       });
       fetchData();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      toast.error("Échec de création dans le SDE.");
+    } catch (err) {
+      toast.error("ÉCHEC DE MUTATION", { id: tid });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUnit) return;
-    setSubmitting(true);
-    try {
-      const payload = {
-        OU_Name: formData.OU_Name,
-        OU_Code: formData.OU_Code,
-        OU_TypeId: formData.OU_TypeId,
-        OU_SiteId: formData.OU_SiteId,
-        OU_ParentId:
-          formData.OU_ParentId === "" || formData.OU_ParentId === "null"
-            ? null
-            : formData.OU_ParentId,
-      };
-      await apiClient.patch(`/org-units/${selectedUnit.OU_Id}`, payload);
-      toast.success("Mutation validée.");
-      setIsEditModalOpen(false);
-      fetchData();
-    } catch (err: unknown) {
-      toast.error("Échec de la mutation.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleArchive = async () => {
-    if (!selectedUnit) return;
-    setSubmitting(true);
-    try {
-      await apiClient.delete(`/org-units/${selectedUnit.OU_Id}`);
-      toast.success("Unité organique archivée.");
-      setIsDeleteModalOpen(false);
-      fetchData();
-    } catch (err: unknown) {
-      toast.error("Rupture : Dépendances actives détectées.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  /**
-   * 🌳 RENDU RÉCURSIF (TREE ENGINE)
-   * @description Correction erreur L.260 : Utilisation d'un bloc conditionnel explicite.
-   */
-  const renderUnitTree = (unitsList: ExtendedOrgUnit[], level = 0) => {
-    return unitsList
-      .filter((u) => {
-        const query = searchQuery.toLowerCase();
-        return (
-          u.OU_Name.toLowerCase().includes(query) ||
-          (u.OU_Code?.toLowerCase() || "").includes(query)
-        );
-      })
-      .map((unit) => {
-        const hasChildren = !!(unit.children && unit.children.length > 0);
-        const isExpanded = expandedUnits.has(unit.OU_Id);
-        const hasUsers = (unit._count?.OU_Users || 0) > 0;
-
-        return (
-          <div
-            key={unit.OU_Id}
-            className="select-none animate-in fade-in duration-300 text-left"
-          >
-            <div
-              className={`group flex items-center justify-between p-5 hover:bg-blue-50/50 transition-all border-l-4 ${level > 0 ? "ml-10 border-l-slate-200" : "border-l-blue-600 bg-white shadow-sm"}`}
-              style={{ paddingLeft: `${20 + level * 30}px` }}
-            >
-              <div className="flex items-center gap-5 flex-1">
-                {/* 🛑 CORRECTION LOGIQUE L.260 : Remplacement de la ternaire par un bloc conditionnel */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = new Set(expandedUnits);
-                    if (isExpanded) {
-                      next.delete(unit.OU_Id);
-                    } else {
-                      next.add(unit.OU_Id);
-                    }
-                    setExpandedUnits(next);
-                  }}
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${hasChildren ? "hover:bg-blue-100 text-blue-600 cursor-pointer shadow-sm" : "text-transparent cursor-default"}`}
-                >
-                  {hasChildren &&
-                    (isExpanded ? (
-                      <ChevronDown size={18} />
-                    ) : (
-                      <ChevronRight size={18} />
-                    ))}
-                </button>
-
-                <div
-                  className={`p-3 rounded-2xl ${hasUsers ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"}`}
-                >
-                  <Building2 size={22} />
-                </div>
-
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-[15px] font-black uppercase italic text-slate-900 tracking-tight leading-none">
-                      {unit.OU_Name}
-                    </h3>
-                    {unit.OU_Code && (
-                      <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md border border-slate-200">
-                        {unit.OU_Code}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase italic tracking-[0.2em] mt-2">
-                    <span className="text-blue-500/60">
-                      [{unit.OU_Type?.OUT_Label}]
-                    </span>{" "}
-                    — {unit.OU_Site?.S_Name}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-all">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedUnit(unit);
-                      setIsDetailModalOpen(true);
-                    }}
-                    className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-xl cursor-pointer shadow-sm transition-all"
-                  >
-                    <Search size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedUnit(unit);
-                      setFormData({
-                        OU_Name: unit.OU_Name,
-                        OU_Code: unit.OU_Code || "",
-                        OU_TypeId: unit.OU_TypeId,
-                        OU_SiteId: unit.OU_SiteId,
-                        OU_ParentId: unit.OU_ParentId || "",
-                      });
-                      setIsEditModalOpen(true);
-                    }}
-                    className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-amber-600 rounded-xl cursor-pointer shadow-sm transition-all"
-                  >
-                    <Edit3 size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedUnit(unit);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-red-600 rounded-xl cursor-pointer shadow-sm transition-all"
-                  >
-                    <Archive size={18} />
-                  </button>
-                </div>
-              </div>
-            </div>
-            {hasChildren &&
-              isExpanded &&
-              renderUnitTree(unit.children || [], level + 1)}
-          </div>
-        );
-      });
+  const toggle = (id: string) => {
+    const next = new Set(expanded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setExpanded(next);
   };
 
   if (loading)
     return (
-      <div className="flex h-screen bg-slate-50 flex-col items-center justify-center gap-6">
-        <Loader2
-          className="animate-spin text-blue-600"
-          size={64}
-          strokeWidth={1.5}
-        />
-        <p className="font-black italic text-blue-600 uppercase tracking-[0.6em] animate-pulse">
-          Synchronisation Structurelle...
-        </p>
+      <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+        <Loader2 className="animate-spin text-blue-600" size={40} />
+        <span className="text-blue-600 font-black uppercase text-[9px] tracking-[0.5em] animate-pulse">
+          Syncing Structure Matrix...
+        </span>
       </div>
     );
 
   return (
-    <div className="p-8 space-y-10 bg-slate-50 min-h-screen italic font-sans font-bold text-left selection:bg-blue-600/20">
-      <Toaster position="top-right" richColors />
+    <div className="ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden selection:bg-blue-600/30">
+      <Toaster position="top-right" richColors theme="dark" />
 
-      <header className="flex justify-between items-end border-b-4 border-slate-100 pb-10 animate-in slide-in-from-top-4 duration-700">
+      {/* 🔝 HEADER TACTIQUE (Shrink-0) */}
+      <header className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0">
         <div>
-          <div className="flex items-center gap-4 text-blue-600 mb-4 bg-blue-50 w-fit px-4 py-1.5 rounded-full border border-blue-200">
-            <Fingerprint size={14} className="animate-pulse" />
-            <span className="text-[9px] font-black uppercase tracking-widest">
-              SDE Matrix Isolation Active
-            </span>
-          </div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter text-slate-900 flex items-center gap-8 italic leading-none">
-            <div className="p-4 bg-blue-600 text-white rounded-4xl shadow-2xl shadow-blue-600/30">
-              <Layers size={64} strokeWidth={2.5} />
-            </div>
-            Structure <span className="text-blue-600">Organique</span>
+          <h1 className="text-2xl font-black uppercase tracking-tighter m-0 flex items-center gap-3">
+            <Layers className="text-blue-500" size={24} /> Structure{" "}
+            <span className="text-blue-500">Organique</span>
           </h1>
-          <p className="text-slate-500 font-black text-[11px] uppercase tracking-[0.6em] mt-6 italic opacity-60">
-            Hiérarchie Elite — ISO 9001 §5.3
+          <p className="text-slate-500 text-[8px] font-black uppercase tracking-[0.4em] m-0 italic">
+            ISO 9001 §5.3 • Matrice de Responsabilités
           </p>
         </div>
-        <button
-          onClick={() => fetchData()}
-          className="px-12 py-6 bg-white border-2 border-slate-200 rounded-4xl font-black uppercase text-[12px] text-slate-600 hover:bg-slate-50 hover:border-blue-600/30 transition-all flex items-center gap-5 shadow-xl italic cursor-pointer active:scale-95 border-none"
-        >
-          <GitGraph size={24} className="text-blue-600" /> Rafraîchir
-          l&apos;Arbre
-        </button>
-      </header>
-
-      {units.length === 0 && !loading ? (
-        <div className="bg-white rounded-[5rem] p-32 text-center border-4 border-dashed border-slate-200 shadow-4xl animate-in fade-in zoom-in-95 max-w-5xl mx-auto mt-20 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-3 h-full bg-blue-600" />
-          <Rocket
-            size={80}
-            className="text-blue-600 mx-auto mb-12 animate-bounce"
-          />
-          <h2 className="text-6xl font-black uppercase text-slate-900 mb-8 tracking-tighter italic leading-none">
-            Néant Structurel
-          </h2>
+        <div className="flex gap-3">
+          <div className="relative w-48 group">
+            <Search
+              size={12}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="SCANNER UNITÉ..."
+              className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-8 pr-3 text-[9px] font-black uppercase outline-none focus:border-blue-600 transition-all italic"
+            />
+          </div>
           <button
-            onClick={handleAutoInit}
-            disabled={submitting}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-16 py-8 rounded-[2.5rem] font-black uppercase text-xs tracking-[0.4em] shadow-3xl transition-all flex items-center gap-6 mx-auto cursor-pointer border-none group active:scale-95"
+            onClick={fetchData}
+            className="p-2 bg-white/5 rounded-lg border border-white/10 text-slate-400 hover:text-white cursor-pointer"
           >
-            {submitting ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <ShieldCheck size={32} />
-            )}{" "}
-            Déployer la Direction Générale
+            <RefreshCw size={14} />
           </button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-          <div className="lg:col-span-4 sticky top-10">
-            <div className="bg-white rounded-[4rem] p-14 shadow-4xl border border-slate-100 overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-10 opacity-5 -mr-8 -mt-8 rotate-12">
-                <Boxes size={120} />
+      </header>
+
+      {/* 📊 CORE GRID (Flex-1) */}
+      <main className="flex-1 min-h-0 grid grid-cols-12 gap-6 overflow-hidden">
+        {/* COL 1: FORMULAIRE DE MUTATION (4/12) */}
+        <aside className="col-span-4 flex flex-col gap-4">
+          <div className="bg-[#151A2D] border border-white/5 p-6 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-5 -mr-4 -mt-4 rotate-12">
+              <Zap size={100} />
+            </div>
+            <h2 className="text-[10px] font-black uppercase text-blue-500 mb-6 flex items-center gap-2 italic">
+              <Plus size={14} strokeWidth={3} />{" "}
+              {formData.OU_Id ? "Modifier Segment" : "Nouveau Segment"}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <SDEInput
+                label="Désignation Unité"
+                value={formData.OU_Name}
+                onChange={(v: string) =>
+                  setFormData({ ...formData, OU_Name: v.toUpperCase() })
+                }
+                placeholder="EX: SERVICE LOGISTIQUE"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <SDEInput
+                  label="Code Interne"
+                  value={formData.OU_Code}
+                  onChange={(v: string) =>
+                    setFormData({ ...formData, OU_Code: v.toUpperCase() })
+                  }
+                  placeholder="EX: LOG-01"
+                />
+                <SDESelect
+                  label="Type d'Unité"
+                  value={formData.OU_TypeId}
+                  onChange={(v: any) => setFormData({ ...formData, OU_TypeId: v })}
+                >
+                  <option value="">SÉLECTIONNER...</option>
+                  {types.map((t) => (
+                    <option key={t.OUT_Id} value={t.OUT_Id}>
+                      {t.OUT_Label}
+                    </option>
+                  ))}
+                </SDESelect>
               </div>
-              <h2 className="text-2xl font-black uppercase text-slate-900 flex items-center gap-5 italic leading-none mb-14 relative z-10">
-                <Plus size={32} className="text-blue-600" strokeWidth={3} />{" "}
-                Nouveau Segment
-              </h2>
-              <form
-                onSubmit={handleCreate}
-                className="space-y-10 relative z-10"
+              <SDESelect
+                label="Site Géographique (§4.4)"
+                value={formData.OU_SiteId}
+                onChange={(v: any) => setFormData({ ...formData, OU_SiteId: v })}
               >
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-6 tracking-[0.2em]">
-                    Désignation Unité
-                  </label>
-                  <input
-                    required
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-6 text-[15px] font-black uppercase italic outline-none focus:border-blue-500 shadow-inner"
-                    value={formData.OU_Name}
-                    onChange={(e) =>
+                <option value="">CHOISIR SITE...</option>
+                {sites.map((s) => (
+                  <option key={s.S_Id} value={s.S_Id}>
+                    {s.S_Name}
+                  </option>
+                ))}
+              </SDESelect>
+              <SDESelect
+                label="Unité Parente (Hiérarchie)"
+                value={formData.OU_ParentId}
+                onChange={(v: any) => setFormData({ ...formData, OU_ParentId: v })}
+              >
+                <option value="">-- UNITÉ RACINE --</option>
+                {units.map((u) => (
+                  <option key={u.OU_Id} value={u.OU_Id}>
+                    {u.OU_Name}
+                  </option>
+                ))}
+              </SDESelect>
+
+              <div className="pt-4 flex gap-3">
+                {formData.OU_Id && (
+                  <button
+                    type="button"
+                    onClick={() =>
                       setFormData({
-                        ...formData,
-                        OU_Name: e.target.value.toUpperCase(),
+                        OU_Id: "",
+                        OU_Name: "",
+                        OU_Code: "",
+                        OU_TypeId: "",
+                        OU_SiteId: "",
+                        OU_ParentId: "",
                       })
                     }
-                    placeholder="EX: SERVICE LOGISTIQUE"
-                  />
-                </div>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-6 tracking-[0.2em]">
-                    Code Unité
-                  </label>
-                  <div className="relative">
-                    <Hash
-                      size={16}
-                      className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300"
-                    />
-                    <input
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl pl-14 pr-8 py-6 text-[15px] font-black uppercase italic outline-none focus:border-blue-500 shadow-inner"
-                      value={formData.OU_Code}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          OU_Code: e.target.value.toUpperCase(),
-                        })
-                      }
-                      placeholder="EX: SL-01"
-                    />
-                  </div>
-                </div>
+                    className="flex-1 py-3 bg-white/5 text-slate-500 rounded-xl text-[9px] font-black uppercase italic border-none cursor-pointer"
+                  >
+                    Annuler
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full bg-slate-950 hover:bg-blue-600 text-white font-black uppercase py-8 rounded-4xl shadow-3xl transition-all italic flex items-center justify-center gap-6 cursor-pointer border-none active:scale-95"
+                  className="flex-2 py-3 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase italic shadow-lg border-none cursor-pointer hover:bg-white hover:text-blue-600 transition-all flex items-center justify-center gap-2"
                 >
                   {submitting ? (
-                    <Loader2 className="animate-spin" />
+                    <Loader2 className="animate-spin" size={14} />
                   ) : (
-                    <ShieldCheck size={28} />
+                    <Save size={14} />
                   )}{" "}
-                  Valider l&apos;Unité
+                  {formData.OU_Id ? "Valider Mutation" : "Sceller Segment"}
                 </button>
-              </form>
-            </div>
+              </div>
+            </form>
           </div>
 
-          <div className="lg:col-span-8">
-            <div className="bg-white rounded-[5rem] shadow-4xl border border-slate-100 overflow-hidden min-h-200 flex flex-col">
-              <div className="p-12 border-b-4 border-slate-50 flex justify-between items-center bg-slate-50/40 backdrop-blur-md">
-                <div className="relative w-full max-w-xl group">
-                  <Search
-                    className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors"
-                    size={28}
-                  />
-                  <input
-                    placeholder="FILTRER LE MAILLAGE ORGANIQUE..."
-                    className="w-full bg-white border-2 border-slate-100 rounded-[2.5rem] py-6 pl-20 pr-10 text-xs font-black uppercase italic outline-none focus:border-blue-500 shadow-inner"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <div className="text-[11px] font-black uppercase text-blue-600 bg-blue-50 px-8 py-4 rounded-3xl border border-blue-100 italic">
-                  {flatListForSelect.length} Unités
-                </div>
-              </div>
-              <div className="divide-y-2 divide-slate-50 flex-1 overflow-y-auto custom-scrollbar p-6">
-                {renderUnitTree(units)}
-              </div>
+          <div className="flex-1 bg-black/30 border border-white/5 p-6 rounded-4xl flex flex-col justify-between italic">
+            <div>
+              <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-3">
+                Isolation Multi-Tenant
+              </p>
+              <p className="text-[10px] text-slate-400 font-medium">
+                L&apos;arborescence est isolée dynamiquement pour votre environnement
+                souverain. Toute modification impacte la matrice de distribution
+                des tâches RACI.
+              </p>
             </div>
+            <Fingerprint size={32} className="text-blue-600 opacity-20" />
+          </div>
+        </aside>
+
+        {/* COL 2: ARBORESCENCE TREE ENGINE (8/12) */}
+        <section className="col-span-8 bg-[#151A2D] border border-white/5 rounded-[3rem] shadow-4xl flex flex-col overflow-hidden relative">
+          <header className="p-4 bg-black/20 border-b border-white/5 flex justify-between items-center">
+            <h3 className="text-[10px] font-black uppercase italic flex items-center gap-2 m-0">
+              <GitBranch size={14} className="text-blue-500" /> Maillage
+              Hiérarchique
+            </h3>
+            <span className="text-[8px] bg-blue-500/10 text-blue-500 px-3 py-1 rounded-full font-black uppercase italic border border-blue-500/20">
+              {units.length} Branches Racines
+            </span>
+          </header>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+            {renderTree(units, 0, toggle, expanded, search, (u) => {
+              setFormData({
+                OU_Id: u.OU_Id,
+                OU_Name: u.OU_Name,
+                OU_Code: u.OU_Code || "",
+                OU_TypeId: u.OU_TypeId,
+                OU_SiteId: u.OU_SiteId,
+                OU_ParentId: u.OU_ParentId || "",
+              });
+            })}
+          </div>
+        </section>
+      </main>
+
+      <footer className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center opacity-30 shrink-0 italic">
+        <div className="flex items-center gap-4">
+          <Building2 size={24} className="text-blue-600" />
+          <div className="text-left">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] m-0">
+              Organic Unit Engine v4.0
+            </p>
+            <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest m-0 italic">
+              Elite SDE Architecture • ISO Compliance
+            </p>
           </div>
         </div>
-      )}
+        <Activity size={14} className="text-emerald-500 animate-pulse" />
+      </footer>
 
-      {/* MODAL INSPECTION (VUE DÉTAILLÉE) */}
-      {isDetailModalOpen && selectedUnit && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-2xl z-50 flex items-center justify-center p-8">
-          <div className="bg-white rounded-[6rem] w-full max-w-6xl shadow-4xl animate-in slide-in-from-bottom-24 font-black italic overflow-hidden border-none text-left">
-            <div className="p-20 border-b-4 border-slate-50 flex justify-between items-center bg-slate-50/40">
-              <div className="flex items-center gap-10">
-                <div className="w-28 h-28 rounded-[2.5rem] bg-blue-600 flex items-center justify-center text-white shadow-3xl rotate-3">
-                  <Briefcase size={56} strokeWidth={2.5} />
-                </div>
-                <div>
-                  <span className="text-[13px] text-blue-600 uppercase tracking-[0.5em] font-black bg-blue-50 px-6 py-2 rounded-full border border-blue-100">
-                    {selectedUnit.OU_Type?.OUT_Label}
-                  </span>
-                  <h2 className="text-7xl uppercase tracking-tighter text-slate-900 leading-none mt-4">
-                    {selectedUnit.OU_Name}
-                  </h2>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsDetailModalOpen(false)}
-                className="p-8 hover:bg-slate-200 rounded-full text-slate-400 transition-colors border-none cursor-pointer bg-transparent"
-              >
-                <X size={64} strokeWidth={1} />
-              </button>
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// --- 🌳 ENGINE DE RENDU RÉCURSIF ---
+
+function renderTree(
+  list: ExtendedOrgUnit[],
+  level: number,
+  toggle: any,
+  expanded: Set<string>,
+  search: string,
+  onEdit: (u: any) => void,
+) {
+  return list.map((unit) => {
+    const hasChildren = unit.children && unit.children.length > 0;
+    const isExpanded = expanded.has(unit.OU_Id);
+    const matches =
+      search === "" ||
+      unit.OU_Name.toLowerCase().includes(search.toLowerCase()) ||
+      unit.OU_Code?.toLowerCase().includes(search.toLowerCase());
+
+    if (!matches && !hasChildren) return null;
+
+    return (
+      <div key={unit.OU_Id} className="flex flex-col">
+        <div
+          className={cn(
+            "group flex items-center justify-between p-3 rounded-2xl mb-1 transition-all border border-transparent",
+            level === 0
+              ? "bg-white/5 border-white/5"
+              : "hover:bg-blue-600/5 hover:border-blue-600/20",
+          )}
+          style={{ marginLeft: `${level * 20}px` }}
+        >
+          <div className="flex items-center gap-3 flex-1">
+            <button
+              onClick={() => toggle(unit.OU_Id)}
+              className={cn(
+                "w-6 h-6 rounded-lg flex items-center justify-center border-none transition-all cursor-pointer",
+                hasChildren
+                  ? "bg-white/5 text-blue-500 hover:bg-blue-600 hover:text-white"
+                  : "opacity-0 cursor-default",
+              )}
+            >
+              {isExpanded ? (
+                <ChevronDown size={14} />
+              ) : (
+                <ChevronRight size={14} />
+              )}
+            </button>
+
+            <div
+              className={cn(
+                "p-2 rounded-xl",
+                (unit._count?.OU_Users || 0) > 0
+                  ? "bg-blue-600 text-white shadow-lg"
+                  : "bg-white/5 text-slate-600",
+              )}
+            >
+              <Building2 size={16} />
             </div>
-            <div className="p-20 space-y-16">
-              <h3 className="text-2xl uppercase text-slate-900 flex items-center gap-6 italic font-black">
-                <Users size={40} className="text-blue-600" /> Capital Humain (
-                {selectedUnit._count?.OU_Users || 0})
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-h-120 overflow-y-auto pr-10 custom-scrollbar p-4">
-                {selectedUnit.OU_Users && selectedUnit.OU_Users.length > 0 ? (
-                  selectedUnit.OU_Users.map((u) => (
-                    <div
-                      key={u.U_Id}
-                      className="flex items-center gap-6 p-8 bg-white border-2 border-slate-100 rounded-[3rem] shadow-sm hover:shadow-xl transition-all group"
-                    >
-                      {/* ✅ SÉCURISATION DES INITIALES (NULL-SAFE) */}
-                      <div className="w-16 h-16 rounded-3xl bg-slate-950 text-white flex items-center justify-center font-black text-sm group-hover:bg-blue-600 transition-colors">
-                        {(u.U_FirstName?.charAt(0) || "").toUpperCase()}
-                        {(u.U_LastName?.charAt(0) || "").toUpperCase()}
-                      </div>
-                      <div className="truncate flex-1">
-                        <p className="font-black text-slate-900 uppercase truncate text-[16px] tracking-tight mb-2">
-                          {u.U_FirstName} {u.U_LastName}
-                        </p>
-                        <p className="text-blue-600 text-[11px] font-bold italic opacity-70 uppercase tracking-widest">
-                          {u.U_Role}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-3 py-32 text-center text-slate-300 border-4 border-dashed border-slate-100 rounded-[5rem]">
-                    <Activity
-                      size={72}
-                      className="mx-auto mb-8 opacity-10 animate-pulse"
-                    />
-                    <p className="uppercase text-sm font-black tracking-[0.5em] opacity-40 italic">
-                      Aucune affectation scellée
-                    </p>
-                  </div>
+
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black uppercase italic text-white tracking-tight">
+                  {unit.OU_Name}
+                </span>
+                {unit.OU_Code && (
+                  <span className="text-[8px] font-black bg-black/40 text-slate-500 px-1.5 py-0.5 rounded border border-white/5 uppercase">
+                    {unit.OU_Code}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                <span className="text-blue-500/60 italic">
+                  [{unit.OU_Type?.OUT_Label}]
+                </span>
+                <span>• {unit.OU_Site?.S_Name}</span>
+                {(unit._count?.OU_Users || 0) > 0 && (
+                  <span className="flex items-center gap-1 text-emerald-500">
+                    <Users size={8} /> {unit._count?.OU_Users}
+                  </span>
                 )}
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* STYLE SCROLLBAR SDE */}
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f8fafc;
-          border-radius: 20px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 20px;
-          border: 3px solid #f8fafc;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #3b82f6;
-        }
-      `}</style>
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+            <button
+              onClick={() => onEdit(unit)}
+              className="p-1.5 bg-white/5 rounded-lg text-slate-400 hover:text-amber-500 transition-colors border-none cursor-pointer"
+            >
+              <Edit3 size={12} />
+            </button>
+            <button className="p-1.5 bg-white/5 rounded-lg text-slate-400 hover:text-red-500 transition-colors border-none cursor-pointer">
+              <Archive size={12} />
+            </button>
+          </div>
+        </div>
+        {hasChildren &&
+          isExpanded &&
+          renderTree(
+            unit.children!,
+            level + 1,
+            toggle,
+            expanded,
+            search,
+            onEdit,
+          )}
+      </div>
+    );
+  });
+}
+
+// --- 🧩 COMPOSANTS D'INTERFACE ---
+
+function SDEInput({ label, value, onChange, placeholder }: any) {
+  return (
+    <div className="space-y-1 text-left">
+      <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">
+        {label}
+      </label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-black text-white italic outline-none focus:border-blue-600 transition-all placeholder:opacity-20"
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function SDESelect({
+  label,
+  value,
+  onChange,
+  children,
+  disabled = false,
+}: any) {
+  return (
+    <div className={cn("space-y-1 text-left", disabled && "opacity-20")}>
+      <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">
+        {label}
+      </label>
+      <select
+        disabled={disabled}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] font-black text-white italic outline-none focus:border-blue-600 appearance-none cursor-pointer"
+      >
+        {children}
+      </select>
     </div>
   );
 }
