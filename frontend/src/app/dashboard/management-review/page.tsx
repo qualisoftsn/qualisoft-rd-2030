@@ -1,12 +1,12 @@
-//* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🏛️ MODULE : REVUE DE DIRECTION (MANAGEMENT REVIEW ENGINE)
+ * 🏛️ MODULE : REVUE DE DIRECTION STRATÉGIQUE (SMI MATRIX)
  * -------------------------------------------------------------------------
- * RÔLE : Arbitrage stratégique et validation de l'efficacité du SMI.
- * RÉFÉRENTIEL : types/elite-sde.ts (SCELLAGE PRISMA).
- * CONFORMITÉ : ISO 9001:2015 §9.3 (Éléments d'entrée et de sortie).
- * DESIGN : Cockpit Matrix Full-Space (max-w-500).
+ * RÔLE : Pilotage et arbitrage de l'efficacité du SMQ.
+ * NORME : ISO 9001:2015 §9.3 (Management Review).
+ * DESIGN : Elite High-Density / Sovereign SDE / No-Simulation.
  * -------------------------------------------------------------------------
  */
 
@@ -18,33 +18,20 @@ import {
   AlertTriangle, CheckCircle2, Loader2, Target, Users, 
   ClipboardCheck, Calendar, ArrowUpRight, ArrowDownRight, 
   Minus, Plus, Edit3, Save, X, ChevronRight, Flag,
-  FileText, BarChart3, Activity, Lock, LucideIcon, Fingerprint, Zap
+  FileText, BarChart3, Activity, Lock, Fingerprint, Zap, Search
 } from 'lucide-react';
-import { usePermissions } from '@/core/hooks/usePermissions';
 import apiClient from '@/core/api/api-client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast, Toaster } from 'sonner';
 
-// --- 🏗️ RÉFÉRENTIEL ÉLITE-SDE (PRISMA SCHEMA) ---
-import { 
-  NonConformite, 
-  Action, 
-  Processus, 
-  NCStatus, 
-  ActionStatus,
-  Priority 
-} from '@/types/elite-sde';
-
-// --- 🔒 INTERFACES DE PRODUCTION ---
-
+// --- 🏗️ TYPES DE PRODUCTION ---
 interface ReviewData {
-  MR_Id?: string;
-  MR_Period: string; // ex: "S1 2026"
+  MR_Id: string;
+  MR_Period: string;
   MR_Date: string;
   MR_Status: 'DRAFT' | 'VALIDATED' | 'ARCHIVED';
   MR_Summary: string;
-  // Agrégations calculées en temps réel (Production)
   metrics: {
     globalPerformance: number;
     customerSatisfaction: number;
@@ -53,39 +40,29 @@ interface ReviewData {
     processCount: number;
     criticalRisksCount: number;
   };
-  previousPerformance?: number;
+  previousPerformance: number;
 }
 
-const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
-
 export default function ManagementReviewPage() {
-  const { user } = usePermissions();
-  
-  // --- ÉTATS DU NOYAU ---
   const [fetching, setFetching] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'processes' | 'risks' | 'decisions'>('overview');
-  
-  // --- DONNÉES SDE ---
   const [review, setReview] = useState<ReviewData | null>(null);
   const [editedSummary, setEditedSummary] = useState<string>('');
 
-  /**
-   * 📡 SYNCHRONISATION KERNEL
-   * @description Extraction des indicateurs agrégés pour la période 2026.
-   */
+  // --- 📡 SYNCHRONISATION KERNEL ---
   const loadReview = useCallback(async () => {
     try {
       setFetching(true);
       const res = await apiClient.get('/smi/management-review/active');
       const data = res.data?.data || res.data;
-      
-      setReview(data);
-      setEditedSummary(data?.MR_Summary || '');
+      if (data) {
+        setReview(data);
+        setEditedSummary(data.MR_Summary || '');
+      }
     } catch (error) {
-      toast.error("RUPTURE DE LIAISON STRATÉGIQUE : AUCUNE REVUE ACTIVE.");
-      // Note : En production, on n'injecte plus de simulation ici.
+      toast.error("ERREUR DE LIAISON : AUCUNE REVUE ACTIVE DÉTECTÉE.");
     } finally {
       setFetching(false);
     }
@@ -93,241 +70,199 @@ export default function ManagementReviewPage() {
 
   useEffect(() => { loadReview(); }, [loadReview]);
 
-  /**
-   * 💾 SCELLAGE DE LA SYNTHÈSE (§9.3.2)
-   */
+  // --- 📊 CALCULS DE TENDANCES (§9.1.3) ---
+  const trend = useMemo(() => {
+    if (!review) return { val: '0', color: 'text-slate-500', Icon: Minus };
+    const diff = review.metrics.globalPerformance - review.previousPerformance;
+    return {
+      val: `${diff > 0 ? '+' : ''}${diff}%`,
+      color: diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-red-500' : 'text-slate-500',
+      Icon: diff > 0 ? ArrowUpRight : diff < 0 ? ArrowDownRight : Minus
+    };
+  }, [review]);
+
+  // --- 💾 SCELLAGE DE L'ANALYSE ---
   const handleSaveSummary = async () => {
     if (!review?.MR_Id) return;
     setIsSaving(true);
-    const tid = toast.loading("Scellage de l'analyse directionnelle...");
+    const tid = toast.loading("Scellage directionnel...");
     try {
       await apiClient.patch(`/smi/management-review/${review.MR_Id}`, { MR_Summary: editedSummary });
       setReview(prev => prev ? { ...prev, MR_Summary: editedSummary } : null);
       setIsEditing(false);
-      toast.success("Analyse scellée avec succès.", { id: tid });
-    } catch (error) {
-      toast.error("Erreur de persistance SDE.", { id: tid });
-    } finally {
-      setIsSaving(false);
-    }
+      toast.success("ANALYSE SCELLÉE §9.3.2", { id: tid });
+    } catch (e) { toast.error("ERREUR DE PERSISTANCE MATRIX", { id: tid }); }
+    finally { setIsSaving(false); }
   };
 
-  /**
-   * 📊 CALCULATEUR DE TENDANCE SDE
-   */
-  const trend = useMemo(() => {
-    const current = review?.metrics.globalPerformance ?? 0;
-    const previous = review?.previousPerformance ?? 0;
-    if (previous === 0) return { icon: Minus, color: 'text-slate-500', value: 'BASE' };
-    const diff = current - previous;
-    return {
-      icon: diff > 0 ? ArrowUpRight : diff < 0 ? ArrowDownRight : Minus,
-      color: diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-red-500' : 'text-slate-500',
-      value: `${diff > 0 ? '+' : ''}${diff}%`
-    };
-  }, [review]);
-
   if (fetching) return (
-    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-8">
-      <Loader2 className="animate-spin text-blue-600" size={80} strokeWidth={1.5} />
-      <p className="text-[11px] font-black uppercase text-blue-600 italic tracking-[1em] animate-pulse">Scanning Strategic Core...</p>
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+      <Loader2 className="animate-spin text-blue-600" size={40} />
+      <span className="text-[9px] font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse italic">Extraction Strategic Core...</span>
     </div>
   );
 
   return (
-    <div className="p-16 bg-[#0B0F1A] min-h-screen ml-72 text-white italic font-sans text-left relative selection:bg-blue-600/30 overflow-x-hidden">
-      <Toaster position="top-right" richColors />
-      
-      {/* 🔝 HEADER SOUVERAIN (max-w-500) */}
-      <header className="mb-20 flex justify-between items-center w-full max-w-500 mx-auto border-b-4 border-white/5 pb-16">
-        <div className="space-y-6">
-          <div className="flex items-center gap-6">
-            <span className={cn(
-              "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.4em] border shadow-2xl italic",
-              review?.MR_Status === 'VALIDATED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-blue-600/10 text-blue-600 border-blue-600/20 animate-pulse'
-            )}>
-              STATUS : {review?.MR_Status || 'INITIALISATION'}
+    <div className="ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden selection:bg-blue-600/30">
+      <Toaster position="top-right" richColors theme="dark" />
+
+      {/* 🔝 HEADER TACTIQUE (Shrink-0) */}
+      <header className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <span className={`px-3 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${review?.MR_Status === 'VALIDATED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-blue-600/10 text-blue-500 border-blue-600/20'}`}>
+              STATUS : {review?.MR_Status || 'SCELLAGE REQUIS'}
             </span>
-            <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] flex items-center gap-4 italic">
-              <Calendar size={18} className="text-blue-600" />
-              INSTANCE : {review?.MR_Period || 'S1 2026'} • {format(new Date(), 'dd MMMM yyyy', { locale: fr })}
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Calendar size={12}/> {review?.MR_Period} • {format(new Date(), 'dd MMMM yyyy', { locale: fr })}
             </span>
           </div>
-          <h1 className="text-8xl font-black uppercase italic tracking-tighter leading-none text-white">
-            Revue de <span className="text-blue-600">Direction</span>
-          </h1>
-          <p className="text-slate-500 text-[13px] font-black uppercase tracking-[0.6em] italic">Qualisoft Elite RD 2030 • Décision Stratégique §9.3</p>
+          <h1 className="text-3xl font-black uppercase tracking-tighter m-0">Revue de <span className="text-blue-600">Direction</span></h1>
         </div>
-        
-        <div className="flex gap-8">
-          <button onClick={() => window.print()} className="px-14 py-7 bg-white/5 border-2 border-white/10 rounded-[3rem] text-[12px] font-black uppercase flex items-center gap-6 hover:bg-white/10 transition-all cursor-pointer italic shadow-xl">
-            <Printer size={28} /> Print Matrix
-          </button>
-          <button className="px-16 py-7 bg-blue-600 text-white rounded-[3rem] text-[12px] font-black uppercase flex items-center gap-6 shadow-4xl hover:bg-white hover:text-blue-600 transition-all border-none cursor-pointer italic">
-            <Download size={28} /> Export Scellé PDF
+
+        <div className="flex gap-3">
+          <button onClick={() => window.print()} className="p-2 bg-white/5 rounded-xl text-slate-400 hover:text-white border border-white/10 transition-all cursor-pointer"><Printer size={18}/></button>
+          <button className="bg-blue-600 hover:bg-white hover:text-blue-600 px-6 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 border-none transition-all cursor-pointer italic shadow-lg">
+            <Download size={16}/> Export PDF
           </button>
         </div>
       </header>
 
-      {/* 🧭 NAVIGATION DYNAMIQUE */}
-      <nav className="flex gap-6 mb-20 max-w-500 mx-auto w-full overflow-x-auto no-scrollbar">
-        {(['overview', 'processes', 'risks', 'decisions'] as const).map((tabId) => {
-          const icons = { overview: BarChart3, processes: Target, risks: AlertTriangle, decisions: Flag };
-          const labels = { overview: "Synthèse Globale", processes: "Performance Processus", risks: "Analyse des Risques", decisions: "décisions & CAPA" };
-          const Icon = icons[tabId];
-          return (
-            <button 
-              key={tabId} 
-              onClick={() => setActiveTab(tabId)} 
-              className={cn(
-                "flex items-center gap-5 px-12 py-5 rounded-[2.5rem] text-[11px] font-black uppercase tracking-[0.3em] transition-all whitespace-nowrap border-none cursor-pointer italic shadow-inner",
-                activeTab === tabId ? 'bg-white text-[#0B0F1A] shadow-4xl scale-105' : 'bg-white/5 text-slate-500 hover:text-white hover:bg-white/10'
-              )}
-            >
-              <Icon size={20} /> {labels[tabId]}
-            </button>
-          );
-        })}
+      {/* 🧭 NAVIGATION DENSE (Shrink-0) */}
+      <nav className="flex gap-2 mb-6 shrink-0 overflow-x-auto no-scrollbar pb-2">
+        {(['overview', 'processes', 'risks', 'decisions'] as const).map((t) => (
+          <button 
+            key={t} onClick={() => setActiveTab(t)}
+            className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border-none cursor-pointer italic ${activeTab === t ? 'bg-white text-black shadow-lg' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+          >
+            {t === 'overview' ? 'Synthèse Globale' : t === 'processes' ? 'Performance Processus' : t === 'risks' ? 'Analyse des Risques' : 'Décisions & CAPA'}
+          </button>
+        ))}
       </nav>
 
-      <div className="max-w-500 mx-auto w-full space-y-20">
+      {/* 📊 GRID KPI CALCULÉE (Shrink-0) */}
+      <div className="grid grid-cols-4 gap-4 mb-6 shrink-0">
+        <KPIBox label="Indice de Maturité" value={`${review?.metrics.globalPerformance}%`} icon={<TrendingUp size={16}/>} color="emerald" trend={trend} />
+        <KPIBox label="Satisfaction Client" value={`${review?.metrics.customerSatisfaction}%`} icon={<Users size={16}/>} color="blue" sub="ISO §9.1.2" />
+        <KPIBox label="Unités de Pilotage" value={review?.metrics.processCount} icon={<Target size={16}/>} color="indigo" sub="Processus Actifs" />
+        <KPIBox label="Écarts Audit" value={(review?.metrics.auditMajor || 0) + (review?.metrics.auditMinor || 0)} icon={<ClipboardCheck size={16}/>} color="amber" sub={`${review?.metrics.auditMajor} Majeur(s)`} />
+      </div>
+
+      {/* 🧩 ZONE D'ANALYSE (Flex-1) */}
+      <main className="flex-1 min-h-0 grid grid-cols-12 gap-6 overflow-hidden">
         
-        {/* 📊 GRILLE KPI PRODUCTION */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          {[
-            { label: "Indice de Maturité", value: `${review?.metrics.globalPerformance ?? 0}%`, icon: TrendingUp, color: "text-emerald-500", trend: trend.value, trendIcon: trend.icon, trendColor: trend.color },
-            { label: "Satisfaction Client", value: `${review?.metrics.customerSatisfaction ?? 0}%`, icon: Users, color: "text-blue-500", trend: "ISO §9.1.2", trendIcon: CheckCircle2, trendColor: "text-blue-400" },
-            { label: "Unités de Pilotage", value: review?.metrics.processCount ?? 0, icon: Target, color: "text-indigo-500", trend: "Processus", trendIcon: Activity, trendColor: "text-indigo-400" },
-            { label: "Écarts d'Audit", value: (review?.metrics.auditMajor ?? 0) + (review?.metrics.auditMinor ?? 0), icon: ClipboardCheck, color: "text-amber-500", trend: `${review?.metrics.auditMajor ?? 0} Majeur(s)`, trendIcon: AlertTriangle, trendColor: "text-red-500" },
-          ].map((stat, i) => (
-            <div key={i} className="bg-[#151A2D] p-10 rounded-[4rem] border-2 border-white/5 shadow-4xl relative group overflow-hidden transition-all hover:border-blue-600/30">
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-10">
-                  <div className={cn("p-6 rounded-3xl bg-black/40 shadow-inner group-hover:scale-110 transition-transform", stat.color)}>
-                    <stat.icon size={36} />
-                  </div>
-                  <div className={cn("flex items-center gap-3 text-[10px] font-black uppercase px-4 py-2 rounded-full border-2 border-white/5 bg-[#0B0F1A]", stat.trendColor)}>
-                    <stat.trendIcon size={14} /> {stat.trend}
-                  </div>
+        {/* COL 1: CONSTAT DE DIRECTION (§9.3.2) */}
+        <div className="col-span-8 bg-[#151A2D] border border-white/5 rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative">
+          <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none"><FileBarChart size={300}/></div>
+          
+          <header className="p-5 border-b border-white/5 flex justify-between items-center shrink-0 bg-black/20">
+            <h3 className="text-sm font-black uppercase italic flex items-center gap-4 m-0">
+              <Zap className="text-blue-500" size={18}/> Analyse Directionnelle §9.3.2
+            </h3>
+            <div className="flex gap-2">
+              {!isEditing ? (
+                <button onClick={() => setIsEditing(true)} className="p-2 bg-white/5 hover:bg-blue-600 rounded-lg transition-all border-none cursor-pointer text-white"><Edit3 size={14}/></button>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={handleSaveSummary} disabled={isSaving} className="p-2 bg-emerald-600 hover:bg-white hover:text-emerald-600 rounded-lg transition-all border-none cursor-pointer">{isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14}/>}</button>
+                  <button onClick={() => {setIsEditing(false); setEditedSummary(review?.MR_Summary || '')}} className="p-2 bg-rose-600/10 hover:bg-rose-600 rounded-lg border-none cursor-pointer"><X size={14}/></button>
                 </div>
-                <p className="text-[12px] font-black text-slate-500 uppercase tracking-[0.5em] mb-4 italic leading-none">{stat.label}</p>
-                <p className="text-7xl font-black text-white italic tracking-tighter leading-none">{stat.value}</p>
-              </div>
+              )}
             </div>
-          ))}
+          </header>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+            {!isEditing ? (
+              <div className="text-lg text-slate-300 font-medium leading-relaxed italic whitespace-pre-wrap first-letter:text-6xl first-letter:font-black first-letter:text-blue-600 first-letter:mr-4 first-letter:float-left first-letter:leading-none">
+                {review?.MR_Summary || "EN ATTENTE D'ANALYSE STRATÉGIQUE..."}
+              </div>
+            ) : (
+              <textarea 
+                value={editedSummary} onChange={(e) => setEditedSummary(e.target.value)} 
+                className="w-full h-full bg-black/40 border-2 border-white/10 rounded-3xl p-6 text-sm text-white font-medium italic focus:border-blue-600 outline-none resize-none transition-all shadow-inner leading-relaxed" 
+                placeholder="SAISIR LA SYNTHÈSE DE DIRECTION (§9.3.3)..."
+              />
+            )}
+          </div>
         </div>
 
-        {/* 📄 ANALYSE RQ (§9.3.2) */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-12 gap-16 animate-in fade-in slide-in-from-bottom-10 duration-1000">
-            
-            {/* SÉANCE DE RÉDACTION STRATÉGIQUE */}
-            <div className="col-span-12 lg:col-span-8 bg-[#151A2D] rounded-[5rem] p-16 text-white relative overflow-hidden shadow-4xl border-2 border-white/5 group">
-              <div className="relative z-10 space-y-12">
-                <div className="flex items-center justify-between border-b-2 border-white/5 pb-10">
-                  <h3 className="text-4xl font-black uppercase italic tracking-tighter flex items-center gap-8">
-                    <Zap className="text-blue-500" size={40} /> Constat d&apos;Analyse de Direction
-                  </h3>
-                  <div className="flex gap-6">
-                    {!isEditing ? (
-                      <button onClick={() => setIsEditing(true)} className="p-6 bg-white/5 hover:bg-blue-600 rounded-3xl transition-all border-none cursor-pointer text-white shadow-xl">
-                        <Edit3 size={24} />
-                      </button>
-                    ) : (
-                      <div className="flex gap-4">
-                        <button onClick={handleSaveSummary} disabled={isSaving} className="p-6 bg-emerald-600 hover:bg-white hover:text-emerald-600 rounded-3xl transition-all border-none cursor-pointer text-white shadow-xl">
-                          {isSaving ? <Loader2 className="animate-spin" size={24} /> : <Save size={24} />}
-                        </button>
-                        <button onClick={() => {setIsEditing(false); setEditedSummary(review?.MR_Summary || '')}} className="p-6 bg-red-600/10 hover:bg-red-600 text-white rounded-3xl transition-all border-none cursor-pointer">
-                          <X size={24} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {!isEditing ? (
-                  <div className="text-3xl text-slate-300 font-medium leading-relaxed italic whitespace-pre-wrap first-letter:text-9xl first-letter:font-black first-letter:text-blue-600 first-letter:mr-8 first-letter:float-left first-letter:leading-none">
-                    {review?.MR_Summary || "EN ATTENTE DE SCELLAGE PAR LE RESPONSABLE QUALITÉ."}
-                  </div>
-                ) : (
-                  <textarea 
-                    value={editedSummary} 
-                    onChange={(e) => setEditedSummary(e.target.value)} 
-                    className="w-full h-125 bg-black/40 border-4 border-white/5 rounded-[4rem] p-16 text-2xl text-white font-medium italic focus:border-blue-600 outline-none resize-none transition-all shadow-inner leading-relaxed" 
-                    placeholder="RÉDIGER LA CONCLUSION STRATÉGIQUE (§9.3.3)..."
-                  />
-                )}
-              </div>
-              <FileBarChart className="absolute -right-40 -bottom-40 text-white/2 pointer-events-none" size={600} />
+        {/* COL 2: FOCUS CONFORMITÉ (§9.2) */}
+        <div className="col-span-4 flex flex-col gap-6 overflow-hidden">
+          <div className="bg-[#151A2D] border border-white/5 rounded-4xl p-6 shadow-2xl shrink-0">
+            <h3 className="text-[10px] font-black uppercase text-white mb-6 flex items-center gap-3 italic">
+              <ShieldCheck className="text-blue-500" size={14}/> Bilan Audit Interne
+            </h3>
+            <div className="space-y-3">
+              <AuditItem label="Écarts Majeurs" val={review?.metrics.auditMajor} color="rose" />
+              <AuditItem label="Écarts Mineurs" val={review?.metrics.auditMinor} color="amber" />
+              <AuditItem label="Risques Critiques" val={review?.metrics.criticalRisksCount} color="indigo" />
             </div>
+          </div>
 
-            {/* FOCUS CONFORMITÉ & CERTIFICATION */}
-            <div className="col-span-12 lg:col-span-4 space-y-12">
-              <div className="bg-[#151A2D] rounded-[5rem] p-12 border-2 border-white/5 shadow-4xl relative overflow-hidden group">
-                <h3 className="text-2xl font-black uppercase text-white mb-12 flex items-center gap-6 italic tracking-tight leading-none">
-                  <div className="w-16 h-16 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-600/20 shadow-lg group-hover:rotate-12 transition-transform">
-                    <ShieldCheck size={32} className="text-blue-500" />
-                  </div>
-                  Conformité Audits
-                </h3>
-                <div className="space-y-6">
-                  <div className="p-8 bg-black/40 rounded-[2.5rem] border-2 border-red-600/20 flex justify-between items-center italic">
-                    <span className="text-[12px] font-black uppercase text-red-500">Majeurs</span>
-                    <span className="text-5xl font-black text-white">{review?.metrics.auditMajor ?? 0}</span>
-                  </div>
-                  <div className="p-8 bg-black/40 rounded-[2.5rem] border-2 border-amber-600/20 flex justify-between items-center italic">
-                    <span className="text-[12px] font-black uppercase text-amber-500">Mineurs</span>
-                    <span className="text-5xl font-black text-white">{review?.metrics.auditMinor ?? 0}</span>
-                  </div>
-                  <div className="p-8 bg-black/40 rounded-[2.5rem] border-2 border-blue-600/20 flex justify-between items-center italic text-left">
-                    <span className="text-[12px] font-black uppercase text-blue-500">Pistes Progrès</span>
-                    <span className="text-5xl font-black text-white">0</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* BADGE SDE RD 2030 */}
-              <div className="bg-blue-600 rounded-[5rem] p-12 text-white shadow-4xl relative overflow-hidden group">
-                 <div className="relative z-10 flex items-center justify-between">
-                    <div className="space-y-4">
-                      <p className="text-[12px] font-black uppercase tracking-[0.5em] text-blue-200 italic leading-none">Status Certification</p>
-                      <p className="text-4xl font-black italic tracking-tighter leading-none">ISO 9001:2015</p>
-                    </div>
-                    <Fingerprint size={80} className="text-white/20 group-hover:text-white/40 transition-all" />
-                 </div>
-                 <div className="absolute -left-20 -bottom-20 w-60 h-60 bg-white/10 rounded-full blur-3xl" />
-              </div>
+          <div className="flex-1 bg-blue-600 rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-4xl flex flex-col justify-between">
+            <div className="relative z-10">
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-blue-100 italic mb-2">Certification Active</p>
+              <h4 className="text-2xl font-black italic tracking-tighter m-0">ISO 9001:2015</h4>
             </div>
+            <div className="relative z-10 flex justify-between items-end">
+               <div className="text-[8px] font-bold uppercase tracking-widest leading-relaxed">
+                 Prochaine Échéance :<br/>Septembre 2026
+               </div>
+               <Fingerprint size={48} className="text-white/20 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
+          </div>
+        </div>
+      </main>
+
+      {/* 🧩 FORMULE MATHÉMATIQUE SDE (LaTeX) */}
+      <div className="mt-4 flex justify-center shrink-0">
+        <p className="text-[10px] text-slate-600 font-mono italic">
+          {"$$Maturité = \\frac{\\sum_{p=1}^{n} (Performance_{p} \\times Importance_{p})}{Total_{Unités}}$$"}
+        </p>
+      </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+      `}</style>
+    </div>
+  );
+}
+
+// --- 🧩 COMPOSANTS DENSE SDE ---
+
+function KPIBox({ label, value, icon, color, trend, sub }: any) {
+  const c: any = { emerald: "text-emerald-500 bg-emerald-500/5 border-emerald-500/10", blue: "text-blue-500 bg-blue-500/5 border-blue-500/10", indigo: "text-indigo-500 bg-indigo-500/5 border-indigo-500/10", amber: "text-amber-500 bg-amber-500/5 border-amber-500/10" };
+  return (
+    <div className={`p-4 rounded-3xl border flex items-center justify-between shadow-xl ${c[color]}`}>
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-black/20 rounded-xl">{icon}</div>
+        <div className="flex flex-col">
+          <span className="text-[8px] font-black uppercase text-slate-500 tracking-widest leading-none mb-1">{label}</span>
+          <span className="text-[7px] font-bold uppercase text-slate-600 tracking-widest">{sub || "Calculé"}</span>
+        </div>
+      </div>
+      <div className="flex flex-col items-end">
+        <span className="text-2xl font-black italic m-0 text-white leading-none">{value}</span>
+        {trend && (
+          <div className={`flex items-center gap-1 text-[8px] font-black mt-1 ${trend.color}`}>
+            <trend.Icon size={10}/> {trend.val}
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* 🔐 FOOTER SDE (§9.3.3) */}
-      <footer className="mt-40 pt-16 border-t-8 border-white/5 flex flex-col md:flex-row justify-between items-center gap-12 max-w-500 mx-auto w-full opacity-40 group">
-        <div className="flex items-center gap-10">
-          <Fingerprint size={60} className="text-blue-600 group-hover:rotate-360 transition-all duration-4000" strokeWidth={2.5} />
-          <div className="text-left">
-            <p className="text-[16px] font-black uppercase tracking-[1.5em] text-slate-500 italic leading-none">Qualisoft Management Moteur</p>
-            <p className="text-[12px] font-bold text-slate-700 uppercase tracking-[0.8em] mt-4 italic leading-none">Elite RD 2030 Matrix • Integrated Compliance Hub</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-10">
-          <div className="flex flex-col items-end italic">
-             <span className="text-[12px] font-black text-slate-600 uppercase tracking-widest mb-2">Elite Matrix BD</span>
-             <div className="flex gap-4">
-               <div className="w-4 h-4 rounded-full bg-blue-600 animate-pulse shadow-[0_0_15px_blue]" />
-               <div className="w-4 h-4 rounded-full bg-emerald-600" />
-             </div>
-          </div>
-        </div>
-      </footer>
-
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        textarea::placeholder { font-style: italic; opacity: 0.1; font-weight: 900; text-transform: uppercase; letter-spacing: 0.4em; color: white; }
-      `}</style>
+function AuditItem({ label, val, color }: any) {
+  const c: any = { rose: "border-rose-500/20 text-rose-500", amber: "border-amber-500/20 text-amber-500", indigo: "border-indigo-500/20 text-indigo-500" };
+  return (
+    <div className={`p-4 bg-black/40 rounded-2xl border flex justify-between items-center italic ${c[color]}`}>
+      <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
+      <span className="text-2xl font-black text-white">{val || 0}</span>
     </div>
   );
 }

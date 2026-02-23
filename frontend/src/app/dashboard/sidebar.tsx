@@ -165,8 +165,8 @@ export default function Sidebar({
         icon: Rocket,
         items: [
           {
-            title: "Diagnostic & Plan (J0-J7)",
-            path: "/dashboard/onboarding",
+            title: "Copil",
+            path: "/dashboard/copil",
             icon: Zap,
             access: "ADMIN",
           },

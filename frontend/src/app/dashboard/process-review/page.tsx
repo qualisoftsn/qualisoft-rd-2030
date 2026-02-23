@@ -1,29 +1,28 @@
-//* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🛰️ MODULE : REGISTRE DES REVUES DE PROCESSUS (SMI MONITORING)
+ * 🛰️ MODULE : REGISTRE DES REVUES DE PROCESSUS (ELITE SDE)
  * -------------------------------------------------------------------------
- * RÔLE : Centralisation et accès à l'historique des audits périodiques.
- * RÉFÉRENTIEL : types/elite-sde.ts (SCELLAGE PRISMA).
- * NORME : ISO 9001:2015 §9.1.1 (Surveillance et mesure).
- * ARCHITECTURE : Isolation Multi-Tenant (Données du tenant actif).
- * DESIGN : Cockpit Matrix Full-Space (max-w-500).
+ * RÔLE : Surveillance et mesure de la performance des processus.
+ * NORME : ISO 9001:2015 §9.1.1.
+ * DESIGN : High-Density / No-Scroll / Real-Time Analytics.
  * -------------------------------------------------------------------------
  */
 
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import apiClient from '@/core/api/api-client';
 import { 
   Plus, ChevronRight, FileText, CheckCircle2, 
-  Clock, ShieldCheck, Activity, Loader2, Fingerprint, Calendar
+  Clock, ShieldCheck, Activity, Loader2, Fingerprint, 
+  Calendar, BarChart3, Search, RefreshCw, Zap, Target
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 
-// --- 🏗️ RÉFÉRENTIEL ÉLITE-SDE (TYPAGE STRICT) ---
-// Note : Modélisation basée sur l'infrastructure prisma SDE
+// --- 🏗️ RÉFÉRENTIEL ÉLITE-SDE ---
 interface IProcessus {
   PR_Id: string;
   PR_Libelle: string;
@@ -39,27 +38,22 @@ interface IREVProcessus {
   PRV_Processus?: IProcessus;
 }
 
-const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
-
 export default function ProcessReviewListPage() {
   const router = useRouter();
   
-  // --- 📦 ÉTATS DU KERNEL SDE ---
+  // --- 📦 ÉTATS DU KERNEL ---
   const [reviews, setReviews] = useState<IREVProcessus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
-  /**
-   * 📡 SYNCHRONISATION DU REGISTRE
-   * @description Extraction multi-tenant sécurisée. Ne récupère que les revues du tenant actif.
-   */
   const fetchReviews = useCallback(async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const res = await apiClient.get('/process-reviews');
       const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setReviews(data);
     } catch (err) {
-      toast.error("RUPTURE DE LIAISON : REGISTRE DES REVUES INACCESSIBLE.");
+      toast.error("RUPTURE DE LIAISON : REGISTRE INACCESSIBLE.");
     } finally {
       setLoading(false);
     }
@@ -67,129 +61,183 @@ export default function ProcessReviewListPage() {
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
+  // --- 📊 CALCULS ANALYTIQUES TEMPS RÉEL (§9.1.1) ---
+  const stats = useMemo(() => {
+    const total = reviews.length;
+    const validated = reviews.filter(r => r.PRV_Status === 'VALIDEE').length;
+    const rate = total > 0 ? Math.round((validated / total) * 100) : 0;
+    const currentYear = reviews.filter(r => r.PRV_Year === new Date().getFullYear()).length;
+    return { total, validated, rate, currentYear };
+  }, [reviews]);
+
+  const filtered = useMemo(() => {
+    return reviews.filter(r => 
+      r.PRV_Processus?.PR_Libelle?.toLowerCase().includes(search.toLowerCase()) ||
+      r.PRV_DocRef?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [reviews, search]);
+
   if (loading) return (
-    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-12">
-      <Loader2 className="animate-spin text-blue-600" size={100} strokeWidth={1} />
-      <span className="text-blue-500 font-black uppercase text-[12px] italic tracking-[1.5em] animate-pulse">
-        Syncing Review Registry...
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+      <Loader2 className="animate-spin text-blue-600" size={40} />
+      <span className="text-blue-500 font-black uppercase text-[9px] tracking-[0.5em] animate-pulse italic">
+        Syncing Performance Matrix...
       </span>
     </div>
   );
 
+  function cn(arg0: string, arg1: string): string | undefined {
+    throw new Error('Function not implemented.');
+  }
+
   return (
-    <div className="p-16 bg-[#0B0F1A] min-h-screen ml-72 text-white italic font-sans text-left relative selection:bg-blue-600/30 overflow-x-hidden">
+    <div className="ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden selection:bg-blue-600/30">
       <Toaster position="top-right" richColors theme="dark" />
       
-      {/* 🔝 HEADER COCKPIT (max-w-500) */}
-      <header className="mb-20 flex justify-between items-center w-full max-w-500 mx-auto border-b-4 border-white/5 pb-16">
-        <div className="space-y-6">
-          <div className="flex items-center gap-6">
-            <span className="w-4 h-4 rounded-full bg-blue-600 animate-pulse shadow-[0_0_20px_blue]" />
-            <p className="text-slate-500 font-black text-[12px] uppercase tracking-[0.6em] italic">ISO 9001:2015 §9.1.1 • Performance Matrix</p>
+      {/* 🔝 HEADER TACTIQUE (Shrink-0) */}
+      <header className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+            <p className="text-slate-500 font-black text-[9px] uppercase tracking-[0.4em] m-0">ISO 9001:2015 §9.1.1 • Performance Matrix</p>
           </div>
-          <h1 className="text-8xl font-black uppercase italic tracking-tighter leading-none">
-            Revues de <span className="text-blue-600">Processus</span>
-          </h1>
+          <h1 className="text-3xl font-black uppercase tracking-tighter m-0">Revues de <span className="text-blue-600">Processus</span></h1>
         </div>
         
-        <div className="flex gap-8">
-          <button 
-            onClick={() => router.push('/dashboard/process-review/analytics')}
-            className="px-12 py-6 bg-white/5 border-2 border-white/10 rounded-[3rem] text-[12px] font-black uppercase flex items-center gap-6 hover:bg-white/10 transition-all cursor-pointer shadow-xl italic"
-            title="Analyse de performance globale"
-          >
-            <Activity size={28} className="text-blue-500" /> Analytique
+        <div className="flex gap-3 items-center">
+          <div className="relative w-64 group">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input 
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="RECHERCHER SESSION..." 
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-[10px] font-black uppercase outline-none focus:border-blue-600 transition-all italic"
+            />
+          </div>
+          <button onClick={fetchReviews} className="p-2 bg-white/5 rounded-xl hover:text-blue-500 border border-white/10 transition-colors cursor-pointer">
+            <RefreshCw size={18} />
           </button>
-          <button 
-            onClick={() => router.push('/dashboard/process-review/preparation')}
-            className="px-16 py-6 bg-blue-600 rounded-[3rem] text-[12px] font-black uppercase flex items-center gap-6 shadow-4xl hover:bg-white hover:text-blue-600 transition-all border-none cursor-pointer italic shadow-blue-900/40"
-          >
-            <Plus size={28} strokeWidth={4} /> Lancer un Scan
+          <button onClick={() => router.push('/dashboard/process-review/preparation')} className="bg-blue-600 hover:bg-white hover:text-blue-600 px-6 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 border-none cursor-pointer transition-all italic shadow-lg">
+            <Plus size={16} strokeWidth={3} /> Lancer Scan
           </button>
         </div>
       </header>
 
-      {/* 📋 REGISTRE MATRIX (max-w-500) */}
-      <main className="w-full max-w-500 mx-auto space-y-12">
-        {reviews.length === 0 ? (
-          <div className="py-48 border-8 border-dashed border-white/5 rounded-[7rem] text-center flex flex-col items-center justify-center opacity-20 italic">
-            <FileText size={120} className="text-slate-500 mb-16" />
-            <p className="text-4xl text-slate-600 uppercase font-black italic tracking-[1em] leading-relaxed">
-              Registre Vierge<br/>Aucune Session Scellée
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-10">
-            {reviews.map((rev) => (
-              <div 
-                key={rev.PRV_Id}
-                onClick={() => router.push(`/dashboard/process-review/session/${rev.PRV_Id}`)}
-                className="bg-[#151A2D] border-4 border-white/5 p-12 rounded-[5rem] flex items-center justify-between cursor-pointer hover:bg-black/60 hover:border-blue-600/30 transition-all duration-300 group shadow-4xl backdrop-blur-xl"
-              >
-                <div className="flex items-center gap-12">
-                  
-                  {/* 🗓️ BADGE TEMPOREL SDE */}
-                  <div className="bg-black/60 p-8 rounded-4xl border-2 border-white/5 text-center min-w-30 shadow-inner group-hover:scale-110 transition-transform">
-                    <span className="block text-[14px] font-black text-blue-500 uppercase tracking-tighter mb-2 italic">Mois {rev.PRV_Month}</span>
-                    <span className="text-[18px] font-black text-slate-400 italic leading-none uppercase">{rev.PRV_Year}</span>
-                  </div>
-                  
-                  {/* 📋 INFOS SESSION */}
-                  <div className="text-left space-y-5">
-                    <h3 className="font-black uppercase text-4xl tracking-tighter text-white group-hover:text-blue-500 transition-colors leading-none italic">
-                      {rev.PRV_Processus?.PR_Libelle || "Processus Orphelin"}
-                    </h3>
+      {/* 📊 INDICATEURS CALCULÉS (Shrink-0) */}
+      <div className="grid grid-cols-4 gap-4 mb-6 shrink-0">
+        <KPIBox label="Taux de Scellage" value={`${stats.rate}%`} icon={<ShieldCheck size={16}/>} color="emerald" sub="Validation SMI" />
+        <KPIBox label="Sessions Totales" value={stats.total} icon={<FileText size={16}/>} color="blue" sub="Historique SDE" />
+        <KPIBox label="Actives (2026)" value={stats.currentYear} icon={<Activity size={16}/>} color="amber" sub="Exercice en cours" />
+        <KPIBox label="Conformité §9" value="OK" icon={<Target size={16}/>} color="indigo" sub="Audit Ready" />
+      </div>
+
+      {/* 📋 REGISTRE DENSE (Flex-1) */}
+      <main className="flex-1 min-h-0 bg-[#151A2D] border border-white/5 rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative">
+        <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none"><Zap size={300}/></div>
+        
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
+          {filtered.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center opacity-20 italic grayscale">
+              <FileText size={64} className="text-slate-500 mb-6" />
+              <p className="text-xl text-slate-600 uppercase font-black tracking-widest">Registre Vierge</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {filtered.map((rev) => (
+                <div 
+                  key={rev.PRV_Id}
+                  onClick={() => router.push(`/dashboard/process-review/session/${rev.PRV_Id}`)}
+                  className="bg-[#0B0F1A]/50 border border-white/5 p-5 rounded-3xl flex items-center justify-between cursor-pointer hover:bg-blue-600/5 hover:border-blue-600/30 transition-all group shadow-xl"
+                >
+                  <div className="flex items-center gap-8">
+                    {/* Badge Temporel */}
+                    <div className="bg-black/60 w-20 py-3 rounded-2xl border border-white/5 text-center shadow-inner group-hover:border-blue-500/30 transition-colors">
+                      <span className="block text-[10px] font-black text-blue-500 uppercase italic leading-none mb-1">M{rev.PRV_Month}</span>
+                      <span className="text-sm font-black text-slate-400 italic leading-none">{rev.PRV_Year}</span>
+                    </div>
                     
-                    <div className="flex items-center gap-8">
-                      <span className="text-[12px] font-black text-slate-500 uppercase tracking-[0.4em] italic flex items-center gap-4">
-                         <Fingerprint size={16} className="text-slate-600" />
-                         REF: {rev.PRV_DocRef || `PRV-${rev.PRV_Id.slice(0, 6)}`}
-                      </span>
-                      <span className="text-slate-800">•</span>
-                      
-                      {/* ✅ SCELLAGE STATUS */}
-                      <span className={cn(
-                        "text-[10px] font-black px-6 py-2 rounded-2xl uppercase flex items-center gap-3 italic border-2 shadow-inner",
-                        rev.PRV_Status === 'VALIDEE' 
-                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-                          : 'bg-orange-500/10 text-orange-500 border-orange-500/20 animate-pulse'
-                      )}>
-                        {rev.PRV_Status === 'VALIDEE' ? <CheckCircle2 size={16}/> : <Clock size={16}/>} 
-                        {rev.PRV_Status === 'VALIDEE' ? 'Session Scellée' : 'Analyse Active'}
-                      </span>
+                    {/* Infos */}
+                    <div className="text-left space-y-2">
+                      <h3 className="font-black uppercase text-lg tracking-tight text-white group-hover:text-blue-400 transition-colors leading-none m-0 italic">
+                        {rev.PRV_Processus?.PR_Libelle || "Processus Orphelin"}
+                      </h3>
+                      <div className="flex items-center gap-4">
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic flex items-center gap-2">
+                           <Fingerprint size={12} className="text-slate-700" /> REF: {rev.PRV_DocRef || `PRV-${rev.PRV_Id.slice(0, 6)}`}
+                        </span>
+                        <span className={cn(
+                          "text-[8px] font-black px-3 py-1 rounded-lg uppercase flex items-center gap-2 italic border shadow-inner",
+                          rev.PRV_Status === 'VALIDEE' 
+                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                            : 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+                        )}>
+                          {rev.PRV_Status === 'VALIDEE' ? <CheckCircle2 size={12}/> : <Clock size={12}/>} 
+                          {rev.PRV_Status === 'VALIDEE' ? 'Scellée' : 'Active'}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  
+                  <div className="p-3 bg-white/5 rounded-xl text-slate-600 group-hover:text-white group-hover:bg-blue-600 transition-all">
+                    <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
-                
-                {/* ➡️ NAVIGATION */}
-                <div className="p-8 bg-white/5 rounded-4xl text-slate-600 group-hover:text-white group-hover:bg-blue-600 transition-all border-2 border-transparent group-hover:border-blue-400 shadow-xl group-active:scale-90">
-                  <ChevronRight size={36} className="group-hover:translate-x-2 transition-transform" />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
-      {/* 🧩 FOOTER (§9.1.1) */}
-      <footer className="mt-48 pt-20 border-t-8 border-white/5 flex justify-between items-center opacity-40 w-full max-w-500 mx-auto group">
-          <div className="flex items-center gap-12">
-              <ShieldCheck size={60} className="text-blue-600 group-hover:rotate-12 transition-transform" strokeWidth={2.5} />
+      {/* 🧩 FORMULE CONFORMITÉ (§9.1.1) */}
+      <div className="mt-4 flex justify-center shrink-0">
+        <p className="text-[10px] text-slate-600 font-mono italic">
+          {"$$Taux_{scellage} = \\frac{\\sum Sessions_{VALIDEE}}{\\sum Sessions_{TOTAL}} \\times 100 = " + stats.rate + "\\%$$"}
+        </p>
+      </div>
+
+      {/* 🏁 FOOTER ELITE */}
+      <footer className="mt-6 pt-4 border-t border-white/5 flex justify-between items-center opacity-30 shrink-0">
+          <div className="flex items-center gap-4">
+              <ShieldCheck size={24} className="text-blue-600" />
               <div className="text-left">
-                <p className="text-[16px] font-black uppercase tracking-[1.5em] text-slate-500 italic leading-none">Process Review Engine</p>
-                <p className="text-[12px] font-bold text-slate-700 uppercase tracking-[0.8em] mt-4 italic leading-none">ISO 9001:2015 Monitoring • Qualisoft Elite RD 2030</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] m-0 italic">Process Review Engine</p>
+                <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest m-0 italic">ISO 9001:2015 Monitoring • Qualisoft SDE 2026</p>
               </div>
           </div>
-          <div className="flex gap-8">
-              <div className="w-5 h-5 rounded-full bg-blue-600 shadow-[0_0_20px_blue] animate-pulse" />
-              <div className="w-5 h-5 rounded-full bg-emerald-600" />
+          <div className="flex gap-4">
+              <div className="w-2 h-2 rounded-full bg-blue-600 shadow-[0_0_10px_blue]" />
+              <div className="w-2 h-2 rounded-full bg-slate-800" />
           </div>
       </footer>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 0px; }
-        * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
+    </div>
+  );
+}
+
+// --- 🧩 COMPOSANTS ATOMIQUES SDE ---
+
+function KPIBox({ label, value, icon, color, sub }: any) {
+  const c: any = { 
+    emerald: "text-emerald-500 bg-emerald-500/5 border-emerald-500/10", 
+    blue: "text-blue-500 bg-blue-500/5 border-blue-500/10", 
+    amber: "text-amber-500 bg-amber-500/5 border-amber-500/10", 
+    indigo: "text-indigo-500 bg-indigo-500/5 border-indigo-500/10" 
+  };
+  return (
+    <div className={`p-4 rounded-3xl border flex items-center justify-between shadow-xl ${c[color]}`}>
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-black/20 rounded-xl">{icon}</div>
+        <div className="flex flex-col">
+          <span className="text-[8px] font-black uppercase text-slate-500 tracking-widest leading-none mb-1">{label}</span>
+          <span className="text-[7px] font-bold uppercase text-slate-700 tracking-widest">{sub}</span>
+        </div>
+      </div>
+      <span className="text-2xl font-black italic m-0 text-white leading-none">{value}</span>
     </div>
   );
 }

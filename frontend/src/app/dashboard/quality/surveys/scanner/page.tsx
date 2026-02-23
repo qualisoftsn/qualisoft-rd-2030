@@ -1,28 +1,17 @@
-//* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/**
- * 💡 NOM ABSOLU : src/app/dashboard/quality/surveys/scanner/page.tsx
- * -------------------------------------------------------------------------
- * FONCTION : Analyseur de flux de réponses et détection automatique des insatisfactions.
- * ARCHITECTURE : Zéro simulation, données issues de l'API SDE. Création de NC réelle.
- * DESIGN : Full-Space Matrix, Cartes de feedback massives, alertes visuelles.
- * -------------------------------------------------------------------------
- */
-
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
-  Search, AlertOctagon, RefreshCcw, User, 
-  Truck, HeartHandshake, CheckCircle, 
-  Users, ArrowLeft, Loader2
+  Search, AlertOctagon, RefreshCcw, User, Truck, HeartHandshake, 
+  CheckCircle, Users, ArrowLeft, Loader2, Activity, Filter
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import Link from 'next/link';
 import apiClient from '@/core/api/api-client';
 
-// --- 🛡️ RÉFÉRENTIEL DES TYPES SMI SOUVERAINS ---
 type SurveyTarget = 'CLIENT' | 'SUPPLIER' | 'EMPLOYEE';
 
 interface SurveyResult {
@@ -36,208 +25,132 @@ interface SurveyResult {
 }
 
 export default function SurveyResultScanner() {
-  // --- 📦 ÉTATS DE PILOTAGE ---
   const [filter, setFilter] = useState<'ALL' | SurveyTarget>('ALL');
   const [results, setResults] = useState<SurveyResult[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Matrice de configuration visuelle SDE
   const targetConfig: Record<string, any> = {
-    CLIENT: { color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <HeartHandshake size={24} />, label: 'UNITÉ CLIENT' },
-    SUPPLIER: { color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: <Truck size={24} />, label: 'FOURNISSEUR' },
-    EMPLOYEE: { color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/30', icon: <Users size={24} />, label: 'COLLABORATEUR' }
+    CLIENT: { color: 'text-emerald-500', bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', icon: <HeartHandshake size={14} />, label: 'CLIENT' },
+    SUPPLIER: { color: 'text-blue-500', bg: 'bg-blue-500/5', border: 'border-blue-500/20', icon: <Truck size={14} />, label: 'FOURNISSEUR' },
+    EMPLOYEE: { color: 'text-purple-500', bg: 'bg-purple-500/5', border: 'border-purple-500/20', icon: <Users size={14} />, label: 'COLLABORATEUR' }
   };
 
-  /**
-   * 📡 SYNCHRONISATION DES RÉSULTATS D'ENQUÊTE
-   */
   const fetchResults = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiClient.get('/surveys/results');
-      const data = res.data?.data || res.data;
-      setResults(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error("ÉCHEC DE CONNEXION AU SCANNER DE RÉSULTATS.");
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
+      setResults(Array.isArray(res.data?.data) ? res.data.data : res.data || []);
+    } catch (error) { toast.error("RUPTURE SYNC SCANNER"); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchResults(); }, [fetchResults]);
 
-  /**
-   * 🔍 MOTEUR DE FILTRAGE NATIF HAUTE PERFORMANCE
-   */
-  const filteredResults = useMemo(() => {
-    const term = searchTerm.toLowerCase().trim();
-    return results.filter((r) => {
-      const matchesTarget = filter === 'ALL' || r.RES_Target === filter;
-      if (!matchesTarget) return false;
-      if (term === '') return true;
-      return (
-        r.RES_Respondent.toLowerCase().includes(term) || 
-        r.RES_Comment.toLowerCase().includes(term) ||
-        r.RES_Id.toLowerCase().includes(term)
-      );
-    });
+  const filtered = useMemo(() => {
+    const t = searchTerm.toLowerCase();
+    return results.filter(r => (filter === 'ALL' || r.RES_Target === filter) && (r.RES_Respondent.toLowerCase().includes(t) || r.RES_Comment.toLowerCase().includes(t)));
   }, [filter, searchTerm, results]);
 
-  /**
-   * ⚡ ACTION : CONVERSION EN NON-CONFORMITÉ (§10.2)
-   */
-  const handleConvertToNC = useCallback(async (id: string) => {
-    const tid = toast.loading("Scellage de la Non-Conformité dans la base SDE...");
+  const handleConvertToNC = async (id: string) => {
+    const tid = toast.loading("Scellage NC §10.2...");
     try {
-      // Appel API réel pour générer la NC et mettre à jour le statut
       await apiClient.post('/non-conformities', { source: 'SURVEY_RESULT', resultId: id });
       await apiClient.patch(`/surveys/results/${id}`, { status: 'PROCESSED' });
-      
-      toast.success(`FICHE NC §10.2 SCELLÉE POUR L'ID ${id}.`, { id: tid });
-      fetchResults(); // Re-sync the list
-    } catch (error) {
-      toast.error("ERREUR LORS DU SCELLAGE DE LA NC.", { id: tid });
-    }
-  }, [fetchResults]);
+      toast.success("NC SCELLÉE", { id: tid });
+      fetchResults();
+    } catch (e) { toast.error("ÉCHEC SCELLAGE", { id: tid }); }
+  };
 
   if (loading) return (
-    <div className="ml-72 flex h-screen flex-col items-center justify-center bg-[#0B0F1A] gap-10">
-      <Loader2 className="animate-spin text-amber-500" size={100} strokeWidth={1} />
-      <p className="text-amber-500 font-black uppercase italic text-[14px] tracking-[1em] animate-pulse">
-        Scanner Actif : Analyse des Flux...
-      </p>
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+      <Loader2 className="animate-spin text-amber-500" size={40} />
+      <p className="text-amber-500 font-black uppercase italic text-[10px] tracking-widest animate-pulse">Scanning Data Stream...</p>
     </div>
   );
 
   return (
-    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-16 ml-72 text-white font-sans italic text-left selection:bg-amber-600/30 overflow-x-hidden">
+    <div className="ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden">
       <Toaster position="top-right" richColors theme="dark" />
-      
-      <div className="w-full max-w-500 mx-auto space-y-16 animate-in fade-in duration-1000">
 
-        {/* 🛰️ HEADER ANALYSEUR SCANNER */}
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 border-b-4 border-white/5 pb-16">
-          <div className="space-y-8">
-            <Link href="/dashboard/quality/surveys" className="text-[12px] font-black uppercase tracking-[0.4em] text-slate-500 hover:text-white transition-all flex items-center gap-4 bg-white/5 w-fit px-6 py-3 rounded-2xl border border-white/10">
-               <ArrowLeft size={18}/> Retour au Cockpit
-            </Link>
-            <h1 className="text-8xl font-black uppercase italic tracking-tighter leading-none text-white flex items-center gap-8">
-               Result <span className="text-amber-500">Scanner</span>
-            </h1>
-            <p className="text-slate-500 font-black text-[14px] uppercase tracking-[0.6em] italic opacity-60">
-              SURVEILLANCE & ANALYSE DES DONNÉES DE SORTIE §9.1.3
-            </p>
-          </div>
-          
-          <div className="bg-[#151A2D] border-4 border-white/5 px-10 py-8 rounded-[3rem] flex items-center gap-8 shadow-4xl backdrop-blur-3xl">
-              <span className="text-[12px] font-black uppercase text-slate-500 tracking-[0.4em] italic leading-none">Flux Temps Réel</span>
-              <span className="flex items-center gap-4 text-emerald-500 font-black italic text-[14px] tracking-widest leading-none bg-emerald-500/10 px-5 py-2.5 rounded-2xl border border-emerald-500/20">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_#10b981]"/> SYNC ACTIVE
-              </span>
-          </div>
-        </header>
-
-        {/* 🧭 NAVIGATION TACTIQUE & RECHERCHE (FULL SPACE) */}
-        <div className="bg-[#151A2D] p-10 rounded-[4rem] border-4 border-white/5 flex flex-col xl:flex-row justify-between items-center gap-10 backdrop-blur-3xl shadow-4xl relative z-20">
-           {/* Système de filtrage par segments normatifs */}
-           <div className="flex gap-4 bg-black/40 p-4 rounded-[3.5rem] border-2 border-white/5 shadow-inner w-full xl:w-auto overflow-x-auto custom-scrollbar">
-              <button onClick={() => setFilter('ALL')} className={`px-12 py-6 rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.4em] transition-all italic border-none cursor-pointer whitespace-nowrap ${filter === 'ALL' ? 'bg-white text-black shadow-xl' : 'text-slate-500 hover:text-white bg-transparent'}`}>GLOBAL</button>
-              <button onClick={() => setFilter('CLIENT')} className={`px-12 py-6 rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.4em] transition-all italic border-none cursor-pointer whitespace-nowrap ${filter === 'CLIENT' ? 'bg-emerald-600 text-white shadow-[0_10px_30px_rgba(16,185,129,0.4)]' : 'text-slate-500 hover:text-emerald-500 bg-transparent'}`}>CLIENTS</button>
-              <button onClick={() => setFilter('SUPPLIER')} className={`px-12 py-6 rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.4em] transition-all italic border-none cursor-pointer whitespace-nowrap ${filter === 'SUPPLIER' ? 'bg-blue-600 text-white shadow-[0_10px_30px_rgba(37,99,235,0.4)]' : 'text-slate-500 hover:text-blue-500 bg-transparent'}`}>FNS</button>
-              <button onClick={() => setFilter('EMPLOYEE')} className={`px-12 py-6 rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.4em] transition-all italic border-none cursor-pointer whitespace-nowrap ${filter === 'EMPLOYEE' ? 'bg-purple-600 text-white shadow-[0_10px_30px_rgba(147,51,234,0.4)]' : 'text-slate-500 hover:text-purple-500 bg-transparent'}`}>RH</button>
-           </div>
-           
-           {/* Barre de recherche souveraine */}
-           <div className="relative w-full xl:w-150">
-              <Search className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-500" size={28} />
-              <input 
-                type="text" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="SCANNER PAR RÉPONDANT OU MOT-CLÉ..." 
-                className="w-full bg-black/60 border-4 border-white/5 rounded-[3.5rem] pl-24 pr-10 py-8 text-[14px] font-black uppercase text-white outline-none focus:border-amber-500 transition-all placeholder-slate-700 italic shadow-inner tracking-widest"
-              />
-           </div>
+      {/* 🔝 HEADER SCANNER DENSE */}
+      <header className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0">
+        <div>
+          <Link href="/dashboard/quality/surveys" className="text-[9px] font-black uppercase text-slate-500 hover:text-white flex items-center gap-2 no-underline mb-2 transition-colors">
+            <ArrowLeft size={12}/> Retour Cockpit
+          </Link>
+          <h1 className="text-2xl font-black uppercase tracking-tighter m-0">Result <span className="text-amber-500">Scanner</span></h1>
         </div>
-
-        {/* 📊 GRILLE DYNAMIQUE DES FEEDBACKS ANALYSÉS (§9.1.3) */}
-        <div className="grid grid-cols-1 gap-12">
-           {filteredResults.length > 0 ? filteredResults.map((res) => {
-              const isCritical = res.RES_Score < 5;
-              const config = targetConfig[res.RES_Target] || targetConfig.CLIENT;
-
-              return (
-                <div 
-                  key={res.RES_Id} 
-                  className={`relative overflow-hidden rounded-[5rem] p-16 transition-all hover:scale-[1.01] animate-in fade-in slide-in-from-bottom-10 duration-700 backdrop-blur-md ${
-                    isCritical ? 'bg-rose-900/10 border-4 border-rose-500/30 shadow-[0_0_80px_rgba(244,63,94,0.15)]' : 'bg-[#151A2D] border-4 border-white/5 shadow-4xl'
-                  }`}
-                >
-                   {/* MARQUAGE DE SÉCURITÉ LATÉRAL */}
-                   <div className={`absolute left-0 top-0 bottom-0 w-6 ${isCritical ? 'bg-rose-500 animate-pulse shadow-[0_0_30px_rgba(244,63,94,0.8)]' : 'bg-emerald-500 opacity-20'}`} />
-
-                   <div className="flex flex-col lg:flex-row justify-between items-start text-left gap-12 ml-4">
-                      <div className="space-y-8 flex-1">
-                          <div className="flex items-center gap-6 flex-wrap">
-                            <span className={`px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-[0.3em] flex items-center gap-4 border-2 ${config.bg.replace('/10', '/20')} ${config.color} ${config.border} italic leading-none shadow-inner`}>
-                               {config.icon} {config.label}
-                            </span>
-                            <span className="text-[12px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none bg-black/40 px-5 py-2.5 rounded-xl border border-white/5">REF: {res.RES_Id}</span>
-                            <span className="text-[12px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none bg-black/40 px-5 py-2.5 rounded-xl border border-white/5">{new Date(res.RES_Date).toLocaleDateString()}</span>
-                          </div>
-                          
-                          {/* CONTENU TEXTUEL DU FEEDBACK */}
-                          <h3 className="text-4xl font-black italic text-white leading-tight tracking-tighter uppercase max-w-6xl">
-                            &quot;{res.RES_Comment}&quot;
-                          </h3>
-                          
-                          <div className="flex items-center gap-5 text-[14px] font-black uppercase text-slate-500 tracking-[0.4em] italic leading-none bg-white/5 w-fit px-8 py-4 rounded-3xl border border-white/10">
-                            <User size={24} className="text-slate-400" /> SOURCE D&apos;ENTRÉE : <span className="text-white bg-white/10 px-4 py-1.5 rounded-lg">{res.RES_Respondent}</span>
-                          </div>
-                      </div>
-
-                      {/* BLOC INDICATEUR SCORE & DÉCLENCHEUR PDCA (§10.2) */}
-                      <div className="flex flex-col items-center gap-10 shrink-0">
-                         <div className={`w-40 h-40 rounded-[3rem] flex flex-col items-center justify-center border-4 shadow-3xl transition-transform hover:rotate-6 ${isCritical ? 'bg-rose-600/10 text-rose-500 border-rose-500/50 shadow-[0_0_50px_rgba(244,63,94,0.3)]' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'}`}>
-                            <span className="text-7xl font-black italic leading-none tracking-tighter">{res.RES_Score}</span>
-                            <span className="text-[14px] font-black uppercase mt-2 tracking-[0.4em] leading-none opacity-50">/10</span>
-                         </div>
-
-                         {/* Action corrective : Réservée aux scores critiques non traités */}
-                         {isCritical && res.RES_Status === 'PENDING' && (
-                            <button 
-                              onClick={() => handleConvertToNC(res.RES_Id)}
-                              className="flex items-center gap-5 px-10 py-6 bg-rose-600 hover:bg-white hover:text-rose-600 text-white rounded-[2.5rem] font-black uppercase text-[12px] tracking-[0.4em] shadow-[0_20px_40px_rgba(244,63,94,0.4)] transition-all border-none cursor-pointer italic active:scale-95 group"
-                            >
-                               <AlertOctagon size={24} className="group-hover:scale-110 transition-transform" /> Ouvrir une NC §10.2
-                            </button>
-                         )}
-                         
-                         {/* Statut traité (Archivé dans le SMI) */}
-                         {res.RES_Status === 'PROCESSED' && (
-                            <div className="flex items-center gap-4 px-10 py-6 bg-emerald-500/10 rounded-[2.5rem] border-2 border-emerald-500/20 text-emerald-500 text-[12px] font-black uppercase italic tracking-[0.4em] shadow-inner">
-                               <CheckCircle size={24} /> Analysé & Traité SMI
-                            </div>
-                         )}
-                      </div>
-                   </div>
-                </div>
-              );
-           }) : (
-              /* ÉTAT VIDE : AUCUNE DONNÉE DÉTECTÉE DANS LE SCANNER */
-              <div className="py-40 text-center border-4 border-dashed border-white/5 rounded-[5rem] opacity-30 animate-in fade-in duration-1000 bg-[#151A2D]">
-                 <RefreshCcw className="mx-auto text-slate-500 mb-10 animate-spin-slow" size={80} strokeWidth={1} />
-                 <p className="text-slate-400 font-black uppercase italic tracking-[0.6em] text-2xl">Aucun flux de réponse détecté dans le scanner</p>
-              </div>
-           )}
+        
+        <div className="flex gap-4 items-center">
+            <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                <input 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-[10px] font-black uppercase outline-none focus:border-amber-500 italic"
+                    placeholder="FILTRAGE PAR MOT-CLÉ..."
+                    value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <button onClick={fetchResults} className="p-2 bg-white/5 rounded-xl border border-white/10 text-slate-400 hover:text-amber-500 transition-all cursor-pointer"><RefreshCcw size={16}/></button>
         </div>
+      </header>
+
+      {/* 🧭 NAVIGATION TACTIQUE */}
+      <div className="flex gap-2 mb-6 shrink-0 bg-black/20 p-1.5 rounded-2xl w-fit border border-white/5">
+        {['ALL', 'CLIENT', 'SUPPLIER', 'EMPLOYEE'].map(t => (
+          <button 
+            key={t} onClick={() => setFilter(t as any)}
+            className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase italic transition-all border-none cursor-pointer ${filter === t ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-500 hover:text-white bg-transparent'}`}
+          >
+            {t === 'ALL' ? 'Vue Globale' : t}
+          </button>
+        ))}
       </div>
-      
+
+      {/* 📊 GRILLE DE FEEDBACKS (FLEX-1) */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4 pr-2">
+        {filtered.length > 0 ? filtered.map((res) => {
+          const isCritical = res.RES_Score < 5;
+          const conf = targetConfig[res.RES_Target] || targetConfig.CLIENT;
+          return (
+            <div key={res.RES_Id} className={`p-5 rounded-3xl border transition-all flex justify-between items-center group ${isCritical ? 'bg-rose-900/5 border-rose-500/20 shadow-inner' : 'bg-white/2 border-white/5 hover:bg-white/5'}`}>
+              <div className="flex items-start gap-6">
+                <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center border ${isCritical ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'}`}>
+                  <span className="text-xl font-black italic leading-none">{res.RES_Score}</span>
+                  <span className="text-[7px] font-black opacity-50 uppercase">Score</span>
+                </div>
+                <div className="space-y-2 max-w-2xl">
+                   <div className="flex items-center gap-3">
+                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-1 border ${conf.border} ${conf.color} bg-black/40`}>{conf.icon} {conf.label}</span>
+                     <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest italic">{new Date(res.RES_Date).toLocaleDateString()} • ID: {res.RES_Id}</span>
+                   </div>
+                   <h3 className="text-sm font-black text-white italic m-0 uppercase leading-snug">&quot;{res.RES_Comment}&quot;</h3>
+                   <p className="text-[9px] text-slate-500 font-bold m-0 uppercase tracking-widest"><User size={10} className="inline mr-1"/> Source : {res.RES_Respondent}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                {isCritical && res.RES_Status === 'PENDING' ? (
+                  <button onClick={() => handleConvertToNC(res.RES_Id)} className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-white hover:text-rose-600 text-white rounded-xl font-black uppercase text-[9px] shadow-lg border-none cursor-pointer transition-all italic active:scale-95">
+                    <AlertOctagon size={14}/> Ouvrir NC §10.2
+                  </button>
+                ) : res.RES_Status === 'PROCESSED' ? (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl text-[8px] font-black uppercase italic shadow-inner">
+                    <CheckCircle size={14}/> SCELLÉ SMI
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          );
+        }) : (
+          <div className="h-full flex flex-col items-center justify-center opacity-20"><RefreshCcw className="animate-spin-slow mb-4" size={40}/><p className="text-[10px] font-black uppercase tracking-[0.5em]">Aucune donnée détectée</p></div>
+        )}
+      </div>
+
       <style jsx global>{`
-        ::-webkit-scrollbar { width: 0px; }
-        * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #fbbf24; }
       `}</style>
     </div>
   );
