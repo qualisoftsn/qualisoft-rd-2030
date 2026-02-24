@@ -7,13 +7,6 @@
  * 👥 MODULE : ANNUAIRE MASTER & MATRICE RACI (SDE KERNEL)
  * -------------------------------------------------------------------------
  * RÔLE : Gestion souveraine des identités et des habilitations §7.2 / §5.3.
- * -------------------------------------------------------------------------
- * FONCTIONNALITÉS AVANCÉES CONSOLIDÉES : 
- * - Multi-Tenant Detection (Strict & SSR-Safe) : Identifie l'accès local vs Global.
- * - Master Access Logic : Occulte TOTALEMENT l'admin Matrix sur les instances clients.
- * - RACI Monitoring : Vue d'ensemble des autorités par Site/Processus.
- * - CRUD SDE : Redirection pour modification et révocation active.
- * -------------------------------------------------------------------------
  * DESIGN : Elite High-Density / No-Scroll / Full-Viewport Isolation.
  * -------------------------------------------------------------------------
  */
@@ -74,6 +67,7 @@ export default function UsersPage() {
       setTenants(resTenants.data?.data || resTenants.data || []);
     } catch (e: any) { 
       toast.error("RUPTURE LIAISON RH : Échec de synchronisation SDE."); 
+      console.error("Fetch Data Error:", e);
     } finally { 
       setLoading(false); 
     }
@@ -112,14 +106,14 @@ export default function UsersPage() {
   };
 
   if (loading || !mounted) return (
-    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+    <div className="ml-72 w-[calc(100vw-18rem)] h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4 box-border">
       <Loader2 className="animate-spin text-blue-600" size={40} />
       <span className="text-[9px] font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse italic">Syncing SDE Identity Hub...</span>
     </div>
   );
 
   return (
-    <div className="ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden">
+    <div className="ml-72 w-[calc(100vw-18rem)] h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden box-border">
       <Toaster position="top-right" richColors theme="dark" />
 
       <header className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0">
@@ -140,7 +134,7 @@ export default function UsersPage() {
           {mounted && !isSubdomain && (
             <button 
               onClick={() => router.push('/dashboard/matrix-control')}
-              className="bg-white/5 hover:bg-white/10 px-6 py-2 rounded-xl text-[9px] font-black uppercase border border-white/10 transition-all flex items-center gap-3 italic text-slate-400"
+              className="bg-white/5 hover:bg-white/10 px-6 py-2 rounded-xl text-[9px] font-black uppercase border border-white/10 transition-all flex items-center gap-3 italic text-slate-400 cursor-pointer"
             >
               <LayoutGrid size={16} /> Matrix Control
             </button>
@@ -159,14 +153,14 @@ export default function UsersPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-4 gap-4 mb-6 shrink-0">
+      <div className="grid grid-cols-4 gap-4 mb-6 shrink-0 w-full">
         <KPIBox label="Effectif Scellé" value={stats.total} icon={<Database size={16}/>} color="blue" sub="Total Population" />
         <KPIBox label="Pilotes Qualifiés" value={stats.pilotes} icon={<Target size={16}/>} color="emerald" sub="Process Owners §5.3" />
         <KPIBox label="Autorités SDE" value={stats.admins} icon={<ShieldCheck size={16}/>} color="indigo" sub="SMI Privileges" />
         <KPIBox label="Statut Activation" value={`${Math.round((stats.active/stats.total)*100 || 0)}%`} icon={<Activity size={16}/>} color="blue" sub="Active Directory" />
       </div>
 
-      <div className="mb-6 shrink-0 relative">
+      <div className="mb-6 shrink-0 relative w-full">
         <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" />
         <input 
           value={search} onChange={e => setSearch(e.target.value)}
@@ -175,7 +169,7 @@ export default function UsersPage() {
         />
       </div>
 
-      <main className="flex-1 min-h-0 bg-[#151A2D] border border-white/5 rounded-[3rem] flex flex-col overflow-hidden shadow-4xl relative">
+      <main className="flex-1 min-h-0 bg-[#151A2D] border border-white/5 rounded-[3rem] flex flex-col overflow-hidden shadow-4xl relative w-full">
         <div className="absolute top-0 right-0 p-12 opacity-[0.02] pointer-events-none rotate-12">
           <Users size={450} />
         </div>
@@ -253,7 +247,7 @@ export default function UsersPage() {
         </div>
       </main>
 
-      <footer className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center opacity-30 shrink-0 italic">
+      <footer className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center opacity-30 shrink-0 italic w-full">
           <div className="flex items-center gap-5">
             <Fingerprint size={32} className="text-blue-600" />
             <div className="text-left leading-none">
@@ -282,7 +276,7 @@ function KPIBox({ label, value, icon, color, sub }: any) {
     indigo: "text-indigo-500 bg-indigo-500/5 border-indigo-500/10 hover:border-indigo-500/30" 
   };
   return (
-    <div className={`p-5 rounded-3xl border flex items-center justify-between shadow-2xl transition-all group ${c[color]}`}>
+    <div className={`p-5 rounded-3xl border flex items-center justify-between shadow-2xl transition-all group w-full ${c[color]}`}>
       <div className="flex items-center gap-4">
         <div className="p-3 bg-black/40 rounded-2xl group-hover:scale-110 transition-transform">{icon}</div>
         <div className="flex flex-col">
