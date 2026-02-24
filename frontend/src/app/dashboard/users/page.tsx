@@ -25,7 +25,6 @@ interface User {
   U_Site?: { S_Id: string; S_Name: string };
   U_OrgUnit?: { OU_Id: string; OU_Name: string };
   U_AssignedProcess?: { PR_Id: string; PR_Code: string; PR_Libelle: string };
-  U_TenantId?: string;
 }
 
 export default function UsersPage() {
@@ -77,7 +76,7 @@ export default function UsersPage() {
     return users.filter(u => {
       const content = `${u.U_FirstName} ${u.U_LastName} ${u.U_Email} ${u.U_Role} ${u.U_Site?.S_Name || ''}`.toLowerCase();
       const matchesSearch = content.includes(search.toLowerCase());
-      const uTenantId = u.U_TenantId || (u as any).tenantId;
+      const uTenantId = (u as any).U_TenantId || (u as any).tenantId || (u as any).T_Id;
       const matchesTenant = selectedTenant ? uTenantId === selectedTenant : true;
       return matchesSearch && matchesTenant;
     });
@@ -96,7 +95,7 @@ export default function UsersPage() {
   };
 
   if (loading || !mounted) return (
-    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4 box-border">
       <Loader2 className="animate-spin text-blue-600" size={40} />
       <span className="text-[9px] font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse italic">Synchronisons ...</span>
     </div>
@@ -129,7 +128,7 @@ export default function UsersPage() {
           <button onClick={fetchData} className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg active:scale-95 cursor-pointer">
             <RefreshCw size={16} />
           </button>
-          <button onClick={() => router.push('/dashboard/users/nouveau')} className="bg-blue-600 hover:bg-white hover:text-blue-600 px-8 py-3 rounded-xl text-[10px] font-black uppercase flex items-center gap-3 border-none transition-all cursor-pointer shadow-2xl shadow-blue-600/20 italic">
+          <button onClick={() => router.push('/dashboard/users/nouveau')} className="bg-blue-600 hover:bg-white hover:text-blue-600 px-8 py-3 rounded-xl text-[10px] font-black uppercase flex items-center gap-3 border-none transition-all cursor-pointer shadow-2xl shadow-blue-600/20 italic text-white">
             <UserPlus size={18} strokeWidth={3} /> Habiliter Nouvel Agent
           </button>
         </div>
@@ -145,7 +144,7 @@ export default function UsersPage() {
       <div className="flex gap-4 mb-6 shrink-0 w-full">
         <div className="flex-1 relative">
           <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="RECHERCHER (NOM, EMAIL, ROLE, SITE, PROCESSUS)..." className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-[11px] font-black uppercase outline-none focus:border-blue-600 focus:bg-white/10 transition-all italic tracking-wider" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="RECHERCHER (NOM, EMAIL, ROLE, SITE, PROCESSUS)..." className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-[11px] font-black uppercase outline-none focus:border-blue-600 focus:bg-white/10 transition-all italic tracking-wider text-white" />
         </div>
         {!isSubdomain && tenants.length > 0 && (
           <div className="w-1/3 relative">
@@ -170,52 +169,50 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-[11px]">
-              {filtered.map(user => (
-                <tr key={user.U_Id} className={`group hover:bg-blue-600/5 transition-all ${!user.U_IsActive ? 'opacity-30 grayscale' : ''}`}>
-                  <td className="px-8 py-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 rounded-xl bg-blue-600/10 flex items-center justify-center font-black text-blue-500 border border-blue-500/20 shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all">
-                        {user.U_FirstName?.[0] || '?'}{user.U_LastName?.[0] || '?'}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-black text-white uppercase italic tracking-tight text-sm">{user.U_FirstName} {user.U_LastName}</span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Mail size={12} className="text-slate-600" />
-                          <span className="text-[9px] text-slate-500 font-medium lowercase italic">{user.U_Email}</span>
+              {filtered.map(user => {
+                const uId = user.U_Id || (user as any).id;
+                return (
+                  <tr key={uId} className={`group hover:bg-blue-600/5 transition-all ${!user.U_IsActive ? 'opacity-30 grayscale' : ''}`}>
+                    <td className="px-8 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-xl bg-blue-600/10 flex items-center justify-center font-black text-blue-500 border border-blue-500/20 shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all">
+                          {user.U_FirstName?.[0] || '?'}{user.U_LastName?.[0] || '?'}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-black text-white uppercase italic tracking-tight text-sm">{user.U_FirstName} {user.U_LastName}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Mail size={12} className="text-slate-600" />
+                            <span className="text-[9px] text-slate-500 font-medium lowercase italic">{user.U_Email}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4 text-center">
-                    <span className={`px-3 py-1 rounded-lg border text-[9px] font-black uppercase italic ${user.U_Role === 'SUPER_ADMIN' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.1)]' : user.U_Role === 'PILOTE' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-blue-500/10 border-blue-500/30 text-blue-400'}`}>
-                      {user.U_Role?.replace('_', ' ') || 'USER'}
-                    </span>
-                  </td>
-                  <td className="px-8 py-4">
-                    <div className="flex flex-col gap-2">
-                       <div className="flex items-center gap-2 text-slate-400 font-black uppercase text-[9px] italic">
-                         <Building size={14} className="text-slate-600" />
-                         <span>{user.U_Site?.S_Name || 'ROOT'} / {user.U_OrgUnit?.OU_Name || 'NON SCELLÉ'}</span>
-                       </div>
-                       {user.U_AssignedProcess && (
-                         <div className="flex items-center gap-2 text-blue-500 font-black italic text-[9px] uppercase tracking-tighter bg-blue-500/5 w-fit px-2 py-0.5 rounded-md border border-blue-500/10">
-                           <GitBranch size={12}/> {user.U_AssignedProcess.PR_Code} — {user.U_AssignedProcess.PR_Libelle}
+                    </td>
+                    <td className="px-8 py-4 text-center">
+                      <span className={`px-3 py-1 rounded-lg border text-[9px] font-black uppercase italic ${user.U_Role === 'SUPER_ADMIN' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-blue-500/10 border-blue-500/30 text-blue-400'}`}>
+                        {user.U_Role?.replace('_', ' ') || 'USER'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="flex flex-col gap-2">
+                         <div className="flex items-center gap-2 text-slate-400 font-black uppercase text-[9px] italic">
+                           <Building size={14} className="text-slate-600" />
+                           <span>{user.U_Site?.S_Name || 'ROOT'} / {user.U_OrgUnit?.OU_Name || 'NON SCELLÉ'}</span>
                          </div>
-                       )}
-                    </div>
-                  </td>
-                  <td className="px-8 py-4 text-right">
-                    <div className="flex justify-end gap-3">
-                      <button onClick={() => router.push(`/dashboard/users/${user.U_Id}`)} className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90">
-                        <Edit size={18}/>
-                      </button>
-                      <button onClick={() => handleDelete(user.U_Id)} className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/10 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90">
-                        {isDeleting === user.U_Id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18}/>}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 text-right">
+                      <div className="flex justify-end gap-3">
+                        <button onClick={() => router.push(`/dashboard/users/${uId}`)} className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90">
+                          <Edit size={18}/>
+                        </button>
+                        <button onClick={() => handleDelete(uId)} className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/10 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90">
+                          {isDeleting === uId ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18}/>}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -224,7 +221,7 @@ export default function UsersPage() {
           <div className="flex items-center gap-5">
             <Fingerprint size={32} className="text-blue-600" />
             <div className="text-left leading-none">
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] m-0 mb-1 leading-none">RH Suivi</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] m-0 mb-1 leading-none text-white">RH Suivi</p>
               <p className="text-[7px] font-bold text-slate-700 uppercase tracking-widest m-0 leading-none">Elite Resource Planner Qualisoft</p>
             </div>
           </div>
