@@ -131,7 +131,7 @@ export default function UsersPage() {
   if (loading || !mounted) return (
     <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4 box-border">
       <Loader2 className="animate-spin text-blue-600" size={40} />
-      <span className="text-[9px] font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse italic">Syncing SDE Identity Hub...</span>
+      <span className="text-[9px] font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse italic">Synchronisons ...</span>
     </div>
   );
 
@@ -146,11 +146,11 @@ export default function UsersPage() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-4">
               <h1 className="text-3xl font-black uppercase tracking-tighter m-0 flex items-center gap-3">
-                <Users className="text-blue-500" size={32}/> Annuaire <span className="text-blue-500">RACI</span>
+                <Users className="text-blue-500" size={32}/> Liste des <span className="text-blue-500">Collaborateurs</span>
               </h1>
               <div className={`px-3 py-1 rounded-full border flex items-center gap-2 text-[8px] font-black uppercase tracking-widest ${isSubdomain ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'}`}>
                 {isSubdomain ? <Lock size={10} /> : <Globe size={10} />}
-                {isSubdomain ? 'Tenant-Specific Node (Isolated)' : 'Matrix Master Access (Root)'}
+                {isSubdomain ? 'Tenant-Specific Node (Isolated)' : 'QS Matrix'}
               </div>
             </div>
             <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.4em] m-0 italic">ISO 9001 §7.2 • Qualification & Habilitation des Ressources</p>
@@ -162,7 +162,7 @@ export default function UsersPage() {
                 onClick={() => router.push('/dashboard/matrix-control')}
                 className="bg-white/5 hover:bg-white/10 px-6 py-2 rounded-xl text-[9px] font-black uppercase border border-white/10 transition-all flex items-center gap-3 italic text-slate-400 cursor-pointer"
               >
-                <LayoutGrid size={16} /> Matrix Control
+                <LayoutGrid size={16} /> QS Control
               </button>
             )}
             
@@ -192,7 +192,7 @@ export default function UsersPage() {
           <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input 
             value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="RECHERCHER DANS LE MAILLAGE HUMAIN (NOM, EMAIL, ROLE, SITE, PROCESSUS)..."
+            placeholder="RECHERCHER (NOM, EMAIL, ROLE, SITE, PROCESSUS)..."
             className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-[11px] font-black uppercase outline-none focus:border-blue-600 focus:bg-white/10 transition-all italic tracking-wider"
           />
         </div>
@@ -284,15 +284,15 @@ export default function UsersPage() {
             <div className="flex items-center gap-5">
               <Fingerprint size={32} className="text-blue-600" />
               <div className="text-left leading-none">
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] m-0 mb-1 leading-none">RH Sovereign Matrix</p>
-                <p className="text-[7px] font-bold text-slate-700 uppercase tracking-widest m-0 leading-none">Elite Resource Planner • ISO 9001 Integration</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] m-0 mb-1 leading-none">RH Suivi</p>
+                <p className="text-[7px] font-bold text-slate-700 uppercase tracking-widest m-0 leading-none">Elite Resource Planner Qualisoft</p>
               </div>
             </div>
             
             <div className="flex items-center gap-8">
               <div className="flex flex-col items-end">
-                 <span className="text-[9px] font-black uppercase text-blue-500">Security Node: {isSubdomain ? 'Subdomain Node' : 'Matrix Root'}</span>
-                 <span className="text-[7px] text-slate-600">Session JWT Cryptée §SDE</span>
+                 <span className="text-[9px] font-black uppercase text-blue-500">Lien de sécurité: {isSubdomain ? 'Subdomain Node' : 'Matrix Root'}</span>
+                 <span className="text-[7px] text-slate-600">Session Cryptée §QS</span>
               </div>
               <Activity size={20} className="text-emerald-500 animate-pulse" />
             </div>
