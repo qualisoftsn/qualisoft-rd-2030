@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/exhaustive-deps */
+//* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * 🎯 MODULE : TUNNEL DE QUALIFICATION & HABILITATION (§7.2)
+ * 🎯 MODULE : ÉDITION & RÉATTRIBUTION DES COMPÉTENCES (§7.2)
  * -------------------------------------------------------------------------
- * RÔLE : Enregistrement et certification des compétences agent.
- * PHILOSOPHIE : Isolation stricte du référentiel par Tenant.
- * DESIGN : One-Pager Form / Elite SDE Referential Strict / No-Scroll Absolu.
+ * RÔLE : Modification du dossier agent et transfert de responsabilités.
+ * PHILOSOPHIE : Traçabilité absolue, gestion du statut (Active/Suspendu).
+ * DESIGN : Elite High-Density / No-Scroll Absolu / Full-Viewport Isolation.
  * -------------------------------------------------------------------------
  */
 
@@ -16,14 +16,17 @@
 import apiClient from "@/core/api/api-client";
 import {
   ArrowLeft, Building2, Fingerprint, GitBranch, Info, Layers, Loader2,
-  Lock, Mail, MapPin, Save, Shield, ShieldAlert, ShieldCheck, Target, UserPlus,
+  Lock, Mail, MapPin, Save, Shield, ShieldAlert, ShieldCheck, Target, UserCheck, UserX, Power
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast, Toaster } from "sonner";
 
-export default function NewUserPage() {
+export default function EditUserPage() {
   const router = useRouter();
+  const params = useParams();
+  const userId = params?.id;
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -34,40 +37,61 @@ export default function NewUserPage() {
     processes: [] as any[],
   });
 
-  // Structure de données conforme elite-sde.ts
+  // Structure de données conforme elite-sde.ts (sans le mot de passe pour l'édition)
   const [formData, setFormData] = useState({
     U_FirstName: "",
     U_LastName: "",
     U_Email: "",
-    U_Password: "qs@20252026",
     U_Role: "USER" as any,
     U_SiteId: "",
     U_OrgUnitId: "",
     U_AssignedProcessId: "",
+    U_IsActive: true,
   });
 
+  /**
+   * 📡 HYDRATATION DU CONTEXTE (Référentiels + Profil Agent)
+   */
   const loadData = useCallback(async () => {
+    if (!userId) return;
     try {
       setLoading(true);
-      const [s, o, p] = await Promise.all([
+      const [s, o, p, userRes] = await Promise.all([
         apiClient.get("/sites"),
         apiClient.get("/org-units"),
         apiClient.get("/processus"),
+        apiClient.get(`/users/${userId}`), // Hydratation du profil
       ]);
+
+      const fetchedUser = userRes.data?.data || userRes.data;
 
       setReferentials({
         sites: (s.data?.data || s.data || []).filter((x: any) => x.S_IsActive),
         orgUnits: (o.data?.data || o.data || []).filter((x: any) => x.OU_IsActive),
         processes: (p.data?.data || p.data || []).filter((x: any) => x.PR_IsActive),
       });
+
+      // Mappage rigoureux des données reçues vers le formulaire
+      setFormData({
+        U_FirstName: fetchedUser.U_FirstName || "",
+        U_LastName: fetchedUser.U_LastName || "",
+        U_Email: fetchedUser.U_Email || "",
+        U_Role: fetchedUser.U_Role || "USER",
+        U_SiteId: fetchedUser.U_SiteId || "",
+        U_OrgUnitId: fetchedUser.U_OrgUnitId || "",
+        U_AssignedProcessId: fetchedUser.U_AssignedProcessId || "",
+        U_IsActive: fetchedUser.U_IsActive ?? true,
+      });
+
     } catch (e: any) {
-      toast.error("ÉCHEC RÉFÉRENTIELS : Impossible de sceller la matrice de structure.");
+      toast.error("ÉCHEC DE CONNEXION : Impossible de rapatrier le dossier agent.");
+      router.push('/dashboard/users');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId, router]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const filteredUnits = useMemo(() => 
       referentials.orgUnits.filter((u: any) => u.OU_SiteId === formData.U_SiteId),
@@ -75,40 +99,36 @@ export default function NewUserPage() {
   );
 
   /**
-   * 💾 VALIDATION SDE & SCELLAGE DU PAYLOAD
+   * 💾 MISE À JOUR SDE & PAYLOAD SANITIZATION
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (formData.U_Role === "PILOTE" && !formData.U_AssignedProcessId) {
-      return toast.warning("HABILITATION IMPOSSIBLE : Un Pilote doit être affecté à un cockpit cockpit (§5.3)");
+      return toast.warning("VIOLATION DE PROTOCOLE : Un Pilote doit être lié à un processus (§5.3)");
     }
 
     setSubmitting(true);
-    const tid = toast.loading("Scellage de l'habilitation agent en cours...");
+    const tid = toast.loading("Mise à jour de la matrice d'autorité...");
 
-    // Nettoyage Strict du Payload pour éviter les erreurs 400 Bad Request
+    // Nettoyage Strict du Payload (Remplacement des "" par null pour libérer les relations Prisma)
     const payload: any = {
       U_FirstName: formData.U_FirstName,
       U_LastName: formData.U_LastName,
       U_Email: formData.U_Email.toLowerCase().trim(),
-      U_Password: formData.U_Password,
       U_Role: formData.U_Role,
-      U_IsActive: true,
+      U_IsActive: formData.U_IsActive,
+      U_SiteId: formData.U_SiteId || null,
+      U_OrgUnitId: formData.U_OrgUnitId || null,
+      U_AssignedProcessId: (formData.U_Role === 'PILOTE' && formData.U_AssignedProcessId) ? formData.U_AssignedProcessId : null,
     };
 
-    if (formData.U_SiteId) payload.U_SiteId = formData.U_SiteId;
-    if (formData.U_OrgUnitId) payload.U_OrgUnitId = formData.U_OrgUnitId;
-    if (formData.U_AssignedProcessId && formData.U_Role === 'PILOTE') {
-      payload.U_AssignedProcessId = formData.U_AssignedProcessId;
-    }
-
     try {
-      await apiClient.post("/users", payload);
-      toast.success("AGENT QUALIFIÉ ET HABILITÉ DANS LE SMI", { id: tid });
+      await apiClient.put(`/users/${userId}`, payload);
+      toast.success("DOSSIER AGENT SYNCHRONISÉ", { id: tid });
       setTimeout(() => router.push("/dashboard/users"), 1200);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "ERREUR CRITIQUE SDE : Conflit d'indexation ou données manquantes.";
+      const errorMsg = err.response?.data?.message || "ERREUR DE SYNCHRONISATION : L'agent a peut-être des dépendances bloquantes.";
       toast.error(errorMsg, { id: tid });
     } finally {
       setSubmitting(false);
@@ -121,7 +141,7 @@ export default function NewUserPage() {
         <Loader2 className="animate-spin" size={60} strokeWidth={1} />
         <Fingerprint className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20" size={24} />
       </div>
-      <span className="text-[10px] uppercase tracking-[0.5em] animate-pulse">Initialisation des Matrices de Confiance...</span>
+      <span className="text-[10px] uppercase tracking-[0.5em] animate-pulse">Extraction du Dossier Agent...</span>
     </div>
   );
 
@@ -141,16 +161,20 @@ export default function NewUserPage() {
           </button>
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tighter m-0 italic">
-              Habilitation <span className="text-blue-500">Agent</span>
+              Modification <span className="text-blue-500">Agent</span>
             </h1>
             <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.5em] m-0 italic">
-              Dossier de Compétence Personnel §7.2
+              Mise à jour du Référentiel Compétences §7.2
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4 px-6 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
-          <ShieldCheck className="text-emerald-500 animate-pulse" size={24} />
-          <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest italic">SDE Security Active</span>
+        
+        {/* INDICATEUR DYNAMIQUE D'ÉTAT (ACTIF / SUSPENDU) */}
+        <div className={`flex items-center gap-4 px-6 py-2 rounded-2xl border transition-all ${formData.U_IsActive ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+          {formData.U_IsActive ? <UserCheck className="text-emerald-500 animate-pulse" size={20} /> : <UserX className="text-red-500" size={20} />}
+          <span className={`text-[9px] font-black uppercase tracking-widest italic ${formData.U_IsActive ? 'text-emerald-500' : 'text-red-500'}`}>
+            {formData.U_IsActive ? 'Agent Opérationnel' : 'Accès Révoqué'}
+          </span>
         </div>
       </header>
 
@@ -170,7 +194,7 @@ export default function NewUserPage() {
               <div className="space-y-10">
                 <section className="space-y-6">
                   <h3 className="text-[11px] font-black uppercase italic text-blue-500 flex items-center gap-3 border-b border-white/5 pb-3 tracking-widest">
-                    <UserPlus size={18} /> 01. Identité Civile & Master Key
+                    <Fingerprint size={18} /> 01. Profil Sécurisé
                   </h3>
                   <div className="grid grid-cols-2 gap-6">
                     <Field
@@ -196,17 +220,21 @@ export default function NewUserPage() {
                     disableUppercase={true} 
                   />
 
-                  <div className="bg-blue-500/5 border border-blue-500/10 p-6 rounded-4xl flex flex-col gap-3 relative overflow-hidden group hover:border-blue-500/30 transition-all">
-                    <Lock className="absolute -right-4 -bottom-4 text-blue-500/10 group-hover:scale-125 transition-transform" size={100} />
-                    <p className="text-[8px] font-black uppercase text-blue-500 italic tracking-[0.3em] flex items-center gap-2">
-                      <ShieldAlert size={12} /> Clé d&apos;accès Maître Initiale
+                  {/* CONTRÔLE D'ACCÈS (REMPLACE LE MOT DE PASSE EN MODE ÉDITION) */}
+                  <div className={`border p-6 rounded-4xl flex flex-col gap-4 relative overflow-hidden transition-all ${formData.U_IsActive ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-red-500/5 border-red-500/10'}`}>
+                    <Power className={`absolute -right-4 -bottom-4 opacity-10 ${formData.U_IsActive ? 'text-emerald-500' : 'text-red-500'}`} size={100} />
+                    <p className={`text-[8px] font-black uppercase italic tracking-[0.3em] flex items-center gap-2 ${formData.U_IsActive ? 'text-emerald-500' : 'text-red-500'}`}>
+                      <ShieldAlert size={12} /> Contrôle SDE : Activation Agent
                     </p>
-                    <span className="text-2xl font-mono font-black text-white tracking-widest">
-                      {formData.U_Password}
-                    </span>
-                    <p className="text-[7px] text-slate-500 italic mt-1 leading-relaxed uppercase">
-                      L&apos;agent devra réinitialiser ce jeton dès sa première <br /> connexion cryptée au SMI.
-                    </p>
+                    <div className="flex items-center gap-4">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" checked={formData.U_IsActive} onChange={(e) => setFormData({ ...formData, U_IsActive: e.target.checked })} />
+                        <div className="w-14 h-7 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                      </label>
+                      <span className="text-[10px] text-white font-black uppercase italic tracking-widest">
+                        {formData.U_IsActive ? "Accès Master Autorisé" : "Compte Suspendu (Read-Only)"}
+                      </span>
+                    </div>
                   </div>
                 </section>
               </div>
@@ -215,7 +243,7 @@ export default function NewUserPage() {
               <div className="space-y-10">
                 <section className="space-y-6">
                   <h3 className="text-[11px] font-black uppercase italic text-emerald-500 flex items-center gap-3 border-b border-white/5 pb-3 tracking-widest">
-                    <GitBranch size={18} /> 02. Qualification SMI & Autorité
+                    <GitBranch size={18} /> 02. Redéploiement d&apos;Autorité
                   </h3>
                   <div className="space-y-5">
                     <Select
@@ -235,10 +263,13 @@ export default function NewUserPage() {
                       <Select
                         label="Site de Rattachement"
                         value={formData.U_SiteId}
-                        onChange={(v: any) => setFormData({ ...formData, U_SiteId: v })}
+                        onChange={(v: any) => {
+                          // Si on change de site, on purge l'unité organisationnelle car elle n'appartient plus au même parent
+                          setFormData({ ...formData, U_SiteId: v, U_OrgUnitId: "" });
+                        }}
                         icon={<MapPin size={14} />}
                       >
-                        <option className="bg-[#151A2D] text-white" value="">CHOISIR SITE...</option>
+                        <option className="bg-[#151A2D] text-white" value="">AUCUN SITE AFFECTÉ</option>
                         {referentials.sites.map((s: any) => (
                           <option className="bg-[#151A2D] text-white" key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>
                         ))}
@@ -251,7 +282,7 @@ export default function NewUserPage() {
                         disabled={!formData.U_SiteId}
                         icon={<Layers size={14} />}
                       >
-                        <option className="bg-[#151A2D] text-white" value="">CHOISIR UNITÉ...</option>
+                        <option className="bg-[#151A2D] text-white" value="">AUCUNE UNITÉ AFFECTÉE</option>
                         {filteredUnits.map((u: any) => (
                           <option className="bg-[#151A2D] text-white" key={u.OU_Id} value={u.OU_Id}>{u.OU_Name}</option>
                         ))}
@@ -265,7 +296,7 @@ export default function NewUserPage() {
                         onChange={(v: any) => setFormData({ ...formData, U_AssignedProcessId: v })}
                         icon={<GitBranch size={14} />}
                       >
-                        <option className="bg-[#151A2D] text-white" value="">AFFECTATION DIRECTE...</option>
+                        <option className="bg-[#151A2D] text-white" value="">DÉTACHÉ (SANS COCKPIT)</option>
                         {referentials.processes.map((p: any) => (
                           <option className="bg-[#151A2D] text-white" key={p.PR_Id} value={p.PR_Id}>{p.PR_Code} - {p.PR_Libelle}</option>
                         ))}
@@ -280,7 +311,7 @@ export default function NewUserPage() {
             </div>
           </div>
 
-          {/* ACTIONS & VALIDATION FIXES (Shrink-0 pour rester collé en bas de la carte) */}
+          {/* ACTIONS & VALIDATION FIXES (Shrink-0) */}
           <footer className="shrink-0 p-8 border-t border-white/5 bg-black/20 flex flex-col items-center gap-4">
             <button
               disabled={submitting}
@@ -288,7 +319,7 @@ export default function NewUserPage() {
               className="bg-blue-600 hover:bg-white hover:text-blue-600 px-16 py-4 rounded-2xl font-black uppercase text-[11px] italic shadow-[0_20px_60px_rgba(37,99,235,0.3)] flex items-center gap-4 cursor-pointer border-none transition-all active:scale-95 group"
             >
               {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save className="group-hover:rotate-12 transition-transform" size={20} />}
-              Valider Agent
+              Valider les Modifications
             </button>
             <div className="flex items-center gap-6 opacity-40">
               <span className="text-[8px] font-black uppercase text-slate-400 flex items-center gap-2 italic tracking-[0.4em]">
@@ -296,7 +327,7 @@ export default function NewUserPage() {
               </span>
               <span className="h-1 w-1 bg-slate-700 rounded-full" />
               <span className="text-[8px] font-black uppercase text-slate-400 flex items-center gap-2 italic tracking-[0.4em]">
-                Audit Trail : ISO 9001:2015
+                Mise à jour : ISO 9001:2015
               </span>
             </div>
           </footer>

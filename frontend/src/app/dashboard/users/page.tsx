@@ -11,6 +11,7 @@
  * - Multi-Tenant Detection (Strict & SSR-Safe) : Identifie l'accès local vs Global.
  * - Master Access Logic : Occulte TOTALEMENT l'admin Matrix sur les instances clients.
  * - RACI Monitoring : Vue d'ensemble des autorités par Site/Processus.
+ * - CRUD SDE : Redirection pour modification et révocation active.
  * -------------------------------------------------------------------------
  * DESIGN : Elite High-Density / No-Scroll / Full-Viewport Isolation.
  * -------------------------------------------------------------------------
@@ -22,7 +23,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Users, UserPlus, Mail, Shield, MapPin, Trash2, Loader2, Search, X, 
   Save, ShieldCheck, Building, Filter, GitBranch, ChevronRight, Activity, Database,
-  Fingerprint, Target, AlertCircle, RefreshCw, LayoutGrid, Globe, Lock
+  Fingerprint, Target, AlertCircle, RefreshCw, LayoutGrid, Globe, Lock, Edit
 } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
 import { toast, Toaster } from 'sonner';
@@ -59,10 +60,10 @@ export default function UsersPage() {
   useEffect(() => {
     setMounted(true);
     if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      // Domaines racines stricts. Le reste est automatiquement un Tenant.
-      const rootDomains = ['qualisoft.sn', 'www.qualisoft.sn', 'localhost', '127.0.0.1'];
-      setIsSubdomain(!rootDomains.includes(host));
+      const hostname = window.location.hostname;
+      // Domaines racines stricts. Le reste (comme sagam.qualisoft.sn) est un Tenant.
+      const isRootDomain = hostname === 'qualisoft.sn' || hostname === 'www.qualisoft.sn' || hostname === 'localhost' || hostname === '127.0.0.1';
+      setIsSubdomain(!isRootDomain);
     }
   }, []);
 
@@ -163,7 +164,7 @@ export default function UsersPage() {
             </button>
           )}
           
-          <button onClick={fetchData} className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg active:scale-95">
+          <button onClick={fetchData} className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg active:scale-95 cursor-pointer">
             <RefreshCw size={16} />
           </button>
           
@@ -200,7 +201,7 @@ export default function UsersPage() {
           <Users size={450} />
         </div>
         
-        <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
+        <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10 w-full">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-[#151A2D]/95 backdrop-blur-md z-20 border-b border-white/10 shadow-sm">
               <tr className="text-[8px] text-slate-500 uppercase font-black italic tracking-[0.2em]">
@@ -251,7 +252,11 @@ export default function UsersPage() {
                   </td>
                   <td className="px-8 py-4 text-right">
                     <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
-                      <button className="p-3 bg-white/5 rounded-xl text-slate-500 hover:text-blue-500 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90">
+                      {/* 🔄 ACTION CRUD : REDIRECTION VERS MODIFICATION */}
+                      <button 
+                        onClick={() => router.push(`/dashboard/users/${user.U_Id}`)}
+                        className="p-3 bg-white/5 rounded-xl text-slate-500 hover:text-blue-500 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90"
+                      >
                         <ChevronRight size={18}/>
                       </button>
                       <button 
