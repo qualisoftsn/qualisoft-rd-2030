@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+//* eslint-disable react/no-unescaped-entities */
 
 /**
  * 🎯 MODULE : TUNNEL DE QUALIFICATION & HABILITATION (§7.2)
@@ -27,14 +28,12 @@ export default function NewUserPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Référentiels scellés
   const [referentials, setReferentials] = useState({
     sites: [] as any[],
     orgUnits: [] as any[],
     processes: [] as any[],
   });
 
-  // Structure de données conforme elite-sde.ts
   const [formData, setFormData] = useState({
     U_FirstName: "",
     U_LastName: "",
@@ -74,9 +73,6 @@ export default function NewUserPage() {
     [formData.U_SiteId, referentials.orgUnits]
   );
 
-  /**
-   * 💾 VALIDATION SDE & SCELLAGE DU PAYLOAD
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -87,7 +83,6 @@ export default function NewUserPage() {
     setSubmitting(true);
     const tid = toast.loading("Scellage de l'habilitation agent en cours...");
 
-    // Nettoyage Strict du Payload pour éviter les erreurs 400 Bad Request
     const payload: any = {
       U_FirstName: formData.U_FirstName,
       U_LastName: formData.U_LastName,
@@ -129,7 +124,6 @@ export default function NewUserPage() {
     <div className="ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-8 overflow-hidden">
       <Toaster position="top-right" richColors theme="dark" />
 
-      {/* 🔝 HEADER D'AUTORITÉ (Shrink-0) */}
       <header className="flex justify-between items-center border-b border-white/10 pb-6 mb-6 shrink-0">
         <div className="flex items-center gap-6">
           <button
@@ -154,19 +148,15 @@ export default function NewUserPage() {
         </div>
       </header>
 
-      {/* 📋 FORMULAIRE HAUTE DENSITÉ FULL-WIDTH */}
       <main className="flex-1 min-h-0 flex flex-col bg-[#151A2D] border border-white/5 rounded-[4rem] relative shadow-4xl overflow-hidden w-full">
         <div className="absolute top-0 right-0 p-20 opacity-[0.03] pointer-events-none">
           <Fingerprint size={500} />
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col h-full w-full relative z-10">
-          
-          {/* ZONE SCROLLABLE - LARGEUR MAXIMALE (w-full) */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-12">
             <div className="w-full grid grid-cols-2 gap-16 px-4">
               
-              {/* COL 1 : IDENTITÉ & ACCÈS */}
               <div className="space-y-10">
                 <section className="space-y-6">
                   <h3 className="text-[11px] font-black uppercase italic text-blue-500 flex items-center gap-3 border-b border-white/5 pb-3 tracking-widest">
@@ -186,7 +176,6 @@ export default function NewUserPage() {
                       icon={<Target size={14} />}
                     />
                   </div>
-                  {/* CHAMP EMAIL AVEC DISABLE UPPERCASE */}
                   <Field
                     label="Email Professionnel (Identifiant SDE) *"
                     value={formData.U_Email}
@@ -211,7 +200,6 @@ export default function NewUserPage() {
                 </section>
               </div>
 
-              {/* COL 2 : QUALIFICATION & PÉRIMÈTRE */}
               <div className="space-y-10">
                 <section className="space-y-6">
                   <h3 className="text-[11px] font-black uppercase italic text-emerald-500 flex items-center gap-3 border-b border-white/5 pb-3 tracking-widest">
@@ -280,7 +268,6 @@ export default function NewUserPage() {
             </div>
           </div>
 
-          {/* ACTIONS & VALIDATION FIXES (Shrink-0 pour rester collé en bas de la carte) */}
           <footer className="shrink-0 p-8 border-t border-white/5 bg-black/20 flex flex-col items-center gap-4">
             <button
               disabled={submitting}
@@ -303,7 +290,6 @@ export default function NewUserPage() {
         </form>
       </main>
 
-      {/* FOOTER BAS DE PAGE (Shrink-0) */}
       <footer className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center opacity-20 shrink-0 italic">
         <div className="flex items-center gap-4">
           <Fingerprint size={28} className="text-blue-600" />
@@ -326,9 +312,6 @@ export default function NewUserPage() {
   );
 }
 
-/**
- * 🧱 COMPOSANTS D'INTERFACE SDE
- */
 function Field({ label, value, onChange, type = "text", icon, disableUppercase = false }: any) {
   return (
     <div className="space-y-2 text-left group">

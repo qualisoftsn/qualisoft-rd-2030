@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 //* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+//* eslint-disable react/no-unescaped-entities */
 
 /**
  * 🎯 MODULE : ÉDITION & RÉATTRIBUTION DES COMPÉTENCES (§7.2)
@@ -16,7 +17,7 @@
 import apiClient from "@/core/api/api-client";
 import {
   ArrowLeft, Building2, Fingerprint, GitBranch, Info, Layers, Loader2,
-  Lock, Mail, MapPin, Save, Shield, ShieldAlert, ShieldCheck, Target, UserCheck, UserX, Power
+  Mail, MapPin, Save, Shield, ShieldAlert, Target, UserCheck, UserX, Power
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -30,14 +31,12 @@ export default function EditUserPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Référentiels scellés
   const [referentials, setReferentials] = useState({
     sites: [] as any[],
     orgUnits: [] as any[],
     processes: [] as any[],
   });
 
-  // Structure de données conforme elite-sde.ts (sans le mot de passe pour l'édition)
   const [formData, setFormData] = useState({
     U_FirstName: "",
     U_LastName: "",
@@ -49,9 +48,6 @@ export default function EditUserPage() {
     U_IsActive: true,
   });
 
-  /**
-   * 📡 HYDRATATION DU CONTEXTE (Référentiels + Profil Agent)
-   */
   const loadData = useCallback(async () => {
     if (!userId) return;
     try {
@@ -60,7 +56,7 @@ export default function EditUserPage() {
         apiClient.get("/sites"),
         apiClient.get("/org-units"),
         apiClient.get("/processus"),
-        apiClient.get(`/users/${userId}`), // Hydratation du profil
+        apiClient.get(`/users/${userId}`), 
       ]);
 
       const fetchedUser = userRes.data?.data || userRes.data;
@@ -71,7 +67,6 @@ export default function EditUserPage() {
         processes: (p.data?.data || p.data || []).filter((x: any) => x.PR_IsActive),
       });
 
-      // Mappage rigoureux des données reçues vers le formulaire
       setFormData({
         U_FirstName: fetchedUser.U_FirstName || "",
         U_LastName: fetchedUser.U_LastName || "",
@@ -98,9 +93,6 @@ export default function EditUserPage() {
     [formData.U_SiteId, referentials.orgUnits]
   );
 
-  /**
-   * 💾 MISE À JOUR SDE & PAYLOAD SANITIZATION
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -111,7 +103,6 @@ export default function EditUserPage() {
     setSubmitting(true);
     const tid = toast.loading("Mise à jour de la matrice d'autorité...");
 
-    // Nettoyage Strict du Payload (Remplacement des "" par null pour libérer les relations Prisma)
     const payload: any = {
       U_FirstName: formData.U_FirstName,
       U_LastName: formData.U_LastName,
@@ -149,7 +140,6 @@ export default function EditUserPage() {
     <div className="ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-8 overflow-hidden">
       <Toaster position="top-right" richColors theme="dark" />
 
-      {/* 🔝 HEADER D'AUTORITÉ (Shrink-0) */}
       <header className="flex justify-between items-center border-b border-white/10 pb-6 mb-6 shrink-0">
         <div className="flex items-center gap-6">
           <button
@@ -169,7 +159,6 @@ export default function EditUserPage() {
           </div>
         </div>
         
-        {/* INDICATEUR DYNAMIQUE D'ÉTAT (ACTIF / SUSPENDU) */}
         <div className={`flex items-center gap-4 px-6 py-2 rounded-2xl border transition-all ${formData.U_IsActive ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
           {formData.U_IsActive ? <UserCheck className="text-emerald-500 animate-pulse" size={20} /> : <UserX className="text-red-500" size={20} />}
           <span className={`text-[9px] font-black uppercase tracking-widest italic ${formData.U_IsActive ? 'text-emerald-500' : 'text-red-500'}`}>
@@ -178,19 +167,15 @@ export default function EditUserPage() {
         </div>
       </header>
 
-      {/* 📋 FORMULAIRE HAUTE DENSITÉ FULL-WIDTH */}
       <main className="flex-1 min-h-0 flex flex-col bg-[#151A2D] border border-white/5 rounded-[4rem] relative shadow-4xl overflow-hidden w-full">
         <div className="absolute top-0 right-0 p-20 opacity-[0.03] pointer-events-none">
           <Fingerprint size={500} />
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col h-full w-full relative z-10">
-          
-          {/* ZONE SCROLLABLE - LARGEUR MAXIMALE (w-full) */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-12">
             <div className="w-full grid grid-cols-2 gap-16 px-4">
               
-              {/* COL 1 : IDENTITÉ & ACCÈS */}
               <div className="space-y-10">
                 <section className="space-y-6">
                   <h3 className="text-[11px] font-black uppercase italic text-blue-500 flex items-center gap-3 border-b border-white/5 pb-3 tracking-widest">
@@ -210,7 +195,6 @@ export default function EditUserPage() {
                       icon={<Target size={14} />}
                     />
                   </div>
-                  {/* CHAMP EMAIL AVEC DISABLE UPPERCASE */}
                   <Field
                     label="Email Professionnel (Identifiant SDE) *"
                     value={formData.U_Email}
@@ -220,7 +204,6 @@ export default function EditUserPage() {
                     disableUppercase={true} 
                   />
 
-                  {/* CONTRÔLE D'ACCÈS (REMPLACE LE MOT DE PASSE EN MODE ÉDITION) */}
                   <div className={`border p-6 rounded-4xl flex flex-col gap-4 relative overflow-hidden transition-all ${formData.U_IsActive ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-red-500/5 border-red-500/10'}`}>
                     <Power className={`absolute -right-4 -bottom-4 opacity-10 ${formData.U_IsActive ? 'text-emerald-500' : 'text-red-500'}`} size={100} />
                     <p className={`text-[8px] font-black uppercase italic tracking-[0.3em] flex items-center gap-2 ${formData.U_IsActive ? 'text-emerald-500' : 'text-red-500'}`}>
@@ -239,7 +222,6 @@ export default function EditUserPage() {
                 </section>
               </div>
 
-              {/* COL 2 : QUALIFICATION & PÉRIMÈTRE */}
               <div className="space-y-10">
                 <section className="space-y-6">
                   <h3 className="text-[11px] font-black uppercase italic text-emerald-500 flex items-center gap-3 border-b border-white/5 pb-3 tracking-widest">
@@ -264,7 +246,6 @@ export default function EditUserPage() {
                         label="Site de Rattachement"
                         value={formData.U_SiteId}
                         onChange={(v: any) => {
-                          // Si on change de site, on purge l'unité organisationnelle car elle n'appartient plus au même parent
                           setFormData({ ...formData, U_SiteId: v, U_OrgUnitId: "" });
                         }}
                         icon={<MapPin size={14} />}
@@ -311,7 +292,6 @@ export default function EditUserPage() {
             </div>
           </div>
 
-          {/* ACTIONS & VALIDATION FIXES (Shrink-0) */}
           <footer className="shrink-0 p-8 border-t border-white/5 bg-black/20 flex flex-col items-center gap-4">
             <button
               disabled={submitting}
@@ -319,7 +299,7 @@ export default function EditUserPage() {
               className="bg-blue-600 hover:bg-white hover:text-blue-600 px-16 py-4 rounded-2xl font-black uppercase text-[11px] italic shadow-[0_20px_60px_rgba(37,99,235,0.3)] flex items-center gap-4 cursor-pointer border-none transition-all active:scale-95 group"
             >
               {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save className="group-hover:rotate-12 transition-transform" size={20} />}
-              Valider les Modifications
+              Sceller les Modifications de l&apos;Agent
             </button>
             <div className="flex items-center gap-6 opacity-40">
               <span className="text-[8px] font-black uppercase text-slate-400 flex items-center gap-2 italic tracking-[0.4em]">
@@ -334,7 +314,6 @@ export default function EditUserPage() {
         </form>
       </main>
 
-      {/* FOOTER BAS DE PAGE (Shrink-0) */}
       <footer className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center opacity-20 shrink-0 italic">
         <div className="flex items-center gap-4">
           <Fingerprint size={28} className="text-blue-600" />
@@ -357,9 +336,6 @@ export default function EditUserPage() {
   );
 }
 
-/**
- * 🧱 COMPOSANTS D'INTERFACE SDE
- */
 function Field({ label, value, onChange, type = "text", icon, disableUppercase = false }: any) {
   return (
     <div className="space-y-2 text-left group">
