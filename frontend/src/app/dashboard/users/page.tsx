@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-//* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-//* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react/no-unescaped-entities */
 
 /**
  * 👥 MODULE : ANNUAIRE MASTER & MATRICE RACI (SDE KERNEL)
@@ -48,6 +48,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedTenant, setSelectedTenant] = useState<string>(''); // 🛠️ État pour filtrer par Tenant
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
   // 🔐 ÉTAT DE CONTEXTE TENANT (Souveraineté)
@@ -92,12 +93,19 @@ export default function UsersPage() {
     active: users.filter(u => u.U_IsActive).length
   }), [users]);
 
+  // 🔍 FILTRAGE CROISÉ (Recherche Texte + Filtrage Tenant)
   const filtered = useMemo(() => {
     return users.filter(u => {
       const content = `${u.U_FirstName} ${u.U_LastName} ${u.U_Email} ${u.U_Role} ${u.U_Site?.S_Name || ''}`.toLowerCase();
-      return content.includes(search.toLowerCase());
+      const matchesSearch = content.includes(search.toLowerCase());
+      
+      // Si on est sur le Master et qu'on a sélectionné un Tenant spécifique
+      const uTenantId = (u as any).U_TenantId || (u as any).tenantId || (u as any).T_Id;
+      const matchesTenant = selectedTenant ? uTenantId === selectedTenant : true;
+
+      return matchesSearch && matchesTenant;
     });
-  }, [users, search]);
+  }, [users, search, selectedTenant]);
 
   const handleDelete = async (id: string) => {
     if (!id) return toast.error("Identifiant de l'agent introuvable.");
@@ -171,14 +179,41 @@ export default function UsersPage() {
         <KPIBox label="Statut Activation" value={`${Math.round((stats.active/stats.total)*100 || 0)}%`} icon={<Activity size={16}/>} color="blue" sub="Active Directory" />
       </div>
 
-      {/* 🔍 BARRE DE RECHERCHE FILTRANTE */}
-      <div className="mb-6 shrink-0 relative w-full">
-        <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" />
-        <input 
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="RECHERCHER (NOM, EMAIL, ROLE, SITE, PROCESSUS)..."
-          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-[11px] font-black uppercase outline-none focus:border-blue-600 focus:bg-white/10 transition-all italic tracking-wider"
-        />
+      {/* 🔍 BARRE DE RECHERCHE & 🌍 LISTE DES TENANTS */}
+      <div className="flex gap-4 mb-6 shrink-0 w-full">
+        
+        {/* Input Recherche */}
+        <div className="flex-1 relative">
+          <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input 
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="RECHERCHER (NOM, EMAIL, ROLE, SITE, PROCESSUS)..."
+            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-[11px] font-black uppercase outline-none focus:border-blue-600 focus:bg-white/10 transition-all italic tracking-wider"
+          />
+        </div>
+
+        {/* 🛠️ SÉLECTEUR DE TENANTS (Affiché uniquement si Root et si des tenants existent) */}
+        {!isSubdomain && tenants.length > 0 && (
+          <div className="w-1/3 relative">
+            <select 
+              value={selectedTenant}
+              onChange={(e) => setSelectedTenant(e.target.value)}
+              className="w-full h-full bg-blue-600/10 border border-blue-500/20 rounded-2xl py-4 pl-6 pr-12 text-[11px] font-black uppercase outline-none focus:border-blue-500 focus:bg-blue-600/20 transition-all italic tracking-wider appearance-none cursor-pointer text-blue-400"
+            >
+              <option value="" className="bg-[#151A2D] text-white">🌍 TOUS LES TENANTS (MASTER VIEW)</option>
+              {tenants.map((t: any) => {
+                const tId = t.T_Id || t.id;
+                const tName = t.T_Name || t.name || t.domain;
+                return (
+                  <option key={tId} value={tId} className="bg-[#151A2D] text-white">
+                    {tName}
+                  </option>
+                );
+              })}
+            </select>
+            <Globe size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none" />
+          </div>
+        )}
       </div>
 
       {/* 📋 REGISTRE RACI */}
@@ -199,7 +234,6 @@ export default function UsersPage() {
             </thead>
             <tbody className="divide-y divide-white/5 text-[11px]">
               {filtered.map(user => {
-                // 🛠️ FIX : Extraction sécurisée et locale de l'ID
                 const uId = user.U_Id || (user as any).id;
 
                 return (
@@ -242,7 +276,6 @@ export default function UsersPage() {
                     </td>
                     <td className="px-8 py-4 text-right">
                       <div className="flex justify-end gap-3 transition-all">
-                        {/* 🛠️ FIX : Appel direct du router avec la variable locale uId */}
                         <button 
                           onClick={() => {
                             if (!uId) {
