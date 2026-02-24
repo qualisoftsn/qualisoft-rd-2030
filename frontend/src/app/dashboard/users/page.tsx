@@ -7,9 +7,9 @@
  * -------------------------------------------------------------------------
  * RÔLE : Gestion souveraine des identités et des habilitations §7.2 / §5.3.
  * -------------------------------------------------------------------------
- * FONCTIONNALITÉS AVANCÉES : 
- * - Multi-Tenant Detection : Identifie si l'accès est local (Subdomain) ou Global.
- * - Master Access Logic : Masque les options Matrix Admin sur les instances clients.
+ * FONCTIONNALITÉS AVANCÉES CONSOLIDÉES : 
+ * - Multi-Tenant Detection (Strict) : Identifie l'accès local (Subdomain) vs Global.
+ * - Master Access Logic : Occulte TOTALEMENT l'admin Matrix sur les instances clients.
  * - RACI Monitoring : Vue d'ensemble des autorités par Site/Processus.
  * -------------------------------------------------------------------------
  * DESIGN : Elite High-Density / No-Scroll / Full-Viewport Isolation.
@@ -50,31 +50,32 @@ export default function UsersPage() {
   
   // 🔐 ÉTAT DE CONTEXTE TENANT (Souveraineté)
   const [isSubdomain, setIsSubdomain] = useState(false);
-  const [tenants, setTenants] = useState<any[]>([]); // Liste des tenants pour le Master Access
+  const [tenants, setTenants] = useState<any[]>([]);
 
   /**
-   * 📡 DÉTECTION DU CONTEXTE D'ACCÈS
-   * Analyse l'URL pour déterminer si l'on est en "Master Matrix" ou en "Tenant Instance".
+   * 📡 DÉTECTION DU CONTEXTE D'ACCÈS (Logique Stricte)
+   * Si le hostname n'est PAS le domaine racine officiel (ou localhost), 
+   * nous sommes sur un Tenant. Le bouton Matrix Control sera occulté.
    */
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const host = window.location.hostname;
-      const parts = host.split('.');
-      // Si plus de 2 parties, nous sommes sur un sous-domaine (ex: sagam.qualisoft.sn)
-      setIsSubdomain(parts.length > 2 && parts[0] !== 'www' && parts[parts.length - 2] === 'qualisoft');
+      // Liste des domaines "Racines" (Root). Tout le reste est considéré comme un sous-domaine/tenant.
+      const rootDomains = ['qualisoft.sn', 'www.qualisoft.sn', 'localhost', '127.0.0.1'];
+      const isTenant = !rootDomains.includes(host);
+      setIsSubdomain(isTenant);
     }
   }, []);
 
   /**
    * 📡 SYNCHRONISATION MULTI-TENANT & RÉFÉRENTIELS
-   * Récupère les agents et, si Master, la liste des tenants actifs.
+   * Récupère les agents et, SEULEMENT si Master, la liste des tenants actifs.
    */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [resUsers, resTenants] = await Promise.all([
         apiClient.get('/users'),
-        // On ne tente de charger les tenants que si on n'est pas sur un sous-domaine
         !isSubdomain ? apiClient.get('/tenants').catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
       ]);
       
@@ -141,17 +142,17 @@ export default function UsersPage() {
             <h1 className="text-3xl font-black uppercase tracking-tighter m-0 flex items-center gap-3">
               <Users className="text-blue-500" size={32}/> Annuaire <span className="text-blue-500">RACI</span>
             </h1>
-            {/* 🌐 INDICATEUR DE CONTEXTE */}
+            {/* 🌐 INDICATEUR DE CONTEXTE DYNAMIQUE */}
             <div className={`px-3 py-1 rounded-full border flex items-center gap-2 text-[8px] font-black uppercase tracking-widest ${isSubdomain ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'}`}>
               {isSubdomain ? <Lock size={10} /> : <Globe size={10} />}
-              {isSubdomain ? 'Tenant-Specific Node' : 'Matrix Master Access'}
+              {isSubdomain ? 'Tenant-Specific Node (Isolated)' : 'Matrix Master Access (Root)'}
             </div>
           </div>
           <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.4em] m-0 italic">ISO 9001 §7.2 • Qualification & Habilitation des Ressources</p>
         </div>
 
         <div className="flex gap-4">
-          {/* 🔱 OPTION MASTER ACCESS (Admin Matrix) - Conditionnelle */}
+          {/* 🔱 OCCULTATION STRICTE DU MASTER ACCESS SI SOUS-DOMAINE */}
           {!isSubdomain && (
             <button 
               onClick={() => router.push('/admin/matrix-control')}
@@ -166,7 +167,7 @@ export default function UsersPage() {
           </button>
           
           <button 
-            onClick={() => router.push('/dashboard/users/nouveau')} 
+            onClick={() => router.push('/dashboard/admin/users/nouveau')} 
             className="bg-blue-600 hover:bg-white hover:text-blue-600 px-8 py-3 rounded-xl text-[10px] font-black uppercase flex items-center gap-3 border-none transition-all cursor-pointer shadow-2xl shadow-blue-600/20 italic"
           >
             <UserPlus size={18} strokeWidth={3} /> Habiliter Nouvel Agent
@@ -174,7 +175,7 @@ export default function UsersPage() {
         </div>
       </header>
 
-      {/* 📊 INDICATEURS RACI (Occupation Maximale) */}
+      {/* 📊 INDICATEURS RACI */}
       <div className="grid grid-cols-4 gap-4 mb-6 shrink-0">
         <KPIBox label="Effectif Scellé" value={stats.total} icon={<Database size={16}/>} color="blue" sub="Total Population" />
         <KPIBox label="Pilotes Qualifiés" value={stats.pilotes} icon={<Target size={16}/>} color="emerald" sub="Process Owners §5.3" />
@@ -291,9 +292,6 @@ export default function UsersPage() {
   );
 }
 
-/**
- * 📊 COMPOSANT KPI TACTIQUE (SDE Design)
- */
 function KPIBox({ label, value, icon, color, sub }: any) {
   const c: any = { 
     blue: "text-blue-500 bg-blue-500/5 border-blue-500/10 hover:border-blue-500/30", 
