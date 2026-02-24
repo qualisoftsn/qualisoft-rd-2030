@@ -74,6 +74,11 @@ export default function NewUserPage() {
     [formData.U_SiteId, referentials.orgUnits]
   );
 
+  /**
+   * 💾 VALIDATION SDE & SCELLAGE DU PAYLOAD (Anti 400 Bad Request)
+   * On nettoie les champs vides pour ne pas envoyer "" à Prisma, ce qui 
+   * corrompt la validation des foreign keys.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -84,17 +89,29 @@ export default function NewUserPage() {
     setSubmitting(true);
     const tid = toast.loading("Scellage de l'habilitation agent en cours...");
 
-    try {
-      await apiClient.post("/users", {
-        ...formData,
-        U_Email: formData.U_Email.toLowerCase().trim(),
-        U_IsActive: true,
-      });
+    // Nettoyage Strict du Payload
+    const payload: any = {
+      U_FirstName: formData.U_FirstName,
+      U_LastName: formData.U_LastName,
+      U_Email: formData.U_Email.toLowerCase().trim(),
+      U_Password: formData.U_Password,
+      U_Role: formData.U_Role,
+      U_IsActive: true,
+    };
 
+    // On n'injecte les clés étrangères que si elles existent, sinon on passe undefined
+    if (formData.U_SiteId) payload.U_SiteId = formData.U_SiteId;
+    if (formData.U_OrgUnitId) payload.U_OrgUnitId = formData.U_OrgUnitId;
+    if (formData.U_AssignedProcessId && formData.U_Role === 'PILOTE') {
+      payload.U_AssignedProcessId = formData.U_AssignedProcessId;
+    }
+
+    try {
+      await apiClient.post("/users", payload);
       toast.success("AGENT QUALIFIÉ ET HABILITÉ DANS LE SMI", { id: tid });
-      setTimeout(() => router.push("/dashboard/admin/users"), 1200);
+      setTimeout(() => router.push("/dashboard/users"), 1200);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "ERREUR CRITIQUE SDE : Conflit d'indexation.";
+      const errorMsg = err.response?.data?.message || "ERREUR CRITIQUE SDE : Conflit d'indexation ou données manquantes.";
       toast.error(errorMsg, { id: tid });
     } finally {
       setSubmitting(false);
@@ -140,18 +157,17 @@ export default function NewUserPage() {
         </div>
       </header>
 
-      {/* 📋 FORMULAIRE HAUTE DENSITÉ (Flex-1, Min-h-0 pour contraindre la hauteur) */}
+      {/* 📋 FORMULAIRE HAUTE DENSITÉ FULL-WIDTH */}
       <main className="flex-1 min-h-0 flex flex-col bg-[#151A2D] border border-white/5 rounded-[4rem] relative shadow-4xl overflow-hidden">
         <div className="absolute top-0 right-0 p-20 opacity-[0.03] pointer-events-none">
           <Fingerprint size={500} />
         </div>
 
-        {/* Le form doit occuper tout l'espace du main et gérer lui-même son scroll interne */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col h-full w-full relative z-10">
           
-          {/* ZONE SCROLLABLE POUR LES CHAMPS */}
+          {/* ZONE SCROLLABLE - LARGEUR MAXIMALE (w-full) */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-12">
-            <div className="max-w-6xl mx-auto grid grid-cols-2 gap-16">
+            <div className="w-full grid grid-cols-2 gap-16 px-4">
               
               {/* COL 1 : IDENTITÉ & ACCÈS */}
               <div className="space-y-10">

@@ -8,7 +8,7 @@
  * RÔLE : Gestion souveraine des identités et des habilitations §7.2 / §5.3.
  * -------------------------------------------------------------------------
  * FONCTIONNALITÉS AVANCÉES CONSOLIDÉES : 
- * - Multi-Tenant Detection (Strict) : Identifie l'accès local (Subdomain) vs Global.
+ * - Multi-Tenant Detection (Strict & SSR-Safe) : Identifie l'accès local vs Global.
  * - Master Access Logic : Occulte TOTALEMENT l'admin Matrix sur les instances clients.
  * - RACI Monitoring : Vue d'ensemble des autorités par Site/Processus.
  * -------------------------------------------------------------------------
@@ -49,34 +49,33 @@ export default function UsersPage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
   // 🔐 ÉTAT DE CONTEXTE TENANT (Souveraineté)
-  const [isSubdomain, setIsSubdomain] = useState(false);
+  const [mounted, setMounted] = useState(false); // Sécurité SSR Next.js
+  const [isSubdomain, setIsSubdomain] = useState(true); // Verrouillé par défaut
   const [tenants, setTenants] = useState<any[]>([]);
 
   /**
-   * 📡 DÉTECTION DU CONTEXTE D'ACCÈS (Logique Stricte)
-   * Si le hostname n'est PAS le domaine racine officiel (ou localhost), 
-   * nous sommes sur un Tenant. Le bouton Matrix Control sera occulté.
+   * 📡 DÉTECTION DU CONTEXTE D'ACCÈS (Logique Stricte & Anti-Hydratation)
    */
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== 'undefined') {
       const host = window.location.hostname;
-      // Liste des domaines "Racines" (Root). Tout le reste est considéré comme un sous-domaine/tenant.
+      // Domaines racines stricts. Le reste est automatiquement un Tenant.
       const rootDomains = ['qualisoft.sn', 'www.qualisoft.sn', 'localhost', '127.0.0.1'];
-      const isTenant = !rootDomains.includes(host);
-      setIsSubdomain(isTenant);
+      setIsSubdomain(!rootDomains.includes(host));
     }
   }, []);
 
   /**
    * 📡 SYNCHRONISATION MULTI-TENANT & RÉFÉRENTIELS
-   * Récupère les agents et, SEULEMENT si Master, la liste des tenants actifs.
    */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      // On fetch les users, et conditionnellement les tenants si on est ROOT
       const [resUsers, resTenants] = await Promise.all([
         apiClient.get('/users'),
-        !isSubdomain ? apiClient.get('/tenants').catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
+        !isSubdomain && mounted ? apiClient.get('/tenants').catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
       ]);
       
       setUsers(resUsers.data?.data || resUsers.data || []);
@@ -86,9 +85,11 @@ export default function UsersPage() {
     } finally { 
       setLoading(false); 
     }
-  }, [isSubdomain]);
+  }, [isSubdomain, mounted]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { 
+    if (mounted) fetchData(); 
+  }, [fetchData, mounted]);
 
   /**
    * 📊 ANALYTICS RACI (§7.2)
@@ -124,7 +125,7 @@ export default function UsersPage() {
     }
   };
 
-  if (loading) return (
+  if (loading || !mounted) return (
     <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
       <Loader2 className="animate-spin text-blue-600" size={40} />
       <span className="text-[9px] font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse italic">Syncing SDE Identity Hub...</span>
@@ -153,9 +154,9 @@ export default function UsersPage() {
 
         <div className="flex gap-4">
           {/* 🔱 OCCULTATION STRICTE DU MASTER ACCESS SI SOUS-DOMAINE */}
-          {!isSubdomain && (
+          {mounted && !isSubdomain && (
             <button 
-              onClick={() => router.push('/admin/matrix-control')}
+              onClick={() => router.push('/dashboard/matrix-control')}
               className="bg-white/5 hover:bg-white/10 px-6 py-2 rounded-xl text-[9px] font-black uppercase border border-white/10 transition-all flex items-center gap-3 italic text-slate-400"
             >
               <LayoutGrid size={16} /> Matrix Control
