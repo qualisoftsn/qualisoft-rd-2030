@@ -167,7 +167,7 @@ export default function UsersPage() {
           </button>
           
           <button 
-            onClick={() => router.push('/dashboard/admin/users/nouveau')} 
+            onClick={() => router.push('/dashboard/users/nouveau')} 
             className="bg-blue-600 hover:bg-white hover:text-blue-600 px-8 py-3 rounded-xl text-[10px] font-black uppercase flex items-center gap-3 border-none transition-all cursor-pointer shadow-2xl shadow-blue-600/20 italic"
           >
             <UserPlus size={18} strokeWidth={3} /> Habiliter Nouvel Agent
