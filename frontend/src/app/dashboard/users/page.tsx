@@ -7,6 +7,13 @@
  * 👥 MODULE : ANNUAIRE MASTER & MATRICE RACI (SDE KERNEL)
  * -------------------------------------------------------------------------
  * RÔLE : Gestion souveraine des identités et des habilitations §7.2 / §5.3.
+ * -------------------------------------------------------------------------
+ * FONCTIONNALITÉS AVANCÉES CONSOLIDÉES : 
+ * - Multi-Tenant Detection (Strict & SSR-Safe) : Identifie l'accès local vs Global.
+ * - Master Access Logic : Occulte TOTALEMENT l'admin Matrix sur les instances clients.
+ * - RACI Monitoring : Vue d'ensemble des autorités par Site/Processus.
+ * - CRUD SDE : Redirection pour modification et révocation active.
+ * -------------------------------------------------------------------------
  * DESIGN : Elite High-Density / No-Scroll / Full-Viewport Isolation.
  * -------------------------------------------------------------------------
  */
@@ -16,13 +23,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Users, UserPlus, Mail, Shield, MapPin, Trash2, Loader2, Search, 
-  ShieldCheck, Building, GitBranch, ChevronRight, Activity, Database,
+  ShieldCheck, Building, GitBranch, Edit, Activity, Database,
   Fingerprint, Target, RefreshCw, LayoutGrid, Globe, Lock
 } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
 import { toast, Toaster } from 'sonner';
 import { useRouter } from 'next/navigation';
 
+// Interface alignée sur types/elite-sde.ts
 interface User {
   U_Id: string; 
   U_FirstName: string; 
@@ -42,22 +50,31 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
-  const [mounted, setMounted] = useState(false);
-  const [isSubdomain, setIsSubdomain] = useState(true);
+  // 🔐 ÉTAT DE CONTEXTE TENANT (Souveraineté)
+  const [mounted, setMounted] = useState(false); // Sécurité SSR Next.js
+  const [isSubdomain, setIsSubdomain] = useState(true); // Verrouillé par défaut
   const [tenants, setTenants] = useState<any[]>([]);
 
+  /**
+   * 📡 DÉTECTION DU CONTEXTE D'ACCÈS (Logique Stricte & Anti-Hydratation)
+   */
   useEffect(() => {
     setMounted(true);
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
+      // Domaines racines stricts. Le reste est automatiquement un Tenant.
       const isRootDomain = hostname === 'qualisoft.sn' || hostname === 'www.qualisoft.sn' || hostname === 'localhost' || hostname === '127.0.0.1';
       setIsSubdomain(!isRootDomain);
     }
   }, []);
 
+  /**
+   * 📡 SYNCHRONISATION MULTI-TENANT & RÉFÉRENTIELS
+   */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      // On fetch les users, et conditionnellement les tenants si on est ROOT
       const [resUsers, resTenants] = await Promise.all([
         apiClient.get('/users'),
         !isSubdomain && mounted ? apiClient.get('/tenants').catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
@@ -67,7 +84,6 @@ export default function UsersPage() {
       setTenants(resTenants.data?.data || resTenants.data || []);
     } catch (e: any) { 
       toast.error("RUPTURE LIAISON RH : Échec de synchronisation SDE."); 
-      console.error("Fetch Data Error:", e);
     } finally { 
       setLoading(false); 
     }
@@ -77,6 +93,9 @@ export default function UsersPage() {
     if (mounted) fetchData(); 
   }, [fetchData, mounted]);
 
+  /**
+   * 📊 ANALYTICS RACI (§7.2)
+   */
   const stats = useMemo(() => ({
     total: users.length,
     pilotes: users.filter(u => u.U_Role === 'PILOTE').length,
@@ -84,6 +103,9 @@ export default function UsersPage() {
     active: users.filter(u => u.U_IsActive).length
   }), [users]);
 
+  /**
+   * 🔍 FILTRAGE CROISÉ
+   */
   const filtered = useMemo(() => {
     return users.filter(u => {
       const content = `${u.U_FirstName} ${u.U_LastName} ${u.U_Email} ${u.U_Role} ${u.U_Site?.S_Name || ''}`.toLowerCase();
@@ -106,22 +128,24 @@ export default function UsersPage() {
   };
 
   if (loading || !mounted) return (
-    <div className="ml-72 w-[calc(100vw-18rem)] h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4 box-border">
+    <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
       <Loader2 className="animate-spin text-blue-600" size={40} />
       <span className="text-[9px] font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse italic">Syncing SDE Identity Hub...</span>
     </div>
   );
 
   return (
-    <div className="ml-72 w-[calc(100vw-18rem)] h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden box-border">
+    <div className="ml-72 h-screen w-auto bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 overflow-hidden">
       <Toaster position="top-right" richColors theme="dark" />
 
+      {/* 🔝 HEADER SOUVERAIN (§5.3) */}
       <header className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-black uppercase tracking-tighter m-0 flex items-center gap-3">
               <Users className="text-blue-500" size={32}/> Annuaire <span className="text-blue-500">RACI</span>
             </h1>
+            {/* 🌐 INDICATEUR DE CONTEXTE DYNAMIQUE */}
             <div className={`px-3 py-1 rounded-full border flex items-center gap-2 text-[8px] font-black uppercase tracking-widest ${isSubdomain ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'}`}>
               {isSubdomain ? <Lock size={10} /> : <Globe size={10} />}
               {isSubdomain ? 'Tenant-Specific Node (Isolated)' : 'Matrix Master Access (Root)'}
@@ -131,6 +155,7 @@ export default function UsersPage() {
         </div>
 
         <div className="flex gap-4">
+          {/* 🔱 OCCULTATION STRICTE DU MASTER ACCESS SI SOUS-DOMAINE */}
           {mounted && !isSubdomain && (
             <button 
               onClick={() => router.push('/dashboard/matrix-control')}
@@ -153,6 +178,7 @@ export default function UsersPage() {
         </div>
       </header>
 
+      {/* 📊 INDICATEURS RACI */}
       <div className="grid grid-cols-4 gap-4 mb-6 shrink-0 w-full">
         <KPIBox label="Effectif Scellé" value={stats.total} icon={<Database size={16}/>} color="blue" sub="Total Population" />
         <KPIBox label="Pilotes Qualifiés" value={stats.pilotes} icon={<Target size={16}/>} color="emerald" sub="Process Owners §5.3" />
@@ -160,6 +186,7 @@ export default function UsersPage() {
         <KPIBox label="Statut Activation" value={`${Math.round((stats.active/stats.total)*100 || 0)}%`} icon={<Activity size={16}/>} color="blue" sub="Active Directory" />
       </div>
 
+      {/* 🔍 BARRE DE RECHERCHE FILTRANTE */}
       <div className="mb-6 shrink-0 relative w-full">
         <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" />
         <input 
@@ -169,6 +196,7 @@ export default function UsersPage() {
         />
       </div>
 
+      {/* 📋 REGISTRE RACI (Zone de Données Fixe) */}
       <main className="flex-1 min-h-0 bg-[#151A2D] border border-white/5 rounded-[3rem] flex flex-col overflow-hidden shadow-4xl relative w-full">
         <div className="absolute top-0 right-0 p-12 opacity-[0.02] pointer-events-none rotate-12">
           <Users size={450} />
@@ -224,17 +252,20 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-8 py-4 text-right">
-                    <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
+                    {/* BOUTONS TOUJOURS VISIBLES (Plus d'opacity-0 trompeur) */}
+                    <div className="flex justify-end gap-3 transition-all">
                       <button 
                         onClick={() => router.push(`/dashboard/users/${user.U_Id}`)}
-                        className="p-3 bg-white/5 rounded-xl text-slate-500 hover:text-blue-500 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90"
+                        className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90"
+                        title="Modifier le dossier agent"
                       >
-                        <ChevronRight size={18}/>
+                        <Edit size={18}/>
                       </button>
                       <button 
                         disabled={isDeleting === user.U_Id}
                         onClick={() => handleDelete(user.U_Id)}
-                        className="p-3 bg-white/5 rounded-xl text-slate-500 hover:text-red-500 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90"
+                        className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/10 border border-white/10 cursor-pointer shadow-lg transition-all active:scale-90"
+                        title="Révoquer l'accès"
                       >
                         {isDeleting === user.U_Id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18}/>}
                       </button>
@@ -247,6 +278,7 @@ export default function UsersPage() {
         </div>
       </main>
 
+      {/* 🏁 FOOTER TACTIQUE & SOUVERAINETÉ */}
       <footer className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center opacity-30 shrink-0 italic w-full">
           <div className="flex items-center gap-5">
             <Fingerprint size={32} className="text-blue-600" />
