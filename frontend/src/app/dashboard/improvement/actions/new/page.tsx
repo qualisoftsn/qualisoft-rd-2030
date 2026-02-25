@@ -1,280 +1,325 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+'use client';
 
-import apiClient from "@/core/api/api-client";
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast, Toaster } from 'sonner';
+import apiClient from '@/core/api/api-client';
 import {
   ArrowLeft,
   ArrowRight,
-  Calendar,
   CheckCircle2,
   Layers,
   Loader2,
   Plus,
   Save,
   Target,
-  User,
   X,
-  Zap,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { toast } from "react-hot-toast";
+} from 'lucide-react';
+import {
+  User,
+  PAQ,
+  Processus,
+  Action,
+  ActionStatus,
+  Priority,
+  ActionType,
+  ActionOrigin,
+} from '@/types/elite-sde';
 
-/**
- * 🚀 PAGE : WIZARD D'INDEXATION D'ACTION
- * Guide l'utilisateur dans la création structurée d'une action corrective.
- */
+// --- UTILITAIRE CN ---
+const cn = (...classes: (string | boolean | undefined | null)[]) =>
+  classes.filter(Boolean).join(' ');
+
 export default function NewActionPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
-  const [paqs, setPaqs] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
-  const [processes, setProcesses] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [paqs, setPaqs] = useState<PAQ[]>([]);
+  const [processes, setProcesses] = useState<Processus[]>([]);
 
   const [formData, setFormData] = useState({
-    ACT_Title: "",
-    ACT_Description: "",
-    ACT_Priority: "MEDIUM",
-    ACT_Origin: "AUTRE",
-    ACT_Type: "CORRECTIVE",
-    ACT_ResponsableId: "",
-    ACT_ProcessusId: "",
-    ACT_PAQId: "",
-    ACT_Deadline: "",
+    ACT_Title: '',
+    ACT_Description: '',
+    ACT_Priority: Priority.MEDIUM,
+    ACT_Origin: ActionOrigin.AUTRE,
+    ACT_Type: ActionType.CORRECTIVE,
+    ACT_ResponsableId: '',
+    ACT_PAQId: '', // ✅ SEUL CHAMP DE RATTACHEMENT VALIDE (pas de ACT_ProcessusId !)
+    ACT_Deadline: '',
     tasks: [] as { titre: string; responsableId: string }[],
   });
 
-  /**
-   * 📡 CHARGEMENT DU RÉFÉRENTIEL MATRIX
-   */
+  // --- CHARGEMENT DES RÉFÉRENTIELS ---
   useEffect(() => {
     const loadRefs = async () => {
       try {
-        const [resU, resP, resPlans, resProc] = await Promise.all([
-          apiClient.get("/users"),
-          apiClient.get("/paq"),
-          apiClient.get("/action-plans"),
-          apiClient.get("/processes"),
+        const [resU, resP, resProc] = await Promise.all([
+          apiClient.get<User[]>('/users'),
+          apiClient.get<PAQ[]>('/paq'),
+          apiClient.get<Processus[]>('/processes'),
         ]);
-        setUsers(resU.data);
-        setPaqs(resP.data);
-        setPlans(resPlans.data);
-        setProcesses(resProc.data);
+        setUsers(resU.data || []);
+        setPaqs(resP.data || []);
+        setProcesses(resProc.data || []);
       } catch (err) {
-        toast.error("Échec de synchronisation du référentiel GPEC/SMQ");
+        console.error('[NEW_ACTION] Failed to load references:', err);
+        toast.error('Échec du chargement des référentiels');
       }
     };
     loadRefs();
   }, []);
 
+  // --- SOUMISSION ---
   const handleSubmit = async () => {
-    if (!formData.ACT_ProcessusId) {
-      toast.error("RATTACHEMENT PROCESSUS OBLIGATOIRE (§4.4)");
+    if (!formData.ACT_PAQId) {
+      toast.error('RATTACHEMENT AU PAQ OBLIGATOIRE (§10.2 ISO 9001)');
+      return;
+    }
+    if (!formData.ACT_ResponsableId) {
+      toast.error('RESPONSABLE DE L\'ACTION OBLIGATOIRE');
+      return;
+    }
+    if (!formData.ACT_Deadline || new Date(formData.ACT_Deadline) <= new Date()) {
+      toast.error('ÉCHÉANCE VALIDE OBLIGATOIRE (date future)');
       return;
     }
 
     setLoading(true);
-    const tid = toast.loading("Scellage de l'action dans le noyau...");
     try {
-      // 1. Persistance de l'action racine
-      const actionRes = await apiClient.post("/actions", {
-        ...formData,
-        ACT_Status: "A_FAIRE",
+      // 1. Création de l'action racine — STRICTEMENT CONFORME AU SCHÉMA PRISMA
+      const actionRes = await apiClient.post<Action>('/actions', {
+        ACT_Title: formData.ACT_Title.trim(),
+        ACT_Description: formData.ACT_Description.trim() || undefined,
+        ACT_Priority: formData.ACT_Priority,
+        ACT_Origin: formData.ACT_Origin,
+        ACT_Type: formData.ACT_Type,
+        ACT_Status: ActionStatus.A_FAIRE,
+        ACT_ResponsableId: formData.ACT_ResponsableId,
+        ACT_PAQId: formData.ACT_PAQId, // ✅ SEUL CHAMP DE RATTACHEMENT EXISTANT
+        ACT_Deadline: formData.ACT_Deadline ? new Date(formData.ACT_Deadline) : undefined,
+        ACT_CreatorId: users.find(u => u.U_Role === 'ADMIN' || u.U_Role === 'SUPER_ADMIN')?.U_Id || users[0]?.U_Id,
+        ACT_IsActive: true,
       });
 
-      // 2. Décomposition synchrone des tâches
-      if (formData.tasks.length > 0 && formData.tasks[0].titre) {
+      // 2. Création des tâches détaillées (si présentes) — OPTIONNEL
+      if (formData.tasks.length > 0 && formData.tasks[0].titre.trim()) {
         await Promise.all(
-          formData.tasks.map((task) =>
-            apiClient.post("/action-items", {
-              itemTitre: task.titre,
-              itemResponsableId:
-                task.responsableId || formData.ACT_ResponsableId,
-              itemEcheance: formData.ACT_Deadline,
-              itemStatus: "A_FAIRE",
-              actionId: actionRes.data.ACT_Id,
-            }),
-          ),
+          formData.tasks
+            .filter(task => task.titre.trim())
+            .map(task =>
+              apiClient.post('/action-items', {
+                itemTitre: task.titre.trim(),
+                itemResponsableId: task.responsableId || formData.ACT_ResponsableId,
+                itemEcheance: formData.ACT_Deadline ? new Date(formData.ACT_Deadline) : undefined,
+                itemStatus: 'A_FAIRE',
+                actionId: actionRes.data.ACT_Id,
+              }),
+            ),
         );
       }
 
-      toast.success("Action corrective indexée avec succès", { id: tid });
-      router.push(`/dashboard/improvement/actions/${actionRes.data.ACT_Id}`);
-    } catch (err) {
-      toast.error("Échec critique de création", { id: tid });
+      toast.success('Action corrective créée avec succès');
+      router.push(`/dashboard/continuous-improvement/${actionRes.data.ACT_Id}`);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Échec de la création de l\'action';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const steps = [
-    { id: 1, title: "Identification", icon: Target },
-    { id: 2, title: "Rattachement", icon: Layers },
-    { id: 3, title: "Décomposition", icon: CheckCircle2 },
-  ];
-
+  // --- VALIDATION DES ÉTAPES ---
   const canProceed = () => {
-    if (step === 1) return formData.ACT_Title.length > 3;
+    if (step === 1) return formData.ACT_Title.trim().length >= 5;
     if (step === 2)
       return (
-        formData.ACT_ProcessusId &&
+        formData.ACT_PAQId && // ✅ Obligatoire (pas de ACT_ProcessusId !)
         formData.ACT_ResponsableId &&
-        formData.ACT_Deadline
+        formData.ACT_Deadline &&
+        new Date(formData.ACT_Deadline) > new Date()
       );
     return true;
   };
 
-  const selectedProcess = processes.find(
-    (p) => p.PR_Id === formData.ACT_ProcessusId,
-  );
+  const selectedPAQ = paqs.find(p => p.PAQ_Id === formData.ACT_PAQId);
+  const selectedProcess = selectedPAQ?.PAQ_ProcessusId;
+  const selectedUser = users.find(u => u.U_Id === formData.ACT_ResponsableId);
+
+  // --- ÉTAPES DU WIZARD ---
+  const steps = [
+    { id: 1, title: 'Identification', icon: Target, description: 'Titre, description et typologie' },
+    { id: 2, title: 'Rattachement', icon: Layers, description: 'PAQ, responsable et échéance' },
+    { id: 3, title: 'Décomposition', icon: CheckCircle2, description: 'Plan d\'actions détaillé' },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white italic font-sans ml-72 p-10 selection:bg-blue-600/30">
-      {/* 🧭 NAVIGATION RETOUR */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-3 text-slate-500 hover:text-white mb-10 text-[10px] font-black uppercase tracking-widest transition-all border-none bg-transparent cursor-pointer italic group"
-      >
-        <ArrowLeft
-          size={16}
-          className="group-hover:-translate-x-1 transition-transform"
-        />{" "}
-        Retour au Hub
-      </button>
+    <div className="ml-72 bg-gray-50 min-h-screen p-6">
+      <Toaster position="top-right" richColors />
 
-      <div className="max-w-4xl mx-auto text-left">
-        <h1 className="text-6xl font-black uppercase tracking-tighter italic mb-4 text-white leading-none">
-          Indexation <span className="text-blue-600">Action</span>
-        </h1>
-        <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.4em] mb-12 italic">
-          Amélioration Continue • Cycle PDCA • Étape {step}/3
-        </p>
-
-        {/* 🚦 STEP INDICATOR */}
-        <div className="flex gap-6 mb-12">
-          {steps.map((s) => (
-            <div
-              key={s.id}
-              className={`flex-1 flex items-center gap-4 p-5 rounded-3xl border transition-all duration-500 ${
-                step >= s.id
-                  ? "bg-blue-600/10 border-blue-500/30 text-blue-400 shadow-[0_0_20px_rgba(37,99,235,0.1)]"
-                  : "bg-slate-900/40 border-white/5 text-slate-600"
-              }`}
-            >
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${step >= s.id ? "bg-blue-600 text-white" : "bg-slate-800"}`}
-              >
-                <s.icon size={20} />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest">
-                {s.title}
-              </span>
-              {step > s.id && (
-                <CheckCircle2 size={16} className="ml-auto text-emerald-500" />
-              )}
-            </div>
-          ))}
+      <div className="mx-auto max-w-4xl">
+        {/* BREADCRUMB */}
+        <div className="mb-8">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour au registre
+          </button>
         </div>
 
-        <div className="bg-slate-900/40 border border-white/10 rounded-[4rem] p-12 space-y-10 shadow-4xl backdrop-blur-md">
-          {/* ÉTAPE 1 : IDENTIFICATION §10.2 */}
+        {/* HEADER */}
+        <div className="mb-10 text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Nouvelle action corrective</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Conformément à l&apos;exigence ISO 9001:2015 §10.2 — Actions correctives et préventives
+          </p>
+        </div>
+
+        {/* PROGRESS INDICATOR */}
+        <div className="mb-10">
+          <div className="flex justify-between">
+            {steps.map((s, index) => (
+              <div key={s.id} className="flex flex-1 flex-col items-center">
+                <div
+                  className={cn(
+                    'flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-medium',
+                    step > s.id
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : step === s.id
+                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                        : 'border-gray-300 bg-white text-gray-500',
+                  )}
+                >
+                  {step > s.id ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : s.id}
+                </div>
+                <div className="mt-2 text-center">
+                  <p
+                    className={cn(
+                      'text-xs font-medium',
+                      step >= s.id ? 'text-gray-900' : 'text-gray-500',
+                    )}
+                  >
+                    {s.title}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">{s.description}</p>
+                </div>
+                {index < steps.length - 1 && (
+                  <div
+                    className={cn(
+                      'mt-4 h-1 w-full',
+                      step > s.id ? 'bg-emerald-500' : step === s.id ? 'bg-indigo-600' : 'bg-gray-200',
+                    )}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* FORMULAIRE CONDITIONNEL */}
+        <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-8">
+          {/* ÉTAPE 1 : IDENTIFICATION */}
           {step === 1 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="text-left">
-                <label className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4 block italic ml-6">
-                  Désignation de l&apos;Action corrective *
+            <div className="space-y-8">
+              <div>
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Titre de l&apos;action <span className="text-red-500">*</span>
                 </label>
                 <input
-                  required
+                  id="title"
+                  type="text"
                   autoFocus
-                  className="w-full bg-slate-950 border border-white/10 rounded-4xl p-8 text-2xl font-black uppercase italic outline-none focus:border-blue-500 transition-all text-white shadow-inner placeholder:text-slate-800"
-                  placeholder="EX: REFONTE DU PROCESSUS LOGISTIQUE..."
+                  required
                   value={formData.ACT_Title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ACT_Title: e.target.value })
-                  }
+                  onChange={e => setFormData({ ...formData, ACT_Title: e.target.value })}
+                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Ex: Correction du processus de réception des marchandises"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Minimum 5 caractères — décrivez l&apos;objectif principal de l&apos;action
+                </p>
               </div>
 
-              <div className="text-left">
-                <label className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4 block italic ml-6">
-                  Description & Analyse des Causes
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Description & analyse des causes
                 </label>
                 <textarea
+                  id="description"
                   rows={4}
-                  className="w-full bg-slate-950 border border-white/10 rounded-4xl p-8 text-sm font-bold outline-none focus:border-blue-500 transition-all text-white shadow-inner italic uppercase leading-relaxed placeholder:text-slate-800"
-                  placeholder="CONTEXTE, JUSTIFICATION ET OBJECTIFS ATTENDUS..."
                   value={formData.ACT_Description}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      ACT_Description: e.target.value,
-                    })
-                  }
+                  onChange={e => setFormData({ ...formData, ACT_Description: e.target.value })}
+                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Décrivez le contexte, les causes racines identifiées et les objectifs attendus..."
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-                <div className="space-y-4">
-                  <label className="text-[11px] font-black uppercase text-slate-500 tracking-widest ml-6 italic">
-                    Origine SMQ
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="origin" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Origine de l&apos;action
                   </label>
                   <select
-                    className="w-full bg-slate-950 border border-white/10 rounded-3xl p-6 text-xs font-black uppercase italic outline-none focus:border-blue-500 text-white appearance-none cursor-pointer"
+                    id="origin"
                     value={formData.ACT_Origin}
-                    onChange={(e) =>
-                      setFormData({ ...formData, ACT_Origin: e.target.value })
-                    }
+                    onChange={e => setFormData({ ...formData, ACT_Origin: e.target.value as ActionOrigin })}
+                    className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="AUDIT">AUDIT INTERNE/EXTERNE</option>
-                    <option value="COPIL">COPIL / REVUE DIRECTION</option>
-                    <option value="NON_CONFORMITE">NON-CONFORMITÉ</option>
-                    <option value="RECLAMATION">RÉCLAMATION CLIENT</option>
-                    <option value="AUTRE">AUTRE SOURCE</option>
+                    <option value={ActionOrigin.AUDIT}>Audit interne ou externe</option>
+                    <option value={ActionOrigin.NON_CONFORMITE}>Non-conformité détectée</option>
+                    <option value={ActionOrigin.RECLAMATION}>Réclamation client</option>
+                    <option value={ActionOrigin.REVUE_DIRECTION}>Revue de direction</option>
+                    <option value={ActionOrigin.COPIL}>COPIL / Comité de pilotage</option>
+                    <option value={ActionOrigin.RISQUE}>Analyse des risques</option>
+                    <option value={ActionOrigin.SSE}>Sécurité Santé Environnement</option>
+                    <option value={ActionOrigin.OBJECTIF}>Objectif qualité non atteint</option>
+                    <option value={ActionOrigin.LEGAL}>Exigence légale</option>
+                    <option value={ActionOrigin.AUTRE}>Autre source</option>
                   </select>
                 </div>
-                <div className="space-y-4">
-                  <label className="text-[11px] font-black uppercase text-slate-500 tracking-widest ml-6 italic">
-                    Typologie d&apos;action
+
+                <div>
+                  <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Typologie
                   </label>
                   <select
-                    className="w-full bg-slate-950 border border-white/10 rounded-3xl p-6 text-xs font-black uppercase italic outline-none focus:border-blue-500 text-white appearance-none cursor-pointer"
+                    id="type"
                     value={formData.ACT_Type}
-                    onChange={(e) =>
-                      setFormData({ ...formData, ACT_Type: e.target.value })
-                    }
+                    onChange={e => setFormData({ ...formData, ACT_Type: e.target.value as ActionType })}
+                    className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="CORRECTIVE">ACTION CORRECTIVE</option>
-                    <option value="PREVENTIVE">ACTION PRÉVENTIVE</option>
-                    <option value="AMELIORATION">
-                      OPPORTUNITÉ D&apos;AMÉLIORATION
-                    </option>
+                    <option value={ActionType.CORRECTIVE}>Action corrective</option>
+                    <option value={ActionType.PREVENTIVE}>Action préventive</option>
+                    <option value={ActionType.AMELIORATION}>Opportunité d&apos;amélioration</option>
                   </select>
                 </div>
               </div>
 
-              <div className="text-left pt-6">
-                <label className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-6 block italic ml-6 leading-none">
-                  Indice de Priorité Stratégique
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {["LOW", "MEDIUM", "HIGH", "URGENT"].map((prio) => (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Priorité stratégique</label>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { value: Priority.LOW, label: 'Basse', color: 'bg-gray-100 text-gray-800' },
+                    { value: Priority.MEDIUM, label: 'Moyenne', color: 'bg-blue-50 text-blue-800' },
+                    { value: Priority.HIGH, label: 'Haute', color: 'bg-orange-50 text-orange-800' },
+                    { value: Priority.CRITICAL, label: 'Critique', color: 'bg-red-50 text-red-800' },
+                  ].map(p => (
                     <button
-                      key={prio}
+                      key={p.value}
                       type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, ACT_Priority: prio })
-                      }
-                      className={`p-5 rounded-2xl border text-[10px] font-black uppercase italic transition-all tracking-widest shadow-md border-none cursor-pointer ${
-                        formData.ACT_Priority === prio
-                          ? "bg-blue-600 text-white shadow-blue-900/40 scale-105"
-                          : "bg-slate-950 text-slate-600 hover:text-white hover:bg-slate-900"
-                      }`}
+                      onClick={() => setFormData({ ...formData, ACT_Priority: p.value })}
+                      className={cn(
+                        'flex w-full flex-col items-center rounded-lg border px-3 py-4 text-sm font-medium transition-colors',
+                        formData.ACT_Priority === p.value
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm'
+                          : `border-gray-300 ${p.color} hover:bg-gray-100`,
+                      )}
                     >
-                      {prio}
+                      <span className="text-xs uppercase tracking-wider">{p.label}</span>
                     </button>
                   ))}
                 </div>
@@ -282,268 +327,317 @@ export default function NewActionPage() {
             </div>
           )}
 
-          {/* ÉTAPE 2 : RATTACHEMENT §4.4 */}
+          {/* ÉTAPE 2 : RATTACHEMENT (CORRIGÉ) */}
           {step === 2 && (
-            <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 text-left">
-              <div className="bg-blue-600/5 border-2 border-blue-500/20 rounded-[3rem] p-10 relative overflow-hidden group">
-                <Zap
-                  className="absolute -right-12 -bottom-12 text-blue-500/5 rotate-12 group-hover:scale-110 transition-transform duration-1000"
-                  size={250}
-                />
-
-                <div className="flex items-center gap-4 mb-8 relative z-10">
-                  <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-500 shadow-lg">
-                    <Layers size={24} />
+            <div className="space-y-8">
+              <div className="rounded-lg bg-indigo-50 p-5">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600">
+                    <span className="text-xs font-bold text-white">§</span>
                   </div>
-                  <label className="text-[13px] font-black uppercase text-blue-400 tracking-[0.3em] italic leading-none">
-                    Rattachement au Processus *
-                  </label>
+                  <div>
+                    <h3 className="text-sm font-medium text-indigo-900">Exigence ISO 9001:2015 §10.2</h3>
+                    <p className="mt-1 text-sm text-indigo-800">
+                      Toute action corrective doit être rattachée à un Plan d&apos;Actions Qualité (PAQ) pour assurer sa traçabilité dans le système de management.
+                    </p>
+                  </div>
                 </div>
+              </div>
 
+              <div>
+                <label htmlFor="paq" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Plan d&apos;actions qualité (PAQ) <span className="text-red-500">*</span>
+                </label>
                 <select
+                  id="paq"
                   required
-                  className="w-full bg-slate-950 border border-blue-500/30 rounded-3xl p-8 text-sm font-black italic uppercase outline-none focus:border-blue-500 text-white shadow-2xl relative z-10 appearance-none cursor-pointer"
-                  value={formData.ACT_ProcessusId}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      ACT_ProcessusId: e.target.value,
-                    })
-                  }
+                  value={formData.ACT_PAQId}
+                  onChange={e => setFormData({ ...formData, ACT_PAQId: e.target.value })}
+                  className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                 >
-                  <option value="" className="bg-[#0B0F1A]">
-                    SÉLECTIONNER UN AXE DU SMI...
-                  </option>
-                  {processes.map((proc: any) => (
-                    <option
-                      key={proc.PR_Id}
-                      value={proc.PR_Id}
-                      className="bg-[#0B0F1A]"
-                    >
-                      {proc.PR_Code} - {proc.PR_Libelle}
-                    </option>
-                  ))}
+                  <option value="">Sélectionnez un PAQ actif...</option>
+                  {paqs
+                    .filter(paq => paq.PAQ_IsActive && paq.PAQ_Status !== 'ARCHIVE')
+                    .map(paq => (
+                      <option key={paq.PAQ_Id} value={paq.PAQ_Id}>
+                        {paq.PAQ_Title} ({paq.PAQ_Year}) — Processus: {paq.PAQ_ProcessusId}
+                      </option>
+                    ))}
                 </select>
-
-                <p className="mt-8 text-[11px] text-blue-500/50 font-black uppercase tracking-[0.2em] relative z-10 italic leading-none">
-                  * LE RATTACHEMENT À UN PROCESSUS EST UN PRÉREQUIS À
-                  L&apos;AUDITABILITÉ.
-                </p>
-
-                {selectedProcess && (
-                  <div className="mt-8 p-6 bg-blue-600/10 rounded-4xl border border-blue-500/20 animate-in zoom-in-95 relative z-10 shadow-lg">
-                    <p className="text-[10px] text-blue-300 uppercase font-black italic tracking-widest leading-none mb-3">
-                      Contexte Processus
+                {selectedPAQ && (
+                  <div className="mt-3 rounded-md bg-gray-50 p-4">
+                    <p className="text-sm font-medium text-gray-900">{selectedPAQ.PAQ_Title}</p>
+                    <p className="mt-1 text-xs text-gray-600">
+                      Processus rattaché :{' '}
+                      <span className="font-medium text-indigo-700">
+                        {selectedProcess?.PR_Code} — {selectedProcess?.PR_Libelle}
+                      </span>
                     </p>
-                    <p className="text-lg font-black text-white italic leading-none mb-2">
-                      {selectedProcess.PR_Libelle}
-                    </p>
-                    <p className="text-[10px] text-blue-400 font-bold italic tracking-widest">
-                      PILOTE : {selectedProcess.PR_Pilote?.U_FirstName}{" "}
-                      {selectedProcess.PR_Pilote?.U_LastName}
+                    <p className="mt-1 text-xs text-gray-600">
+                      Pilote PAQ : {selectedPAQ.PAQ_QualityManager.U_FirstName}{' '}
+                      {selectedPAQ.PAQ_QualityManager.U_LastName}
                     </p>
                   </div>
                 )}
+                <p className="mt-2 text-xs text-gray-500">
+                  ⚠️ Une action ne se rattache pas directement à un processus. Le lien s&apos;établit via le PAQ sélectionné.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="space-y-4">
-                  <label className="text-[11px] font-black uppercase text-slate-500 ml-6 italic tracking-widest flex items-center gap-2">
-                    <User size={14} className="text-blue-500" /> Pilote Action *
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="responsible" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Responsable de l&apos;action <span className="text-red-500">*</span>
                   </label>
                   <select
+                    id="responsible"
                     required
-                    className="w-full bg-slate-950 border border-white/10 rounded-3xl p-6 text-xs font-black italic uppercase outline-none focus:border-blue-500 text-white appearance-none cursor-pointer"
                     value={formData.ACT_ResponsableId}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        ACT_ResponsableId: e.target.value,
-                      })
-                    }
+                    onChange={e => setFormData({ ...formData, ACT_ResponsableId: e.target.value })}
+                    className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="">CHOISIR UN COLLABORATEUR...</option>
-                    {users.map((u: any) => (
-                      <option
-                        key={u.U_Id}
-                        value={u.U_Id}
-                        className="bg-[#0B0F1A]"
-                      >
-                        {u.U_FirstName} {u.U_LastName}
-                      </option>
-                    ))}
+                    <option value="">Sélectionnez un responsable...</option>
+                    {users
+                      .filter(u => u.U_IsActive)
+                      .map(user => (
+                        <option key={user.U_Id} value={user.U_Id}>
+                          {user.U_FirstName} {user.U_LastName} ({user.U_Role})
+                        </option>
+                      ))}
                   </select>
+                  {selectedUser && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Email : {selectedUser.U_Email} • Site : {selectedUser.U_SiteId?.S_Name}
+                    </p>
+                  )}
                 </div>
 
-                <div className="space-y-4">
-                  <label className="text-[11px] font-black uppercase text-slate-500 ml-6 italic tracking-widest flex items-center gap-2">
-                    <Calendar size={14} className="text-blue-500" /> Échéance de
-                    Traitement *
+                <div>
+                  <label htmlFor="deadline" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Échéance de traitement <span className="text-red-500">*</span>
                   </label>
                   <input
+                    id="deadline"
                     type="date"
                     required
-                    className="w-full bg-slate-950 border border-white/10 rounded-3xl p-6 text-xs font-black italic outline-none focus:border-blue-500 text-blue-500 shadow-inner"
+                    min={new Date().toISOString().split('T')[0]}
                     value={formData.ACT_Deadline}
-                    onChange={(e) =>
-                      setFormData({ ...formData, ACT_Deadline: e.target.value })
-                    }
+                    onChange={e => setFormData({ ...formData, ACT_Deadline: e.target.value })}
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                   />
+                  {formData.ACT_Deadline && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {new Date(formData.ACT_Deadline) > new Date()
+                        ? `Délai restant : ${Math.ceil(
+                            (new Date(formData.ACT_Deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                          )} jours`
+                        : '⚠️ Échéance dans le passé'}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ÉTAPE 3 : DÉCOMPOSITION (TÂCHES) */}
+          {/* ÉTAPE 3 : DÉCOMPOSITION */}
           {step === 3 && (
-            <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 text-left">
-              <div className="bg-slate-950/40 rounded-[3rem] p-10 border border-white/5 shadow-inner">
-                <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.4em] mb-6 italic leading-none">
-                  Récapitulatif d&apos;indexation
-                </h3>
-                <div className="grid grid-cols-2 gap-8 text-sm italic uppercase font-black tracking-tight text-white">
-                  <div className="space-y-1">
-                    <p className="text-[9px] text-slate-600">Action :</p>
-                    <p className="truncate">{formData.ACT_Title}</p>
+            <div className="space-y-8">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-5">
+                <h3 className="text-sm font-medium text-gray-900">Récapitulatif de l&apos;action</h3>
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Titre</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{formData.ACT_Title}</p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] text-slate-600">Processus :</p>
-                    <p className="text-blue-500 truncate">
-                      {selectedProcess?.PR_Libelle}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">PAQ</p>
+                    <p className="mt-1 text-sm font-medium text-indigo-700">
+                      {selectedPAQ ? `${selectedPAQ.PAQ_Title} (${selectedPAQ.PAQ_Year})` : 'Non défini'}
                     </p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] text-slate-600">Priorité :</p>
-                    <p
-                      className={
-                        formData.ACT_Priority === "URGENT" ? "text-red-500" : ""
-                      }
-                    >
-                      {formData.ACT_Priority}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Processus (via PAQ)</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {selectedProcess
+                        ? `${selectedProcess.PR_Code} — ${selectedProcess.PR_Libelle}`
+                        : 'Non défini'}
                     </p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] text-slate-600">Date Limite :</p>
-                    <p>{formData.ACT_Deadline}</p>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Responsable</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {selectedUser
+                        ? `${selectedUser.U_FirstName} ${selectedUser.U_LastName}`
+                        : 'Non défini'}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <h3 className="text-xl font-black uppercase italic tracking-tighter ml-4 leading-none text-white">
-                  Décomposition Granulaire (WBS)
-                </h3>
-
-                {formData.tasks.map((task, idx) => (
-                  <div
-                    key={idx}
-                    className="flex gap-4 bg-slate-950/80 p-6 rounded-4xl border border-white/5 items-end shadow-xl animate-in slide-in-from-bottom-2 duration-300 transition-all group"
+              <div>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Décomposition en tâches</h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        tasks: [...formData.tasks, { titre: '', responsableId: formData.ACT_ResponsableId }],
+                      })
+                    }
+                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   >
-                    <div className="flex-1 space-y-3">
-                      <label className="text-[10px] font-black uppercase text-slate-600 ml-4 italic tracking-widest">
-                        Tâche de travail {idx + 1}
-                      </label>
-                      <input
-                        placeholder="LIBELLÉ DE LA TÂCHE..."
-                        className="w-full bg-transparent border-b border-white/10 pb-4 text-sm font-black uppercase italic text-white outline-none focus:border-blue-500 transition-all"
-                        value={task.titre}
-                        onChange={(e) => {
-                          const newTasks = [...formData.tasks];
-                          newTasks[idx].titre = e.target.value.toUpperCase();
-                          setFormData({ ...formData, tasks: newTasks });
-                        }}
-                      />
-                    </div>
-                    <div className="w-64 space-y-3">
-                      <label className="text-[10px] font-black text-slate-600 ml-2 italic tracking-widest uppercase">
-                        Opérateur
-                      </label>
-                      <select
-                        className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-[10px] font-black uppercase italic text-slate-400 outline-none cursor-pointer"
-                        value={task.responsableId}
-                        onChange={(e) => {
-                          const newTasks = [...formData.tasks];
-                          newTasks[idx].responsableId = e.target.value;
-                          setFormData({ ...formData, tasks: newTasks });
-                        }}
-                      >
-                        <option value="">DÉFAUT (PILOTE)</option>
-                        {users.map((u: any) => (
-                          <option key={u.U_Id} value={u.U_Id}>
-                            {u.U_FirstName}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setFormData({
-                          ...formData,
-                          tasks: formData.tasks.filter((_, i) => i !== idx),
-                        })
-                      }
-                      className="text-slate-700 hover:text-red-500 p-3 bg-white/5 rounded-xl transition-all border-none cursor-pointer mb-1"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-                ))}
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Ajouter une tâche
+                  </button>
+                </div>
+                <p className="mt-1 text-sm text-gray-500">
+                  Décomposez l&apos;action en unités de travail exécutables (optionnel mais recommandé pour le suivi)
+                </p>
 
-                <button
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      tasks: [
-                        ...formData.tasks,
-                        { titre: "", responsableId: "" },
-                      ],
-                    })
-                  }
-                  className="w-full py-8 border-2 border-dashed border-slate-800 rounded-[2.5rem] text-slate-600 hover:text-blue-500 hover:border-blue-500/50 transition-all text-[11px] font-black uppercase italic tracking-[0.4em] bg-transparent cursor-pointer group"
-                >
-                  <Plus
-                    size={16}
-                    className="inline mr-2 group-hover:scale-125 transition-transform"
-                  />{" "}
-                  Ajouter une unité de travail
-                </button>
+                <div className="mt-6 space-y-4">
+                  {formData.tasks.map((task, idx) => (
+                    <div
+                      key={idx}
+                      className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-5 sm:flex-row sm:items-end"
+                    >
+                      <div className="flex-1">
+                        <label htmlFor={`task-title-${idx}`} className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Titre de la tâche
+                        </label>
+                        <input
+                          id={`task-title-${idx}`}
+                          type="text"
+                          value={task.titre}
+                          onChange={e => {
+                            const newTasks = [...formData.tasks];
+                            newTasks[idx].titre = e.target.value;
+                            setFormData({ ...formData, tasks: newTasks });
+                          }}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          placeholder="Ex: Mettre à jour la procédure de réception"
+                        />
+                      </div>
+
+                      <div className="w-full sm:w-64">
+                        <label htmlFor={`task-resp-${idx}`} className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Responsable
+                        </label>
+                        <select
+                          id={`task-resp-${idx}`}
+                          value={task.responsableId}
+                          onChange={e => {
+                            const newTasks = [...formData.tasks];
+                            newTasks[idx].responsableId = e.target.value;
+                            setFormData({ ...formData, tasks: newTasks });
+                          }}
+                          className="block w-full rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        >
+                          <option value="">Responsable par défaut</option>
+                          {users
+                            .filter(u => u.U_IsActive)
+                            .map(user => (
+                              <option key={user.U_Id} value={user.U_Id}>
+                                {user.U_FirstName} {user.U_LastName}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            tasks: formData.tasks.filter((_, i) => i !== idx),
+                          })
+                        }
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:border-red-300 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                        aria-label={`Supprimer la tâche ${idx + 1}`}
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {formData.tasks.length === 0 && (
+                    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-12">
+                      <div className="h-8 w-8 text-gray-400">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={1.5}
+                          stroke="currentColor"
+                          className="h-8 w-8"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 6v12m6-6H6"
+                          />
+                        </svg>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-500">Aucune tâche définie</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            tasks: [{ titre: '', responsableId: formData.ACT_ResponsableId }],
+                          })
+                        }
+                        className="mt-3 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-indigo-600 shadow-sm hover:bg-gray-100"
+                      >
+                        Ajouter une première tâche
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {/* ACTIONS DE NAVIGATION DU WIZARD */}
-          <div className="flex justify-between pt-10 border-t border-white/5">
+          {/* ACTIONS DE NAVIGATION */}
+          <div className="mt-10 flex flex-col-reverse justify-between gap-4 sm:flex-row sm:items-center">
             <button
-              onClick={() => setStep(Math.max(1, step - 1))}
+              type="button"
+              onClick={() => setStep(prev => Math.max(1, prev - 1))}
               disabled={step === 1}
-              className="px-10 py-5 rounded-3xl font-black uppercase italic text-[10px] tracking-widest disabled:opacity-0 hover:bg-white/5 transition-all border-none text-slate-500 cursor-pointer"
+              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-white"
             >
+              <ArrowLeft className="mr-1.5 h-4 w-4" />
               Précédent
             </button>
 
             {step < 3 ? (
               <button
-                onClick={() => setStep(step + 1)}
+                type="button"
+                onClick={() => setStep(prev => prev + 1)}
                 disabled={!canProceed()}
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:hover:bg-blue-600 text-white px-10 py-5 rounded-3xl font-black uppercase italic text-[10px] tracking-widest shadow-3xl shadow-blue-900/40 transition-all flex items-center gap-3 border-none cursor-pointer"
+                className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-indigo-600"
               >
-                Suivant <ArrowRight size={18} />
+                Suivant
+                <ArrowRight className="ml-1.5 h-4 w-4" />
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handleSubmit}
                 disabled={loading || !canProceed()}
-                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-10 py-5 rounded-3xl font-black uppercase italic text-[10px] tracking-widest shadow-3xl shadow-emerald-900/40 transition-all flex items-center gap-3 border-none cursor-pointer group"
+                className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-emerald-600"
               >
                 {loading ? (
-                  <Loader2 className="animate-spin" size={18} />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Création en cours...
+                  </>
                 ) : (
-                  <Save
-                    size={18}
-                    className="group-hover:rotate-12 transition-transform"
-                  />
+                  <>
+                    <Save className="mr-1.5 h-4 w-4" />
+                    Créer l&apos;action corrective
+                  </>
                 )}
-                Valider L&apos;ACTION CORRECTIVE
               </button>
             )}
           </div>

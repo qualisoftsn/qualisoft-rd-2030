@@ -1,719 +1,570 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import apiClient from '@/core/api/api-client';
-import { format, isPast, differenceInDays } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { toast, Toaster } from 'sonner';
+import apiClient from '@/core/api/api-client';
 import {
-  AlertCircle, AlertTriangle, BarChart3, Calendar, CheckCircle2,
-  Clock, FileText, History, Loader2, Paperclip, Plus, RefreshCcw, ShieldCheck,
-  Target, Users, Download, MessageSquare, ArrowLeft, Pencil, Archive, Eye,
-  FileQuestion, Link as LinkIconComponent
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  CheckCircle2,
+  Layers,
+  Loader2,
+  Plus,
+  Save,
+  Target,
+  User as UserIcon,
+  X,
 } from 'lucide-react';
-import {
-  type Action,
-  type User,
-  type PAQ,
-  type NonConformite,
-  type Audit,
-  type Processus,
-  type Preuve,
-  type ChangeLog,
-  type ProcessType,
-  ActionOrigin,
+import type {
+  User,
+  PAQ,
+  Processus,
+  Action,
   ActionStatus,
-  ActionType,
-  ChangeAction,
   Priority,
-  Role
+  ActionType,
+  ActionOrigin,
 } from '@/types/elite-sde';
 
 // --- UTILITAIRE CN ---
 const cn = (...classes: (string | boolean | undefined | null)[]) =>
   classes.filter(Boolean).join(' ');
 
-// --- TYPES SPÉCIFIQUES À LA PAGE (CONFORMES PRISMA) ---
-interface ActionDetail extends Action {
-  ACT_Responsable: User;
-  ACT_Creator: User;
-  ACT_PAQ: PAQ & { PAQ_Processus: Processus & { PR_Type: ProcessType } };
-  ACT_NC?: NonConformite | null;
-  ACT_Audit?: Audit | null;
-  ACT_Preuves: Preuve[];
-  ACT_ChangeLogs: ChangeLog[];
-}
-
-export default function ActionDetailPage() {
-  const params = useParams();
+export default function NewActionPage() {
   const router = useRouter();
-  const actionId = params?.id as string;
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [paqs, setPaqs] = useState<PAQ[]>([]);
+  const [processes, setProcesses] = useState<Processus[]>([]);
 
-  const [action, setAction] = useState<ActionDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [userRole, setUserRole] = useState<Role>(Role.USER); // ✅ CORRECTION ICI : Role.USER au lieu de 'USER'
-  const [isEditingStatus, setIsEditingStatus] = useState(false);
-  const [newStatus, setNewStatus] = useState<ActionStatus>(ActionStatus.A_FAIRE);
+  const [formData, setFormData] = useState({
+    ACT_Title: '',
+    ACT_Description: '',
+    ACT_Priority: Priority.MEDIUM,
+    ACT_Origin: ActionOrigin.AUTRE,
+    ACT_Type: ActionType.CORRECTIVE,
+    ACT_ResponsableId: '',
+    ACT_PAQId: '',
+    ACT_Deadline: '',
+    tasks: [] as { titre: string; responsableId: string }[],
+  });
 
-  // --- INITIALISATION RÔLE UTILISATEUR ---
+  // --- CHARGEMENT DES RÉFÉRENTIELS ---
   useEffect(() => {
-    const storedUser = localStorage.getItem('qualisoft_user');
-    if (storedUser) {
+    const loadRefs = async () => {
       try {
-        const user = JSON.parse(storedUser) as User;
-        setUserRole(user.U_Role || Role.USER);
-      } catch (e) {
-        console.warn('[ACTION_DETAIL] Impossible de lire le rôle utilisateur');
+        const [resU, resP, resProc] = await Promise.all([
+          apiClient.get<User[]>('/users'),
+          apiClient.get<PAQ[]>('/paq'),
+          apiClient.get<Processus[]>('/processes'),
+        ]);
+        setUsers(resU.data || []);
+        setPaqs(resP.data || []);
+        setProcesses(resProc.data || []);
+      } catch (err) {
+        console.error('[NEW_ACTION] Failed to load references:', err);
+        toast.error('Échec du chargement des référentiels');
       }
-    }
+    };
+    loadRefs();
   }, []);
 
-  // --- CHARGEMENT DE L'ACTION ---
-  const loadAction = useCallback(async () => {
-    if (!actionId) return;
-    
+  // --- SOUMISSION ---
+  const handleSubmit = async () => {
+    if (!formData.ACT_PAQId) {
+      toast.error('RATTACHEMENT AU PAQ OBLIGATOIRE (§10.2 ISO 9001)');
+      return;
+    }
+    if (!formData.ACT_ResponsableId) {
+      toast.error('RESPONSABLE DE L\'ACTION OBLIGATOIRE');
+      return;
+    }
+    if (!formData.ACT_Deadline || new Date(formData.ACT_Deadline) <= new Date()) {
+      toast.error('ÉCHÉANCE VALIDE OBLIGATOIRE (date future)');
+      return;
+    }
+
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await apiClient.get<ActionDetail>(`/actions/${actionId}`);
-      setAction(res.data);
-      setNewStatus(res.data.ACT_Status);
+      // 🔑 PAYLOAD STRICTEMENT CONFORME AU SCHÉMA PRISMA (AUCUN CHAMP INVENTÉ)
+      const payload: Partial<Action> = {
+        ACT_Title: formData.ACT_Title.trim(),
+        ACT_Description: formData.ACT_Description.trim() || undefined,
+        ACT_Priority: formData.ACT_Priority,
+        ACT_Origin: formData.ACT_Origin,
+        ACT_Type: formData.ACT_Type,
+        ACT_Status: ActionStatus.A_FAIRE, // ✅ Valeur par défaut conforme
+        ACT_IsActive: true, // ✅ Obligatoire selon schéma
+        ACT_Deadline: formData.ACT_Deadline ? new Date(formData.ACT_Deadline) : undefined,
+        ACT_ResponsableId: formData.ACT_ResponsableId,
+        ACT_CreatorId: localStorage.getItem('qualisoft_user_id') || users[0]?.U_Id || '',
+        ACT_PAQId: formData.ACT_PAQId,
+      };
+
+      const actionRes = await apiClient.post<Action>('/actions', payload);
+
+      // 🔑 TÂCHES DÉTAILLÉES (OPTIONNEL - endpoint séparé)
+      if (formData.tasks.length > 0 && formData.tasks[0].titre.trim()) {
+        try {
+          await Promise.all(
+            formData.tasks
+              .filter(task => task.titre.trim())
+              .map(task =>
+                apiClient.post('/action-items', {
+                  itemTitre: task.titre.trim(),
+                  itemResponsableId: task.responsableId || formData.ACT_ResponsableId,
+                  itemEcheance: formData.ACT_Deadline ? new Date(formData.ACT_Deadline) : undefined,
+                  itemStatus: 'A_FAIRE',
+                  actionId: actionRes.data.ACT_Id,
+                }),
+              ),
+          );
+        } catch (taskErr) {
+          console.warn('[NEW_ACTION] Tâches non créées (endpoint /action-items peut ne pas exister)', taskErr);
+          // Ne pas bloquer la création de l'action principale
+        }
+      }
+
+      toast.success('Action corrective créée avec succès');
+      router.push(`/dashboard/continuous-improvement/${actionRes.data.ACT_Id}`);
     } catch (err: any) {
-      console.error('[ACTION_DETAIL] Fetch error:', err);
-      const msg = err.response?.data?.message || 'Action introuvable';
+      const msg = err.response?.data?.message || 'Échec de la création de l\'action';
       toast.error(Array.isArray(msg) ? msg[0] : msg);
-      router.push('/dashboard/continuous-improvement');
     } finally {
       setLoading(false);
     }
-  }, [actionId, router]);
-
-  useEffect(() => {
-    loadAction();
-  }, [loadAction]);
-
-  // --- MISE À JOUR DU STATUT ---
-  const updateStatus = async () => {
-    if (!action || !canEdit) return;
-    
-    setSubmitting(true);
-    try {
-      await apiClient.patch(`/actions/${action.ACT_Id}/status`, { ACT_Status: newStatus });
-      toast.success('Statut mis à jour avec succès');
-      setAction(prev => prev ? { ...prev, ACT_Status: newStatus } : null);
-      setIsEditingStatus(false);
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Échec de la mise à jour';
-      toast.error(Array.isArray(msg) ? msg[0] : msg);
-    } finally {
-      setSubmitting(false);
-    }
   };
 
-  // --- ARCHIVAGE (SOFT DELETE) ---
-  const archiveAction = async () => {
-    if (!action || !canEdit) return;
-    
-    if (!confirm(`Archiver l'action "${action.ACT_Title}" ?\n\nCette action sera désactivée mais conservée pour audit (RGPD/ANSD).`)) {
-      return;
-    }
-    
-    setSubmitting(true);
-    try {
-      await apiClient.delete(`/actions/${action.ACT_Id}`);
-      toast.success('Action archivée avec succès');
-      router.push('/dashboard/continuous-improvement');
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Échec de l\'archivage';
-      toast.error(Array.isArray(msg) ? msg[0] : msg);
-    } finally {
-      setSubmitting(false);
-    }
+  // --- VALIDATION DES ÉTAPES ---
+  const canProceed = () => {
+    if (step === 1) return formData.ACT_Title.trim().length >= 5;
+    if (step === 2)
+      return (
+        formData.ACT_PAQId &&
+        formData.ACT_ResponsableId &&
+        formData.ACT_Deadline &&
+        new Date(formData.ACT_Deadline) > new Date()
+      );
+    return true;
   };
 
-  // --- RBAC ---
-  const canEdit = useMemo(() => {
-    return [Role.ADMIN, Role.SUPER_ADMIN, Role.PILOTE, Role.RQ].includes(userRole);
-  }, [userRole]);
+  // 🔑 RELATIONS SÉCURISÉES (null-safe)
+  const selectedPAQ = paqs.find(p => p.PAQ_Id === formData.ACT_PAQId);
+  const selectedProcess = selectedPAQ?.PAQ_Processus || null;
+  const selectedResponsible = users.find(u => u.U_Id === formData.ACT_ResponsableId);
+  const storedUser = localStorage.getItem('qualisoft_user');
+  const currentUser = storedUser ? (JSON.parse(storedUser) as User) : null;
 
-  // --- HELPERS VISUELS ---
-  const getStatusBadge = (status: ActionStatus) => {
-    const config: Record<ActionStatus, { label: string; color: string }> = {
-      [ActionStatus.A_FAIRE]: { label: 'À faire', color: 'bg-gray-100 text-gray-800 border-gray-200' },
-      [ActionStatus.EN_COURS]: { label: 'En cours', color: 'bg-blue-50 text-blue-800 border-blue-200' },
-      [ActionStatus.A_VALIDER]: { label: 'À valider', color: 'bg-amber-50 text-amber-800 border-amber-200' },
-      [ActionStatus.TERMINEE]: { label: 'Terminée', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
-      [ActionStatus.NON_EFFICACE]: { label: 'Non efficace', color: 'bg-red-50 text-red-800 border-red-200' },
-      [ActionStatus.ANNULEE]: { label: 'Annulée', color: 'bg-gray-200 text-gray-700 border-gray-300' },
-      [ActionStatus.EN_RETARD]: { label: 'En retard', color: 'bg-red-50 text-red-800 border-red-300 border-l-4' },
-    };
-    const { label, color } = config[status] || config[ActionStatus.A_FAIRE];
-    return (
-      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border ${color}`}>
-        {label}
-      </span>
-    );
-  };
-
-  const getPriorityBadge = (priority: Priority) => {
-    const config: Record<Priority, { label: string; color: string }> = {
-      [Priority.CRITICAL]: { label: 'Critique', color: 'bg-red-100 text-red-800' },
-      [Priority.URGENT]: { label: 'Urgent', color: 'bg-red-100 text-red-800' },
-      [Priority.HIGH]: { label: 'Haute', color: 'bg-orange-100 text-orange-800' },
-      [Priority.MEDIUM]: { label: 'Moyenne', color: 'bg-blue-100 text-blue-800' },
-      [Priority.LOW]: { label: 'Basse', color: 'bg-gray-100 text-gray-800' },
-    };
-    const { label, color } = config[priority] || config[Priority.MEDIUM];
-    return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-        {label}
-      </span>
-    );
-  };
-
-  const getTypeBadge = (type: ActionType) => {
-    const config: Record<ActionType, { label: string; color: string }> = {
-      [ActionType.CORRECTIVE]: { label: 'Corrective', color: 'bg-red-50 text-red-800' },
-      [ActionType.PREVENTIVE]: { label: 'Préventive', color: 'bg-emerald-50 text-emerald-800' },
-      [ActionType.AMELIORATION]: { label: 'Amélioration', color: 'bg-blue-50 text-blue-800' },
-    };
-    const { label, color } = config[type] || config[ActionType.CORRECTIVE];
-    return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-        {label}
-      </span>
-    );
-  };
-
-  const getSourceBadge = (origin: ActionOrigin) => {
-    const config: Record<ActionOrigin, { label: string; icon: React.ReactNode }> = {
-      [ActionOrigin.AUDIT]: { label: 'Audit', icon: <FileText className="h-3.5 w-3.5 text-purple-600" /> },
-      [ActionOrigin.NON_CONFORMITE]: { label: 'NC', icon: <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> },
-      [ActionOrigin.RECLAMATION]: { label: 'Réclamation', icon: <MessageSquare className="h-3.5 w-3.5 text-amber-600" /> },
-      [ActionOrigin.REVUE_DIRECTION]: { label: 'Revue Dir.', icon: <BarChart3 className="h-3.5 w-3.5 text-emerald-600" /> },
-      [ActionOrigin.COPIL]: { label: 'COPIL', icon: <Users className="h-3.5 w-3.5 text-blue-600" /> },
-      [ActionOrigin.RISQUE]: { label: 'Risque', icon: <Target className="h-3.5 w-3.5 text-orange-600" /> },
-      [ActionOrigin.SSE]: { label: 'SST', icon: <AlertCircle className="h-3.5 w-3.5 text-rose-600" /> },
-      [ActionOrigin.OBJECTIF]: { label: 'Objectif', icon: <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" /> },
-      [ActionOrigin.LEGAL]: { label: 'Légal', icon: <FileQuestion className="h-3.5 w-3.5 text-gray-600" /> },
-      [ActionOrigin.ALERTE]: { label: 'Alerte', icon: <AlertCircle className="h-3.5 w-3.5 text-red-600" /> },
-      [ActionOrigin.AUTRE]: { label: 'Autre', icon: <Tag className="h-3.5 w-3.5 text-gray-500" /> },
-    };
-    const { label, icon } = config[origin] || config[ActionOrigin.AUTRE];
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-        {icon}
-        {label}
-      </span>
-    );
-  };
-
-  const isLate = action && action.ACT_Deadline && isPast(new Date(action.ACT_Deadline)) && action.ACT_Status !== ActionStatus.TERMINEE;
-  const daysLeft = action && action.ACT_Deadline ? differenceInDays(new Date(action.ACT_Deadline), new Date()) : 0;
-
-  // --- CHARGEMENT ---
-  if (loading) {
-    return (
-      <div className="ml-72 flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="relative inline-block">
-            <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-gray-600">Chargement de l&apos;action...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!action) {
-    return (
-      <div className="ml-72 flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-          <p className="mt-2 text-sm font-medium text-gray-900">Action non trouvée</p>
-          <button
-            onClick={() => router.push('/dashboard/continuous-improvement')}
-            className="mt-4 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            Retour au registre
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // --- ÉTAPES DU WIZARD ---
+  const steps = [
+    { id: 1, title: 'Identification', icon: Target, description: 'Titre, description et typologie' },
+    { id: 2, title: 'Rattachement', icon: Layers, description: 'PAQ, responsable et échéance' },
+    { id: 3, title: 'Récapitulatif', icon: CheckCircle2, description: 'Validation avant création' },
+  ];
 
   return (
     <div className="ml-72 bg-gray-50 min-h-screen p-6">
       <Toaster position="top-right" richColors />
 
-      <div className="mx-auto max-w-7xl">
-        {/* BREADCRUMB & ACTIONS */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Retour au registre
-            </button>
-            <div className="hidden h-6 w-px bg-gray-200 sm:block" />
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-                Réf: {action.ACT_Id.substring(0, 8).toUpperCase()}
-              </span>
-              <span className="text-sm text-gray-500">•</span>
-              {getSourceBadge(action.ACT_Origin)}
-            </div>
-          </div>
+      <div className="mx-auto max-w-4xl">
+        {/* BREADCRUMB */}
+        <div className="mb-8">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour au registre
+          </button>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {canEdit && (
-              <button
-                onClick={() => router.push(`/dashboard/continuous-improvement/actions/${action.ACT_Id}/edit`)}
-                className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                <Pencil className="h-4 w-4" />
-                Modifier
-              </button>
-            )}
-            <button className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              <Download className="h-4 w-4" />
-              Exporter
-            </button>
-            {canEdit && (
-              <button
-                onClick={archiveAction}
-                disabled={submitting}
-                className="flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3.5 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
-              >
-                <Archive className="h-4 w-4" />
-                Archiver
-              </button>
-            )}
+        {/* HEADER */}
+        <div className="mb-10 text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Nouvelle action corrective</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Conformément à l'exigence ISO 9001:2015 §10.2 — Actions correctives
+          </p>
+        </div>
+
+        {/* PROGRESS INDICATOR */}
+        <div className="mb-10">
+          <div className="flex justify-between">
+            {steps.map((s, index) => (
+              <div key={s.id} className="flex flex-1 flex-col items-center">
+                <div
+                  className={cn(
+                    'flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-medium',
+                    step > s.id
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : step === s.id
+                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                        : 'border-gray-300 bg-white text-gray-500',
+                  )}
+                >
+                  {step > s.id ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : s.id}
+                </div>
+                <div className="mt-2 text-center">
+                  <p
+                    className={cn(
+                      'text-xs font-medium',
+                      step >= s.id ? 'text-gray-900' : 'text-gray-500',
+                    )}
+                  >
+                    {s.title}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">{s.description}</p>
+                </div>
+                {index < steps.length - 1 && (
+                  <div
+                    className={cn(
+                      'mt-4 h-1 w-full',
+                      step > s.id ? 'bg-emerald-500' : step === s.id ? 'bg-indigo-600' : 'bg-gray-200',
+                    )}
+                  />
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* HEADER PRINCIPAL */}
-        <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* COLONNE GAUCHE : TITRE & MÉTADONNÉES */}
-          <div className="lg:col-span-2">
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              {getPriorityBadge(action.ACT_Priority)}
-              {getTypeBadge(action.ACT_Type)}
-              {isLate && (
-                <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                  <AlertCircle className="mr-1 h-3.5 w-3.5" />
-                  {Math.abs(daysLeft)}j de retard
-                </span>
-              )}
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">{action.ACT_Title}</h1>
-            {action.ACT_Description && (
-              <p className="mt-2 text-gray-600">{action.ACT_Description}</p>
-            )}
-
-            {/* PROGRESSION */}
-            <div className="mt-8">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Progression</span>
-                <span className="text-sm font-medium text-gray-900">0%</span>
+        {/* FORMULAIRE CONDITIONNEL */}
+        <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-8">
+          {/* ÉTAPE 1 : IDENTIFICATION */}
+          {step === 1 && (
+            <div className="space-y-8">
+              <div>
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Titre de l'action <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  autoFocus
+                  required
+                  value={formData.ACT_Title}
+                  onChange={e => setFormData({ ...formData, ACT_Title: e.target.value })}
+                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Ex: Correction du processus de réception"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Minimum 5 caractères — décrivez l'objectif principal
+                </p>
               </div>
-              <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full rounded-full bg-indigo-600 transition-all duration-500"
-                  style={{ width: `0%` }}
+
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Description & analyse des causes
+                </label>
+                <textarea
+                  id="description"
+                  rows={4}
+                  value={formData.ACT_Description}
+                  onChange={e => setFormData({ ...formData, ACT_Description: e.target.value })}
+                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Causes racines, contexte et objectifs attendus..."
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500 italic">
-                * La progression est calculée automatiquement via les jalons d&apos;action (à venir dans v2.1)
-              </p>
-            </div>
-          </div>
 
-          {/* COLONNE DROITE : STATUT & RESPONSABLE */}
-          <div className="space-y-6">
-            {/* STATUT */}
-            <div>
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-gray-700">Statut actuel</h2>
-                {canEdit && (
-                  <button
-                    onClick={() => setIsEditingStatus(true)}
-                    className="text-xs text-indigo-600 hover:text-indigo-900"
-                  >
-                    Modifier
-                  </button>
-                )}
-              </div>
-              <div className="mt-2">
-                {isEditingStatus ? (
-                  <div className="space-y-3">
-                    <select
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value as ActionStatus)}
-                      className="block w-full rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    >
-                      <option value={ActionStatus.A_FAIRE}>À faire</option>
-                      <option value={ActionStatus.EN_COURS}>En cours</option>
-                      <option value={ActionStatus.A_VALIDER}>À valider</option>
-                      <option value={ActionStatus.TERMINEE}>Terminée</option>
-                      <option value={ActionStatus.NON_EFFICACE}>Non efficace</option>
-                      <option value={ActionStatus.ANNULEE}>Annulée</option>
-                    </select>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={updateStatus}
-                        disabled={submitting || newStatus === action.ACT_Status}
-                        className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-                      >
-                        {submitting ? (
-                          <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                        ) : (
-                          'Enregistrer'
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsEditingStatus(false);
-                          setNewStatus(action.ACT_Status);
-                        }}
-                        className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Annuler
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  getStatusBadge(action.ACT_Status)
-                )}
-              </div>
-            </div>
-
-            {/* RESPONSABLE */}
-            <div>
-              <h2 className="text-sm font-medium text-gray-700">Responsable</h2>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700 border border-gray-300">
-                  {action.ACT_Responsable.U_FirstName?.[0] || '?'}
-                  {action.ACT_Responsable.U_LastName?.[0] || '?'}
-                </div>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {action.ACT_Responsable.U_FirstName} {action.ACT_Responsable.U_LastName}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {action.ACT_Responsable.U_Role === Role.PILOTE ? 'Pilote processus' : 'Responsable qualité'}
-                  </p>
+                  <label htmlFor="origin" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Origine de l'action
+                  </label>
+                  <select
+                    id="origin"
+                    value={formData.ACT_Origin}
+                    onChange={e => setFormData({ ...formData, ACT_Origin: e.target.value as ActionOrigin })}
+                    className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value={ActionOrigin.AUDIT}>Audit interne ou externe</option>
+                    <option value={ActionOrigin.NON_CONFORMITE}>Non-conformité détectée</option>
+                    <option value={ActionOrigin.RECLAMATION}>Réclamation client</option>
+                    <option value={ActionOrigin.REVUE_DIRECTION}>Revue de direction</option>
+                    <option value={ActionOrigin.COPIL}>COPIL / Comité de pilotage</option>
+                    <option value={ActionOrigin.RISQUE}>Analyse des risques</option>
+                    <option value={ActionOrigin.SSE}>SST / Environnement</option>
+                    <option value={ActionOrigin.OBJECTIF}>Objectif qualité non atteint</option>
+                    <option value={ActionOrigin.LEGAL}>Exigence légale</option>
+                    <option value={ActionOrigin.AUTRE}>Autre source</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Typologie
+                  </label>
+                  <select
+                    id="type"
+                    value={formData.ACT_Type}
+                    onChange={e => setFormData({ ...formData, ACT_Type: e.target.value as ActionType })}
+                    className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value={ActionType.CORRECTIVE}>Action corrective</option>
+                    <option value={ActionType.PREVENTIVE}>Action préventive</option>
+                    <option value={ActionType.AMELIORATION}>Opportunité d'amélioration</option>
+                  </select>
                 </div>
               </div>
-            </div>
 
-            {/* ÉCHÉANCE */}
-            <div>
-              <h2 className="text-sm font-medium text-gray-700">Échéance</h2>
-              <div className={`mt-2 flex items-center gap-2 ${isLate ? 'text-red-600' : daysLeft <= 7 ? 'text-amber-600' : 'text-gray-900'}`}>
-                <Calendar className="h-4 w-4 shrink-0" />
-                <span className="font-medium">
-                  {action.ACT_Deadline 
-                    ? format(new Date(action.ACT_Deadline), 'dd MMMM yyyy', { locale: fr })
-                    : 'Non définie'}
-                </span>
-                {action.ACT_Deadline && !isLate && daysLeft >= 0 && (
-                  <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    daysLeft <= 3 ? 'bg-red-100 text-red-800' : 
-                    daysLeft <= 7 ? 'bg-amber-100 text-amber-800' : 
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {daysLeft}j restants
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* PAQ & PROCESSUS */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
               <div>
-                <h2 className="text-sm font-medium text-gray-700">Plan d&apos;actions qualité</h2>
-                <p className="mt-1 text-sm font-medium text-indigo-700">
-                  {action.ACT_PAQ.PAQ_Title} ({action.ACT_PAQ.PAQ_Year})
-                </p>
-              </div>
-              <div className="mt-4">
-                <h2 className="text-sm font-medium text-gray-700">Processus rattaché</h2>
-                <p className="mt-1 text-sm text-gray-900">
-                  {action.ACT_PAQ.PAQ_Processus.PR_Code} — {action.ACT_PAQ.PAQ_Processus.PR_Libelle}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  Type: {action.ACT_PAQ.PAQ_Processus.PR_Type.PT_Label} ({action.ACT_PAQ.PAQ_Processus.PR_Type.PT_Family})
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* CONTENU PRINCIPAL */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* COLONNE GAUCHE : ORIGINE & PREUVES */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* SECTION ORIGINE & LIENS */}
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <LinkIcon className="h-5 w-5 text-gray-500" />
-                Origine et liens métier
-              </h2>
-              <div className="space-y-4">
-                {action.ACT_NC && (
-                  <div className="rounded-lg border border-gray-200 bg-white p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Issue d&apos;une non-conformité</p>
-                        <p className="mt-1 text-sm text-gray-700">
-                          <span className="font-medium text-red-600">{action.ACT_NC.NC_Libelle}</span>
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">
-                          Gravité: {action.ACT_NC.NC_Gravite} • Statut: {action.ACT_NC.NC_Statut}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {action.ACT_Audit && (
-                  <div className="rounded-lg border border-gray-200 bg-white p-4">
-                    <div className="flex items-start gap-3">
-                      <FileText className="h-5 w-5 text-purple-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Issue d&apos;un audit</p>
-                        <p className="mt-1 text-sm text-gray-700">
-                          <span className="font-medium text-purple-700">{action.ACT_Audit.AU_Reference}</span> — {action.ACT_Audit.AU_Title}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">
-                          Type: {action.ACT_Audit.AU_Type} • Date: {format(new Date(action.ACT_Audit.AU_DateAudit), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {!action.ACT_NC && !action.ACT_Audit && (
-                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-                    <Tag className="mx-auto h-8 w-8 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-600">
-                      Cette action n&apos;est pas encore rattachée à une NC ou un audit
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* SECTION PREUVES */}
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Paperclip className="h-5 w-5 text-gray-500" />
-                  Preuves associées ({action.ACT_Preuves.length})
-                </h2>
-                {canEdit && (
-                  <button className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center gap-1">
-                    <Plus className="h-4 w-4" />
-                    Ajouter
-                  </button>
-                )}
-              </div>
-              {action.ACT_Preuves.length > 0 ? (
-                <div className="space-y-3">
-                  {action.ACT_Preuves.map((preuve) => (
-                    <div
-                      key={preuve.PV_Id}
-                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-300"
+                <label className="block text-sm font-medium text-gray-700 mb-2">Priorité stratégique</label>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { value: Priority.LOW, label: 'Basse', color: 'bg-gray-100 text-gray-800' },
+                    { value: Priority.MEDIUM, label: 'Moyenne', color: 'bg-blue-50 text-blue-800' },
+                    { value: Priority.HIGH, label: 'Haute', color: 'bg-orange-50 text-orange-800' },
+                    { value: Priority.CRITICAL, label: 'Critique', color: 'bg-red-50 text-red-800' },
+                  ].map(p => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, ACT_Priority: p.value })}
+                      className={cn(
+                        'flex w-full flex-col items-center rounded-lg border px-3 py-4 text-sm font-medium transition-colors',
+                        formData.ACT_Priority === p.value
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm'
+                          : `border-gray-300 ${p.color} hover:bg-gray-100`,
+                      )}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
-                          <FileText className="h-5 w-5 text-gray-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{preuve.PV_FileName}</p>
-                          <p className="text-xs text-gray-500">
-                            {format(new Date(preuve.PV_CreatedAt), 'dd MMM yyyy', { locale: fr })}
-                          </p>
-                        </div>
-                      </div>
-                      <a
-                        href={preuve.PV_FileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
-                      >
-                        Voir
-                        <Eye className="h-4 w-4 ml-1" />
-                      </a>
-                    </div>
+                      <span className="text-xs uppercase tracking-wider">{p.label}</span>
+                    </button>
                   ))}
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-12">
-                  <FileText className="h-8 w-8 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">Aucune preuve associée</p>
-                  {canEdit && (
-                    <button className="mt-3 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-indigo-600 shadow-sm hover:bg-gray-100">
-                      Ajouter une preuve
-                    </button>
-                  )}
-                </div>
-              )}
-            </section>
-
-            {/* SECTION AUDIT TRAIL */}
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                <History className="h-5 w-5 text-gray-500" />
-                Historique des modifications ({action.ACT_ChangeLogs.length})
-              </h2>
-              <div className="space-y-4">
-                {action.ACT_ChangeLogs.length > 0 ? (
-                  action.ACT_ChangeLogs.slice(0, 5).map((log) => (
-                    <div key={log.CL_Id} className="relative pl-5 pb-6 border-l-2 border-gray-200">
-                      <div className="absolute -left-1 top-0 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100">
-                        <div className="h-2 w-2 rounded-full bg-gray-400" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {log.CL_Action === ChangeAction.UPDATE ? 'Mise à jour' : 'Création'}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        par {log.CL_UserId} • {format(new Date(log.CL_Timestamp), 'dd MMM yyyy HH:mm', { locale: fr })}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-6 text-sm text-gray-500">
-                    Aucune modification enregistrée
-                  </div>
-                )}
-                {action.ACT_ChangeLogs.length > 5 && (
-                  <button className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Voir tout l&apos;historique ({action.ACT_ChangeLogs.length})
-                  </button>
-                )}
               </div>
-            </section>
-          </div>
+            </div>
+          )}
 
-          {/* COLONNE DROITE : ACTIONS RAPIDES & CONFORMITÉ */}
-          <div className="space-y-8">
-            {/* SECTION ACTIONS RAPIDES */}
-            {canEdit && (
-              <section>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h2>
-                <div className="space-y-3">
-                  <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <RefreshCcw className="h-4 w-4" />
-                    Relancer le responsable
-                  </button>
-                  <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <Target className="h-4 w-4" />
-                    Créer une action dérivée
-                  </button>
-                  <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <Eye className="h-4 w-4" />
-                    Masquer aux rapports
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {/* SECTION CONFORMITÉ ISO */}
-            <section>
-              <div className="rounded-xl bg-indigo-50 p-5">
+          {/* ÉTAPE 2 : RATTACHEMENT (CORRIGÉ - STRICTEMENT CONFORME) */}
+          {step === 2 && (
+            <div className="space-y-8">
+              <div className="rounded-lg bg-indigo-50 p-5">
                 <div className="flex items-start gap-3">
                   <div className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600">
                     <span className="text-xs font-bold text-white">§</span>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-indigo-900">Conformité ISO 9001:2015</h3>
+                    <h3 className="text-sm font-medium text-indigo-900">Exigence ISO 9001:2015 §10.2</h3>
                     <p className="mt-1 text-sm text-indigo-800">
-                      Cette action contribue à l&apos;exigence §10.2 (Actions correctives) et §6.1 (Actions pour traiter les risques).
+                      Toute action corrective doit être rattachée à un Plan d&apos;Actions Qualité (PAQ). Le lien avec le processus s&apos;établit via le PAQ sélectionné.
                     </p>
-                    <button className="mt-3 text-xs font-medium text-indigo-700 hover:text-indigo-900">
-                      Voir les exigences associées
-                    </button>
                   </div>
                 </div>
               </div>
-            </section>
 
-            {/* SECTION CRÉATEUR */}
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Création</h2>
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700 border border-gray-300">
-                    {action.ACT_Creator.U_FirstName?.[0] || '?'}
-                    {action.ACT_Creator.U_LastName?.[0] || '?'}
+              <div>
+                <label htmlFor="paq" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Plan d'actions qualité (PAQ) <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="paq"
+                  required
+                  value={formData.ACT_PAQId}
+                  onChange={e => setFormData({ ...formData, ACT_PAQId: e.target.value })}
+                  className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="">Sélectionnez un PAQ actif...</option>
+                  {paqs
+                    .filter(paq => paq.PAQ_IsActive && paq.PAQ_Status !== 'ARCHIVE')
+                    .map(paq => (
+                      <option key={paq.PAQ_Id} value={paq.PAQ_Id}>
+                        {paq.PAQ_Title} ({paq.PAQ_Year}) — Processus: {paq.PAQ_Processus.PR_Code}
+                      </option>
+                    ))}
+                </select>
+                {selectedPAQ && (
+                  <div className="mt-3 rounded-md bg-gray-50 p-4">
+                    <p className="text-sm font-medium text-gray-900">{selectedPAQ.PAQ_Title}</p>
+                    {selectedProcess && (
+                      <p className="mt-1 text-xs text-gray-600">
+                        Processus: <span className="font-medium text-indigo-700">{selectedProcess.PR_Code} — {selectedProcess.PR_Libelle}</span>
+                      </p>
+                    )}
+                    {selectedPAQ.PAQ_QualityManager && (
+                      <p className="mt-1 text-xs text-gray-600">
+                        Pilote PAQ: {selectedPAQ.PAQ_QualityManager.U_FirstName} {selectedPAQ.PAQ_QualityManager.U_LastName}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-amber-700 bg-amber-50 p-2 rounded-lg">
+                  ⚠️ Une action ne se rattache pas directement à un processus. Le lien s&apos;établit via le PAQ sélectionné (conformément au schéma Prisma).
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="responsible" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Responsable de l&apos;action <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="responsible"
+                    required
+                    value={formData.ACT_ResponsableId}
+                    onChange={e => setFormData({ ...formData, ACT_ResponsableId: e.target.value })}
+                    className="block w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="">Sélectionnez un responsable...</option>
+                    {users
+                      .filter(u => u.U_IsActive)
+                      .map(user => (
+                        <option key={user.U_Id} value={user.U_Id}>
+                          {user.U_FirstName} {user.U_LastName} ({user.U_Role})
+                        </option>
+                      ))}
+                  </select>
+                  {selectedResponsible && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Email : {selectedResponsible.U_Email}
+                      {selectedResponsible.U_SiteId && ` • Site ID: ${selectedResponsible.U_SiteId}`}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="deadline" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Échéance de traitement <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="deadline"
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={formData.ACT_Deadline}
+                    onChange={e => setFormData({ ...formData, ACT_Deadline: e.target.value })}
+                    className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
+                  {formData.ACT_Deadline && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {new Date(formData.ACT_Deadline) > new Date()
+                        ? `Délai restant : ${Math.ceil(
+                            (new Date(formData.ACT_Deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                          )} jours`
+                        : '⚠️ Échéance dans le passé'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ÉTAPE 3 : RÉCAPITULATIF (SANS DÉCOMPOSITION - CONFORME SCHÉMA) */}
+          {step === 3 && (
+            <div className="space-y-8">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-5">
+                <h3 className="text-sm font-medium text-gray-900 mb-4">Récapitulatif de l&apos;action</h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Titre</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{formData.ACT_Title}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {action.ACT_Creator.U_FirstName} {action.ACT_Creator.U_LastName}
+                    <p className="text-xs font-medium text-gray-500">PAQ</p>
+                    <p className="mt-1 text-sm font-medium text-indigo-700">
+                      {selectedPAQ ? `${selectedPAQ.PAQ_Title} (${selectedPAQ.PAQ_Year})` : 'Non défini'}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      Créée le {format(new Date(action.ACT_CreatedAt), 'dd MMM yyyy HH:mm', { locale: fr })}
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Processus (via PAQ)</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {selectedProcess ? `${selectedProcess.PR_Code} — ${selectedProcess.PR_Libelle}` : 'Non défini'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Responsable</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {selectedResponsible
+                        ? `${selectedResponsible.U_FirstName} ${selectedResponsible.U_LastName}`
+                        : 'Non défini'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Créateur</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {currentUser
+                        ? `${currentUser.U_FirstName} ${currentUser.U_LastName}`
+                        : 'Utilisateur système'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Échéance</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {formData.ACT_Deadline
+                        ? new Date(formData.ACT_Deadline).toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                          })
+                        : 'Non définie'}
                     </p>
                   </div>
                 </div>
               </div>
-            </section>
+
+              <div className="rounded-lg bg-amber-50 p-5 border border-amber-200">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-amber-600">
+                    <span className="text-xs font-bold text-white">!</span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-amber-900">Fonctionnalité en préparation</h3>
+                    <p className="mt-1 text-sm text-amber-800">
+                      La décomposition en tâches détaillées (WBS) sera disponible dans la version 2.1 de Qualisoft Elite. 
+                      Cette action sera créée avec un statut initial &quot;À faire&quot; et pourra être détaillée ultérieurement.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ACTIONS DE NAVIGATION */}
+          <div className="mt-10 flex flex-col-reverse justify-between gap-4 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => setStep(prev => Math.max(1, prev - 1))}
+              disabled={step === 1}
+              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-white"
+            >
+              <ArrowLeft className="mr-1.5 h-4 w-4" />
+              Précédent
+            </button>
+
+            {step < 3 ? (
+              <button
+                type="button"
+                onClick={() => setStep(prev => prev + 1)}
+                disabled={!canProceed()}
+                className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-indigo-600"
+              >
+                Suivant
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading || !canProceed()}
+                className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-emerald-600"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Création en cours...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-1.5 h-4 w-4" />
+                    Créer l&apos;action corrective
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-// ============================================================================
-// ICÔNES CUSTOM POUR CLARTÉ
-// ============================================================================
-
-function LinkIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.5}
-      stroke="currentColor"
-      className={cn("w-5 h-5", className)}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
-      />
-    </svg>
-  );
-}
-
-function Tag({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.5}
-      stroke="currentColor"
-      className={cn("w-8 h-8", className)}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M6 6h.008v.008H6V6z"
-      />
-    </svg>
   );
 }
