@@ -251,7 +251,7 @@ export default function Sidebar({
             access: "ALL",
           },
           {
-            title: "Plan de Continuité (PCA)",
+            title: "Revues de processus",
             path: "/dashboard/process-review",
             icon: Activity,
             access: "ALL",
