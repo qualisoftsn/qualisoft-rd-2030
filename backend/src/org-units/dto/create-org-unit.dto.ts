@@ -1,17 +1,25 @@
-import { IsString, IsUUID, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsUUID, IsOptional, MaxLength, IsNotEmpty } from 'class-validator';
 
 export class CreateOrgUnitDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   OU_Name!: string;
 
-  @IsUUID()
-  OU_TypeId!: string; // Direction, Service, Atelier, etc.
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  OU_Code!: string; // Ajouté car indispensable pour le maillage SDE
 
   @IsUUID()
-  OU_SiteId!: string; // Localisation physique obligatoire
+  @IsNotEmpty()
+  OU_TypeId!: string;
+
+  @IsUUID()
+  @IsNotEmpty()
+  OU_SiteId!: string;
 
   @IsOptional()
   @IsUUID()
-  OU_ParentId?: string; // Pour la structure hiérarchique
+  OU_ParentId?: string | null;
 }

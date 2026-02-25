@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, UseGuards, Query } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, UseGuards, Query, ParseUUIDPipe } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,9 +12,8 @@ export class OrgUnitController {
   constructor(private readonly orgUnitsService: OrgUnitsService) {}
 
   private checkAdmin(role: string) {
-    const allowedRoles: string[] = [Role.ADMIN, Role.SUPER_ADMIN];
-    if (!allowedRoles.includes(role)) {
-      throw new ForbiddenException("Accès refusé : Seule l'administration peut configurer la structure.");
+    if (![Role.ADMIN, Role.SUPER_ADMIN].includes(role as any)) {
+      throw new ForbiddenException("Accès réservé à l'Administration.");
     }
   }
 
@@ -29,16 +28,13 @@ export class OrgUnitController {
   }
 
   @Get()
-  async findAll(
-    @GetUser('tenantId') tid: string,
-    @Query('includeArchived') archived: string
-  ) {
+  async findAll(@GetUser('tenantId') tid: string, @Query('includeArchived') archived: string) {
     return this.orgUnitsService.findAll(tid, archived === 'true');
   }
 
   @Patch(':id')
   async update(
-    @Param('id') id: string, 
+    @Param('id', ParseUUIDPipe) id: string, 
     @GetUser('U_Role') role: string, 
     @GetUser('tenantId') tid: string, 
     @Body() dto: UpdateOrgUnitDto
@@ -49,7 +45,7 @@ export class OrgUnitController {
 
   @Delete(':id')
   async remove(
-    @Param('id') id: string, 
+    @Param('id', ParseUUIDPipe) id: string, 
     @GetUser('U_Role') role: string, 
     @GetUser('tenantId') tid: string
   ) {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -46,19 +46,35 @@ export class GenericCrudService {
    * Nettoie les objets pour éviter les erreurs Prisma sur les relations complexes.
    */
   private prepareData(model: string, data: any) {
+    const { pk } = this.getModelMetadata(model);
     const cleanData = { ...data };
-    // Protection contre les champs de tunneling spécifiques
+
+    // Protection : On ne doit jamais injecter la PK ou le tenantId manuellement
+    delete cleanData[pk];
+    delete cleanData.tenantId;
+
+    // Nettoyage des champs de tunneling ou objets imbriqués provenant du frontend
     if (model !== 'user') {
       delete cleanData.U_AssignedProcessId;
     }
+
+    // Suppression récursive des objets de relation chargés par "include"
+    Object.keys(cleanData).forEach(key => {
+      if (
+        cleanData[key] && 
+        typeof cleanData[key] === 'object' && 
+        !Array.isArray(cleanData[key]) && 
+        !(cleanData[key] instanceof Date)
+      ) {
+        delete cleanData[key];
+      }
+    });
+
     return cleanData;
   }
 
   /**
    * 🔍 LECTURE : Recherche Multi-Tenant
-   * @param model Nom du modèle Prisma
-   * @param tenantId Identifiant du client
-   * @param includeArchived Si vrai, ignore le filtre d'activité
    */
   async findAll(model: string, tenantId: string, includeArchived = false) {
     const { active } = this.getModelMetadata(model);
@@ -81,13 +97,19 @@ export class GenericCrudService {
     
     this.logger.log(`[CREATE] Nouveau ${model} pour Tenant: ${tenantId}`);
 
-    return (this.prisma[model] as any).create({
-      data: { 
-        ...sanitizedData, 
-        tenantId,
-        [active]: true 
-      },
-    });
+    try {
+      return await (this.prisma[model] as any).create({
+        data: { 
+          ...sanitizedData, 
+          tenantId,
+          [active]: true 
+        },
+      });
+    } catch (error: any) {
+      const msg = error?.message || 'Erreur Kernel inconnue';
+      this.logger.error(`[CREATE-ERROR] ${model}: ${msg}`);
+      throw new BadRequestException(`Échec de création ${model} : ${msg}`);
+    }
   }
 
   /**
@@ -97,26 +119,31 @@ export class GenericCrudService {
     const { pk } = this.getModelMetadata(model);
     const sanitizedData = this.prepareData(model, data);
     
-    // Vérification stricte de l'appartenance de la ressource au Tenant
+    // Vérification de propriété
     const record = await (this.prisma[model] as any).findFirst({
       where: { [pk]: id, tenantId },
     });
     
     if (!record) {
-      throw new NotFoundException(`Accès refusé ou ressource ${model} (${id}) inexistante.`);
+      throw new NotFoundException(`Ressource ${model} (${id}) introuvable ou hors périmètre.`);
     }
 
     this.logger.log(`[UPDATE] Mise à jour ${model} ID: ${id}`);
 
-    return (this.prisma[model] as any).update({
-      where: { [pk]: id },
-      data: sanitizedData,
-    });
+    try {
+      return await (this.prisma[model] as any).update({
+        where: { [pk]: id },
+        data: sanitizedData,
+      });
+    } catch (error: any) {
+      const msg = error?.message || 'Erreur Kernel inconnue';
+      this.logger.error(`[UPDATE-ERROR] ${model}: ${msg}`);
+      throw new BadRequestException(`Échec de mise à jour ${model} : ${msg}`);
+    }
   }
 
   /**
-   * 📁 ARCHIVAGE (SOFT-DELETE) : Préservation de l'intégrité numérique
-   * Ne supprime jamais physiquement la donnée conformément aux exigences de traçabilité ISO.
+   * 📁 ARCHIVAGE (SOFT-DELETE)
    */
   async delete(model: string, id: string, tenantId: string) {
     const { pk, active } = this.getModelMetadata(model);
@@ -126,10 +153,10 @@ export class GenericCrudService {
     });
     
     if (!record) {
-      throw new NotFoundException(`Archivage impossible : la ressource n'appartient pas à ce périmètre.`);
+      throw new NotFoundException(`Archivage impossible : Périmètre invalide.`);
     }
 
-    this.logger.warn(`[SOFT-DELETE] Archivage définitif de ${model} ID: ${id}`);
+    this.logger.warn(`[SOFT-DELETE] Archivage de ${model} ID: ${id}`);
 
     return (this.prisma[model] as any).update({ 
       where: { [pk]: id },
