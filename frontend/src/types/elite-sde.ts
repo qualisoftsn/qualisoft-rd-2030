@@ -436,6 +436,8 @@ export interface Processus {
 }
 
 export interface Action {
+  [x: string]: any;
+  ACT_Responsable: any;
   ACT_Id: string;
   ACT_Title: string;
   ACT_Description?: string | null;

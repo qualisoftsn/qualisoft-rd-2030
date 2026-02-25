@@ -1,19 +1,20 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🛰️ MODULE : PLAN D'ACTIONS QUALITÉ (PAQ) — COMMAND CENTER ELITE
- * -------------------------------------------------------------------------
- * RÔLE : Pilotage du cycle d'amélioration continue (§10.3 ISO 9001).
- * ARCHITECTURE : Multi-Tenant SDE Matrix Isolation.
- * RÉFÉRENTIEL : types/elite-sde.ts (Prisma Core).
- * CORRECTIFS : Implémentation cn(), Sécurisation ACT_Deadline, Design Full-Space.
- * -------------------------------------------------------------------------
+ * FICHIER : app/(dashboard)/paq/page.tsx
+ * ===========================================================================
+ * PAGE PILOTAGE DES PLANS D'ACTIONS QUALITÉ (PAQ)
+ * Rôle : Pilotage du cycle d'amélioration continue (ISO 9001 §10.3)
+ * Design : Style ClickUp professionnel (sobre, épuré, orienté productivité)
+ * Conformité : 100% schéma Prisma — zéro champ inventé
+ * ===========================================================================
  */
 
-"use client";
+'use client';
 
-import apiClient from "@/core/api/api-client";
-import { Action as IAction, PAQ as IPAQ } from "@/types/elite-sde";
+import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import apiClient from '@/core/api/api-client';
 import {
   Activity,
   ArrowRight,
@@ -21,7 +22,6 @@ import {
   Calendar,
   CheckCircle2,
   Edit3,
-  Fingerprint,
   LayoutGrid,
   Loader2,
   Plus,
@@ -31,57 +31,52 @@ import {
   Target,
   Users,
   X,
-  Zap,
-} from "lucide-react";
-import Link from "next/link";
-import React, { useCallback, useEffect, useState } from "react";
-import { toast, Toaster } from "sonner";
+} from 'lucide-react';
+import { toast, Toaster } from 'sonner';
+import type {
+  Action,
+  PAQ,
+  User,
+  Processus,
+  ActionStatus,
+  Priority,
+} from '@/types/elite-sde';
+import { ActionStatus as ActionStatusEnum, Priority as PriorityEnum } from '@/types/elite-sde';
 
-// --- 🛠️ UTILITAIRES DE SYSTÈME ---
-/**
- * Fusionne les classes CSS en ignorant les valeurs falsy.
- */
-const cn = (...classes: (string | boolean | undefined | null)[]) => {
-  return classes.filter(Boolean).join(" ");
-};
+// --- UTILITAIRE CN ---
+const cn = (...classes: (string | boolean | undefined | null)[]) =>
+  classes.filter(Boolean).join(' ');
 
-// --- 🏗️ INTERFACES ÉTENDUES ---
+// --- TYPES ---
 interface PAQDashboardData {
   total: number;
-  enRetard: IAction[];
-  aValider: IAction[];
-  cloturees: IAction[];
+  enRetard: Action[];
+  aValider: Action[];
+  cloturees: Action[];
   tauxEfficacite: number;
-  chargeTravail: [string, number][];
+  chargeTravail: Array<{ name: string; count: number }>;
 }
 
 export default function PAQPage() {
-  // --- 📦 ÉTATS DE DONNÉES SCELLÉS ---
+  const router = useRouter();
   const [data, setData] = useState<PAQDashboardData | null>(null);
-  const [paqs, setPaqs] = useState<IPAQ[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [editingAction, setEditingAction] = useState<IAction | null>(null);
+  const [paqs, setPaqs] = useState<PAQ[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingAction, setEditingAction] = useState<Action | null>(null);
 
-  /**
-   * 📡 SYNCHRONISATION DES FLUX MATRIX
-   * @description Extraction simultanée des KPIs et de la cartographie des plans.
-   */
+  // --- CHARGEMENT DES DONNÉES ---
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [resStats, resPaqs] = await Promise.all([
-        apiClient.get("/paq/dashboard"),
-        apiClient.get("/paq"),
+        apiClient.get<PAQDashboardData>('/paq/dashboard'),
+        apiClient.get<PAQ[]>('/paq'),
       ]);
-
-      const stats = resStats.data?.data || resStats.data;
-      const plans = resPaqs.data?.data || resPaqs.data;
-
-      setData(stats);
-      setPaqs(Array.isArray(plans) ? plans : []);
-    } catch (error: unknown) {
-      console.error("❌ Rupture de flux PAQ:", error);
-      toast.error("ÉCHEC DE SYNCHRONISATION : REGISTRE SMI INACCESSIBLE");
+      setData(resStats.data);
+      setPaqs(resPaqs.data || []);
+    } catch (err) {
+      console.error('[PAQ] Failed to load data:', err);
+      toast.error('Échec du chargement des plans d\'actions qualité');
     } finally {
       setLoading(false);
     }
@@ -91,479 +86,569 @@ export default function PAQPage() {
     fetchData();
   }, [fetchData]);
 
-  /**
-   * 💾 ACTION : RECTIFICATION SOUVERAINE (§10.2)
-   */
+  // --- MISE À JOUR RAPIDE D'ACTION ---
   const handleQuickUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAction?.ACT_Id) return;
 
-    const tid = toast.loading("Scellage de la mutation corrective...");
     try {
-      await apiClient.patch(
-        `/paq/actions/${editingAction.ACT_Id}`,
-        editingAction,
-      );
-      toast.success("Action rectifiée dans le SMI.", { id: tid });
+      await apiClient.patch(`/paq/actions/${editingAction.ACT_Id}`, {
+        ACT_Status: editingAction.ACT_Status,
+        ACT_Priority: editingAction.ACT_Priority,
+        ACT_Title: editingAction.ACT_Title,
+      });
+      toast.success('Action mise à jour avec succès');
       setEditingAction(null);
       fetchData();
-    } catch (err: unknown) {
-      toast.error("Refus de mutation : Intégrité des données compromise.", {
-        id: tid,
-      });
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Échec de la mise à jour de l\'action';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
     }
   };
 
-  // --- 🛰️ ÉCRAN DE DÉPLOIEMENT ---
-  if (loading)
+  // --- GESTION DU CHARGEMENT ---
+  if (loading) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-[#0B0F1A] ml-72 gap-8">
-        <div className="relative flex items-center justify-center">
-          <Loader2
-            className="animate-spin text-blue-600"
-            size={80}
-            strokeWidth={1}
-          />
-          <Fingerprint
-            className="absolute text-blue-600/30 animate-pulse"
-            size={32}
-          />
+      <div className="ml-72 flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="relative inline-block">
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-gray-600">Chargement des plans d&apos;actions qualité...</p>
         </div>
-        <p className="text-blue-500 font-black uppercase italic text-[11px] tracking-[0.8em]">
-          Compilation Qualisoft Matrix 2026...
-        </p>
       </div>
     );
+  }
 
   return (
-    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-12 ml-72 text-white font-sans italic text-left selection:bg-blue-600/30 overflow-x-hidden">
+    <div className="ml-72 bg-gray-50 min-h-screen p-6">
       <Toaster position="top-right" richColors />
 
-      <div className="w-full space-y-20 animate-in fade-in duration-1000">
-        {/* 🔝 EN-TÊTE STRATÉGIQUE (§10.3) */}
-        <header className="flex justify-between items-end border-b-2 border-white/5 pb-12">
-          <div className="space-y-6">
-            <div className="flex items-center gap-4 text-blue-500 bg-blue-500/5 w-fit px-6 py-2 rounded-full border border-blue-500/10">
-              <ShieldCheck size={16} className="text-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.3em]">
-                Protocol ISO 9001:2015 Verified
-              </span>
+      <div className="mx-auto max-w-7xl space-y-8">
+        {/* 🔝 HEADER STRATÉGIQUE */}
+        <header className="border-b border-gray-200 pb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800">
+                  ISO 9001:2015 §10.3
+                </span>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
+                  {data?.total || 0} actions actives
+                </span>
+              </div>
+              <h1 className="mt-2 text-2xl font-bold text-gray-900">Plans d&apos;actions qualité</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Pilotage du cycle d&apos;amélioration continue et suivi des mesures correctives/préventives
+              </p>
             </div>
-            <h1 className="text-7xl font-black uppercase italic tracking-tighter leading-none text-white">
-              PILOTAGE <span className="text-blue-600">PAQ</span>
-            </h1>
-            <p className="text-slate-500 font-bold text-[12px] uppercase tracking-[0.7em] italic opacity-60">
-              AMÉLIORATION CONTINUE • PERFORMANCE SDE MATRIX
-            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-0">
+              <button className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                <Printer className="mr-1.5 h-4 w-4" />
+                Exporter le rapport
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/paq/nouveau')}
+                className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Nouveau plan annuel
+              </button>
+            </div>
           </div>
 
-          <div className="flex gap-8">
-            <button className="flex items-center gap-3 px-10 py-6 rounded-4xl border-2 border-white/5 hover:bg-white/5 text-slate-400 font-black uppercase italic text-[11px] transition-all shadow-xl">
-              <Printer size={22} /> Rapport Global PDF
-            </button>
-            <Link
-              href="/dashboard/paq/nouveau"
-              className="bg-blue-600 hover:bg-white hover:text-slate-900 text-white px-14 py-6 rounded-[2.5rem] font-black uppercase italic text-[11px] tracking-widest transition-all shadow-[0_20px_60px_rgba(37,99,235,0.4)] border-none flex items-center gap-5 active:scale-95 group"
-            >
-              <Plus
-                size={28}
-                strokeWidth={3}
-                className="group-hover:rotate-90 transition-transform"
-              />
-              Initialiser un Plan Annuel
-            </Link>
+          {/* 📊 KPI CARDS */}
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KPIStat
+              title="Actions totales"
+              value={data?.total.toString() || '0'}
+              icon={Target}
+              color="blue"
+              subtext="Volume SMI"
+            />
+            <KPIStat
+              title="Retards critiques"
+              value={data?.enRetard.length.toString() || '0'}
+              icon={ShieldAlert}
+              color="red"
+              subtext="Alerte §10.2"
+            />
+            <KPIStat
+              title="Taux d'efficacité"
+              value={`${data?.tauxEfficacite || 0}%`}
+              icon={CheckCircle2}
+              color={data?.tauxEfficacite && data.tauxEfficacite >= 85 ? 'emerald' : 'amber'}
+              subtext="Performance §9.1.3"
+            />
+            <KPIStat
+              title="Pilotes actifs"
+              value={data?.chargeTravail.length.toString() || '0'}
+              icon={Users}
+              color="indigo"
+              subtext="Affectation ressources"
+            />
           </div>
         </header>
 
-        {/* 📊 INDICATEURS DE RÉACTIVITÉ (§9.1.3) */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-          <StatCard
-            title="ACTIONS TOTALES"
-            value={data?.total || 0}
-            icon={Target}
-            color="blue"
-            subtitle="Volume SDE SMI"
-          />
-          <StatCard
-            title="RETARDS CRITIQUES"
-            value={data?.enRetard?.length || 0}
-            icon={ShieldAlert}
-            color="red"
-            subtitle="Alerte Non-Conformité §10.2"
-          />
-          <StatCard
-            title="INDICE EFFICACITÉ"
-            value={`${data?.tauxEfficacite || 0}%`}
-            icon={CheckCircle2}
-            color="emerald"
-            subtitle="Mesure de Performance §9.1.3"
-          />
-          <StatCard
-            title="PILOTES ACTIFS"
-            value={data?.chargeTravail?.length || 0}
-            icon={Users}
-            color="orange"
-            subtitle="Affectation Ressources"
-          />
-        </section>
-
-        {/* 🏛️ GRID PRINCIPALE : CARTOGRAPHIE & RADAR (FULL SPACE) */}
-        <div className="grid grid-cols-12 gap-16 items-start">
-          {/* GRILLE DES PLANS ANNUELS PAR PROCESSUS */}
-          <div className="col-span-12 lg:col-span-8 space-y-12 text-left">
-            <div className="flex items-center justify-between border-b border-white/5 pb-8">
-              <h3 className="text-4xl font-black uppercase italic flex items-center gap-8 leading-none">
-                <LayoutGrid className="text-blue-600" size={40} /> Cartographie
-                des Plans
-              </h3>
-              <span className="text-[12px] font-black uppercase text-slate-500 tracking-[0.3em] bg-white/5 px-6 py-2 rounded-full border border-white/5">
-                {paqs.length} PLANS SCELLÉS
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              {paqs.length > 0 ? (
-                paqs.map((paq: any) => (
-                  <Link
-                    href={`/dashboard/paq/${paq.PAQ_Id}`}
-                    key={paq.PAQ_Id}
-                    className="bg-[#0F172A]/40 border border-white/5 p-14 rounded-[5rem] hover:border-blue-600/40 transition-all group flex flex-col justify-between min-h-87.5 shadow-4xl relative overflow-hidden"
-                  >
-                    <div className="absolute -right-12 -top-12 p-10 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-1000 text-white">
-                      <BarChart3 size={250} />
-                    </div>
-
-                    <div className="relative z-10 text-left">
-                      <div className="flex justify-between items-start mb-12">
-                        <span className="bg-blue-600/10 border border-blue-600/20 px-8 py-3 rounded-2xl text-[14px] font-black text-blue-500 italic tracking-widest leading-none">
-                          EXERCICE {paq.PAQ_Year}
-                        </span>
-                        <div className="flex flex-col items-end">
-                          <span className="text-[11px] font-black uppercase text-slate-500 italic tracking-[0.3em]">
-                            {paq._count?.PAQ_Actions || 0} MESURES
-                          </span>
-                        </div>
-                      </div>
-
-                      <h4 className="text-4xl font-black uppercase italic tracking-tighter group-hover:text-blue-400 transition-colors leading-tight mb-8">
-                        {paq.PAQ_Processus?.PR_Libelle || "Segment Inconnu"}
-                      </h4>
-
-                      <div className="flex items-center gap-5 bg-white/2 p-5 rounded-3xl border border-white/5 w-fit">
-                        <div className="w-10 h-10 rounded-xl bg-[#0B0F1A] border border-white/10 flex items-center justify-center text-[12px] font-black text-blue-500 shadow-xl">
-                          {(
-                            paq.PAQ_QualityManager?.U_FirstName?.charAt(0) || ""
-                          ).toUpperCase()}
-                          {(
-                            paq.PAQ_QualityManager?.U_LastName?.charAt(0) || ""
-                          ).toUpperCase()}
-                        </div>
-                        <p className="text-[11px] text-slate-400 font-black uppercase tracking-widest">
-                          PILOTE :{" "}
-                          <span className="text-white">
-                            {paq.PAQ_QualityManager?.U_FirstName}{" "}
-                            {paq.PAQ_QualityManager?.U_LastName}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end pt-10 relative z-10">
-                      <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center group-hover:translate-x-4 transition-all shadow-2xl group-hover:bg-white group-hover:text-blue-600">
-                        <ArrowRight size={32} />
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="col-span-2 py-48 text-center border-4 border-dashed border-white/5 rounded-[6rem] opacity-20">
-                  <Target size={120} className="mx-auto mb-10" />
-                  <p className="font-black uppercase italic tracking-[0.8em] text-sm leading-relaxed">
-                    Néant Opérationnel :<br />
-                    Aucun plan d&apos;actions n&apos;est scellé
-                  </p>
+        {/* 🏛️ GRID PRINCIPALE */}
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* COLONNE 1-2 : LISTE DES PAQ */}
+          <div className="lg:col-span-2">
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
+              <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Plans annuels</h2>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                    {paqs.length} plans scellés
+                  </span>
                 </div>
-              )}
+                <p className="mt-1 text-sm text-gray-500">
+                  Plans d&apos;actions qualité structurés par processus et année d&apos;exécution
+                </p>
+              </div>
+
+              <div className="divide-y divide-gray-200">
+                {paqs.length > 0 ? (
+                  paqs.map((paq) => (
+                    <PAQCard
+                      key={paq.PAQ_Id}
+                      paq={paq}
+                      onClick={() => router.push(`/dashboard/paq/${paq.PAQ_Id}`)}
+                    />
+                  ))
+                ) : (
+                  <div className="p-16 text-center">
+                    <div className="mx-auto h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                      <LayoutGrid className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="mt-4 text-sm font-medium text-gray-900">Aucun plan d&apos;actions qualité</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Commencez par créer votre premier plan annuel pour structurer vos actions d&apos;amélioration
+                    </p>
+                    <button
+                      onClick={() => router.push('/dashboard/paq/nouveau')}
+                      className="mt-4 rounded-md bg-white px-3 py-2 text-sm font-medium text-indigo-600 shadow-sm hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    >
+                      Créer un plan annuel
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 🧨 RADAR DES URGENCES (§10.2) */}
-          <aside className="col-span-12 lg:col-span-4 space-y-12">
-            <div className="bg-red-600/5 border-2 border-red-600/10 p-12 rounded-[5rem] h-fit shadow-[0_0_100px_rgba(220,38,38,0.05)] backdrop-blur-3xl relative overflow-hidden text-left">
-              <div className="absolute top-0 right-0 p-8 opacity-5 text-red-600 rotate-12">
-                <ShieldAlert size={150} />
+          {/* COLONNE 3 : RADAR DES URGENCES + CHARGE PILOTES */}
+          <div className="space-y-8">
+            {/* RADAR DES URGENCES */}
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
+              <div className="border-b border-gray-200 bg-rose-50 px-6 py-4">
+                <h2 className="text-lg font-semibold text-rose-800 flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5" />
+                  Actions en retard
+                </h2>
+                <p className="mt-1 text-sm text-rose-700">
+                  Actions dont l&apos;échéance est dépassée et le statut n&apos;est pas &quot;Terminée&quot;
+                </p>
               </div>
 
-              <h3 className="text-3xl font-black uppercase italic text-red-600 mb-14 flex items-center gap-6 leading-none tracking-tighter">
-                <ShieldAlert className="animate-pulse" size={40} /> Radar
-                Urgences
-              </h3>
+              <div className="p-6">
+                {data?.enRetard && data.enRetard.length > 0 ? (
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                    {data.enRetard.slice(0, 7).map((action) => {
+                      const deadline = action.ACT_Deadline
+                        ? new Date(action.ACT_Deadline)
+                        : null;
+                      const formattedDate = deadline && !isNaN(deadline.getTime())
+                        ? deadline.toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : 'Non définie';
 
-              <div className="space-y-8 relative z-10">
-                {data?.enRetard?.length ? (
-                  data.enRetard.slice(0, 7).map((action) => {
-                    // ✅ CORRECTION LIGNE 215 : Sécurisation de la Date
-                    const deadline = action.ACT_Deadline
-                      ? new Date(action.ACT_Deadline)
-                      : null;
-                    const formattedDate =
-                      deadline && !isNaN(deadline.getTime())
-                        ? deadline.toLocaleDateString("fr-FR")
-                        : "INDÉTERMINÉE";
-
-                    return (
-                      <div
-                        key={action.ACT_Id}
-                        className="p-8 bg-[#0B0F1A]/80 rounded-[3rem] border border-white/5 flex justify-between items-center group hover:border-red-600/40 transition-all shadow-2xl"
-                      >
-                        <div className="min-w-0 text-left">
-                          <div className="flex items-center gap-3 mb-3">
-                            <Calendar size={14} className="text-red-500" />
-                            <p className="text-[11px] font-black text-red-500 italic tracking-[0.3em] uppercase">
-                              ÉCHÉANCE : {formattedDate}
+                      return (
+                        <div
+                          key={action.ACT_Id}
+                          className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 hover:border-rose-300"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 text-sm text-rose-700">
+                              <Calendar className="h-4 w-4" />
+                              <span>Échéance : {formattedDate}</span>
+                            </div>
+                            <p className="mt-1 truncate text-sm font-medium text-gray-900">
+                              {action.ACT_Title}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              Processus : {action.ACT_PAQ?.PAQ_Processus?.PR_Libelle || 'Non spécifié'}
                             </p>
                           </div>
-                          <p className="text-lg font-black uppercase italic truncate pr-8 text-white leading-none tracking-tighter">
-                            {action.ACT_Title}
-                          </p>
+                          <button
+                            onClick={() => setEditingAction(action)}
+                            className="rounded p-2 text-gray-400 hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                            aria-label={`Modifier l'action ${action.ACT_Title}`}
+                          >
+                            <Edit3 className="h-5 w-5" />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => setEditingAction(action)}
-                          className="p-5 text-slate-600 hover:text-white hover:bg-red-600 rounded-2xl transition-all cursor-pointer bg-white/5 border-none shadow-xl active:scale-90"
-                        >
-                          <Edit3 size={24} />
-                        </button>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <div className="text-center py-24 bg-emerald-500/5 rounded-[4rem] border border-emerald-500/10">
-                    <CheckCircle2
-                      size={64}
-                      className="text-emerald-500 mx-auto mb-8"
-                    />
-                    <p className="text-emerald-500 text-[13px] font-black uppercase italic tracking-[0.5em] leading-relaxed">
-                      SMI Intégrité OK :<br />
-                      Zéro retard critique
+                  <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-12">
+                    <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                    <p className="mt-3 text-sm font-medium text-emerald-800">Aucune action en retard</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Toutes les actions sont à jour ou terminées
                     </p>
                   </div>
                 )}
               </div>
-
-              <div className="mt-20 pt-12 border-t border-white/5 text-center">
-                <button className="text-[11px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors bg-transparent border-none cursor-pointer italic">
-                  Accéder au Registre d&apos;Écarts complet §10.2
-                </button>
-              </div>
             </div>
 
-            {/* CHARGE PAR PILOTE (§5.3) */}
-            <div className="bg-blue-600/5 border-2 border-blue-600/10 p-14 rounded-[5rem] shadow-4xl text-left backdrop-blur-md">
-              <h3 className="text-2xl font-black uppercase italic text-blue-500 mb-12 flex items-center gap-6">
-                <Activity size={32} /> Charge Pilotes
-              </h3>
-              <div className="space-y-12">
-                {data?.chargeTravail?.map(([name, count]) => (
-                  <div key={name} className="group">
-                    <div className="flex justify-between items-center mb-5">
-                      <span className="text-[13px] font-black text-slate-400 uppercase italic tracking-widest group-hover:text-blue-400 transition-colors">
-                        {name}
-                      </span>
-                      <span className="text-[12px] font-black text-blue-500 bg-blue-500/10 px-4 py-1.5 rounded-xl border border-blue-500/10">
-                        {count} ACTIONS
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-900 h-4 rounded-full overflow-hidden p-1 border border-white/10 shadow-inner">
-                      <div
-                        className="bg-blue-600 h-full rounded-full transition-all duration-[2s] ease-out shadow-[0_0_20px_rgba(37,99,235,0.4)]"
-                        style={{
-                          width: `${(count / (data.total || 1)) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
+            {/* CHARGE PAR PILOTE */}
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
+              <div className="border-b border-gray-200 bg-indigo-50 px-6 py-4">
+                <h2 className="text-lg font-semibold text-indigo-800 flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Charge par pilote
+                </h2>
+                <p className="mt-1 text-sm text-indigo-700">
+                  Répartition des actions actives par responsable qualité
+                </p>
+              </div>
+
+              <div className="p-6">
+                {data?.chargeTravail && data.chargeTravail.length > 0 ? (
+                  <div className="space-y-6">
+                    {data.chargeTravail.map(({ name, count }) => (
+                      <div key={name} className="space-y-2">
+                        <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+                          <span>{name}</span>
+                          <span className="text-indigo-600">{count} actions</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                          <div
+                            className="h-full rounded-full bg-indigo-600"
+                            style={{ width: `${(count / (data.total || 1)) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <BarChart3 className="h-10 w-10 text-gray-400" />
+                    <p className="mt-3 text-sm font-medium text-gray-900">Aucune donnée de charge</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Les actions doivent être affectées à des pilotes pour visualiser la charge
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          </aside>
+          </div>
+        </div>
+
+        {/* 🛡️ BLOC DE CONFORMITÉ ISO */}
+        <div className="rounded-xl bg-indigo-50 p-6 border border-indigo-100">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600">
+                <span className="text-xs font-bold text-white">§</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-indigo-900">Exigence ISO 9001:2015 §10.3</h3>
+                <p className="mt-1 text-sm text-indigo-800">
+                  L&apos;organisation doit améliorer continuellement l&apos;adéquation, la pertinence et l&apos;efficacité du système de management de la qualité.
+                </p>
+                <p className="mt-2 text-xs text-indigo-700">
+                  Les plans d&apos;actions qualité (PAQ) structurent les initiatives d&apos;amélioration continue et garantissent leur traçabilité dans le temps.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3 md:mt-0">
+              <button
+                onClick={() => router.push('/dashboard/paq/nouveau')}
+                className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Créer un nouveau PAQ
+              </button>
+              <button className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                <DownloadIcon className="mr-1.5 h-4 w-4" />
+                Exporter le registre
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 📟 MODAL DE RECTIFICATION (MATRIX SIDE-DRAWER) */}
+      {/* 📟 MODAL D'ÉDITION D'ACTION */}
       {editingAction && (
-        <div className="fixed inset-0 z-100 flex items-center justify-end">
-          <div
-            className="absolute inset-0 bg-black/98 backdrop-blur-3xl animate-in fade-in duration-500"
-            onClick={() => setEditingAction(null)}
-          />
-          <div className="relative h-full w-full max-w-2xl bg-[#0F172A] z-110 p-20 animate-in slide-in-from-right duration-700 border-l-4 border-blue-600 shadow-[-100px_0_150px_rgba(0,0,0,0.8)] overflow-y-auto">
-            <div className="flex justify-between items-center mb-20 border-b-4 border-white/5 pb-12">
-              <div className="flex items-center gap-8 text-left">
-                <div className="p-6 bg-blue-600 text-white rounded-4xl shadow-4xl animate-pulse">
-                  <Zap size={44} strokeWidth={2.5} />
+        <EditActionModal
+          action={editingAction}
+          onClose={() => setEditingAction(null)}
+          onSubmit={handleQuickUpdate}
+          onChange={(field, value) =>
+            setEditingAction((prev) => (prev ? { ...prev, [field]: value } : null))
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPOSANTS CLICKUP-STYLE
+// ============================================================================
+
+function KPIStat({
+  title,
+  value,
+  icon: Icon,
+  color,
+  subtext,
+}: {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  color: 'blue' | 'red' | 'emerald' | 'amber' | 'indigo';
+  subtext: string;
+}) {
+  const colorClasses = {
+    blue: 'text-blue-700 bg-blue-50',
+    red: 'text-rose-700 bg-rose-50',
+    emerald: 'text-emerald-700 bg-emerald-50',
+    amber: 'text-amber-700 bg-amber-50',
+    indigo: 'text-indigo-700 bg-indigo-50',
+  };
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-200">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${colorClasses[color]}`}>
+            <Icon className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500">{title}</p>
+            <p className="mt-0.5 text-2xl font-bold text-gray-900">{value}</p>
+            <p className="mt-1 text-[10px] font-medium text-gray-500 uppercase tracking-wider">{subtext}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PAQCard({
+  paq,
+  onClick,
+}: {
+  paq: PAQ & { PAQ_Processus?: Processus; PAQ_QualityManager?: User };
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full px-6 py-5 text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+              Exercice {paq.PAQ_Year}
+            </span>
+            <span className="text-xs text-gray-500">•</span>
+            <span className="text-xs font-medium text-gray-700">
+              {paq.PAQ_Processus?.PR_Libelle || 'Processus non spécifié'}
+            </span>
+          </div>
+          <p className="mt-2 text-sm font-medium text-gray-900">{paq.PAQ_Title}</p>
+          <div className="mt-3 flex items-center gap-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-gray-400" />
+              <span>
+                Pilote :{' '}
+                {paq.PAQ_QualityManager
+                  ? `${paq.PAQ_QualityManager.U_FirstName} ${paq.PAQ_QualityManager.U_LastName}`
+                  : 'Non assigné'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Target className="h-3.5 w-3.5 text-gray-400" />
+              <span>{(paq as any)._count?.PAQ_Actions || 0} actions</span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center justify-between sm:mt-0">
+          <span
+            className={cn(
+              'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium',
+              paq.PAQ_Status === 'EN_COURS'
+                ? 'bg-blue-100 text-blue-800'
+                : paq.PAQ_Status === 'CLOTURE'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : paq.PAQ_Status === 'ARCHIVE'
+                    ? 'bg-gray-100 text-gray-800'
+                    : 'bg-amber-100 text-amber-800',
+            )}
+          >
+            {paq.PAQ_Status === 'BROUILLON'
+              ? 'Brouillon'
+              : paq.PAQ_Status === 'EN_COURS'
+                ? 'En cours'
+                : paq.PAQ_Status === 'CLOTURE'
+                  ? 'Clôturé'
+                  : 'Archivé'}
+          </span>
+          <ArrowRight className="ml-4 h-5 w-5 text-gray-400" aria-hidden="true" />
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function EditActionModal({
+  action,
+  onClose,
+  onSubmit,
+  onChange,
+}: {
+  action: Action;
+  onClose: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onChange: (field: string, value: any) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div className="relative transform rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md">
+          <div className="px-6 pb-6 pt-6 sm:px-8">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-indigo-100 p-2">
+                  <Edit3 className="h-6 w-6 text-indigo-600" aria-hidden="true" />
                 </div>
                 <div>
-                  <h2 className="text-5xl font-black uppercase italic tracking-tighter leading-none text-white text-left">
-                    Rectification
-                  </h2>
-                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mt-3">
-                    Action Corrective Matrix §10.2
-                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900">Modifier l&apos;action</h3>
+                  <p className="mt-1 text-sm text-gray-500">Mise à jour rapide du statut et de la priorité</p>
                 </div>
               </div>
               <button
-                onClick={() => setEditingAction(null)}
-                className="p-6 hover:bg-red-500/20 text-slate-500 hover:text-red-500 transition-all rounded-3xl border-none cursor-pointer bg-white/5"
+                type="button"
+                onClick={onClose}
+                className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               >
-                <X size={48} strokeWidth={1} />
+                <span className="sr-only">Fermer</span>
+                <X className="h-6 w-6" aria-hidden="true" />
               </button>
             </div>
 
-            <form onSubmit={handleQuickUpdate} className="space-y-16 text-left">
-              <div className="space-y-6">
-                <label className="text-[12px] font-black uppercase text-slate-500 tracking-[0.4em] ml-8 italic">
-                  Intitulé de la mesure SMI *
-                </label>
-                <input
-                  type="text"
-                  value={editingAction.ACT_Title}
-                  onChange={(e) =>
-                    setEditingAction({
-                      ...editingAction,
-                      ACT_Title: e.target.value.toUpperCase(),
-                    })
-                  }
-                  className="w-full bg-[#0B0F1A] border-4 border-white/5 rounded-[2.5rem] p-10 text-xl font-black uppercase italic text-white outline-none focus:border-blue-600 shadow-inner transition-all"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-12">
-                <div className="space-y-6 text-left">
-                  <label className="text-[12px] font-black uppercase text-slate-500 tracking-[0.4em] ml-8 italic">
-                    État d&apos;avancement SDE Matrix
+            <form onSubmit={onSubmit} className="mt-6 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                    Titre de l&apos;action
                   </label>
-                  <div className="relative">
-                    <select
-                      value={editingAction.ACT_Status}
-                      onChange={(e) =>
-                        setEditingAction({
-                          ...editingAction,
-                          ACT_Status: e.target.value as any,
-                        })
-                      }
-                      className="w-full bg-[#0B0F1A] border-4 border-white/5 rounded-[2.5rem] p-10 text-[14px] font-black uppercase italic text-white outline-none focus:border-blue-600 cursor-pointer appearance-none shadow-inner"
-                    >
-                      <option value="A_FAIRE">✪ À FAIRE</option>
-                      <option value="EN_COURS">⚡ EN COURS</option>
-                      <option value="TERMINEE">✅ TERMINÉE</option>
-                      <option value="ANNULEE">✕ ANNULÉE</option>
-                    </select>
-                    <ArrowRight
-                      size={20}
-                      className="absolute right-10 top-1/2 -translate-y-1/2 text-blue-600 rotate-90"
-                    />
-                  </div>
+                  <input
+                    id="title"
+                    type="text"
+                    value={action.ACT_Title}
+                    onChange={(e) => onChange('ACT_Title', e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
                 </div>
 
-                <div className="space-y-6 text-left">
-                  <label className="text-[12px] font-black uppercase text-slate-500 tracking-[0.4em] ml-8 italic">
-                    Niveau de Priorité Critique
+                <div>
+                  <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                    Statut
                   </label>
-                  <div className="grid grid-cols-3 gap-6">
-                    {["BASSE", "MOYENNE", "HAUTE"].map((prio) => (
+                  <select
+                    id="status"
+                    value={action.ACT_Status}
+                    onChange={(e) => onChange('ACT_Status', e.target.value as ActionStatus)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value={ActionStatusEnum.A_FAIRE}>À faire</option>
+                    <option value={ActionStatusEnum.EN_COURS}>En cours</option>
+                    <option value={ActionStatusEnum.A_VALIDER}>À valider</option>
+                    <option value={ActionStatusEnum.TERMINEE}>Terminée</option>
+                    <option value={ActionStatusEnum.NON_EFFICACE}>Non efficace</option>
+                    <option value={ActionStatusEnum.ANNULEE}>Annulée</option>
+                    <option value={ActionStatusEnum.EN_RETARD}>En retard</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Priorité</label>
+                  <div className="mt-2 grid grid-cols-3 gap-3">
+                    {[
+                      { value: PriorityEnum.LOW, label: 'Basse', color: 'bg-gray-100 text-gray-800' },
+                      { value: PriorityEnum.MEDIUM, label: 'Moyenne', color: 'bg-blue-100 text-blue-800' },
+                      { value: PriorityEnum.HIGH, label: 'Haute', color: 'bg-amber-100 text-amber-800' },
+                      { value: PriorityEnum.URGENT, label: 'Urgente', color: 'bg-orange-100 text-orange-800' },
+                      { value: PriorityEnum.CRITICAL, label: 'Critique', color: 'bg-rose-100 text-rose-800' },
+                    ].map((prio) => (
                       <button
-                        key={prio}
+                        key={prio.value}
                         type="button"
-                        onClick={() =>
-                          setEditingAction({
-                            ...editingAction,
-                            ACT_Priority: prio as any,
-                          })
-                        }
+                        onClick={() => onChange('ACT_Priority', prio.value)}
                         className={cn(
-                          "py-6 rounded-3xl text-[12px] font-black uppercase italic border-4 transition-all cursor-pointer",
-                          editingAction.ACT_Priority === prio
-                            ? "bg-red-600 border-red-600 text-white shadow-2xl"
-                            : "bg-transparent border-white/5 text-slate-500 hover:border-white/20",
+                          'rounded-lg py-2 text-xs font-medium uppercase',
+                          action.ACT_Priority === prio.value
+                            ? `${prio.color} ring-2 ring-indigo-500`
+                            : 'bg-white text-gray-700 hover:bg-gray-50',
                         )}
                       >
-                        {prio}
+                        {prio.label}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-12 bg-blue-600 hover:bg-white hover:text-slate-900 text-white rounded-[3rem] font-black uppercase italic text-[14px] tracking-[0.8em] transition-all shadow-[0_30px_100px_rgba(37,99,235,0.4)] border-none cursor-pointer flex items-center justify-center gap-8 active:scale-95"
-              >
-                <ShieldCheck size={36} /> Valider les changements
-              </button>
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                  Enregistrer les modifications
+                </button>
+              </div>
             </form>
           </div>
         </div>
-      )}
-
-      {/* 🧩 STYLES QUANTIQUES */}
-      <style jsx global>{`
-        ::-webkit-scrollbar {
-          width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-          background: #1e293b;
-          border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-          background: #3b82f6;
-        }
-      `}</style>
+      </div>
     </div>
   );
 }
 
-/** 📊 COMPOSANT : CARTE STATISTIQUE HAUTE FIDÉLITÉ */
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  color,
-  subtitle,
-}: {
-  title: string;
-  value: string | number;
-  icon: any;
-  color: string;
-  subtitle: string;
-}) {
-  const themes: Record<string, string> = {
-    blue: "text-blue-500 border-blue-500/20 bg-blue-500/5",
-    red: "text-red-500 border-red-500/20 bg-red-500/5 shadow-[0_0_50px_rgba(239,68,68,0.1)]",
-    emerald: "text-emerald-500 border-emerald-500/20 bg-emerald-500/5",
-    orange: "text-orange-500 border-orange-500/20 bg-orange-500/5",
-  };
+function DownloadIcon({ className }: { className?: string }) {
   return (
-    <div className="bg-[#0F172A]/40 border-2 border-white/5 p-14 rounded-[5rem] shadow-4xl relative overflow-hidden group hover:bg-slate-900/60 transition-all text-left">
-      <div
-        className={cn(
-          "w-24 h-24 rounded-[2.5rem] flex items-center justify-center mb-10 border-4 transition-all group-hover:rotate-12 group-hover:scale-110",
-          themes[color],
-        )}
-      >
-        <Icon size={48} strokeWidth={2.5} />
-      </div>
-      <p className="text-[12px] font-black text-slate-500 uppercase tracking-[0.5em] mb-6 italic opacity-60 leading-none">
-        {title}
-      </p>
-      <p className="text-8xl font-black italic tracking-tighter leading-none mb-8 text-white">
-        {value}
-      </p>
-      <div className="flex items-center gap-4 text-[11px] font-black uppercase text-slate-600 tracking-widest italic border-t border-white/5 pt-8">
-        <Activity size={16} className="text-blue-600" /> {subtitle}
-      </div>
-    </div>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className={cn('h-4 w-4', className)}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+      />
+    </svg>
   );
 }

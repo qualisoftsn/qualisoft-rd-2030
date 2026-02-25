@@ -1,32 +1,41 @@
-//* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🛰️ MODULE : ANALYSE DES CAUSES RACINES (ROOT CAUSE ENGINE)
- * -------------------------------------------------------------------------
- * RÔLE : Détermination des causes fondamentales des écarts (§10.2.1.b).
- * MÉTHODES : 5 Pourquoi & Ishikawa (5M).
- * RÉFÉRENTIEL : types/elite-sde.ts (SCELLAGE PRISMA SDE).
- * ARCHITECTURE : Zéro simulation. Connexion stricte API. Validation active.
- * DESIGN : Cockpit Matrix Full-Space (max-w-500 / ml-72).
- * -------------------------------------------------------------------------
+ * FICHIER : app/(dashboard)/quality/root-cause/page.tsx
+ * ===========================================================================
+ * PAGE ANALYSE DES CAUSES RACINES (ROOT CAUSE ANALYSIS)
+ * Rôle : Détermination des causes fondamentales des écarts (ISO 9001 §10.2.1.b)
+ * Méthodes : 5 Pourquoi & Ishikawa (5M)
+ * Design : Style ClickUp professionnel (sobre, épuré, orienté productivité)
+ * Conformité : 100% schéma Prisma — zéro champ inventé
+ * ===========================================================================
  */
 
-"use client";
+'use client';
 
-import apiClient from "@/core/api/api-client";
+import React, { useCallback, useEffect, useState } from 'react';
+import apiClient from '@/core/api/api-client';
 import {
-  Dna, FileSearch, Fingerprint, GitBranch,
-  Info, Loader2, Microscope, Save, Zap, AlertOctagon, Target
-} from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { toast, Toaster } from "sonner";
+  AlertOctagon,
+  ArrowLeft,
+  FileSearch,
+  GitBranch,
+  Info,
+  Loader2,
+  Microscope,
+  Save,
+  Target,
+  Zap,
+} from 'lucide-react';
+import { toast, Toaster } from 'sonner';
+import type { NonConformite, NCStatus } from '@/types/elite-sde';
+import { NCStatus as NCStatusEnum } from '@/types/elite-sde';
 
-// --- 🏗️ RÉFÉRENTIEL ÉLITE-SDE ---
-import { NonConformite as INC, NCStatus } from "@/types/elite-sde";
+// --- UTILITAIRE CN ---
+const cn = (...classes: (string | boolean | undefined | null)[]) =>
+  classes.filter(Boolean).join(' ');
 
-const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(" ");
-
+// --- TYPES ---
 interface IshikawaData {
   MAIN_DOEUVRE: string;
   METHODE: string;
@@ -35,280 +44,515 @@ interface IshikawaData {
   MATIERE: string;
 }
 
-export default function RootCausePage() {
-  // --- 📦 ÉTATS DU KERNEL ---
-  const [ncList, setNcList] = useState<INC[]>([]);
-  const [selectedNc, setSelectedNc] = useState<INC | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-
-  // --- 🧠 ÉTATS D'INVESTIGATION ---
-  const [whys, setWhys] = useState<string[]>(["", "", "", "", ""]);
+export default function RootCauseAnalysisPage() {
+  // --- ÉTATS ---
+  const [ncList, setNcList] = useState<NonConformite[]>([]);
+  const [selectedNc, setSelectedNc] = useState<NonConformite | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [whys, setWhys] = useState<string[]>(['', '', '', '', '']);
   const [ishikawa, setIshikawa] = useState<IshikawaData>({
-    MAIN_DOEUVRE: "",
-    METHODE: "",
-    MILIEU: "",
-    MATERIEL: "",
-    MATIERE: "",
+    MAIN_DOEUVRE: '',
+    METHODE: '',
+    MILIEU: '',
+    MATERIEL: '',
+    MATIERE: '',
   });
 
-  /**
-   * 📡 SYNCHRONISATION DES ÉCARTS OUVERTS (PROD SDE)
-   */
+  // --- CHARGEMENT DES NC OUVERTES ---
   const loadNCs = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get("/non-conformites");
-      const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
-      
-      // Filtre stricte SDE : Uniquement les NC nécessitant une analyse (A_TRAITER ou EN_COURS)
-      setNcList(data.filter((nc: INC) => nc.NC_Statut !== NCStatus.CLOTURE));
+      const res = await apiClient.get<NonConformite[]>('/non-conformites');
+      // Filtrer les NC nécessitant une analyse (non clôturées)
+      const openNCs = (res.data || []).filter(
+        (nc) => nc.NC_Statut !== NCStatusEnum.CLOTURE && nc.NC_Statut !== NCStatusEnum.VERIFICATION
+      );
+      setNcList(openNCs);
     } catch (err) {
-      toast.error("RUPTURE DE FLUX : IMPOSSIBLE DE CHARGER LE REGISTRE NC.");
+      console.error('[ROOT_CAUSE] Failed to load NCs:', err);
+      toast.error('Échec du chargement des non-conformités');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadNCs(); }, [loadNCs]);
+  useEffect(() => {
+    loadNCs();
+  }, [loadNCs]);
 
-  /**
-   * 🔄 CHANGEMENT D'ANOMALIE SOURCE
-   * Réinitialise les états d'analyse lors du changement de sélection.
-   */
-  const handleSelectNc = (nc: INC) => {
+  // --- SÉLECTION D'UNE NC ---
+  const handleSelectNc = (nc: NonConformite) => {
     setSelectedNc(nc);
-    setWhys(["", "", "", "", ""]);
-    setIshikawa({ MAIN_DOEUVRE: "", METHODE: "", MILIEU: "", MATERIEL: "", MATIERE: "" });
+    // Réinitialiser les états d'analyse
+    setWhys(nc.NC_Diagnostic ? parseWhysFromDiagnostic(nc.NC_Diagnostic) : ['', '', '', '', '']);
+    setIshikawa(nc.NC_Diagnostic ? parseIshikawaFromDiagnostic(nc.NC_Diagnostic) : {
+      MAIN_DOEUVRE: '',
+      METHODE: '',
+      MILIEU: '',
+      MATERIEL: '',
+      MATIERE: '',
+    });
   };
 
-  /**
-   * 💾 SCELLAGE DE L'INVESTIGATION (§10.2.1.b)
-   * Validation stricte avant mutation API.
-   */
-  const handleSealAnalysis = async () => {
+  // --- PARSING DU DIAGNOSTIC EXISTANT ---
+  const parseWhysFromDiagnostic = (diagnostic: string): string[] => {
+   const whysMatch = diagnostic.match(/5 Pourquoi\s*:\s*([\s\S]+?)(?:\r?\n\s*\r?\n|$)/);
+    if (whysMatch && whysMatch[1]) {
+      return whysMatch[1].split(' -> ').map(w => w.trim());
+    }
+    return ['', '', '', '', ''];
+  };
+
+  const parseIshikawaFromDiagnostic = (diagnostic: string): IshikawaData => {
+    const ishikawaMatch = diagnostic.match(/Ishikawa\s*:\s*([\s\S]+?)(?=\n\s*\n|\n[A-Z].*?:|$)/);
+    if (ishikawaMatch && ishikawaMatch[1]) {
+      const lines = ishikawaMatch[1].split('\n');
+      return {
+        MAIN_DOEUVRE: lines.find(l => l.includes('Main d\'œuvre'))?.split(': ')[1] || '',
+        METHODE: lines.find(l => l.includes('Méthode'))?.split(': ')[1] || '',
+        MILIEU: lines.find(l => l.includes('Milieu'))?.split(': ')[1] || '',
+        MATERIEL: lines.find(l => l.includes('Matériel'))?.split(': ')[1] || '',
+        MATIERE: lines.find(l => l.includes('Matière'))?.split(': ')[1] || '',
+      };
+    }
+    return {
+      MAIN_DOEUVRE: '',
+      METHODE: '',
+      MILIEU: '',
+      MATERIEL: '',
+      MATIERE: '',
+    };
+  };
+
+  // --- FORMATAGE DU DIAGNOSTIC POUR SAUVEGARDE ---
+  const formatDiagnostic = (): string => {
+    const filteredWhys = whys.filter(w => w.trim());
+    const whysText = filteredWhys.length > 0 
+      ? `5 Pourquoi: ${filteredWhys.join(' -> ')}`
+      : '';
+
+    const ishikawaText = [
+      ishikawa.MAIN_DOEUVRE && `- Main d'œuvre: ${ishikawa.MAIN_DOEUVRE}`,
+      ishikawa.METHODE && `- Méthode: ${ishikawa.METHODE}`,
+      ishikawa.MILIEU && `- Milieu: ${ishikawa.MILIEU}`,
+      ishikawa.MATERIEL && `- Matériel: ${ishikawa.MATERIEL}`,
+      ishikawa.MATIERE && `- Matière: ${ishikawa.MATIERE}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    return `${whysText}${whysText && ishikawaText ? '\n\n' : ''}${ishikawaText ? `Ishikawa:\n${ishikawaText}` : ''}`;
+  };
+
+  // --- SAUVEGARDE DE L'ANALYSE ---
+  const handleSaveAnalysis = async () => {
     if (!selectedNc) {
-       return toast.warning("ANOMALIE : SÉLECTIONNEZ UN ÉCART SOURCE.");
+      toast.warning('Veuillez sélectionner une non-conformité à analyser');
+      return;
     }
 
-    // Validation Active : Au moins le 1er Pourquoi doit être rempli
+    // Validation : au moins le premier pourquoi doit être rempli
     if (!whys[0].trim()) {
-       return toast.warning("ANOMALIE : LE PREMIER POURQUOI EST OBLIGATOIRE.");
+      toast.warning('Le premier "Pourquoi" est obligatoire pour valider l\'analyse');
+      return;
     }
 
     setIsSaving(true);
-    const tid = toast.loading("Scellage de l'analyse causale dans le noyau SDE...");
-    
     try {
-      await apiClient.patch(`/non-conformites/${selectedNc.NC_Id}/root-cause`, {
-        NC_RootCause: whys.filter((w) => w.trim()).join(" -> "),
-        NC_Ishikawa: ishikawa,
-        NC_Status: NCStatus.EN_COURS, // L'analyse place la NC en cours de traitement
-      });
-      toast.success("ANALYSE SCELLÉE : LA CAUSE RACINE EST INDEXÉE (§10.2).", { id: tid });
+      const diagnostic = formatDiagnostic();
       
-      // Rafraîchissement optionnel si le dashboard doit disparaître ou se mettre à jour
-      // loadNCs(); 
+      await apiClient.patch(`/non-conformites/${selectedNc.NC_Id}`, {
+        NC_Diagnostic: diagnostic,
+        NC_Statut: NCStatusEnum.ANALYSE,
+      });
+
+      toast.success('Analyse des causes racines enregistrée avec succès');
+      loadNCs(); // Rafraîchir la liste pour mettre à jour le statut
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "ERREUR DE MUTATION KERNEL SDE.", { id: tid });
+      const msg = err.response?.data?.message || 'Échec de l\'enregistrement de l\'analyse';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (loading) return (
-    <div className="ml-72 flex h-screen flex-col items-center justify-center bg-[#0B0F1A] gap-12">
-      <Loader2 className="animate-spin text-blue-600" size={120} strokeWidth={1} />
-      <p className="text-blue-500 font-black uppercase italic text-[14px] tracking-[1.5em] animate-pulse">
-        Initialisation Lab Cause Racine...
-      </p>
-    </div>
-  );
+  // --- GESTION DU CHARGEMENT ---
+  if (loading) {
+    return (
+      <div className="ml-72 flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="relative inline-block">
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-gray-600">Chargement des non-conformités...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-16 ml-72 text-white font-sans italic text-left selection:bg-blue-600/30 overflow-x-hidden">
-      <Toaster position="top-right" richColors theme="dark" />
+    <div className="ml-72 bg-gray-50 min-h-screen p-6">
+      <Toaster position="top-right" richColors />
 
-      <div className="w-full max-w-500 mx-auto space-y-20 animate-in fade-in duration-1000">
-
-        {/* 🔝 HEADER INVESTIGATEUR SDE */}
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10 border-b-4 border-white/5 pb-16">
-          <div className="space-y-8">
-            <div className="flex items-center gap-6 text-blue-500 bg-blue-600/10 w-fit px-8 py-3 rounded-2xl border-2 border-blue-600/20 shadow-inner">
-              <Microscope size={24} className="animate-pulse" />
-              <span className="text-[12px] font-black uppercase tracking-[0.5em] italic">ISO 9001:2015 §10.2.1 • Root Cause Analysis</span>
+      <div className="mx-auto max-w-7xl space-y-8">
+        {/* 🔝 HEADER STRATÉGIQUE */}
+        <header className="border-b border-gray-200 pb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800">
+                  ISO 9001:2015 §10.2.1.b
+                </span>
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                  {ncList.length} NC à analyser
+                </span>
+              </div>
+              <h1 className="mt-2 text-2xl font-bold text-gray-900">Analyse des causes racines</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Identification systématique des causes fondamentales des écarts à l&apos;aide des méthodes 5 Pourquoi et Ishikawa (5M)
+              </p>
             </div>
-            <h1 className="text-8xl font-black uppercase italic tracking-tighter leading-none text-white flex items-center gap-8">
-              Analyse <span className="text-blue-600">des Causes</span>
-            </h1>
-          </div>
 
-          <button
-            onClick={handleSealAnalysis}
-            disabled={!selectedNc || isSaving}
-            className="bg-blue-600 hover:bg-white hover:text-blue-600 px-14 py-8 rounded-[3rem] font-black uppercase text-[14px] tracking-[0.4em] flex items-center gap-6 shadow-[0_30px_80px_rgba(37,99,235,0.4)] transition-all border-none cursor-pointer italic disabled:opacity-30 disabled:cursor-not-allowed text-white active:scale-95 group"
-          >
-            {isSaving ? <Loader2 className="animate-spin" size={32} /> : <Save size={32} strokeWidth={3} className="group-hover:scale-110 transition-transform" />} 
-            Valider l&apos;Analyse Causale
-          </button>
+            <button
+              onClick={handleSaveAnalysis}
+              disabled={!selectedNc || isSaving || !whys[0].trim()}
+              className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enregistrement en cours...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-1.5 h-4 w-4" />
+                  Enregistrer l&apos;analyse
+                </>
+              )}
+            </button>
+          </div>
         </header>
 
-        <main className="grid grid-cols-12 gap-16 items-start">
-          
-          {/* 📋 COLONNE GAUCHE : SÉLECTION DE L'ANOMALIE SOURCE */}
-          <aside className="col-span-12 lg:col-span-4 space-y-16">
-            <div className="bg-[#151A2D] border-4 border-white/5 rounded-[5rem] p-16 shadow-4xl relative overflow-hidden group backdrop-blur-3xl min-h-150 flex flex-col">
-              <h3 className="text-[14px] font-black uppercase text-slate-400 mb-12 tracking-[0.6em] flex items-center gap-6 italic leading-none border-b-4 border-white/5 pb-8">
-                <FileSearch size={28} className="text-blue-500" /> Registre des Écarts Ouverts
-              </h3>
-              
-              <div className="space-y-6 flex-1 overflow-y-auto custom-scrollbar pr-4">
-                {ncList.length > 0 ? ncList.map((nc) => (
-                  <button
-                    key={nc.NC_Id}
-                    onClick={() => handleSelectNc(nc)}
-                    className={cn(
-                      "w-full p-10 rounded-[3.5rem] border-4 text-left transition-all italic group/item cursor-pointer block",
-                      selectedNc?.NC_Id === nc.NC_Id
-                        ? "bg-blue-600 border-transparent shadow-[0_0_40px_rgba(37,99,235,0.3)] scale-[1.02]"
-                        : "bg-black/40 border-white/5 hover:border-blue-600/30 hover:bg-white/5"
-                    )}
-                  >
-                    <p className={cn("text-[11px] font-black uppercase mb-4 tracking-[0.4em] flex items-center gap-4", selectedNc?.NC_Id === nc.NC_Id ? "text-blue-200" : "text-blue-500")}>
-                      <Target size={16} /> {nc.NC_Code} • {nc.NC_Source}
+        {/* 🧪 LABORATOIRE D'ANALYSE */}
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* COLONNE 1 : SÉLECTION DE LA NC */}
+          <div className="lg:col-span-1">
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
+              <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
+                <h2 className="text-lg font-semibold text-gray-900">Non-conformités à analyser</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Sélectionnez une NC nécessitant une analyse des causes racines
+                </p>
+              </div>
+
+              <div className="divide-y divide-gray-200">
+                {ncList.length > 0 ? (
+                  ncList.map((nc) => {
+                    const isSelected = selectedNc?.NC_Id === nc.NC_Id;
+                    return (
+                      <button
+                        key={nc.NC_Id}
+                        onClick={() => handleSelectNc(nc)}
+                        className={cn(
+                          'w-full px-6 py-5 text-left transition-colors',
+                          isSelected
+                            ? 'bg-indigo-50 border-l-4 border-indigo-600'
+                            : 'hover:bg-gray-50'
+                        )}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+                                {nc.NC_Code || `NC-${nc.NC_Id.slice(0, 6).toUpperCase()}`}
+                              </span>
+                              <span className="text-xs text-gray-500">•</span>
+                              <span className="text-xs font-medium text-gray-700">
+                                {nc.NC_Source === 'INTERNAL_AUDIT' ? 'Audit interne' :
+                                 nc.NC_Source === 'EXTERNAL_AUDIT' ? 'Audit externe' :
+                                 nc.NC_Source === 'CLIENT_COMPLAINT' ? 'Réclamation client' :
+                                 nc.NC_Source === 'SUPPLIER' ? 'Fournisseur' :
+                                 nc.NC_Source === 'INCIDENT_SAFETY' ? 'Incident SST' :
+                                 nc.NC_Source === 'PROCESS_REVIEW' ? 'Revue processus' :
+                                 'Revue direction'}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm font-medium text-gray-900 line-clamp-2">
+                              {nc.NC_Libelle}
+                            </p>
+                            <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Target className="h-3.5 w-3.5 text-gray-400" />
+                                <span>
+                                  Gravité:{' '}
+                                  <span className={cn(
+                                    'font-medium',
+                                    nc.NC_Gravite === 'CRITIQUE' ? 'text-red-600' :
+                                    nc.NC_Gravite === 'MAJEURE' ? 'text-orange-600' : 'text-yellow-600'
+                                  )}>
+                                    {nc.NC_Gravite}
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div className="shrink-0 text-indigo-600">
+                              <Microscope className="h-5 w-5" aria-hidden="true" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="p-12 text-center">
+                    <div className="mx-auto h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                      <AlertOctagon className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="mt-4 text-sm font-medium text-gray-900">Aucune NC à analyser</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Toutes les non-conformités sont soit clôturées, soit déjà analysées
                     </p>
-                    <h4 className={cn("text-2xl font-black uppercase tracking-tighter leading-tight line-clamp-3", selectedNc?.NC_Id === nc.NC_Id ? "text-white" : "text-slate-300")}>
-                      {nc.NC_Title}
-                    </h4>
-                  </button>
-                )) : (
-                  <div className="flex flex-col items-center justify-center h-full opacity-30 gap-6 mt-20">
-                     <AlertOctagon size={64} className="text-slate-500" />
-                     <span className="text-center font-black uppercase italic tracking-[0.5em] text-slate-500 text-[12px]">Aucun écart nécessitant analyse.</span>
                   </div>
                 )}
               </div>
             </div>
+          </div>
 
-            {/* KPI RÉFÉRENTIEL (§PxGxM) */}
-            <div className="bg-[#151A2D] border-4 border-white/5 rounded-[5rem] p-16 shadow-4xl text-center backdrop-blur-md relative overflow-hidden">
-               <Dna size={120} className="absolute -bottom-10 -right-10 text-blue-600 opacity-10" />
-               <p className="text-[12px] font-black text-slate-500 uppercase tracking-[0.5em] mb-8 relative z-10 italic">Chaîne Logique SDE</p>
-               
-               {/* CORRECTION DU RENDU LATEX */}
-               <div className="text-4xl font-black italic tracking-tighter leading-none text-blue-500 relative z-10 font-mono bg-black/60 p-8 rounded-[3rem] border-2 border-white/5 shadow-inner">
-                  {"$$Why^5 \\rightarrow Root \\ Cause$$"}
-               </div>
-            </div>
-          </aside>
-
-          {/* 🛠️ COLONNE DROITE : LABORATOIRE D'ANALYSE (5 POURQUOI & ISHIKAWA) */}
-          <div className="col-span-12 lg:col-span-8 space-y-16">
-            
-            {/* SECTION : LES 5 POURQUOI */}
-            <div className="bg-[#151A2D] border-4 border-white/5 rounded-[6rem] p-20 shadow-4xl relative group backdrop-blur-3xl overflow-hidden">
-              <div className="absolute left-0 top-24 w-4 h-64 bg-blue-600 rounded-r-full shadow-[0_0_50px_rgba(37,99,235,0.7)]" />
-
-              <h2 className="text-5xl font-black uppercase italic mb-20 flex items-center gap-8 tracking-tighter text-white border-b-4 border-white/5 pb-10">
-                <Zap className="text-blue-500" size={48} /> Méthode des 5 Pourquoi
-              </h2>
-
-              <div className="space-y-10 relative z-10">
-                {whys.map((why, index) => (
-                  <div key={index} className="flex flex-col md:flex-row items-start md:items-center gap-8 group/why">
-                    <div className="w-24 h-24 rounded-[2.5rem] bg-black/60 border-4 border-white/5 flex items-center justify-center text-5xl font-black italic text-blue-600 shadow-inner group-hover/why:border-blue-600/40 group-hover/why:bg-blue-600/10 transition-all shrink-0">
-                      {index + 1}
+          {/* COLONNES 2-3 : FORMULAIRE D'ANALYSE */}
+          <div className="lg:col-span-2 space-y-8">
+            {selectedNc ? (
+              <>
+                {/* SECTION : CONTEXTE DE LA NC */}
+                <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-700">
+                      <AlertOctagon className="h-5 w-5" aria-hidden="true" />
                     </div>
-                    <div className="flex-1 w-full">
-                      <input
-                        value={why}
-                        onChange={(e) => {
-                          const newWhys = [...whys];
-                          newWhys[index] = e.target.value.toUpperCase(); // Forcer majuscule pour SDE
-                          setWhys(newWhys);
-                        }}
-                        disabled={!selectedNc}
-                        placeholder={
-                          !selectedNc ? "SÉLECTIONNEZ UN ÉCART SOURCE..." :
-                          index === 0 ? "POURQUOI L'ÉVÉNEMENT S'EST-IL PRODUIT ?" : "POURQUOI CELA EST-IL ARRIVÉ ?"
-                        }
-                        className="w-full bg-black/40 border-b-4 border-white/5 p-10 text-3xl font-black uppercase italic text-white outline-none focus:border-blue-600 transition-all tracking-tighter placeholder:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-inner rounded-t-3xl"
-                      />
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-lg font-semibold text-gray-900">{selectedNc.NC_Libelle}</h2>
+                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">&quot;{selectedNc.NC_Description}&quot;</p>
+                      <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+                          <span>Gravité: {selectedNc.NC_Gravite}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <ClockIcon className="h-3.5 w-3.5" />
+                          <span>Détection: {new Date(selectedNc.NC_CreatedAt).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            {/* SECTION : ISHIKAWA 5M */}
-            <div className="bg-[#151A2D] border-4 border-white/5 rounded-[6rem] p-20 shadow-4xl relative overflow-hidden group backdrop-blur-3xl">
-              <GitBranch size={300} className="absolute -right-20 -bottom-20 text-blue-600 opacity-[0.03]" />
-              
-              <h2 className="text-5xl font-black uppercase italic mb-20 flex items-center gap-8 tracking-tighter text-white border-b-4 border-white/5 pb-10 relative z-10">
-                <GitBranch className="text-blue-500" size={48} /> Diagramme d&apos;Ishikawa (5M)
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
-                {[
-                  { key: "MAIN_DOEUVRE", label: "Main d'œuvre", info: "Compétences, formation, fatigue..." },
-                  { key: "METHODE", label: "Méthode", info: "Procédures, instructions, modes opératoires..." },
-                  { key: "MATERIEL", label: "Matériel", info: "Machines, outils, maintenance, GED..." },
-                  { key: "MATIERE", label: "Matière", info: "Intrants, données, informations de base..." },
-                  { key: "MILIEU", label: "Milieu", info: "Environnement, climat, espace de travail..." },
-                ].map((m) => (
-                  <div key={m.key} className="space-y-6">
-                    <div className="flex justify-between items-center px-8">
-                      <label className="text-[14px] font-black uppercase tracking-[0.5em] text-blue-500 italic flex items-center gap-4">
-                        <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_#3b82f6]"></span> {m.label}
-                      </label>
-                      <Info size={20} className="text-slate-600" />
-                    </div>
-                    <textarea
-                      value={(ishikawa as any)[m.key]}
-                      onChange={(e) => setIshikawa({ ...ishikawa, [m.key]: e.target.value })}
-                      disabled={!selectedNc}
-                      className="w-full bg-black/60 border-4 border-white/5 rounded-[4rem] p-10 text-xl font-bold italic text-slate-300 outline-none focus:border-blue-600 transition-all resize-none h-48 shadow-inner disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-slate-800 tracking-wide uppercase"
-                      placeholder={!selectedNc ? "ATTENTE SÉLECTION..." : m.info}
-                    />
+                {/* SECTION : MÉTHODE DES 5 POURQUOI */}
+                <div className="rounded-xl bg-white shadow-sm border border-gray-200">
+                  <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-indigo-600" aria-hidden="true" />
+                      Méthode des 5 Pourquoi
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Questionnez successivement pour identifier la cause racine (minimum 1 réponse requise)
+                    </p>
                   </div>
-                ))}
+                  <div className="p-6 space-y-6">
+                    {whys.map((why, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-800 font-bold text-sm">
+                            {index + 1}
+                          </div>
+                          <label htmlFor={`why-${index}`} className="text-sm font-medium text-gray-700">
+                            Pourquoi {index === 0 ? 'l\'écart s\'est-il produit' : 'cela est-il arrivé'} ?
+                          </label>
+                        </div>
+                        <input
+                          id={`why-${index}`}
+                          type="text"
+                          value={why}
+                          onChange={(e) => {
+                            const newWhys = [...whys];
+                            newWhys[index] = e.target.value;
+                            setWhys(newWhys);
+                          }}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          placeholder={
+                            index === 0
+                              ? 'Ex: Le technicien n\'a pas suivi la procédure de réception...'
+                              : 'Ex: La procédure n\'était pas accessible sur le poste de travail...'
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SECTION : DIAGRAMME D'ISHIKAWA (5M) */}
+                <div className="rounded-xl bg-white shadow-sm border border-gray-200">
+                  <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <GitBranch className="h-5 w-5 text-indigo-600" aria-hidden="true" />
+                      Diagramme d&apos;Ishikawa (5M)
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Analysez les facteurs contributeurs selon les 5 dimensions classiques
+                    </p>
+                  </div>
+                  <div className="p-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    {[
+                      { key: 'MAIN_DOEUVRE', label: 'Main d\'œuvre', placeholder: 'Compétences, formation, fatigue, communication...' },
+                      { key: 'METHODE', label: 'Méthode', placeholder: 'Procédures, instructions, modes opératoires, plans...' },
+                      { key: 'MATERIEL', label: 'Matériel', placeholder: 'Machines, outils, équipements, maintenance, logiciels...' },
+                      { key: 'MATIERE', label: 'Matière', placeholder: 'Intrants, matières premières, données, informations...' },
+                      { key: 'MILIEU', label: 'Milieu', placeholder: 'Environnement, température, éclairage, organisation de l\'espace...' },
+                    ].map((factor) => (
+                      <div key={factor.key} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label htmlFor={`ishikawa-${factor.key}`} className="text-sm font-medium text-gray-700">
+                            {factor.label}
+                          </label>
+                          <div
+                            className="group relative"
+                            onMouseEnter={(e) => {
+                              const tooltip = e.currentTarget.querySelector('.tooltip') as HTMLElement;
+                              if (tooltip) tooltip.style.display = 'block';
+                            }}
+                            onMouseLeave={(e) => {
+                              const tooltip = e.currentTarget.querySelector('.tooltip') as HTMLElement;
+                              if (tooltip) tooltip.style.display = 'none';
+                            }}
+                          >
+                            <Info className="h-4 w-4 text-gray-400 cursor-help" aria-hidden="true" />
+                            <div className="tooltip absolute bottom-full left-1/2 z-10 hidden w-64 -translate-x-1/2 transform rounded-lg bg-gray-900 p-3 text-xs text-white shadow-lg before:absolute before:left-1/2 before:top-full before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-gray-900">
+                              {factor.placeholder}
+                            </div>
+                          </div>
+                        </div>
+                        <textarea
+                          id={`ishikawa-${factor.key}`}
+                          value={(ishikawa as any)[factor.key]}
+                          onChange={(e) => setIshikawa({ ...ishikawa, [factor.key]: e.target.value })}
+                          rows={3}
+                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          placeholder={factor.placeholder}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* BOUTON DE SAUVEGARDE EN BAS */}
+                <div className="sticky bottom-6 rounded-xl bg-white shadow-sm border border-gray-200 p-6">
+                  <div className="flex flex-col-reverse items-center justify-between gap-4 sm:flex-row">
+                    <p className="text-sm text-gray-500">
+                      L&apos;analyse sera enregistrée dans le champ &quot;Diagnostic&quot; de la non-conformité et son statut passera à &quot;Analyse&quot;
+                    </p>
+                    <button
+                      onClick={handleSaveAnalysis}
+                      disabled={isSaving || !whys[0].trim()}
+                      className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Enregistrement...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-1.5 h-4 w-4" />
+                          Enregistrer l&apos;analyse des causes racines
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-12 text-center">
+                <div className="mx-auto h-16 w-16 rounded-full bg-indigo-50 flex items-center justify-center">
+                  <Microscope className="h-8 w-8 text-indigo-600" aria-hidden="true" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium text-gray-900">Sélectionnez une non-conformité</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Choisissez une NC dans la liste de gauche pour commencer l&apos;analyse des causes racines
+                </p>
+                <div className="mt-8 flex justify-center">
+                  <div className="h-1 w-32 rounded-full bg-indigo-200">
+                    <div className="h-full w-1/3 rounded-full bg-indigo-600" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 🛡️ BLOC DE CONFORMITÉ ISO */}
+        <div className="rounded-xl bg-indigo-50 p-6 border border-indigo-100">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600">
+                <span className="text-xs font-bold text-white">§</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-indigo-900">Exigence ISO 9001:2015 §10.2.1.b</h3>
+                <p className="mt-1 text-sm text-indigo-800">
+                  Lorsqu&apos;une non-conformité survient, l&apos;organisation doit évaluer la nécessité d&apos;agir pour éliminer la cause afin d&apos;éviter que la non-conformité ne se reproduise ou ne se produise ailleurs.
+                </p>
+                <p className="mt-2 text-xs text-indigo-700">
+                  Cette analyse doit identifier les causes profondes de l&apos;écart et non seulement les symptômes. Les méthodes 5 Pourquoi et Ishikawa sont des outils reconnus pour cette investigation.
+                </p>
               </div>
             </div>
+            <a
+              href="https://www.iso.org/standard/62085.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 md:mt-0"
+            >
+              Documentation officielle ISO
+              <ExternalLinkIcon className="ml-1.5 h-4 w-4" />
+            </a>
           </div>
-        </main>
-
-        {/* 🧩 FOOTER SDE (§10.2.1) */}
-        <footer className="mt-32 pt-20 border-t-8 border-white/5 flex flex-col md:flex-row justify-between items-center opacity-40 hover:opacity-100 transition-opacity duration-700 w-full gap-10 group">
-          <div className="flex items-center gap-10">
-            <Fingerprint size={80} className="text-blue-600 group-hover:rotate-180 transition-all duration-3000" strokeWidth={2} />
-            <div className="text-left">
-              <p className="text-[20px] font-black uppercase tracking-[1em] text-slate-400 italic leading-none">SDE moteur</p>
-              <p className="text-[12px] font-bold text-slate-600 uppercase tracking-[0.8em] mt-4 italic leading-none flex items-center gap-4">
-                 Qualisoft RD 2030 <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> ISO 9001 Investigations
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-16">
-            <div className="flex flex-col items-end italic bg-white/5 px-8 py-4 rounded-3xl border-2 border-white/5 shadow-inner">
-              <span className="text-[12px] font-black text-slate-500 uppercase tracking-[0.5em]">SMI Audit Trace</span>
-              <span className="text-[18px] font-black text-blue-500 mt-2 uppercase tracking-widest">{selectedNc ? selectedNc.NC_Code : "NO_SELECTION"}</span>
-            </div>
-            <div className="flex gap-6">
-              <div className="w-8 h-8 rounded-full bg-blue-600 shadow-[0_0_40px_rgba(37,99,235,0.8)] animate-pulse border-2 border-black" />
-              <div className="w-8 h-8 rounded-full bg-slate-800 border-2 border-white/10" />
-            </div>
-          </div>
-        </footer>
+        </div>
       </div>
-
-      <style jsx global>{`
-        ::-webkit-scrollbar { width: 0px; }
-        * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 20px; border: 2px solid #151A2D; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2563eb; }
-      `}</style>
     </div>
+  );
+}
+
+// ============================================================================
+// COMPOSANTS RÉUTILISABLES
+// ============================================================================
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className={cn('h-4 w-4', className)}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className={cn('h-4 w-4', className)}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+    </svg>
   );
 }
