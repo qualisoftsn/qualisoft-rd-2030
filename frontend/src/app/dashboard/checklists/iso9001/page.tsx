@@ -1,28 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-//* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/**
- * 💡 MODULE : CHECKLIST D'AUDIT SOUVERAINE ISO 9001:2015
- * -------------------------------------------------------------------------
- * RÔLE : Évaluation exhaustive de la conformité (§4 à §10).
- * DESIGN : Elite Sovereign, One-Pager (No-Scroll), Densité SDE Matrix.
- * PERFORMANCE : Calcul dynamique des KPIs, Intégration GED Preuves.
- * -------------------------------------------------------------------------
- */
+'use client';
 
-"use client";
-
-import apiClient from "@/core/api/api-client";
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import apiClient from '@/core/api/api-client';
 import {
-  AlertTriangle, CheckCircle, ChevronRight, Clock, Download, FileText,
-  RefreshCw, Search, ShieldCheck, Target, UploadCloud, XCircle, 
-  Settings, Layers, Users, Activity, Loader2, Save, ExternalLink
-} from "lucide-react";
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { toast, Toaster } from "sonner";
+  CheckCircle2, Download, 
+  RefreshCw, Search, Target, XCircle,
+  Layers, Loader2, ExternalLink,
+  Check, X, Minus, HelpCircle
+} from 'lucide-react';
+import { toast, Toaster } from 'sonner';
 
-// --- 🏗️ INTERFACES SCELLÉES ---
-type ResponseType = "YES" | "NO" | "PARTIAL" | "NA";
+// --- TYPES CONFORMES PRISMA ---
+type ResponseType = 'YES' | 'NO' | 'PARTIAL' | 'NA';
 
 interface ChecklistItem {
   LC_Id: string;
@@ -30,6 +19,8 @@ interface ChecklistItem {
   LC_Title: string;
   LC_Description: string;
   LC_Criteria: string;
+  LC_IsMandatory: boolean;
+  LC_SenegalSpecific: boolean;
   response?: {
     CR_Response: ResponseType;
     CR_Comment?: string;
@@ -41,251 +32,514 @@ interface ChecklistItem {
 export default function ISO9001ChecklistPage() {
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeClause, setActiveClause] = useState<string>("4");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [activeClause, setActiveClause] = useState<string>('4');
+  const [searchTerm, setSearchTerm] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  // --- 🛰️ SYNCHRONISATION MATRIX ---
+  // --- CHARGEMENT DES DONNÉES ---
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<ChecklistItem[]>("/checklist?standard=ISO9001");
+      const res = await apiClient.get<ChecklistItem[]>('/checklist?standard=ISO9001');
       setItems(res.data || []);
     } catch (err) {
-      toast.error("ÉCHEC DE CONNEXION AU RÉFÉRENTIEL ISO.");
+      console.error('[CHECKLIST] API error:', err);
+      toast.error('Échec du chargement de la checklist ISO 9001');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  // --- 🧠 MOTEUR DE CALCUL DE CONFORMITÉ ---
+  // --- CALCUL DES STATISTIQUES ---
   const stats = useMemo(() => {
     const total = items.length;
-    const compliant = items.filter(i => i.response?.CR_Response === "YES").length;
-    const nonCompliant = items.filter(i => i.response?.CR_Response === "NO").length;
+    const compliant = items.filter(i => i.response?.CR_Response === 'YES').length;
+    const nonCompliant = items.filter(i => i.response?.CR_Response === 'NO').length;
+    const partial = items.filter(i => i.response?.CR_Response === 'PARTIAL').length;
+    const na = items.filter(i => i.response?.CR_Response === 'NA').length;
     const rate = total > 0 ? Math.round((compliant / total) * 100) : 0;
-    return { total, compliant, nonCompliant, rate };
+    
+    return { total, compliant, nonCompliant, partial, na, rate };
   }, [items]);
 
-  // --- 📑 FILTRAGE ET GROUPEMENT ---
+  // --- FILTRAGE DES EXIGENCES ---
   const filteredItems = useMemo(() => {
-    return items.filter(i => 
+    return items.filter(i =>
       i.LC_Clause.startsWith(activeClause) &&
-      (i.LC_Title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-       i.LC_Clause.includes(searchTerm))
+      (i.LC_Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        i.LC_Clause.includes(searchTerm) ||
+        i.LC_Description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [items, activeClause, searchTerm]);
 
-  // --- 💾 SAUVEGARDE DE RÉPONSE ---
+  // --- SAUVEGARDE DE LA RÉPONSE ---
   const updateResponse = async (id: string, resp: ResponseType) => {
     setSavingId(id);
     try {
-      await apiClient.post("/checklist/response", { LC_Id: id, CR_Response: resp });
-      toast.success(`SÉQUENCE §${id} SCELLÉE.`);
+      await apiClient.post('/checklist/response', { LC_Id: id, CR_Response: resp });
+      toast.success(`Réponse enregistrée pour l'exigence §${id}`);
       fetchData();
     } catch (e) {
-      toast.error("ERREUR DE TRANSMISSION SDE.");
+      console.error('[CHECKLIST] Save error:', e);
+      toast.error('Échec de l\'enregistrement de la réponse');
     } finally {
       setSavingId(null);
     }
   };
 
-  if (loading) return (
-    <div className="ml-80 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
-      <Loader2 className="animate-spin text-blue-500" size={40} />
-      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500">Audit du Référentiel ISO 9001...</p>
-    </div>
-  );
-
-  function cn(arg0: string, arg1: string): string | undefined {
-    throw new Error("Function not implemented.");
+  // --- GESTION DU CHARGEMENT ---
+  if (loading) {
+    return (
+      <div className="ml-72 flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="relative inline-block">
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-gray-600">Chargement de la checklist ISO 9001:2015...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="ml-80 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-5 overflow-hidden">
-      <Toaster position="top-right" richColors theme="dark" />
+    <div className="ml-72 bg-gray-50 min-h-screen p-6">
+      <Toaster position="top-right" richColors />
 
-      {/* 🔝 HEADER TACTIQUE (SHRINK-0) */}
-      <header className="flex justify-between items-center border-b border-white/10 pb-4 mb-4 shrink-0">
-        <div>
-          <h1 className="text-2xl font-black uppercase tracking-tighter m-0 flex items-center gap-3">
-            <ShieldCheck className="text-blue-600" size={26} /> Checklist <span className="text-blue-600">ISO 9001:2015</span>
-          </h1>
-          <p className="text-slate-500 text-[8px] tracking-[0.3em] font-black uppercase m-0 mt-1 italic">
-            Management de la Qualité • Évaluation de la Conformité SDE
-          </p>
-        </div>
-
-        <div className="flex gap-3">
-          <div className="relative w-64 group">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500" />
-            <input 
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-[10px] font-black uppercase outline-none focus:border-blue-600 transition-all italic"
-              placeholder="RECHERCHER CLAUSE..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <button onClick={fetchData} className="p-2 bg-white/5 rounded-xl hover:text-blue-500 border-none cursor-pointer transition-colors">
-            <RefreshCw size={16} />
-          </button>
-        </div>
-      </header>
-
-      {/* 📊 MATRICE DE PERFORMANCE (SHRINK-0) */}
-      <div className="grid grid-cols-4 gap-4 mb-6 shrink-0">
-        <KPIBox label="Indice de Conformité" value={`${stats.rate}%`} icon={<Target size={18}/>} color="blue" />
-        <KPIBox label="Exigences Conformes" value={stats.compliant} icon={<CheckCircle size={18}/>} color="emerald" />
-        <KPIBox label="Écarts Détectés" value={stats.nonCompliant} icon={<XCircle size={18}/>} color="rose" />
-        <KPIBox label="Total Exigences" value={stats.total} icon={<Layers size={18}/>} color="slate" />
-      </div>
-
-      {/* 🧩 CORPS DU COCKPIT (FLEX-1) */}
-      <div className="flex-1 min-h-0 flex gap-4 overflow-hidden">
-        
-        {/* Navigation Latérale Clauses (25%) */}
-        <div className="w-[25%] flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-2 shrink-0">
-          {[
-            { id: "4", t: "Contexte de l'organisation", d: "Enjeux & Parties Intéressées" },
-            { id: "5", t: "Leadership", d: "Politique & Responsabilités" },
-            { id: "6", t: "Planification", d: "Risques & Opportunités" },
-            { id: "7", t: "Support", d: "Ressources & Info. Documentée" },
-            { id: "8", t: "Réalisation", d: "Opérationnel & Production" },
-            { id: "9", t: "Évaluation", d: "Audit & Revue de Direction" },
-            { id: "10", t: "Amélioration", d: "Non-Conformités & Correction" }
-          ].map(clause => (
-            <button
-              key={clause.id}
-              onClick={() => setActiveClause(clause.id)}
-              className={cn(
-                "w-full p-3 rounded-2xl border transition-all text-left flex items-center justify-between group cursor-pointer",
-                activeClause === clause.id ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-900/20" : "bg-white/2 border-white/5 hover:border-blue-500/30"
-              )}
-            >
-              <div className="min-w-0">
-                <p className={cn("text-xs font-black uppercase m-0 italic", activeClause === clause.id ? "text-white" : "text-blue-400")}>§{clause.id} {clause.t}</p>
-                <p className="text-[7px] font-bold uppercase tracking-widest text-slate-500 m-0 mt-1 truncate">{clause.d}</p>
+      <div className="mx-auto max-w-7xl space-y-8">
+        {/* 🔝 HEADER STRATÉGIQUE */}
+        <header className="border-b border-gray-200 pb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800">
+                  ISO 9001:2015
+                </span>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
+                  {stats.rate}% de conformité
+                </span>
               </div>
-              <ChevronRight size={14} className={cn("shrink-0", activeClause === clause.id ? "text-white" : "text-slate-700")} />
-            </button>
-          ))}
-        </div>
-
-        {/* Tableau des Points de Contrôle (75%) */}
-        <div className="flex-1 bg-[#151A2D] border border-white/5 rounded-4xl flex flex-col shadow-4xl overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none"><ShieldCheck size={250}/></div>
-          
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-[#151A2D] z-20 shadow-sm">
-                <tr className="text-[8px] text-slate-500 uppercase font-black italic tracking-[0.2em] border-b border-white/5">
-                  <th className="px-6 py-4">Exigence Normative</th>
-                  <th className="px-6 py-4">Critère d&apos;Acceptation</th>
-                  <th className="px-6 py-4 text-center">Verdict SDE</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filteredItems.map(item => (
-                  <tr key={item.LC_Id} className="group hover:bg-blue-600/5 transition-all">
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-blue-500 tracking-widest">§{item.LC_Clause}</span>
-                        <span className="text-xs font-black text-white uppercase italic leading-tight">{item.LC_Title}</span>
-                        <p className="text-[9px] text-slate-500 font-bold m-0 line-clamp-1">{item.LC_Description}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-[9px] font-medium text-slate-400 leading-relaxed italic m-0 line-clamp-2 max-w-xs">{item.LC_Criteria}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center gap-1">
-                        <VerdictBtn label="YES" active={item.response?.CR_Response === "YES"} color="emerald" onClick={() => updateResponse(item.LC_Id, "YES")} loading={savingId === item.LC_Id}/>
-                        <VerdictBtn label="NO" active={item.response?.CR_Response === "NO"} color="rose" onClick={() => updateResponse(item.LC_Id, "NO")} loading={savingId === item.LC_Id}/>
-                        <VerdictBtn label="PART" active={item.response?.CR_Response === "PARTIAL"} color="amber" onClick={() => updateResponse(item.LC_Id, "PARTIAL")} loading={savingId === item.LC_Id}/>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Footer de Clause (Shrink-0) */}
-          <div className="shrink-0 p-4 bg-black/40 border-t border-white/5 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-               <div className="h-1.5 w-32 bg-white/5 rounded-full overflow-hidden">
-                 <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${stats.rate}%` }} />
-               </div>
-               <span className="text-[9px] font-black text-blue-500 italic uppercase">Taux de Maillage : {stats.rate}%</span>
+              <h1 className="mt-2 text-2xl font-bold text-gray-900">Checklist d&apos;audit ISO 9001:2015</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Évaluation exhaustive de la conformité selon les exigences des clauses §4 à §10
+              </p>
             </div>
-            <button className="bg-blue-600 text-white px-6 py-2 rounded-xl text-[9px] font-black uppercase italic border-none cursor-pointer shadow-lg flex items-center gap-2">
-              <Download size={14}/> Rapport §{activeClause}
-            </button>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-0">
+              <button
+                onClick={fetchData}
+                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                aria-label="Actualiser les données"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+              <button className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                <Download className="mr-1.5 h-4 w-4" />
+                Exporter le rapport
+              </button>
+            </div>
+          </div>
+
+          {/* 🔍 BARRE DE RECHERCHE */}
+          <div className="mt-6 max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher par clause, titre ou critère..."
+                className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              {filteredItems.length} exigence{filteredItems.length > 1 ? 's' : ''} correspondante{filteredItems.length > 1 ? 's' : ''} • Clause active : §{activeClause}
+            </p>
+          </div>
+        </header>
+
+        {/* 📊 TABLEAU DE BORD KPI */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KPIStat
+            title="Taux de conformité"
+            value={`${stats.rate}%`}
+            icon={Target}
+            color={stats.rate >= 90 ? 'emerald' : stats.rate >= 75 ? 'blue' : 'amber'}
+          />
+          <KPIStat
+            title="Exigences conformes"
+            value={stats.compliant.toString()}
+            icon={CheckCircle2}
+            color="emerald"
+          />
+          <KPIStat
+            title="Écarts identifiés"
+            value={stats.nonCompliant.toString()}
+            icon={XCircle}
+            color="red"
+          />
+          <KPIStat
+            title="Total des exigences"
+            value={stats.total.toString()}
+            icon={Layers}
+            color="gray"
+          />
+        </div>
+
+        {/* 🧩 CONTENU PRINCIPAL : NAVIGATION + TABLEAU */}
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+          {/* NAVIGATION PAR CLAUSES (GAUCHE) */}
+          <div className="lg:col-span-1">
+            <nav className="rounded-xl bg-white shadow-sm border border-gray-200">
+              <div className="border-b border-gray-200 px-4 py-3">
+                <h2 className="text-sm font-semibold text-gray-900">Navigation par clauses</h2>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {[
+                  { id: '4', title: 'Contexte de l\'organisation', description: 'Enjeux & parties intéressées' },
+                  { id: '5', title: 'Leadership', description: 'Politique & responsabilités' },
+                  { id: '6', title: 'Planification', description: 'Risques & opportunités' },
+                  { id: '7', title: 'Support', description: 'Ressources & information' },
+                  { id: '8', title: 'Réalisation', description: 'Opérations & production' },
+                  { id: '9', title: 'Évaluation des performances', description: 'Surveillance & revue' },
+                  { id: '10', title: 'Amélioration', description: 'Actions correctives' },
+                ].map((clause) => {
+                  const clauseItems = items.filter(i => i.LC_Clause.startsWith(clause.id));
+                  const compliantCount = clauseItems.filter(i => i.response?.CR_Response === 'YES').length;
+                  const totalCount = clauseItems.length;
+                  const progress = totalCount > 0 ? Math.round((compliantCount / totalCount) * 100) : 0;
+                  
+                  return (
+                    <button
+                      key={clause.id}
+                      onClick={() => setActiveClause(clause.id)}
+                      className={`w-full px-4 py-4 text-left transition-colors ${
+                        activeClause === clause.id
+                          ? 'bg-indigo-50 border-l-4 border-indigo-600'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            §{clause.id} {clause.title}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">{clause.description}</p>
+                        </div>
+                        <div className="ml-4 shrink-0">
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-indigo-700">{progress}%</p>
+                            <div className="mt-1 h-1.5 w-12 overflow-hidden rounded-full bg-gray-200">
+                              <div
+                                className="h-full rounded-full bg-indigo-600"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+          </div>
+
+          {/* TABLEAU DES EXIGENCES (DROITE) */}
+          <div className="lg:col-span-3">
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
+              <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Clause §{activeClause} — Exigences à évaluer
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  {filteredItems.length} exigence{filteredItems.length > 1 ? 's' : ''} •{' '}
+                  <span className="font-medium text-indigo-700">
+                    {stats.rate}% de conformité globale
+                  </span>
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Exigence
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Critère d&apos;évaluation
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Statut
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {filteredItems.map((item) => (
+                      <tr key={item.LC_Id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+                                §{item.LC_Clause}
+                              </span>
+                              {item.LC_IsMandatory && (
+                                <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                                  Obligatoire
+                                </span>
+                              )}
+                              {item.LC_SenegalSpecific && (
+                                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                  Sénégal
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium text-gray-900">{item.LC_Title}</p>
+                            <p className="text-xs text-gray-500">{item.LC_Description}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-sm text-gray-700">{item.LC_Criteria}</p>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <ResponseBadge response={item.response?.CR_Response} />
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <ResponseButton
+                              label="Oui"
+                              response="YES"
+                              active={item.response?.CR_Response === 'YES'}
+                              color="emerald"
+                              onClick={() => updateResponse(item.LC_Id, 'YES')}
+                              loading={savingId === item.LC_Id}
+                            />
+                            <ResponseButton
+                              label="Non"
+                              response="NO"
+                              active={item.response?.CR_Response === 'NO'}
+                              color="red"
+                              onClick={() => updateResponse(item.LC_Id, 'NO')}
+                              loading={savingId === item.LC_Id}
+                            />
+                            <ResponseButton
+                              label="Partiel"
+                              response="PARTIAL"
+                              active={item.response?.CR_Response === 'PARTIAL'}
+                              color="amber"
+                              onClick={() => updateResponse(item.LC_Id, 'PARTIAL')}
+                              loading={savingId === item.LC_Id}
+                            />
+                            <ResponseButton
+                              label="N/A"
+                              response="NA"
+                              active={item.response?.CR_Response === 'NA'}
+                              color="gray"
+                              onClick={() => updateResponse(item.LC_Id, 'NA')}
+                              loading={savingId === item.LC_Id}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {filteredItems.length === 0 && (
+                <div className="p-12 text-center">
+                  <div className="mx-auto h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                    <Search className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <h3 className="mt-4 text-sm font-medium text-gray-900">Aucune exigence trouvée</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Aucune exigence ne correspond à votre recherche ou à la clause sélectionnée.
+                  </p>
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="mt-4 rounded-md bg-white px-3 py-2 text-sm font-medium text-indigo-600 shadow-sm hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  >
+                    Réinitialiser la recherche
+                  </button>
+                </div>
+              )}
+
+              <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
+                <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+                  <div className="h-2 w-48 overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                      style={{ width: `${stats.rate}%` }}
+                    />
+                  </div>
+                  <div className="text-sm font-medium text-gray-700">
+                    Conformité globale :{' '}
+                    <span className="text-indigo-700">{stats.rate}%</span> ({stats.compliant} / {stats.total} exigences conformes)
+                  </div>
+                  <button className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    <Download className="mr-1.5 h-4 w-4" />
+                    Exporter le rapport PDF
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 🛡️ BLOC DE CONFORMITÉ ISO */}
+        <div className="rounded-xl bg-indigo-50 p-6 border border-indigo-100">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600">
+                <span className="text-xs font-bold text-white">§</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-indigo-900">Exigence ISO 9001:2015 §9.2</h3>
+                <p className="mt-1 text-sm text-indigo-800">
+                  L&apos;organisation doit effectuer des audits internes à des intervalles planifiés pour fournir des informations sur la conformité du système de management de la qualité.
+                </p>
+                <p className="mt-2 text-xs text-indigo-700">
+                  Cette checklist couvre l&apos;ensemble des exigences des clauses §4 à §10 et est conforme aux bonnes pratiques d&apos;audit interne.
+                </p>
+              </div>
+            </div>
+            <a
+              href="https://www.iso.org/standard/62085.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 md:mt-0"
+            >
+              Documentation officielle ISO
+              <ExternalLink className="ml-1.5 h-4 w-4" />
+            </a>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* 📊 BARRE DE SANTÉ FINALE (SHRINK-0) */}
-      <footer className="shrink-0 mt-4 flex justify-between items-center text-[8px] font-black uppercase text-slate-600 tracking-[0.4em] italic">
+// ============================================================================
+// COMPOSANTS CLICKUP-STYLE
+// ============================================================================
+
+function KPIStat({
+  title,
+  value,
+  icon: Icon,
+  color,
+}: {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  color: 'emerald' | 'blue' | 'amber' | 'red' | 'gray';
+}) {
+  const colorClasses = {
+    emerald: 'text-emerald-700 bg-emerald-50',
+    blue: 'text-blue-700 bg-blue-50',
+    amber: 'text-amber-700 bg-amber-50',
+    red: 'text-red-700 bg-red-50',
+    gray: 'text-gray-700 bg-gray-50',
+  };
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-200">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Activity size={14} className="text-blue-500 animate-pulse" /> Système Matrix Opérationnel — ISO 9001 Protocol v4.0
+          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${colorClasses[color]}`}>
+            <Icon className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500">{title}</p>
+            <p className="mt-0.5 text-2xl font-bold text-gray-900">{value}</p>
+          </div>
         </div>
-        <div>Qualisoft SDE — Dakar, Sénégal — 2026</div>
-      </footer>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2563eb; }
-      `}</style>
-    </div>
-  );
-}
-
-// --- 🧩 COMPOSANTS ATOMIQUES SDE ---
-
-function KPIBox({ label, value, icon, color }: any) {
-  const themes: any = { 
-    blue: "text-blue-500 bg-blue-500/5 border-blue-500/10", 
-    emerald: "text-emerald-500 bg-emerald-500/5 border-emerald-500/10", 
-    rose: "text-rose-500 bg-rose-500/5 border-rose-500/10",
-    slate: "text-slate-400 bg-white/5 border-white/10"
-  };
-  function cn(arg0: string, arg1: any): string | undefined {
-    throw new Error("Function not implemented.");
-  }
-
-  return (
-    <div className={cn("p-4 rounded-2xl border flex items-center justify-between shadow-inner", themes[color])}>
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-black/20 rounded-lg">{icon}</div>
-        <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest m-0">{label}</span>
       </div>
-      <span className="text-2xl font-black italic m-0 text-white">{value}</span>
     </div>
   );
 }
 
-function VerdictBtn({ label, active, color, onClick, loading }: any) {
-  const colors: any = {
-    emerald: active ? "bg-emerald-600 text-white border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]" : "bg-emerald-500/5 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/10",
-    rose: active ? "bg-rose-600 text-white border-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]" : "bg-rose-500/5 text-rose-500 border-rose-500/20 hover:bg-rose-500/10",
-    amber: active ? "bg-amber-600 text-white border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "bg-amber-500/5 text-amber-500 border-amber-500/20 hover:bg-amber-500/10",
-  };
-  function cn(arg0: string, arg1: any): string | undefined {
-    throw new Error("Function not implemented.");
+function ResponseBadge({ response }: { response?: ResponseType }) {
+  if (!response) {
+    return (
+      <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+        <HelpCircle className="mr-1 h-3.5 w-3.5" />
+        En attente
+      </span>
+    );
   }
 
+  const config: Record<ResponseType, { label: string; icon: React.ReactNode; color: string }> = {
+    YES: { label: 'Conforme', icon: <Check className="h-3.5 w-3.5" />, color: 'bg-emerald-100 text-emerald-800' },
+    NO: { label: 'Non conforme', icon: <X className="h-3.5 w-3.5" />, color: 'bg-red-100 text-red-800' },
+    PARTIAL: { label: 'Partiellement', icon: <Minus className="h-3.5 w-3.5" />, color: 'bg-amber-100 text-amber-800' },
+    NA: { label: 'Non applicable', icon: <Minus className="h-3.5 w-3.5" />, color: 'bg-gray-100 text-gray-800' },
+  };
+
+  const { label, icon, color } = config[response];
   return (
-    <button 
-      disabled={loading}
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
+      {icon}
+      <span className="ml-1">{label}</span>
+    </span>
+  );
+}
+
+function ResponseButton({
+  label,
+  response,
+  active,
+  color,
+  onClick,
+  loading,
+}: {
+  label: string;
+  response: ResponseType;
+  active: boolean;
+  color: 'emerald' | 'red' | 'amber' | 'gray';
+  onClick: () => void;
+  loading: boolean;
+}) {
+  const colorClasses = {
+    emerald: active
+      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+    red: active ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-50 text-red-700 hover:bg-red-100',
+    amber: active
+      ? 'bg-amber-500 text-white hover:bg-amber-600'
+      : 'bg-amber-50 text-amber-800 hover:bg-amber-100',
+    gray: active ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+  };
+
+  const icons: Record<ResponseType, React.ReactNode> = {
+    YES: <Check className="h-4 w-4" />,
+    NO: <X className="h-4 w-4" />,
+    PARTIAL: <Minus className="h-4 w-4" />,
+    NA: <HelpCircle className="h-4 w-4" />,
+  };
+
+  return (
+    <button
+      type="button"
       onClick={onClick}
-      className={cn("w-10 py-2 rounded-lg text-[8px] font-black border transition-all cursor-pointer uppercase italic leading-none", colors[color])}
+      disabled={loading}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+        colorClasses[color]
+      } ${loading ? 'opacity-75 cursor-not-allowed' : 'focus:ring-indigo-500'}`}
+      aria-label={`Marquer comme ${label}`}
     >
-      {label}
+      {loading && response === 'YES' ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        icons[response]
+      )}
     </button>
   );
 }
