@@ -166,7 +166,7 @@ export default function Sidebar({
         items: [
           {
             title: "Copil",
-            path: "/dashboard/copil",
+            path: "/dashboard/continuous-improvement",
             icon: Zap,
             access: "ADMIN",
           },
