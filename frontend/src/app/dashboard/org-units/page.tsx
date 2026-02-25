@@ -57,17 +57,17 @@ export default function OrgUnitsPage() {
     try {
       const isEdit = !!formData.OU_Id;
       
-      // PAYLOAD SCELLÉ : Uniquement les champs de ton CreateOrgUnitDto
+      // 🛡️ PAYLOAD SCELLÉ : Uniquement les champs du Create/Update DTO
       const payload: any = {
         OU_Name: formData.OU_Name.toUpperCase(),
         OU_Code: formData.OU_Code.toUpperCase(),
         OU_TypeId: formData.OU_TypeId,
         OU_SiteId: formData.OU_SiteId,
+        // Conversion UUID : String vide -> NULL (Crucial pour NestJS)
         OU_ParentId: formData.OU_ParentId && formData.OU_ParentId !== "" ? formData.OU_ParentId : null,
       };
 
       if (isEdit) {
-        // Pour l'update, on peut aussi envoyer OU_IsActive si besoin (géré par UpdateOrgUnitDto)
         await apiClient.patch(`/org-units/${formData.OU_Id}`, payload);
       } else {
         await apiClient.post("/org-units", payload);
@@ -82,7 +82,7 @@ export default function OrgUnitsPage() {
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-[#0B0F1A] text-blue-500"><Loader2 className="animate-spin" size={40} /></div>;
 
@@ -90,20 +90,20 @@ export default function OrgUnitsPage() {
     <div className="flex h-screen w-full bg-[#0B0F1A] text-white italic font-sans overflow-hidden">
       <Toaster position="top-right" richColors theme="dark" />
 
-      {/* ZONE CONTENU PRINCIPAL */}
-      <div className="flex-1 flex flex-col ml-72 overflow-hidden border-l border-white/5">
+      {/* ZONE CONTENU (S'ajuste au menu latéral de 72) */}
+      <div className="flex-1 flex flex-col ml-72 overflow-hidden border-l border-white/5 bg-[#0B0F1A]">
         
-        {/* HEADER (Zéro Scroll) */}
-        <header className="h-20 bg-[#0B0F1A] border-b border-white/10 flex justify-between items-center px-8 shrink-0">
+        {/* 🔝 HEADER - FIXÉ SANS DÉCALAGE */}
+        <header className="h-20 border-b border-white/10 flex justify-between items-center px-8 shrink-0">
           <div className="flex flex-col">
             <h1 className="text-2xl font-black uppercase tracking-tighter m-0 flex items-center gap-2">
               <Layers className="text-blue-500" size={24} /> Structure <span className="text-blue-500">Organique</span>
             </h1>
-            <p className="text-slate-500 text-[8px] font-black uppercase tracking-[0.3em] m-0 italic">ISO 9001 §5.3 • Maillage Territorial</p>
+            <p className="text-slate-500 text-[8px] font-black uppercase tracking-[0.3em] m-0 italic">ISO 9001 §5.3 • Matrice SDE</p>
           </div>
           
           <div className="flex gap-3 items-center">
-            <div className="relative w-64">
+            <div className="relative w-72">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input 
                 value={search} onChange={(e) => setSearch(e.target.value)}
@@ -121,15 +121,15 @@ export default function OrgUnitsPage() {
           </div>
         </header>
 
-        {/* TABLEAU (Fixé au cadre écran) */}
-        <main className="flex-1 overflow-hidden p-4 bg-[#0B0F1A]">
+        {/* 📊 TABLEAU - NO-SCROLL GLOBAL (Occupation 100%) */}
+        <main className="flex-1 overflow-hidden p-4">
           <div className="h-full bg-[#151A2D] border border-white/5 rounded-4xl overflow-hidden flex flex-col relative shadow-2xl">
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-[#151A2D] z-10 border-b border-white/10">
+                <thead className="sticky top-0 bg-[#151A2D] z-20 border-b border-white/10">
                   <tr className="text-[8px] text-slate-500 uppercase font-black italic tracking-widest">
                     <th className="px-6 py-4">Nom de l&apos;unité</th>
-                    <th className="px-6 py-4">Code SDE</th>
+                    <th className="px-6 py-4">Code</th>
                     <th className="px-6 py-4">Typologie</th>
                     <th className="px-6 py-4">Rattachement</th>
                     <th className="px-8 py-4 text-right">Pilotage</th>
@@ -167,54 +167,54 @@ export default function OrgUnitsPage() {
           </div>
         </main>
 
-        {/* FOOTER (Fixé en bas) */}
+        {/* 🏁 FOOTER COMPACT */}
         <footer className="h-10 border-t border-white/5 flex justify-between items-center px-8 opacity-40 italic shrink-0">
           <div className="flex items-center gap-3">
             <Fingerprint size={18} className="text-blue-600" />
-            <span className="text-[8px] font-black uppercase tracking-widest text-white">SDE Engine Matrix • ISO Compliance</span>
+            <span className="text-[8px] font-black uppercase tracking-widest text-white">SDE Matrix • ISO 9001:2015</span>
           </div>
           <Activity size={16} className="text-emerald-500 animate-pulse" />
         </footer>
       </div>
 
-      {/* DRAWER ÉDITEUR (Ajusté) */}
+      {/* 🛠️ TIROIR D'ÉDITION (Drawer Right) */}
       {showEditor && (
         <div className="fixed inset-0 z-100 flex justify-end bg-black/80 backdrop-blur-sm">
-          <div className="w-100 h-full bg-[#0B0F1A] border-l border-white/10 p-10 flex flex-col gap-8 shadow-5xl animate-in slide-in-from-right duration-300">
-            <header className="flex justify-between items-center">
+          <div className="w-105 h-full bg-[#0B0F1A] border-l border-white/10 p-10 flex flex-col gap-8 shadow-5xl animate-in slide-in-from-right duration-300">
+            <header className="flex justify-between items-center shrink-0">
               <h2 className="text-xl font-black uppercase italic m-0 tracking-tighter">Édition <span className="text-blue-500">SDE</span></h2>
               <button onClick={() => setShowEditor(false)} className="text-slate-500 hover:text-red-500 transition-all cursor-pointer"><X size={24}/></button>
             </header>
 
-            <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-5 overflow-y-auto pr-2 custom-scrollbar">
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2 tracking-widest leading-none">Désignation de l&apos;unité</label>
+                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2">Désignation de l&apos;unité</label>
                 <input value={formData.OU_Name} onChange={e => setFormData({...formData, OU_Name: e.target.value.toUpperCase()})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-[11px] font-bold text-white outline-none focus:border-blue-500 uppercase italic" required />
               </div>
               
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2 tracking-widest leading-none">Code Unique (§5.3)</label>
+                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2">Code Unique (§5.3)</label>
                 <input value={formData.OU_Code} onChange={e => setFormData({...formData, OU_Code: e.target.value.toUpperCase()})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-[11px] font-bold text-white outline-none focus:border-blue-500 uppercase italic" required />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2 tracking-widest leading-none">Typologie Structurelle</label>
+                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2">Typologie Structurelle</label>
                 <select value={formData.OU_TypeId} onChange={e => setFormData({...formData, OU_TypeId: e.target.value})} className="w-full bg-[#151A2D] border border-white/10 rounded-xl p-4 text-[11px] font-bold text-white outline-none italic cursor-pointer appearance-none" required>
-                  <option value="">SÉLECTIONNER UUID...</option>
+                  <option value="">SÉLECTIONNER...</option>
                   {types.map(t => <option key={t.OUT_Id} value={t.OUT_Id}>{t.OUT_Label}</option>)}
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2 tracking-widest leading-none">Ancrage Territorial (Site)</label>
+                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2">Ancrage Territorial (Site)</label>
                 <select value={formData.OU_SiteId} onChange={e => setFormData({...formData, OU_SiteId: e.target.value})} className="w-full bg-[#151A2D] border border-white/10 rounded-xl p-4 text-[11px] font-bold text-white outline-none italic cursor-pointer appearance-none" required>
-                  <option value="">SÉLECTIONNER UUID...</option>
+                  <option value="">SÉLECTIONNER...</option>
                   {sites.map(s => <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>)}
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2 tracking-widest leading-none">Rattachement Hiérarchique</label>
+                <label className="text-[8px] font-black text-slate-500 uppercase italic ml-2">Rattachement Hiérarchique</label>
                 <select value={formData.OU_ParentId} onChange={e => setFormData({...formData, OU_ParentId: e.target.value})} className="w-full bg-[#151A2D] border border-white/10 rounded-xl p-4 text-[11px] font-bold text-white outline-none italic cursor-pointer appearance-none">
                   <option value="">-- UNITÉ RACINE --</option>
                   {units.filter(u => u.OU_Id !== formData.OU_Id).map(u => <option key={u.OU_Id} value={u.OU_Id}>{u.OU_Name}</option>)}
