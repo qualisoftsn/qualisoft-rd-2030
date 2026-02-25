@@ -9,36 +9,38 @@ import { format, isPast, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast, Toaster } from 'sonner';
 import {
-  AlertCircle, AlertTriangle, BarChart3, Calendar, CheckCircle2, 
-  FileText, History, Loader2, Paperclip, Plus, RefreshCcw, 
-  Target, Users, Download, MessageSquare, Tag, ArrowLeft,
-  Pencil, Archive, Eye, EyeOff, FileQuestion
+  AlertCircle, AlertTriangle, BarChart3, Calendar, CheckCircle2,
+  Clock, FileText, History, Loader2, Paperclip, Plus, RefreshCcw, ShieldCheck,
+  Target, Users, Download, MessageSquare, ArrowLeft, Pencil, Archive, Eye,
+  FileQuestion, Link as LinkIconComponent
 } from 'lucide-react';
-import type {
-  Action,
-  User,
-  PAQ,
-  NonConformite,
-  Audit,
-  Processus,
-  Preuve,
-  ChangeLog,
-  Role,
+import {
+  type Action,
+  type User,
+  type PAQ,
+  type NonConformite,
+  type Audit,
+  type Processus,
+  type Preuve,
+  type ChangeLog,
+  type ProcessType,
+  ActionOrigin,
   ActionStatus,
   ActionType,
-  ActionOrigin,
-  Priority
+  ChangeAction,
+  Priority,
+  Role
 } from '@/types/elite-sde';
 
 // --- UTILITAIRE CN ---
 const cn = (...classes: (string | boolean | undefined | null)[]) =>
   classes.filter(Boolean).join(' ');
 
-// --- TYPES SPÉCIFIQUES À LA PAGE ---
+// --- TYPES SPÉCIFIQUES À LA PAGE (CONFORMES PRISMA) ---
 interface ActionDetail extends Action {
   ACT_Responsable: User;
   ACT_Creator: User;
-  ACT_PAQ: PAQ & { PAQ_Processus: Processus };
+  ACT_PAQ: PAQ & { PAQ_Processus: Processus & { PR_Type: ProcessType } };
   ACT_NC?: NonConformite | null;
   ACT_Audit?: Audit | null;
   ACT_Preuves: Preuve[];
@@ -53,9 +55,9 @@ export default function ActionDetailPage() {
   const [action, setAction] = useState<ActionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [userRole, setUserRole] = useState<Role>('USER');
+  const [userRole, setUserRole] = useState<Role>(Role.USER); // ✅ CORRECTION ICI : Role.USER au lieu de 'USER'
   const [isEditingStatus, setIsEditingStatus] = useState(false);
-  const [newStatus, setNewStatus] = useState<ActionStatus>('A FAIRE');
+  const [newStatus, setNewStatus] = useState<ActionStatus>(ActionStatus.A_FAIRE);
 
   // --- INITIALISATION RÔLE UTILISATEUR ---
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function ActionDetailPage() {
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser) as User;
-        setUserRole(user.U_Role || 'USER');
+        setUserRole(user.U_Role || Role.USER);
       } catch (e) {
         console.warn('[ACTION_DETAIL] Impossible de lire le rôle utilisateur');
       }
@@ -134,21 +136,21 @@ export default function ActionDetailPage() {
 
   // --- RBAC ---
   const canEdit = useMemo(() => {
-    return ['ADMIN', 'SUPER_ADMIN', 'PILOTE', 'RQ'].includes(userRole);
+    return [Role.ADMIN, Role.SUPER_ADMIN, Role.PILOTE, Role.RQ].includes(userRole);
   }, [userRole]);
 
   // --- HELPERS VISUELS ---
   const getStatusBadge = (status: ActionStatus) => {
     const config: Record<ActionStatus, { label: string; color: string }> = {
-      A_FAIRE: { label: 'À faire', color: 'bg-gray-100 text-gray-800 border-gray-200' },
-      EN_COURS: { label: 'En cours', color: 'bg-blue-50 text-blue-800 border-blue-200' },
-      A_VALIDER: { label: 'À valider', color: 'bg-amber-50 text-amber-800 border-amber-200' },
-      TERMINEE: { label: 'Terminée', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
-      NON_EFFICACE: { label: 'Non efficace', color: 'bg-red-50 text-red-800 border-red-200' },
-      ANNULEE: { label: 'Annulée', color: 'bg-gray-200 text-gray-700 border-gray-300' },
-      EN_RETARD: { label: 'En retard', color: 'bg-red-50 text-red-800 border-red-300 border-l-4' },
+      [ActionStatus.A_FAIRE]: { label: 'À faire', color: 'bg-gray-100 text-gray-800 border-gray-200' },
+      [ActionStatus.EN_COURS]: { label: 'En cours', color: 'bg-blue-50 text-blue-800 border-blue-200' },
+      [ActionStatus.A_VALIDER]: { label: 'À valider', color: 'bg-amber-50 text-amber-800 border-amber-200' },
+      [ActionStatus.TERMINEE]: { label: 'Terminée', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+      [ActionStatus.NON_EFFICACE]: { label: 'Non efficace', color: 'bg-red-50 text-red-800 border-red-200' },
+      [ActionStatus.ANNULEE]: { label: 'Annulée', color: 'bg-gray-200 text-gray-700 border-gray-300' },
+      [ActionStatus.EN_RETARD]: { label: 'En retard', color: 'bg-red-50 text-red-800 border-red-300 border-l-4' },
     };
-    const { label, color } = config[status] || config.A_FAIRE;
+    const { label, color } = config[status] || config[ActionStatus.A_FAIRE];
     return (
       <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border ${color}`}>
         {label}
@@ -158,13 +160,13 @@ export default function ActionDetailPage() {
 
   const getPriorityBadge = (priority: Priority) => {
     const config: Record<Priority, { label: string; color: string }> = {
-      CRITICAL: { label: 'Critique', color: 'bg-red-100 text-red-800' },
-      URGENT: { label: 'Urgent', color: 'bg-red-100 text-red-800' },
-      HIGH: { label: 'Haute', color: 'bg-orange-100 text-orange-800' },
-      MEDIUM: { label: 'Moyenne', color: 'bg-blue-100 text-blue-800' },
-      LOW: { label: 'Basse', color: 'bg-gray-100 text-gray-800' },
+      [Priority.CRITICAL]: { label: 'Critique', color: 'bg-red-100 text-red-800' },
+      [Priority.URGENT]: { label: 'Urgent', color: 'bg-red-100 text-red-800' },
+      [Priority.HIGH]: { label: 'Haute', color: 'bg-orange-100 text-orange-800' },
+      [Priority.MEDIUM]: { label: 'Moyenne', color: 'bg-blue-100 text-blue-800' },
+      [Priority.LOW]: { label: 'Basse', color: 'bg-gray-100 text-gray-800' },
     };
-    const { label, color } = config[priority] || config.MEDIUM;
+    const { label, color } = config[priority] || config[Priority.MEDIUM];
     return (
       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
         {label}
@@ -174,11 +176,11 @@ export default function ActionDetailPage() {
 
   const getTypeBadge = (type: ActionType) => {
     const config: Record<ActionType, { label: string; color: string }> = {
-      CORRECTIVE: { label: 'Corrective', color: 'bg-red-50 text-red-800' },
-      PREVENTIVE: { label: 'Préventive', color: 'bg-emerald-50 text-emerald-800' },
-      AMELIORATION: { label: 'Amélioration', color: 'bg-blue-50 text-blue-800' },
+      [ActionType.CORRECTIVE]: { label: 'Corrective', color: 'bg-red-50 text-red-800' },
+      [ActionType.PREVENTIVE]: { label: 'Préventive', color: 'bg-emerald-50 text-emerald-800' },
+      [ActionType.AMELIORATION]: { label: 'Amélioration', color: 'bg-blue-50 text-blue-800' },
     };
-    const { label, color } = config[type] || config.CORRECTIVE;
+    const { label, color } = config[type] || config[ActionType.CORRECTIVE];
     return (
       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
         {label}
@@ -188,19 +190,19 @@ export default function ActionDetailPage() {
 
   const getSourceBadge = (origin: ActionOrigin) => {
     const config: Record<ActionOrigin, { label: string; icon: React.ReactNode }> = {
-      AUDIT: { label: 'Audit', icon: <FileText className="h-3.5 w-3.5 text-purple-600" /> },
-      NON_CONFORMITE: { label: 'NC', icon: <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> },
-      RECLAMATION: { label: 'Réclamation', icon: <MessageSquare className="h-3.5 w-3.5 text-amber-600" /> },
-      REVUE_DIRECTION: { label: 'Revue Dir.', icon: <BarChart3 className="h-3.5 w-3.5 text-emerald-600" /> },
-      COPIL: { label: 'COPIL', icon: <Users className="h-3.5 w-3.5 text-blue-600" /> },
-      RISQUE: { label: 'Risque', icon: <Target className="h-3.5 w-3.5 text-orange-600" /> },
-      SSE: { label: 'SST', icon: <AlertCircle className="h-3.5 w-3.5 text-rose-600" /> },
-      OBJECTIF: { label: 'Objectif', icon: <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" /> },
-      LEGAL: { label: 'Légal', icon: <FileQuestion className="h-3.5 w-3.5 text-gray-600" /> },
-      ALERTE: { label: 'Alerte', icon: <AlertCircle className="h-3.5 w-3.5 text-red-600" /> },
-      AUTRE: { label: 'Autre', icon: <Tag className="h-3.5 w-3.5 text-gray-500" /> },
+      [ActionOrigin.AUDIT]: { label: 'Audit', icon: <FileText className="h-3.5 w-3.5 text-purple-600" /> },
+      [ActionOrigin.NON_CONFORMITE]: { label: 'NC', icon: <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> },
+      [ActionOrigin.RECLAMATION]: { label: 'Réclamation', icon: <MessageSquare className="h-3.5 w-3.5 text-amber-600" /> },
+      [ActionOrigin.REVUE_DIRECTION]: { label: 'Revue Dir.', icon: <BarChart3 className="h-3.5 w-3.5 text-emerald-600" /> },
+      [ActionOrigin.COPIL]: { label: 'COPIL', icon: <Users className="h-3.5 w-3.5 text-blue-600" /> },
+      [ActionOrigin.RISQUE]: { label: 'Risque', icon: <Target className="h-3.5 w-3.5 text-orange-600" /> },
+      [ActionOrigin.SSE]: { label: 'SST', icon: <AlertCircle className="h-3.5 w-3.5 text-rose-600" /> },
+      [ActionOrigin.OBJECTIF]: { label: 'Objectif', icon: <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" /> },
+      [ActionOrigin.LEGAL]: { label: 'Légal', icon: <FileQuestion className="h-3.5 w-3.5 text-gray-600" /> },
+      [ActionOrigin.ALERTE]: { label: 'Alerte', icon: <AlertCircle className="h-3.5 w-3.5 text-red-600" /> },
+      [ActionOrigin.AUTRE]: { label: 'Autre', icon: <Tag className="h-3.5 w-3.5 text-gray-500" /> },
     };
-    const { label, icon } = config[origin] || config.AUTRE;
+    const { label, icon } = config[origin] || config[ActionOrigin.AUTRE];
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
         {icon}
@@ -209,7 +211,7 @@ export default function ActionDetailPage() {
     );
   };
 
-  const isLate = action && action.ACT_Deadline && isPast(new Date(action.ACT_Deadline)) && action.ACT_Status !== 'TERMINEE';
+  const isLate = action && action.ACT_Deadline && isPast(new Date(action.ACT_Deadline)) && action.ACT_Status !== ActionStatus.TERMINEE;
   const daysLeft = action && action.ACT_Deadline ? differenceInDays(new Date(action.ACT_Deadline), new Date()) : 0;
 
   // --- CHARGEMENT ---
@@ -355,12 +357,12 @@ export default function ActionDetailPage() {
                       onChange={(e) => setNewStatus(e.target.value as ActionStatus)}
                       className="block w-full rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     >
-                      <option value="A_FAIRE">À faire</option>
-                      <option value="EN_COURS">En cours</option>
-                      <option value="A_VALIDER">À valider</option>
-                      <option value="TERMINEE">Terminée</option>
-                      <option value="NON_EFFICACE">Non efficace</option>
-                      <option value="ANNULEE">Annulée</option>
+                      <option value={ActionStatus.A_FAIRE}>À faire</option>
+                      <option value={ActionStatus.EN_COURS}>En cours</option>
+                      <option value={ActionStatus.A_VALIDER}>À valider</option>
+                      <option value={ActionStatus.TERMINEE}>Terminée</option>
+                      <option value={ActionStatus.NON_EFFICACE}>Non efficace</option>
+                      <option value={ActionStatus.ANNULEE}>Annulée</option>
                     </select>
                     <div className="flex gap-2">
                       <button
@@ -404,7 +406,7 @@ export default function ActionDetailPage() {
                     {action.ACT_Responsable.U_FirstName} {action.ACT_Responsable.U_LastName}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {action.ACT_Responsable.U_Role === 'PILOTE' ? 'Pilote processus' : 'Responsable qualité'}
+                    {action.ACT_Responsable.U_Role === Role.PILOTE ? 'Pilote processus' : 'Responsable qualité'}
                   </p>
                 </div>
               </div>
@@ -445,14 +447,17 @@ export default function ActionDetailPage() {
                 <p className="mt-1 text-sm text-gray-900">
                   {action.ACT_PAQ.PAQ_Processus.PR_Code} — {action.ACT_PAQ.PAQ_Processus.PR_Libelle}
                 </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Type: {action.ACT_PAQ.PAQ_Processus.PR_Type.PT_Label} ({action.ACT_PAQ.PAQ_Processus.PR_Type.PT_Family})
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* CONTENU PRINCIPAL : ONGLETS */}
+        {/* CONTENU PRINCIPAL */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* COLONNE GAUCHE : DÉTAILS & PREUVES */}
+          {/* COLONNE GAUCHE : ORIGINE & PREUVES */}
           <div className="lg:col-span-2 space-y-8">
             {/* SECTION ORIGINE & LIENS */}
             <section>
@@ -468,7 +473,7 @@ export default function ActionDetailPage() {
                       <div>
                         <p className="text-sm font-medium text-gray-900">Issue d&apos;une non-conformité</p>
                         <p className="mt-1 text-sm text-gray-700">
-                          <span className="font-medium text-red-600">{action.ACT_NC.NC_Code}</span> — {action.ACT_NC.NC_Libelle}
+                          <span className="font-medium text-red-600">{action.ACT_NC.NC_Libelle}</span>
                         </p>
                         <p className="mt-1 text-xs text-gray-500">
                           Gravité: {action.ACT_NC.NC_Gravite} • Statut: {action.ACT_NC.NC_Statut}
@@ -575,7 +580,7 @@ export default function ActionDetailPage() {
                         <div className="h-2 w-2 rounded-full bg-gray-400" />
                       </div>
                       <p className="text-sm font-medium text-gray-900">
-                        {log.CL_Action === 'UPDATE' ? 'Mise à jour' : 'Création'}
+                        {log.CL_Action === ChangeAction.UPDATE ? 'Mise à jour' : 'Création'}
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500">
                         par {log.CL_UserId} • {format(new Date(log.CL_Timestamp), 'dd MMM yyyy HH:mm', { locale: fr })}
@@ -612,7 +617,7 @@ export default function ActionDetailPage() {
                     Créer une action dérivée
                   </button>
                   <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <EyeOff className="h-4 w-4" />
+                    <Eye className="h-4 w-4" />
                     Masquer aux rapports
                   </button>
                 </div>
@@ -684,6 +689,30 @@ function LinkIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+      />
+    </svg>
+  );
+}
+
+function Tag({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className={cn("w-8 h-8", className)}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 6h.008v.008H6V6z"
       />
     </svg>
   );

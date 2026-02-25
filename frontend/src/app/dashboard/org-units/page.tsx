@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -146,7 +147,7 @@ export default function OrgUnitsPage() {
               <thead className="sticky top-0 bg-[#151A2D] z-30 border-b border-white/10">
                 <tr className="text-[9px] text-slate-500 uppercase font-black italic tracking-widest">
                   <th className="px-10 py-6 w-1/3">Désignation & Code</th>
-                  <th className="px-10 py-6">Type d'Unité</th>
+                  <th className="px-10 py-6">Type d&apos;Unité</th>
                   <th className="px-10 py-6">Parent (Réflexif)</th>
                   <th className="px-10 py-6">Site Géographique</th>
                   <th className="px-10 py-6 text-right w-32">Actions</th>
@@ -222,12 +223,12 @@ export default function OrgUnitsPage() {
 
       {/* 🛠️ EDITEUR LATÉRAL (DRAWER) - Z-INDEX 100 */}
       {showEditor && (
-        <div className="fixed inset-0 z-[100] flex justify-end bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-[480px] h-full bg-[#0B0F1A] border-l border-white/10 p-12 flex flex-col gap-10 shadow-5xl animate-in slide-in-from-right duration-500">
+        <div className="fixed inset-0 z-100 flex justify-end bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-120 h-full bg-[#0B0F1A] border-l border-white/10 p-12 flex flex-col gap-10 shadow-5xl animate-in slide-in-from-right duration-500">
             <header className="flex justify-between items-center shrink-0">
               <div className="flex flex-col">
                 <h2 className="text-2xl font-black uppercase italic m-0 tracking-tighter">Éditeur <span className="text-blue-500">SDE</span></h2>
-                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest italic mt-2 leading-none italic">Scellage Structurel §5.3</p>
+                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest italic mt-2 leading-none">Scellage Structurel §5.3</p>
               </div>
               <button onClick={() => setShowEditor(false)} className="p-3 bg-white/5 rounded-2xl text-slate-500 hover:text-red-500 transition-all border border-white/10 cursor-pointer shadow-xl"><X size={24}/></button>
             </header>
