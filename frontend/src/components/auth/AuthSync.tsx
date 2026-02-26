@@ -60,11 +60,11 @@ export default function AuthSync({ children }: { children: React.ReactNode }) {
         });
 
         // 3. Persistence physique (Ceinture de sécurité pour les appels API hors-React)
-        localStorage.setItem('token', token);
-        localStorage.setItem('qs_tenant_id', user.tenantId); // Stockage explicite du tenant
+        // localStorage.setItem('token', token);
+        // localStorage.setItem('qs_tenant_id', user.tenantId); // Stockage explicite du tenant
         
         if (user.U_Role === 'SUPER_ADMIN') {
-            localStorage.setItem('master_token', token);
+            // localStorage.setItem('master_token', token);
         }
       }
     }

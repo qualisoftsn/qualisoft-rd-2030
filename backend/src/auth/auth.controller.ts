@@ -1,80 +1,97 @@
-/**
- * CHEMIN ABSOLU : /backend/src/auth/auth.controller.ts
- * PROJET : Qualisoft Elite RD 2030
- * VERSION : 2.1.1 (Souveraineté Multi-Tenant & Synchronisation Service)
- */
-
-import { 
-  Controller, Get, Post, Param, Body, 
-  HttpCode, HttpStatus, Logger 
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
-import { AuthService, LoginResponse } from './auth.service';
+import { Response, Request } from 'express';
+import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterTenantDto } from './dto/register-tenant.dto';
-import { User, Tenant } from '@prisma/client';
-import { Public } from './decorators/public.decorator';
+import { Public } from '../decorators/public.decorator';
+import { RefreshTokenGuard } from './guards/refresh-token.guard';
 
 @Controller('auth')
 export class AuthController {
-  private readonly logger = new Logger(AuthController.name);
-
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * 🔓 [PUBLIC] IDENTIFICATION PAR SOUS-DOMAINE
-   * Appelé par le Frontend lors de la détection de 'sde.qualisoft.sn'
-   */
   @Public()
-  @Get('domain/:domain')
   @HttpCode(HttpStatus.OK)
-  async getTenantByDomain(@Param('domain') domain: string): Promise<Partial<Tenant>> {
-    this.logger.log(`🔍 Identification du territoire Matrix : ${domain}`);
-    return await this.authService.getTenantByDomain(domain);
-  }
-
-  /**
-   * 🔓 [PUBLIC] REGISTRE DES ORGANISATIONS
-   * Alimente la liste déroulante si aucun sous-domaine n'est détecté.
-   */
-  @Public() 
-  @Get('public/tenants')
-  @HttpCode(HttpStatus.OK)
-  async getPublicTenants(): Promise<Partial<Tenant>[]> {
-    this.logger.log(`📋 Récupération du registre public des nœuds.`);
-    return await this.authService.getPublicTenants();
-  }
-
-  /**
-   * 🔓 [PUBLIC] LISTE DES COLLABORATEURS D'UN NŒUD
-   * Permet de lister les utilisateurs d'un client spécifique au login.
-   */
-  @Public()
-  @Get('public/tenants/:tenantId/users')
-  @HttpCode(HttpStatus.OK)
-  async getTenantUsers(@Param('tenantId') tenantId: string): Promise<Partial<User>[]> {
-    this.logger.log(`👥 Scan des collaborateurs pour le nœud ID : ${tenantId}`);
-    return await this.authService.getTenantUsers(tenantId);
-  }
-
-  /**
-   * 🔐 AUTHENTIFICATION SOUVERAINE
-   */
-  @Public()
   @Post('login')
-  @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto): Promise<LoginResponse> {
-    this.logger.log(`🔑 Tentative d'accès au Noyau par : ${loginDto.email}`);
-    return await this.authService.login(loginDto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // 🔑 AUTHENTIFICATION & GÉNÉRATION DES TOKENS
+    const { accessToken, refreshToken, user } = await this.authService.validateUser(
+      loginDto.email,
+      loginDto.password,
+      loginDto.tenantId,
+    );
+
+    // ✅ SÉCURITÉ MAXIMALE : Refresh Token dans cookie HttpOnly
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,      // 🔒 Inaccessible via JavaScript
+      secure: true,        // 🔒 HTTPS uniquement (en production)
+      sameSite: 'strict',  // 🔒 Protection CSRF native
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+      path: '/api/auth',
+    });
+
+    // ✅ Access Token retourné en JSON (stocké en mémoire frontend)
+    return {
+      accessToken,
+      expiresIn: 900, // 15 minutes
+      user: {
+        U_Id: user.U_Id,
+        U_Email: user.U_Email,
+        U_FirstName: user.U_FirstName,
+        U_LastName: user.U_LastName,
+        U_Role: user.U_Role,
+        tenantId: user.tenantId,
+        // 🔑 CORRECTION CRITIQUE : Pas de U_TenantDomain dans le schéma Prisma
+        // → On utilise T_Domain via relation tenant (chargée dans validateUser)
+        tenantDomain: user.tenant?.T_Domain || null,
+      },
+    };
   }
 
-  /**
-   * 🏗️ ENRÔLEMENT D'UN NOUVEAU NŒUD (AUTO-INSCRIPTION)
-   */
   @Public()
-  @Post('register-tenant')
-  @HttpCode(HttpStatus.CREATED)
-  async registerTenant(@Body() dto: RegisterTenantDto) {
-    this.logger.log(`🚀 Déploiement autonome d'un nouveau nœud : ${dto.companyName}`);
-    return await this.authService.registerTenant(dto);
+  @UseGuards(RefreshTokenGuard)
+  @Post('refresh')
+  async refresh(@Req() req: Request) {
+    const userId = req.user['U_Id'];
+    const tenantId = req.user['tenantId'];
+
+    // ✅ GÉNÉRATION D'UN NOUVEL ACCESS TOKEN
+    const newAccessToken = await this.authService.generateAccessToken({
+      U_Id: userId,
+      U_Email: req.user['U_Email'],
+      U_Role: req.user['U_Role'],
+      tenantId,
+    });
+
+    return {
+      accessToken: newAccessToken,
+      expiresIn: 900,
+    };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@Res({ passthrough: true }) res: Response) {
+    // ✅ DÉSACTIVATION PROPRE DU REFRESH TOKEN
+    res.clearCookie('refresh_token', {
+      path: '/api/auth',
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
+    return res.send();
   }
 }

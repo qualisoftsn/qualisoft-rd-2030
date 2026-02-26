@@ -1,55 +1,42 @@
-/**
- * 🛰️ API CLIENT - QUALISOFT ELITE RD 2030
- * RÔLE : Injection des headers de souveraineté et isolation des contextes territoriaux.
- */
-
-import axios, { InternalAxiosRequestConfig } from 'axios';
-import { useAuthStore } from '../../store/authStore';
-
-const isServer = typeof window === 'undefined';
+import { authManager } from '@/app/auth/auth-manager';
+import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: isServer ? 'http://backend:9000/api' : 'https://api.qualisoft.sn/api',
-  withCredentials: true,
-  headers: { 
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  },
-  timeout: 15000,
+  baseURL: '/api',
+  withCredentials: true, // ✅ Envoie les cookies avec chaque requête
 });
 
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const state = useAuthStore.getState();
-    const { token, user } = state;
+// ✅ AJOUT DU TOKEN DANS LES EN-TÊTES
+apiClient.interceptors.request.use((config) => {
+  const token = authManager.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-    // A. Preuve d'identité (Fix 401)
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+// ✅ GESTION TRANSPARENTE DES 401 (TOKEN EXPIRÉ)
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
 
-    // B. SCELLAGE CRUD (Fix 403 / Autorité Matrix)
-    if (config.headers) {
-      // Si SUPER_ADMIN, on force 'MATRIX' pour piloter tout le Kernel
-      if (user?.U_Role === "SUPER_ADMIN") {
-        config.headers['x-tenant-id'] = 'MATRIX';
-      } else if (user?.tenantId) {
-        config.headers['x-tenant-id'] = user.tenantId;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        await authManager.silentRefresh();
+        originalRequest.headers.Authorization = `Bearer ${authManager.getToken()}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        authManager.clear();
+        window.location.href = '/login?session=expired';
+        return Promise.reject(refreshError);
       }
     }
 
-    // C. Contexte Territorial (Isolation des sous-domaines)
-    if (!isServer && config.headers) {
-      const hostname = window.location.hostname;
-      const parts = hostname.split('.');
-      if (parts.length > 2 && !['www', 'api', 'app', 'elite', 'localhost'].includes(parts[0])) {
-        config.headers['x-tenant-domain'] = parts[0].toLowerCase();
-      }
-    }
-
-    return config;
+    return Promise.reject(error);
   },
-  (error) => Promise.reject(error)
 );
 
 export default apiClient;

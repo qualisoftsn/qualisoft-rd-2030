@@ -5,84 +5,85 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Globe, Building2 } from 'lucide-react';
+import { 
+  Loader2, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, 
+  Globe, Building2, Key 
+} from 'lucide-react';
 import { toast } from 'sonner';
-import apiClient from '@/core/api/api-client';
-import type { PublicTenant } from '@/services/matrix.service';
-import { authManager } from '../auth-manager';
+import { useAuth } from '@/core/providers/auth-provider';
+import { authManager } from '@/core/auth/auth-manager';
 
-interface LoginResponse {
-  accessToken: string;
-  expiresIn: number;
-  user: {
-    U_Id: string;
-    U_Email: string;
-    U_FirstName?: string;
-    U_LastName?: string;
-    U_Role: string;
-    tenantId: string;
-    tenantDomain?: string | null;
-  };
+interface PublicTenant {
+  T_Id: string;
+  T_Name: string;
+  T_Domain: string;
 }
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<'LOADING' | 'CHOICE' | 'LOGIN_FORM'>('LOADING');
+  const { isAuthenticated, isLoading: authLoading, tenantSlug } = useAuth();
+  const [mode, setMode] = useState<'LOADING' | 'CHOICE' | 'LOGIN_FORM' | 'MASTER_LOGIN'>('LOADING');
   const [loginType, setLoginType] = useState<'MASTER' | 'TENANT'>('TENANT');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [detectedTenant, setDetectedTenant] = useState<PublicTenant | null>(null);
   const [publicTenants, setPublicTenants] = useState<PublicTenant[]>([]);
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
+  const [masterPassword, setMasterPassword] = useState('');
+
+  // ✅ REDIRECTION SI DÉJÀ CONNECTÉ
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      // Redirection adaptée au type de session
+      if (tenantSlug === 'matrix') {
+        router.push('/admin/matrix');
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [authLoading, isAuthenticated, router, tenantSlug]);
 
   useEffect(() => {
-    // ✅ REDIRECTION SI DÉJÀ CONNECTÉ (via vérification silencieuse)
-    const checkSession = async () => {
+    const loadTenants = async () => {
       try {
-        const res = await apiClient.get('/auth/session');
-        if (res.data.isAuthenticated) {
-          router.push('/dashboard');
-        } else {
-          loadTenants();
+        const res = await fetch('/api/public/tenants');
+        const tenants = await res.json();
+        setPublicTenants(tenants);
+
+        // 🔍 DÉTECTION AUTOMATIQUE PAR SOUS-DOMAINE (OVH)
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        const slug = parts[0].toLowerCase();
+        const reserved = ['www', 'api', 'app', 'elite', 'localhost', 'matrix'];
+
+        // Cas MASTER : accès direct à matrix.qualisoft.sn
+        if (slug === 'matrix') {
+          setMode('MASTER_LOGIN');
+          return;
         }
-      } catch {
-        loadTenants();
+
+        // Cas Tenant : détection via sous-domaine
+        if (parts.length > 2 && !reserved.includes(slug)) {
+          const match = tenants.find((t: PublicTenant) => t.T_Domain.toLowerCase() === slug);
+          if (match) {
+            setDetectedTenant(match);
+            setForm((prev) => ({ ...prev, tenantId: match.T_Id }));
+            setLoginType('TENANT');
+            setMode('LOGIN_FORM');
+            return;
+          }
+        }
+
+        setMode('CHOICE');
+      } catch (error) {
+        console.error('Failed to load tenants:', error);
+        setMode('CHOICE');
       }
     };
 
-    checkSession();
-  }, [router]);
-
-  const loadTenants = async () => {
-    try {
-      const res = await fetch('/api/public/tenants');
-      const tenants = await res.json();
-      setPublicTenants(tenants);
-
-      // 🔍 DÉTECTION AUTOMATIQUE PAR SOUS-DOMAINE
-      const hostname = window.location.hostname;
-      const parts = hostname.split('.');
-      const slug = parts[0].toLowerCase();
-      const reserved = ['www', 'api', 'app', 'elite', 'localhost', 'matrix'];
-
-      if (parts.length > 2 && !reserved.includes(slug)) {
-        const match = tenants.find((t: PublicTenant) => t.T_Domain.toLowerCase() === slug);
-        if (match) {
-          setDetectedTenant(match);
-          setForm((prev) => ({ ...prev, tenantId: match.T_Id }));
-          setLoginType('TENANT');
-          setMode('LOGIN_FORM');
-          return;
-        }
-      }
-
-      setMode('CHOICE');
-    } catch (error) {
-      console.error('Failed to load tenants:', error);
-      setMode('CHOICE');
-    }
-  };
+    loadTenants();
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,7 +106,7 @@ export default function LoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        credentials: 'include', // ✅ Envoie les cookies
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -113,25 +114,21 @@ export default function LoginPage() {
         throw new Error(errorData.message || 'Identifiants invalides');
       }
 
-      const data: LoginResponse = await res.json();
+      const data = await res.json();
       
       // ✅ STOCKAGE SÉCURISÉ EN MÉMOIRE
-      authManager.setToken(data.accessToken, data.expiresIn);
+      authManager.setToken(data.accessToken, data.expiresIn, false);
 
       toast.success('Accès autorisé.', { id: tid });
 
-      // 🚩 REDIRECTION TERRITORIALE SÉCURISÉE
-      if (loginType === 'MASTER') {
-        router.push('/admin/matrix');
-      } else {
-        const targetDomain = data.user.tenantDomain || 'app';
-        const currentHostname = window.location.hostname;
+      // 🚩 REDIRECTION TERRITORIALE SÉCURISÉE (OVH)
+      const targetDomain = data.user.tenantDomain || 'app';
+      const currentHostname = window.location.hostname;
 
-        if (currentHostname.startsWith(targetDomain)) {
-          router.push('/dashboard');
-        } else {
-          window.location.href = `https://${targetDomain}.qualisoft.sn/dashboard`;
-        }
+      if (currentHostname.startsWith(targetDomain)) {
+        router.push('/dashboard');
+      } else {
+        window.location.href = `https://${targetDomain}.qualisoft.sn/dashboard`;
       }
     } catch (err: any) {
       toast.error(err.message || 'Échec de l\'authentification', { id: tid });
@@ -140,11 +137,28 @@ export default function LoginPage() {
     }
   };
 
-  if (mode === 'LOADING') {
+  // ✅ AUTHENTIFICATION SPÉCIALE POUR LE COMPTE "ÉTERNEL" MATRIX
+  const handleMasterAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const tid = toast.loading('Vérification des accréditations Matrix...');
+
+    try {
+      await authManager.signInMaster(masterPassword);
+      // La redirection est gérée dans signInMaster()
+    } catch (err: any) {
+      toast.error(err.message || 'Accès Matrix refusé', { id: tid });
+      setIsLoading(false);
+    }
+  };
+
+  if (mode === 'LOADING' || authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center">
         <Loader2 className="animate-spin text-blue-600 h-12 w-12" />
-        <p className="mt-4 text-gray-400 text-sm">Identification du nœud...</p>
+        <p className="mt-4 text-gray-400 text-sm">
+          {tenantSlug === 'matrix' ? 'Accès Matrix en cours...' : 'Identification du nœud client...'}
+        </p>
       </div>
     );
   }
@@ -154,13 +168,20 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-gray-800/50 border border-gray-700 rounded-2xl p-8 shadow-xl">
         <div className="text-center mb-8">
           <div className="inline-flex p-4 bg-gray-900 border border-gray-700 rounded-xl mb-4">
-            <ShieldCheck size={32} className={loginType === 'MASTER' ? 'text-blue-500' : 'text-emerald-500'} />
+            <ShieldCheck 
+              size={32} 
+              className={tenantSlug === 'matrix' ? 'text-purple-500' : 'text-emerald-500'} 
+            />
           </div>
           <h1 className="text-3xl font-bold text-white">
-            {detectedTenant ? detectedTenant.T_Name : 'QUALISOFT'}
+            {detectedTenant ? detectedTenant.T_Name : tenantSlug === 'matrix' ? 'MATRIX' : 'QUALISOFT'}
           </h1>
           <p className="text-gray-500 text-sm mt-2">
-            {detectedTenant ? `Organisation : ${detectedTenant.T_Domain}` : 'Plateforme de gestion qualité'}
+            {detectedTenant 
+              ? `Organisation : ${detectedTenant.T_Domain}` 
+              : tenantSlug === 'matrix' 
+                ? 'Gestion Multi-Tenant Centralisée' 
+                : 'Plateforme de gestion qualité'}
           </p>
         </div>
 
@@ -169,15 +190,15 @@ export default function LoginPage() {
             <button
               onClick={() => {
                 setLoginType('MASTER');
-                setMode('LOGIN_FORM');
+                setMode('MASTER_LOGIN');
               }}
-              className="w-full bg-gray-900 p-6 rounded-xl border border-gray-700 flex justify-between items-center hover:border-blue-500 transition-colors"
+              className="w-full bg-gray-900 p-6 rounded-xl border border-gray-700 flex justify-between items-center hover:border-purple-500 transition-colors"
             >
               <div className="text-left">
-                <p className="text-xs text-blue-400 font-medium">Accès Master</p>
-                <p className="text-lg text-white font-semibold">Admin Matrix</p>
+                <p className="text-xs text-purple-400 font-medium">Accès Matrix</p>
+                <p className="text-lg text-white font-semibold">Gestion Multi-Tenant</p>
               </div>
-              <Globe className="text-blue-500" />
+              <Key className="text-purple-500" />
             </button>
             <button
               onClick={() => {
@@ -193,6 +214,65 @@ export default function LoginPage() {
               <Building2 className="text-gray-500" />
             </button>
           </div>
+        ) : mode === 'MASTER_LOGIN' ? (
+          // ✅ INTERFACE SPÉCIALE POUR LE COMPTE "ÉTERNEL" MATRIX
+          <form onSubmit={handleMasterAuth} className="space-y-6">
+            <div className="text-center mb-6">
+              <div className="inline-flex p-3 bg-purple-900/20 rounded-lg mb-4">
+                <Globe size={28} className="text-purple-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Accès Matrix</h2>
+              <p className="text-gray-400 text-sm mt-1">
+                Interface de gestion multi-tenant réservée à l&apos;administrateur système
+              </p>
+            </div>
+
+            <div className="relative">
+              <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                required
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Clé d'accès Matrix"
+                className="w-full pl-10 pr-10 p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                value={masterPassword}
+                onChange={(e) => setMasterPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+
+            <button
+              disabled={isLoading}
+              type="submit"
+              className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-500 transition-colors flex justify-center items-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  Authentification Matrix...
+                </>
+              ) : (
+                <>
+                  Accéder à Matrix <ArrowRight size={18} />
+                </>
+              )}
+            </button>
+
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => setMode('CHOICE')}
+                className="text-sm text-gray-400 hover:text-gray-300"
+              >
+                ← Retour au choix d&apos;accès
+              </button>
+            </div>
+          </form>
         ) : (
           <form onSubmit={handleAuth} className="space-y-6">
             {!detectedTenant && (

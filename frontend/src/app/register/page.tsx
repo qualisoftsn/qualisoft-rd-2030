@@ -73,9 +73,9 @@ export default function RegisterTenantPage() {
        * Stockage unifié du jeton d'accès (Bearer Token) pour la session active.
        * 'qs_token' est utilisé pour la compatibilité avec les modules de pilotage métier.
        */
-      localStorage.setItem('token', res.data.access_token);
-      localStorage.setItem('qs_token', res.data.access_token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
+      // localStorage.setItem('token', res.data.access_token);
+      // localStorage.setItem('qs_token', res.data.access_token);
+      // localStorage.setItem('user', JSON.stringify(res.data.user));
       
       toast.success("Instance Qualisoft Elite déployée avec succès.");
 

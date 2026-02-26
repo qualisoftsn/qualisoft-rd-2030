@@ -1,0 +1,121 @@
+// middleware.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+
+const PUBLIC_ROUTES = [
+  '/login',
+  '/auth/login',
+  '/api/auth/login',
+  '/api/auth/refresh',
+  '/api/public/tenants',
+  '/_next',
+  '/favicon.ico',
+  '/manifest.json',
+];
+
+const CSP_DIRECTIVES = {
+  defaultSrc: ["'self'"],
+  scriptSrc: [
+    "'self'",
+    "'unsafe-inline'", // Nécessaire pour les inline scripts Next.js (HMR en dev uniquement)
+    'https://www.googletagmanager.com', // Optionnel : analytics
+  ],
+  styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+  imgSrc: ["'self'", 'data:', 'https://*.qualisoft.sn'],
+  fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+  connectSrc: [
+    "'self'",
+    'https://*.qualisoft.sn', // Optionnel : monitoring
+  ],
+  frameSrc: ["'none'"], // Bloque tous les iframes (protection clickjacking)
+  objectSrc: ["'none'"], // Bloque <object>, <embed>
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+  upgradeInsecureRequests: [],
+};
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // ✅ 1. CSP STRICT POUR BLOQUER XSS
+  const cspHeader = Object.entries(CSP_DIRECTIVES)
+    .map(([key, values]) => {
+      if (key === 'upgradeInsecureRequests') return 'upgrade-insecure-requests';
+      return `${key} ${values.join(' ')}`;
+    })
+    .join('; ');
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('Content-Security-Policy', cspHeader);
+  requestHeaders.set('X-Frame-Options', 'DENY'); // Protection clickjacking
+  requestHeaders.set('X-Content-Type-Options', 'nosniff');
+  requestHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  requestHeaders.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  // ✅ 2. SKIP POUR ROUTES PUBLIQUES
+  if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next({ headers: requestHeaders });
+  }
+
+  // ✅ 3. VÉRIFICATION DU REFRESH TOKEN (COOKIE HTTPONLY)
+  const refreshToken = request.cookies.get('refresh_token');
+  
+  if (!refreshToken) {
+    // Redirection sécurisée vers login avec retour après auth
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(loginUrl, { headers: requestHeaders });
+  }
+
+  // ✅ 4. VALIDATION DU TOKEN VIA NEXT-AUTH (OPTIONNEL MAIS RECOMMANDÉ)
+  try {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    
+    if (!token) {
+      throw new Error('Token invalide');
+    }
+
+    // ✅ 5. VALIDATION MULTI-TENANT (MATRIX vs Tenant)
+    const hostname = request.headers.get('host') || '';
+    const parts = hostname.split('.');
+    const slug = parts[0].toLowerCase();
+    const reserved = ['www', 'api', 'app', 'elite', 'localhost', 'matrix'];
+
+    // Cas MASTER : accès à /admin/matrix uniquement
+    if (token.role === 'SUPER_ADMIN' && pathname.startsWith('/admin') && slug !== 'matrix') {
+      return NextResponse.redirect(new URL('https://matrix.qualisoft.sn/admin/matrix', request.url), {
+        headers: requestHeaders,
+      });
+    }
+
+    // Cas Tenant : vérification du domaine
+    if (token.role !== 'SUPER_ADMIN' && token.tenantDomain && slug !== token.tenantDomain) {
+      return NextResponse.redirect(
+        new URL(`https://${token.tenantDomain}.qualisoft.sn/dashboard`, request.url),
+        { headers: requestHeaders },
+      );
+    }
+
+    return NextResponse.next({ headers: requestHeaders });
+  } catch (error) {
+    console.warn('Auth validation failed:', error);
+    
+    // ✅ 6. REDIRECTION SÉCURISÉE AVEC NETTOYAGE DES COOKIES
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('session', 'expired');
+    
+    const response = NextResponse.redirect(loginUrl, { headers: requestHeaders });
+    response.cookies.delete('refresh_token', { path: '/api/auth' });
+    
+    return response;
+  }
+}
+
+export const config = {
+  matcher: [
+    '/((?!api/auth/login|api/auth/refresh|api/public/tenants|_next/static|_next/image|favicon.ico).*)',
+    '/dashboard/:path*',
+    '/admin/:path*',
+  ],
+};
