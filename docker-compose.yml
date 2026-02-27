@@ -1,10 +1,10 @@
 # ==============================================================================
-# 🛰️ QUALISOFT ELITE RD 2030 - ARCHITECTURE MULTI-TENANT (SOUVERAINE)
-# STRATÉGIE : Accès par sous-domaines dynamiques (*.qualisoft.sn)
+# 🛰️ QUALISOFT ELITE RD 2030 - ARCHITECTURE MULTI-TENANT (PRODUCTION)
+# STRATÉGIE : Isolation réseau et Proxy sécurisé Nginx
 # ==============================================================================
 
 services:
-  # 🗄️ DATABASE
+  # 🗄️ DATABASE : Le Coeur de Données
   qualisoft-db:
     image: postgres:16-alpine
     container_name: qualisoft-db
@@ -16,7 +16,8 @@ services:
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # Utilisation de la syntaxe robuste pour pg_isready
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qualisoft_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,23 +32,23 @@ services:
     container_name: qualisoft-backend
     restart: always
     environment:
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-qualipass2026}@qualisoft-db:5432/${DB_NAME:-qualisoft_db}?schema=public
+      DATABASE_URL: postgresql://postgres:qualipass2026@qualisoft-db:5432/qualisoft_db?schema=public
       NODE_ENV: production
       PORT: 9000
       JWT_SECRET: ${JWT_SECRET}
-      # 🚩 CORS MULTI-TENANT : Autorise la Vitrine ET tous les sous-domaines Elite
-      # Note : En NestJS, il faudra s'assurer que l'origin check accepte les regex ou .qualisoft.sn
-      FRONTEND_URL: https://qualisoft.sn,https://app.qualisoft.sn
-      ALLOWED_DOMAINS: .qualisoft.sn
+      # Autorisation des frontends souverains
+      FRONTEND_URL: "https://qualisoft.sn,https://app.qualisoft.sn,https://qs.qualisoft.sn,https://pad.qualisoft.sn,https://sagam.qualisoft.sn"
+      ALLOWED_DOMAINS: ".qualisoft.sn"
     ports:
-      - "9000:9000"
+      # Seul Nginx sur le serveur peut parler au Backend
+      - "127.0.0.1:9005:9000"
     depends_on:
       qualisoft-db:
         condition: service_healthy
     networks:
       - qualisoft_elite_net
 
-  # 💻 FRONTEND : Cockpit Elite (Next.js 15)
+  # 💻 FRONTEND : Cockpit Elite (Next.js 15 Standalone)
   qualisoft-frontend:
     build:
       context: ./frontend
@@ -57,12 +58,16 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: production
-      # ✅ L'API doit être centrale pour tous les sous-domaines
-      NEXT_PUBLIC_API_URL: https://api.qualisoft.sn/api
+      # Communication Browser -> API
+      NEXT_PUBLIC_API_URL: "https://api.qualisoft.sn/api"
+      # Communication Server (SSR) -> API (Interne Docker)
+      API_URL_INTERNAL: "http://qualisoft-backend:9000/api"
     ports:
-      - "3001:3001"
+      # Seul Nginx sur le serveur peut parler au Frontend
+      - "127.0.0.1:3005:3001"
     depends_on:
-      - qualisoft-backend
+      qualisoft-backend:
+        condition: service_started
     networks:
       - qualisoft_elite_net
 
