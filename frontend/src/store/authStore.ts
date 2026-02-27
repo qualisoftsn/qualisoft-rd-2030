@@ -1,15 +1,10 @@
 /**
  * CHEMIN ABSOLU : /src/store/authStore.ts
- * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Store souverain Zustand (Zéro Next-Auth).
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-/**
- * 👤 AUTH USER : Architecture Elite
- */
 export interface AuthUser {
   U_Id: string;
   U_Email: string;
@@ -27,8 +22,10 @@ interface AuthState {
   tenantId: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isInitialized: boolean; // ✅ Ajouté pour le Layout
   setLogin: (data: { token: string; user: AuthUser }) => void;
   logout: () => void;
+  setInitialized: (val: boolean) => void; // ✅ Ajouté
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -38,14 +35,12 @@ export const useAuthStore = create<AuthState>()(
       tenantId: null,
       user: null,
       isAuthenticated: false,
+      isInitialized: false, // ✅ Initialisé à false
 
-      /**
-       * 🔑 SCELLAGE DE SESSION
-       */
       setLogin: (data) => {
-        // En plus du store, on scelle le cookie pour le Middleware Next.js 15
         if (typeof window !== 'undefined') {
-          document.cookie = `access_token=${data.token}; Path=/; Max-Age=86400; SameSite=Strict; Secure`;
+          // Note : On utilise 'qualisoft_token' pour matcher ton middleware
+          document.cookie = `qualisoft_token=${data.token}; Path=/; Max-Age=86400; SameSite=Strict; Secure`;
         }
         set({ 
           token: data.token, 
@@ -55,19 +50,14 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      /**
-       * 🛡️ PROTOCOLE DE DÉCONNEXION
-       */
+      setInitialized: (val) => set({ isInitialized: val }),
+
       logout: () => {
         if (typeof window !== 'undefined') {
-          // Nettoyage des traces locales
           localStorage.removeItem('qualisoft-auth-storage');
           sessionStorage.clear();
-          
-          // Destruction du cookie
-          document.cookie = "access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+          document.cookie = "qualisoft_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
         }
-        
         set({ 
           token: null, 
           tenantId: null, 
@@ -79,10 +69,10 @@ export const useAuthStore = create<AuthState>()(
     { 
       name: 'qualisoft-auth-storage', 
       storage: createJSONStorage(() => localStorage),
-      // Empêche les erreurs d'hydratation entre Server et Client
       onRehydrateStorage: () => (state) => {
+        // 🛡️ Une fois que le storage est lu, on libère le layout
         if (state) {
-          // On s'assure que isAuthenticated est synchro avec la présence du token
+          state.setInitialized(true);
           state.isAuthenticated = !!state.token;
         }
       }
