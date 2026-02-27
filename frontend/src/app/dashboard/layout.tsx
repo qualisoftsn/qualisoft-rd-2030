@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Fichier : src/app/dashboard/layout.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -11,14 +9,13 @@ import {
   Search, ShieldCheck, Bell, Crown, 
   LayoutGrid, Home, LogOut, 
   Settings, Zap, Info,
-  LucideIcon
+  LucideIcon, Loader2
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useAuth } from '@/core/providers/auth-provider'; // ðŸ‘ˆ AJOUT CRUCIAL
+import { usePathname, useRouter } from 'next/navigation';
 
 /**
- * ðŸ›°ï¸ INTERFACES SOUVERAINES (ScellÃ©es)
+ * 🛰️ INTERFACES SOUVERAINES 
  */
 interface SlimNavItemProps {
   href: string;
@@ -30,91 +27,58 @@ interface SlimNavItemProps {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   
-  // On rÃ©cupÃ¨re la session NextAuth (le cookie SDE)
-  const { data: session, status } = useAuth();
-  
-  // On rÃ©cupÃ¨re le store local (Zustand)
-  const { user, token, logout, setLogin } = useAuthStore();
+  // ✅ Utilisation exclusive du store Zustand (Zéro NextAuth)
+  const { user, logout, isAuthenticated } = useAuthStore();
   
   const [hasMounted, setHasMounted] = useState(false);
 
   /**
-   * ðŸ›°ï¸ ACTIVATION SCELLÃ‰E DU MONTAGE
-   * On utilise requestAnimationFrame pour sortir du cycle de rendu synchrone.
+   * 🛡️ ACTIVATION DU MONTAGE
    */
   useEffect(() => {
-    const timer = requestAnimationFrame(() => {
-      setHasMounted(true);
-    });
-    return () => cancelAnimationFrame(timer);
+    setHasMounted(true);
   }, []);
 
   /**
-   * ðŸ”„ RÃ‰HYDRATATION DE LA SESSION (LA CORRECTION DU VIDE)
-   * Si NextAuth a trouvÃ© un cookie (status authenticated) mais que le Store est vide,
-   * on injecte les donnÃ©es de NextAuth dans le Store immÃ©diatement.
+   * 🔒 BARRIÈRE DE SÉCURITÉ
+   * Si après montage l'utilisateur n'est pas authentifié, éjection immédiate.
    */
   useEffect(() => {
-    if (status === "authenticated" && user && !user) {
-      console.log("ðŸ”„ RÃ©hydratation automatique de l'identitÃ© SDE...");
-      // On force la mise Ã  jour du store avec les donnÃ©es du cookie
-      setLogin(session.user as any); 
+    if (hasMounted && !isAuthenticated) {
+      router.replace("/auth/login");
     }
-  }, [status, session, user, setLogin]);
-
-  const SUPER_ADMIN_EMAIL = "ab.thiongane@qualisoft.sn";
+  }, [hasMounted, isAuthenticated, router]);
 
   const isSuperAdmin = useMemo(() => {
-    // On vÃ©rifie d'abord la session, puis le user du store
-    const currentUser = user || user;
-    
-    if (!currentUser) return false;
-    
-    const masterAccess = typeof window !== 'undefined' 
-      ? localStorage.getItem('master_access') === 'true' 
-      : false;
-
-    // Conversion de type sÃ©curisÃ©e (Supporte structure Store et Session)
-    const uEmail = (currentUser as any).U_Email || (currentUser as any).email;
-    const uRole = (currentUser as any).U_Role;
-
+    if (!user) return false;
     return (
-      uEmail?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ||
-      uRole?.toUpperCase() === "SUPER_ADMIN" ||
-      masterAccess
+      user.U_Email?.toLowerCase() === "ab.thiongane@qualisoft.sn" ||
+      user.U_Role?.toUpperCase() === "SUPER_ADMIN"
     );
-  }, [user, session]);
+  }, [user]);
 
   const initials = useMemo(() => {
-    const currentUser = user || user;
-    if (!currentUser) return "QS";
-    
-    // Typage dynamique pour gÃ©rer les diffÃ©rences Store/Session
-    const uFirst = (currentUser as any).U_FirstName;
-    const uLast = (currentUser as any).U_LastName;
-    const uEmail = (currentUser as any).U_Email || (currentUser as any).email;
-
+    if (!user) return "QS";
+    const uFirst = user.U_FirstName;
+    const uLast = user.U_LastName;
     if (uFirst && uLast) {
       return `${uFirst[0]}${uLast[0]}`.toUpperCase();
     }
-    return uEmail?.[0]?.toUpperCase() || "QS";
-  }, [user, session]);
+    return user.U_Email?.[0]?.toUpperCase() || "QS";
+  }, [user]);
 
   const handleLogout = () => {
     logout();
-    if (typeof window !== 'undefined') {
-        localStorage.removeItem("master_access");
-        // On force la redirection NextAuth pour nettoyer le cookie
-        window.location.href = "/api/auth/signout"; 
-    }
+    router.push("/auth/login");
   };
 
-  // 1. Ã‰cran de chargement (On attend que NextAuth ait fini de vÃ©rifier le cookie)
-  if (!hasMounted || isLoading) {
+  // 1. Écran de transition souverain
+  if (!hasMounted || !user) {
     return (
       <div className="min-h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
         <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest animate-pulse">
            Synchronisation Matrix...
         </p>
@@ -122,35 +86,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // 2. BarriÃ¨re de SÃ©curitÃ© (Redirection si non connectÃ© NI dans le store NI dans la session)
-  // On est strict : si NextAuth dit "unauthenticated", c'est fini.
-  if (status === "unauthenticated") {
-    return (
-      <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center font-sans italic">
-        <div className="text-center">
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mb-6">IdentitÃ© non validÃ©e</p>
-          <Link href="/auth/login" className="px-10 py-4 bg-blue-600 rounded-2xl text-white text-[10px] font-black uppercase shadow-2xl hover:bg-blue-500 transition-all">
-            Retourner au Portail
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Si le user n'est pas encore dans le store mais qu'on a la session, on affiche temporairement
-  // le layout avec les donnÃ©es de session en attendant que le useEffect fasse le setLogin.
-  const currentUser = user || (user as any);
-
-  if (!currentUser) return null; // SÃ©curitÃ© ultime
-
   return (
     <div className="h-screen bg-[#0B0F1A] flex italic selection:bg-blue-600/30 font-sans overflow-hidden">
       
-      <Sidebar user={{...currentUser}} isSuperAdmin={isSuperAdmin} />
+      {/* Sidebar de navigation Matrix */}
+      <Sidebar user={user} isSuperAdmin={isSuperAdmin} />
 
       <div className="flex-1 flex flex-col pl-80 pr-20 min-w-0 relative">
         
-        <TrialBanner user={currentUser} isSuperAdmin={isSuperAdmin} />
+        {/* Bannière de statut d'instance */}
+        <TrialBanner user={user} isSuperAdmin={isSuperAdmin} />
 
         <header className="h-20 bg-[#0F172A]/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-10 sticky top-0 z-40">
           <div className="flex items-center gap-6 flex-1">
@@ -180,10 +125,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex items-center gap-4 border-l border-white/10 pl-8">
               <div className="text-right hidden xl:block text-white">
                 <p className="text-xs font-black uppercase tracking-tight italic leading-none mb-1">
-                  {currentUser.U_FirstName} {currentUser.U_LastName}
+                  {user.U_FirstName} {user.U_LastName}
                 </p>
                 <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isSuperAdmin ? 'text-amber-500' : 'text-blue-500'}`}>
-                  {currentUser.U_Role}
+                  {user.U_Role}
                 </p>
               </div>
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center border border-white/10 text-white font-black shadow-lg ${isSuperAdmin ? 'bg-amber-600' : 'bg-blue-600'}`}>
@@ -203,13 +148,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex items-center gap-3">
               <ShieldCheck size={12} className={isSuperAdmin ? "text-amber-500" : "text-blue-500"} />
               <span className="text-[8px] font-black text-slate-400 uppercase italic">
-                {isSuperAdmin ? 'Noyau MaÃ®tre' : 'CertifiÃ© ISO 9001:2015'}
+                {isSuperAdmin ? 'Noyau Maître' : 'Certifié ISO 9001:2015'}
               </span>
             </div>
           </footer>
         </main>
       </div>
 
+      {/* Barre de navigation Slim (Droite) */}
       <nav className="w-20 h-screen bg-[#0F172A] border-l border-white/5 flex flex-col items-center py-8 gap-8 fixed right-0 top-0 z-50">
         <Link href="/dashboard/menu" className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group ${pathname === '/dashboard/menu' ? 'bg-blue-600 text-white shadow-xl shadow-blue-900/40' : 'bg-white/5 text-slate-500 hover:text-white hover:bg-white/10'}`}>
           <LayoutGrid size={22} className="group-hover:scale-110 transition-transform" />
