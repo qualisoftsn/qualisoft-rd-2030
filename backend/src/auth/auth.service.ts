@@ -1,10 +1,16 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { compare } from 'bcryptjs';
-import { Role, User } from '../types/elite-sde'; // ✅ Import de tes types
+import { Role } from '../types/elite-sde';
 
+// ✅ Interface Source de Vérité pour tout le Backend
 export interface AuthPayload {
   U_Id: string;
   U_Email: string;
@@ -24,18 +30,33 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async validateUser(email: string, password: string, tenantId?: string): Promise<{ accessToken: string; refreshToken: string; user: any }> {
+  async validateUser(
+    email: string,
+    password: string,
+    tenantId?: string,
+  ): Promise<{ accessToken: string; refreshToken: string; user: any }> {
     const user = await this.prisma.user.findFirst({
       where: {
         U_Email: email.toLowerCase().trim(),
         U_IsActive: true,
         ...(tenantId && tenantId !== 'MATRIX' ? { tenantId } : {}),
       },
-      include: { tenant: true },
+      include: {
+        tenant: true,
+      },
     });
 
-    if (!user || !(await compare(password, user.U_PasswordHash))) {
+    if (!user) {
       throw new UnauthorizedException('Identifiants invalides');
+    }
+
+    const isValid = await compare(password, user.U_PasswordHash);
+    if (!isValid) {
+      throw new UnauthorizedException('Identifiants invalides');
+    }
+
+    if (user.U_Role === Role.SUPER_ADMIN && !tenantId) {
+      throw new BadRequestException('Le tenantId est requis pour les SUPER_ADMIN');
     }
 
     const payload: AuthPayload = {
@@ -73,7 +94,7 @@ export class AuthService {
       return this.jwtService.verify(token, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       }) as AuthPayload;
-    } catch {
+    } catch (e) {
       throw new UnauthorizedException('Session expirée');
     }
   }

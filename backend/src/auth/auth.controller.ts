@@ -1,14 +1,9 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { Response, Request } from 'express';
-import { AuthService, AuthPayload } from './auth.service';
+import { Response } from 'express';
+import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Public } from './decorators/public.decorator';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
-
-// ✅ Évite 'possibly undefined' en forçant le type de req.user
-interface RequestWithUser extends Request {
-  user: AuthPayload;
-}
 
 @Controller('auth')
 export class AuthController {
@@ -47,14 +42,15 @@ export class AuthController {
   @Public()
   @UseGuards(RefreshTokenGuard)
   @Post('refresh')
-  async refresh(@Req() req: RequestWithUser) {
-    // ✅ Plus d'erreurs ici car req.user est typé comme AuthPayload
+  async refresh(@Req() req: any) {
+    const user = req.user;
+
     const newAccessToken = this.authService.generateAccessToken({
-      U_Id: req.user.U_Id,
-      U_Email: req.user.U_Email,
-      U_Role: req.user.U_Role,
-      tenantId: req.user.tenantId,
-      U_TenantDomain: req.user.U_TenantDomain
+      U_Id: user.U_Id,
+      U_Email: user.U_Email,
+      U_Role: user.U_Role,
+      tenantId: user.tenantId,
+      U_TenantDomain: user.U_TenantDomain
     });
 
     return { accessToken: newAccessToken };

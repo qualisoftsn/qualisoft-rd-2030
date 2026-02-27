@@ -1,13 +1,4 @@
-/**
- * 🛰️ REFRESH TOKEN GUARD - QUALISOFT ELITE RD 2030
- * RÔLE : Sécurisation du renouvellement de session via Cookie HttpOnly.
- */
-
-import {
-  Injectable,
-  ExecutionContext,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from '../auth.service';
 
@@ -17,31 +8,21 @@ export class RefreshTokenGuard extends AuthGuard('jwt-refresh') {
     super();
   }
 
-  /**
-   * ✅ Correction du type de retour pour satisfaire le compilateur TS.
-   * On utilise Promise<boolean> pour correspondre à la signature de IAuthGuard.
-   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    
-    // Récupération sécurisée du token depuis les cookies (configuré via cookie-parser)
     const refreshToken = request.cookies?.refresh_token;
 
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token absent de la session');
+      throw new UnauthorizedException('Refresh token absent');
     }
 
     try {
-      // 🔑 Validation interne via ton AuthService (Matrix SDE)
       const payload = await this.authService.verifyRefreshToken(refreshToken);
-      
-      // On injecte le payload validé (userId, role, U_TenantDomain) dans la requête
-      request.user = payload;
-      
+      // ✅ Cast en any pour éviter les erreurs de propriété sur 'request'
+      (request as any).user = payload;
       return true;
     } catch (error) {
-      // Si le token est expiré ou corrompu (signature invalide)
-      throw new UnauthorizedException('Session expirée ou invalide');
+      throw new UnauthorizedException('Session expirée');
     }
   }
 }
