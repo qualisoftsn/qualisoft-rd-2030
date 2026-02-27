@@ -1,6 +1,6 @@
 /**
- * 🛰️ ROOT PAGE - ARCHITECTURE MULTI-TENANT (SOUVERAINE)
- * Rôle : Aiguillage dynamique basé sur le Header Host (DNS OVH).
+ * 🛰️ ROOT PAGE - AIGUILLAGE MULTI-TENANT SOUVERAIN
+ * RÔLE : Détecter le sous-domaine et afficher soit la Vitrine, soit le Login.
  * -------------------------------------------------------------------------
  */
 
@@ -9,35 +9,41 @@ import LandingContent from "@/components/landing/LandingContent";
 import LoginPage from "@/app/(auth)/login/page";
 
 export default async function RootPage() {
-  // 1. Récupération du Host depuis les headers (SSR)
+  // 1. Récupération des headers serveur
   const headerList = await headers();
-  const host = headerList.get("host") || "";
   
-  // 2. Analyse du sous-domaine (ex: sagam.qualisoft.sn)
+  // On récupère le host (ex: sagam.qualisoft.sn) 
+  // ou le x-forwarded-host si Nginx est derrière un proxy
+  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "";
+  
+  // 2. Analyse précise du domaine
   const parts = host.split('.');
   const slug = parts[0].toLowerCase();
   
-  // 3. Définition des domaines "Master" qui voient la vitrine
-  const masterDomains = [
+  // 3. Liste d'exclusion (Ceux qui doivent voir la Landing Page)
+  // On ajoute 'qualisoft' au cas où on accède via qualisoft.sn sans sous-domaine
+  const masterSlugs = [
     'elite', 
     'www', 
     'qualisoft', 
     'localhost', 
-    'matrix',
+    'matrix', 
     'app'
   ];
 
-  // 🚩 LOGIQUE D'AIGUILLAGE SANS REDIRECTION (CLOAKING)
+  // 🚩 LOGIQUE D'AIGUILLAGE CRITIQUE
   
-  // Cas : Sous-domaine client détecté (ex: sagam)
-  // On vérifie que parts.length > 2 pour être sûr d'avoir un sous-domaine sur .qualisoft.sn
-  if (parts.length >= 2 && !masterDomains.includes(slug)) {
-    // On retourne directement le composant Login. 
-    // L'URL reste https://sagam.qualisoft.sn mais l'utilisateur voit son portail.
+  // Si on a un sous-domaine ET qu'il n'est pas dans la liste Master
+  // Exemple : sagam.qualisoft.sn -> parts.length est 3, slug est 'sagam'
+  const isClientTenant = parts.length >= 2 && !masterSlugs.includes(slug);
+
+  if (isClientTenant) {
+    // On affiche le portail de login. 
+    // Le composant LoginPage que nous avons écrit a sa propre logique
+    // pour détecter le tenant et afficher "Instance : Sagam".
     return <LoginPage />;
   }
 
-  // Cas : Domaine principal ou Master
-  // On affiche la Landing Page vitrine.
+  // Par défaut, ou si c'est un domaine Master : on affiche la Landing
   return <LandingContent />;
 }

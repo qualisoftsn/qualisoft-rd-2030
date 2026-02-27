@@ -225,7 +225,7 @@ export default function LandingContent() {
                     Accès Réservé !
                   </h3>
                   <p className="text-slate-400 text-[11px] font-black uppercase italic tracking-widest leading-relaxed">
-                    Le Kernel a enregistré notre demande. <br /> L&apos;équipe
+                    Elite a enregistré notre demande. <br /> L&apos;équipe
                     Qualisoft vous contactera sous 48h.
                   </p>
                 </div>
@@ -240,7 +240,7 @@ export default function LandingContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="group relative rounded-[2.5rem] overflow-hidden border border-white/10 bg-slate-900/50 shadow-2xl transition-all hover:scale-[1.02]">
             <div className="p-6 text-left">
-              <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">Kernel Matrix V2</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">QS Matrix V2</span>
               <h4 className="text-lg font-black italic uppercase leading-tight">Cockpit Opérationnel</h4>
             </div>
             <img src="/QS_cockpit.jpg" alt="Cockpit" className="w-full h-auto opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -332,7 +332,7 @@ export default function LandingContent() {
           </div>
         </div>
         <div className="pt-8 border-t border-white/5 text-center">
-          <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.5em] italic">© 2026 QUALISOFT RD 2030 • MULTI-TENANT SÉCURISÉE</p>
+          <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.5em] italic">© 2026 QUALISOFT RD 2030 • RaaS</p>
         </div>
       </footer>
     </div>
