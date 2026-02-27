@@ -1,26 +1,17 @@
 /**
- * CHEMIN ABSOLU : /src/app/layout.tsx
+ * CHEMIN : /src/app/layout.tsx
  */
-import { Toaster } from "sonner";
 import "./globals.css";
-import LayoutClient from "./layout-client"; // On sépare la logique client pour le SEO
-import Providers from "./providers"; // 🚩 IMPORT INDISPENSABLE
+import Providers from "./providers"; // 🚩 Doit contenir AuthProvider
+import { Toaster } from "sonner";
 
-export const metadata = {
-  title: "Qualisoft Elite - Matrix Core",
-  description: "Système d'Exploitation Souverain",
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className="scroll-smooth">
+    <html lang="fr" className="dark">
       <body className="bg-[#0B0F1A] text-white antialiased">
         <Providers>
-          <LayoutClient>{children}</LayoutClient>
+          {/* L'application entière est maintenant protégée et hydratée */}
+          {children}
           <Toaster position="top-right" theme="dark" richColors />
         </Providers>
       </body>
