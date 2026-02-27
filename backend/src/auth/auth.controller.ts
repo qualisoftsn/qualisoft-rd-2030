@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -45,6 +45,10 @@ export class AuthController {
   async refresh(@Req() req: any) {
     const user = req.user;
 
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur non trouvé dans la requête');
+    }
+
     const newAccessToken = this.authService.generateAccessToken({
       U_Id: user.U_Id,
       U_Email: user.U_Email,
@@ -59,7 +63,12 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('refresh_token', { path: '/api/auth', httpOnly: true, secure: true, sameSite: 'strict' });
+    res.clearCookie('refresh_token', { 
+      path: '/api/auth', 
+      httpOnly: true, 
+      secure: true, 
+      sameSite: 'strict' 
+    });
     return res.send();
   }
 }

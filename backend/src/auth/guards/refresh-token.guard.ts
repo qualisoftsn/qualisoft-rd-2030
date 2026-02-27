@@ -8,6 +8,7 @@ export class RefreshTokenGuard extends AuthGuard('jwt-refresh') {
     super();
   }
 
+  // Signature Promise<boolean> pure pour respecter IAuthGuard
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const refreshToken = request.cookies?.refresh_token;
@@ -18,7 +19,7 @@ export class RefreshTokenGuard extends AuthGuard('jwt-refresh') {
 
     try {
       const payload = await this.authService.verifyRefreshToken(refreshToken);
-      // ✅ Cast en any pour éviter les erreurs de propriété sur 'request'
+      // On utilise 'any' sur request pour permettre l'injection de user sans conflit TS
       (request as any).user = payload;
       return true;
     } catch (error) {

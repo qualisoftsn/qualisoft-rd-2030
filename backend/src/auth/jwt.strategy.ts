@@ -25,6 +25,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any): Promise<AuthPayload> {
     const userId = payload.U_Id || payload.sub;
 
+    // Gestion du compte Master SDE
     if (userId === 'CORE_MASTER' || payload.U_Role === Role.SUPER_ADMIN) {
       return {
         U_Id: 'CORE_MASTER',
@@ -36,8 +37,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       };
     }
 
-    if (!userId || !payload.U_TenantDomain) {
-      throw new UnauthorizedException('Territoire non identifié');
+    if (!payload.U_TenantDomain) {
+      throw new UnauthorizedException('Domaine Matrix manquant dans le token');
     }
 
     return {

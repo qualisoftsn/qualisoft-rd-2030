@@ -10,13 +10,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { compare } from 'bcryptjs';
 import { Role } from '../types/elite-sde';
 
-// ✅ Interface Source de Vérité pour tout le Backend
+// ✅ Interface unique pour supprimer les erreurs de propriétés inconnues
 export interface AuthPayload {
   U_Id: string;
   U_Email: string;
   U_Role: Role;
   tenantId: string;
-  U_TenantDomain: string; 
+  U_TenantDomain: string;
   assignedProcessId?: string | null;
 }
 
@@ -59,6 +59,7 @@ export class AuthService {
       throw new BadRequestException('Le tenantId est requis pour les SUPER_ADMIN');
     }
 
+    // Préparation du payload avec le domaine récupéré de la relation tenant
     const payload: AuthPayload = {
       U_Id: user.U_Id,
       U_Email: user.U_Email,
@@ -68,11 +69,10 @@ export class AuthService {
       assignedProcessId: user.U_AssignedProcessId || null
     };
 
-    return {
-      accessToken: this.generateAccessToken(payload),
-      refreshToken: await this.generateRefreshToken(payload),
-      user,
-    };
+    const accessToken = this.generateAccessToken(payload);
+    const refreshToken = await this.generateRefreshToken(payload);
+
+    return { accessToken, refreshToken, user };
   }
 
   generateAccessToken(payload: AuthPayload): string {
