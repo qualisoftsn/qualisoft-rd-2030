@@ -1,5 +1,6 @@
 /**
  * CHEMIN ABSOLU : /src/store/authStore.ts
+ * RÔLE : Store souverain Zustand avec persistance et synchronisation Middleware.
  */
 
 import { create } from 'zustand';
@@ -22,10 +23,10 @@ interface AuthState {
   tenantId: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
-  isInitialized: boolean; // ✅ Ajouté pour le Layout
+  isInitialized: boolean;
   setLogin: (data: { token: string; user: AuthUser }) => void;
   logout: () => void;
-  setInitialized: (val: boolean) => void; // ✅ Ajouté
+  setInitialized: (val: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -35,11 +36,11 @@ export const useAuthStore = create<AuthState>()(
       tenantId: null,
       user: null,
       isAuthenticated: false,
-      isInitialized: false, // ✅ Initialisé à false
+      isInitialized: false,
 
       setLogin: (data) => {
         if (typeof window !== 'undefined') {
-          // Note : On utilise 'qualisoft_token' pour matcher ton middleware
+          // Scellage du cookie pour le Middleware Next.js
           document.cookie = `qualisoft_token=${data.token}; Path=/; Max-Age=86400; SameSite=Strict; Secure`;
         }
         set({ 
@@ -70,7 +71,7 @@ export const useAuthStore = create<AuthState>()(
       name: 'qualisoft-auth-storage', 
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
-        // 🛡️ Une fois que le storage est lu, on libère le layout
+        // Cette fonction s'exécute après la lecture du localStorage
         if (state) {
           state.setInitialized(true);
           state.isAuthenticated = !!state.token;
