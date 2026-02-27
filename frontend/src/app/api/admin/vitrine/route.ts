@@ -1,14 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/core/lib/prisma";
-import { getAuthSession } from "@/core/lib/auth-utils"; // Ta fonction de vérification de session custom
+import { cookies } from "next/headers";
+import * as jwt from "jsonwebtoken"; // Assure-toi que jsonwebtoken est installé (npm install jsonwebtoken)
 
 /**
- * GET : Récupère tous les contenus pour le Matrix Control
+ * 🔐 FONCTION INTERNE DE VÉRIFICATION DE SESSION
  */
+async function getSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("access_token")?.value;
+
+  if (!token) return null;
+
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET || "qualipass2026") as any;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET() {
   try {
-    const session = await getAuthSession();
-    if (!session || session.user.role !== 'SUPER_ADMIN') {
+    const session = await getSession();
+    
+    // Vérification du rôle via ton typage Elite
+    if (!session || session.U_Role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: "Accès Matrix Refusé" }, { status: 403 });
     }
 
@@ -22,37 +38,24 @@ export async function GET() {
   }
 }
 
-/**
- * POST : Crée ou met à jour un contenu vitrine
- */
 export async function POST(req: Request) {
   try {
-    const session = await getAuthSession();
-    if (!session || session.user.role !== 'SUPER_ADMIN') {
+    const session = await getSession();
+    if (!session || session.U_Role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: "Action Non Autorisée" }, { status: 403 });
     }
 
     const body = await req.json();
     const { id, title, slug, type, content, catch: catchPhrase, features, published } = body;
 
-    const data = {
-      title,
-      slug,
-      type,
-      content,
-      catch: catchPhrase,
-      features,
-      published
-    };
-
     const result = await prisma.vitrineContent.upsert({
       where: { id: id || 'new' },
-      update: data,
-      create: data,
+      update: { title, slug, type, content, catch: catchPhrase, features, published },
+      create: { title, slug, type, content, catch: catchPhrase, features, published },
     });
 
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json({ error: "Échec de synchronisation Vitrine" }, { status: 500 });
+    return NextResponse.json({ error: "Échec de synchronisation Matrix" }, { status: 500 });
   }
 }
