@@ -1,50 +1,86 @@
 /**
  * 🛰️ JWT STRATEGY - QUALISOFT ELITE RD 2030
- * RÔLE : Extraction et validation du jeton pour sécuriser les routes API.
+ * RÔLE : Déchiffrement et validation du jeton pour chaque requête.
+ * VERSION : 2.1.2 (Alignée sur le protocole Multi-Tenant & Elite-SDE)
  */
 
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthPayload } from './auth.service';
+import { Role } from '../types/elite-sde';
+
+// Interface étendue pour le déchiffrement interne
+interface JwtDecodedPayload {
+  U_Id?: string;
+  sub?: string;
+  U_Email: string;
+  U_Role: Role;
+  tenantId: string;
+  U_TenantDomain: string;
+  assignedProcessId?: string;
+  iat?: number;
+  exp?: number;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly configService: ConfigService) {
-    const jwtSecret = configService.get<string>('JWT_SECRET');
+  private readonly logger = new Logger(JwtStrategy.name);
 
-    if (!jwtSecret) {
-      throw new Error("🚨 ERREUR CRITIQUE : JWT_SECRET n'est pas défini dans l'environnement.");
+  constructor(private readonly configService: ConfigService) {
+    const secret = configService.get<string>('JWT_SECRET');
+
+    if (!secret) {
+      throw new Error("🚨 CRITIQUE : JWT_SECRET absent de l'environnement.");
     }
 
     super({
-      // Extrait le token du header 'Authorization: Bearer <token>'
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret,
+      secretOrKey: secret,
     });
   }
 
   /**
-   * 🛡️ VALIDATION DU PAYLOAD
-   * Cette méthode est appelée automatiquement par Passport après le déchiffrement du JWT.
-   * Elle injecte l'objet retourné dans 'req.user'.
+   * 🛡️ VALIDATION DU TOKEN
+   * Cette méthode injecte l'utilisateur validé dans 'req.user'
    */
-  async validate(payload: any): Promise<AuthPayload> {
-    // Vérification de l'existence des données minimales dans le jeton
-    if (!payload.U_Email || !payload.tenantId) {
-      throw new UnauthorizedException('Jeton de sécurité incomplet ou corrompu.');
+  async validate(payload: JwtDecodedPayload): Promise<AuthPayload> {
+    const userId = payload.U_Id || payload.sub;
+
+    // 1. CAS MASTER SOUVERAIN (Abdoulaye Thiongane)
+    if (userId === 'CORE_MASTER' || payload.U_Role === Role.SUPER_ADMIN) {
+      return {
+        U_Id: 'CORE_MASTER',
+        U_Email: payload.U_Email || 'ab.thiongane@qualisoft.sn',
+        U_Role: Role.SUPER_ADMIN,
+        tenantId: 'MATRIX',
+        U_TenantDomain: payload.U_TenantDomain || 'elite',
+        assignedProcessId: null
+      };
     }
 
-    // 🚩 RETOUR DU PAYLOAD SCELLÉ (Doit correspondre à l'interface AuthPayload)
+    // 2. VÉRIFICATION DE L'IDENTITÉ NUMÉRIQUE
+    if (!userId) {
+      this.logger.error("Tentative d'accès avec un token sans identifiant.");
+      throw new UnauthorizedException('Identité numérique corrompue.');
+    }
+
+    // 3. VÉRIFICATION DU TERRITOIRE (Obligatoire pour les clients)
+    if (!payload.U_TenantDomain) {
+      this.logger.error(`Accès refusé : Domaine manquant pour l'utilisateur ${userId}`);
+      throw new UnauthorizedException('Territoire non identifié.');
+    }
+
+    // 🚩 RETOUR DU PAYLOAD SCELLÉ (Strictement conforme à AuthPayload)
     return {
-      U_Id: payload.U_Id || payload.sub,
+      U_Id: userId,
       U_Email: payload.U_Email,
-      U_Role: payload.U_Role,
       tenantId: payload.tenantId,
-      U_TenantDomain: payload.U_TenantDomain || 'elite',
-      assignedProcessId: payload.assignedProcessId || null,
+      U_TenantDomain: payload.U_TenantDomain,
+      U_Role: payload.U_Role,
+      assignedProcessId: payload.assignedProcessId || null
     };
   }
 }
