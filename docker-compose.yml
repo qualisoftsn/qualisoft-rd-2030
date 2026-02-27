@@ -1,18 +1,18 @@
 # ==============================================================================
-# 🛰️ QUALISOFT ELITE RD 2030 - ARCHITECTURE FÉDÉRÉE (OPTIMISÉE)
-# STRATÉGIE : Isolation Multi-Tenant & Pilotage Vitrine Centralisé
+# 🛰️ QUALISOFT ELITE RD 2030 - ARCHITECTURE MULTI-TENANT (SOUVERAINE)
+# STRATÉGIE : Accès par sous-domaines dynamiques (*.qualisoft.sn)
 # ==============================================================================
 
 services:
-  # 🗄️ LE COEUR DE DONNÉES (POSTGRESQL)
-  db:
+  # 🗄️ DATABASE
+  qualisoft-db:
     image: postgres:16-alpine
     container_name: qualisoft-db
     restart: always
     environment:
-      - POSTGRES_USER=${DB_USER:-postgres}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-qualipass2026}
-      - POSTGRES_DB=${DB_NAME:-qualisoft_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-qualipass2026}
+      POSTGRES_DB: ${DB_NAME:-qualisoft_db}
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
@@ -21,79 +21,55 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - qualisoft_network
+      - qualisoft_elite_net
 
-  # 🧠 LE NOYAU API (NestJS - Matrix Engine)
-  backend:
+  # 🧠 BACKEND : Matrix Engine (NestJS)
+  qualisoft-backend:
     build: 
       context: ./backend
       dockerfile: Dockerfile
     container_name: qualisoft-backend
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 2G
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-qualipass2026}@qualisoft-db:5432/${DB_NAME:-qualisoft_db}?schema=public
-      - NODE_ENV=production
-      - PORT=9000
-      - JWT_SECRET=${JWT_SECRET}
-      # 🚩 CORS : Ajout de la vitrine qualisoft.sn pour le Web Publisher
-      - FRONTEND_URL=https://qualisoft.sn,https://app.qualisoft.sn,https://qs.qualisoft.sn,https://pad.qualisoft.sn,https://sagam.qualisoft.sn
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-qualipass2026}@qualisoft-db:5432/${DB_NAME:-qualisoft_db}?schema=public
+      NODE_ENV: production
+      PORT: 9000
+      JWT_SECRET: ${JWT_SECRET}
+      # 🚩 CORS MULTI-TENANT : Autorise la Vitrine ET tous les sous-domaines Elite
+      # Note : En NestJS, il faudra s'assurer que l'origin check accepte les regex ou .qualisoft.sn
+      FRONTEND_URL: https://qualisoft.sn,https://app.qualisoft.sn
+      ALLOWED_DOMAINS: .qualisoft.sn
     ports:
       - "9000:9000"
     depends_on:
-      db:
+      qualisoft-db:
         condition: service_healthy
     networks:
-      - qualisoft_network
+      - qualisoft_elite_net
 
-  # 💻 LE COCKPIT ELITE (Next.js - Admin & Matrix Control)
-  frontend:
+  # 💻 FRONTEND : Cockpit Elite (Next.js 15)
+  qualisoft-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: qualisoft-frontend
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 4G
     environment:
-      - NEXT_PUBLIC_API_URL=https://api.qualisoft.sn/api
-      - NEXT_PUBLIC_APP_NAME=Qualisoft Elite
-      # 🚩 SESSION QUALISOFT (Remplacement NextAuth par ton système JWT)
-      - SESSION_SECRET=${JWT_SECRET}
-      - API_URL_INTERNAL=http://qualisoft-backend:9000/api
+      PORT: 3001
+      NODE_ENV: production
+      # ✅ L'API doit être centrale pour tous les sous-domaines
+      NEXT_PUBLIC_API_URL: https://api.qualisoft.sn/api
     ports:
       - "3001:3001"
     depends_on:
-      - backend
+      - qualisoft-backend
     networks:
-      - qualisoft_network
-
-  # 🌐 LA VITRINE PUBLIQUE (qualisoft.sn)
-  # À ajouter si tu veux piloter les deux via le même docker-compose
-  vitrine:
-    build:
-      context: ../qualisoft-vitrine
-      dockerfile: Dockerfile
-    container_name: qualisoft-vitrine-prod
-    restart: always
-    environment:
-      - NEXT_PUBLIC_API_URL=https://api.qualisoft.sn/api # Pour les appels client
-      - API_URL_INTERNAL=http://qualisoft-backend:9000/api # Pour les appels serveur (ISR)
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    networks:
-      - qualisoft_network
+      - qualisoft_elite_net
 
 networks:
-  qualisoft_network:
+  qualisoft_elite_net:
     driver: bridge
 
 volumes:
   postgres_data_prod:
+    driver: local
