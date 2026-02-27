@@ -1,16 +1,14 @@
 /**
- * CHEMIN ABSOLU : /frontend/src/store/authStore.ts
+ * CHEMIN ABSOLU : /src/store/authStore.ts
  * PROJET : Qualisoft Elite RD 2030
- * RÔLE : Store centralisé pour la persistance de session et le pilotage d'accès.
+ * RÔLE : Store souverain Zustand (Zéro Next-Auth).
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 /**
- * 👤 AUTH USER INTERFACE : Architecture Elite MS
- * Typage souverain pour garantir l'intégrité des données Master et Collaborateurs.
- * CORRECTION : Ajout de U_TenantName pour éviter les "undefined" dans le Dashboard.
+ * 👤 AUTH USER : Architecture Elite
  */
 export interface AuthUser {
   U_Id: string;
@@ -19,7 +17,8 @@ export interface AuthUser {
   U_LastName: string | null;
   U_Role: string;
   tenantId: string;
-  U_TenantName: string; // ✅ Aligné sur la réponse du Backend
+  U_TenantName: string;
+  U_TenantDomain?: string;
   assignedProcessId?: string | null;
 }
 
@@ -27,6 +26,7 @@ interface AuthState {
   token: string | null;
   tenantId: string | null;
   user: AuthUser | null;
+  isAuthenticated: boolean;
   setLogin: (data: { token: string; user: AuthUser }) => void;
   logout: () => void;
 }
@@ -37,47 +37,55 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       tenantId: null,
       user: null,
-      
+      isAuthenticated: false,
+
       /**
        * 🔑 SCELLAGE DE SESSION
-       * Utilisé après la validation NextAuth pour synchroniser le Store Zustand.
-       * Cette fonction scelle l'identité numérique dans le stockage local.
        */
       setLogin: (data) => {
+        // En plus du store, on scelle le cookie pour le Middleware Next.js 15
+        if (typeof window !== 'undefined') {
+          document.cookie = `access_token=${data.token}; Path=/; Max-Age=86400; SameSite=Strict; Secure`;
+        }
         set({ 
           token: data.token, 
           tenantId: data.user.tenantId, 
-          user: data.user 
+          user: data.user,
+          isAuthenticated: true 
         });
       },
 
       /**
-       * 🛡️ PROTOCOLE DE DÉCONNEXION SOUVERAIN
-       * Nettoyage intégral de toutes les traces de session pour éviter les accès fantômes.
+       * 🛡️ PROTOCOLE DE DÉCONNEXION
        */
       logout: () => {
         if (typeof window !== 'undefined') {
-          // 1. Suppression du scellé spécifique
+          // Nettoyage des traces locales
           localStorage.removeItem('qualisoft-auth-storage');
-          
-          // 2. Nettoyage du cache de session
           sessionStorage.clear();
           
-          // Note : La suppression des cookies sécurisés de NextAuth 
-          // doit être pilotée par signOut() au niveau de la vue.
+          // Destruction du cookie
+          document.cookie = "access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
         }
         
-        // 3. Reset de l'état atomique
         set({ 
           token: null, 
           tenantId: null, 
-          user: null 
+          user: null,
+          isAuthenticated: false
         });
       },
     }),
     { 
-      name: 'qualisoft-auth-storage', // Nom unique pour la persistance Matrix
-      storage: createJSONStorage(() => localStorage), // Synchronisation sécurisée
+      name: 'qualisoft-auth-storage', 
+      storage: createJSONStorage(() => localStorage),
+      // Empêche les erreurs d'hydratation entre Server et Client
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // On s'assure que isAuthenticated est synchro avec la présence du token
+          state.isAuthenticated = !!state.token;
+        }
+      }
     }
   )
 );
