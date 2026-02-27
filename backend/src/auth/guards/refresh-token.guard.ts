@@ -13,13 +13,13 @@ export class RefreshTokenGuard extends AuthGuard('jwt-refresh') {
   }
 
   /**
-   * ✅ Correction du type de retour pour satisfaire le compilateur TS.
-   * On retire 'Observable' pour ne garder que le type asynchrone Promise.
+   * ✅ Signature compatible IAuthGuard
+   * On retourne Promise<boolean> pour éviter le conflit avec Observable.
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     
-    // Récupération sécurisée du token depuis les cookies (configuré via cookie-parser)
+    // Récupération sécurisée du token depuis les cookies
     const refreshToken = request.cookies?.refresh_token;
 
     if (!refreshToken) {
@@ -27,15 +27,15 @@ export class RefreshTokenGuard extends AuthGuard('jwt-refresh') {
     }
 
     try {
-      // 🔑 Validation interne via ton AuthService (Matrix SDE)
+      // Validation via AuthService
       const payload = await this.authService.verifyRefreshToken(refreshToken);
       
-      // On injecte le payload validé (userId, role, U_TenantDomain) dans la requête
-      request.user = payload;
+      // On injecte le payload validé dans la requête
+      // Casté en 'any' pour éviter les erreurs TS sur request.user
+      (request as any).user = payload;
       
       return true;
     } catch (error) {
-      // Si le token est expiré ou corrompu (signature invalide)
       throw new UnauthorizedException('Session expirée ou invalide');
     }
   }
