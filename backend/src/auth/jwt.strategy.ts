@@ -1,63 +1,50 @@
+/**
+ * 🛰️ JWT STRATEGY - QUALISOFT ELITE RD 2030
+ * RÔLE : Extraction et validation du jeton pour sécuriser les routes API.
+ */
+
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// 🚩 SUPPRIME l'import de AuthPayload depuis auth.service s'il cause une erreur
-
-// ✅ DÉFINITION LOCALE UNIQUE (Fait office de source de vérité pour TS)
-export interface AuthPayload {
-  U_Id: string;
-  U_Email: string;
-  U_Role: string;
-  tenantId: string;
-  U_TenantDomain: string; // 👈 Assure-toi que ce nom est EXACTEMENT le même partout
-  assignedProcessId?: string | null;
-}
-
-interface JwtDecodedPayload {
-  U_Id?: string;
-  sub?: string;
-  U_Email: string;
-  U_Role: string;
-  tenantId: string;
-  U_TenantDomain: string;
-  assignedProcessId?: string;
-  iat?: number;
-  exp?: number;
-}
+import { AuthPayload } from './auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  private readonly logger = new Logger(JwtStrategy.name);
-
   constructor(private readonly configService: ConfigService) {
-    const secret = configService.get<string>('JWT_SECRET');
-    if (!secret) {
-      throw new Error("🚨 CRITIQUE : JWT_SECRET absent.");
+    const jwtSecret = configService.get<string>('JWT_SECRET');
+
+    if (!jwtSecret) {
+      throw new Error("🚨 ERREUR CRITIQUE : JWT_SECRET n'est pas défini dans l'environnement.");
     }
 
     super({
+      // Extrait le token du header 'Authorization: Bearer <token>'
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: secret,
+      secretOrKey: jwtSecret,
     });
   }
 
-  async validate(payload: JwtDecodedPayload): Promise<AuthPayload> {
-    const userId = payload.U_Id || payload.sub;
-
-    if (!userId) {
-      throw new UnauthorizedException('Identité corrompue.');
+  /**
+   * 🛡️ VALIDATION DU PAYLOAD
+   * Cette méthode est appelée automatiquement par Passport après le déchiffrement du JWT.
+   * Elle injecte l'objet retourné dans 'req.user'.
+   */
+  async validate(payload: any): Promise<AuthPayload> {
+    // Vérification de l'existence des données minimales dans le jeton
+    if (!payload.U_Email || !payload.tenantId) {
+      throw new UnauthorizedException('Jeton de sécurité incomplet ou corrompu.');
     }
 
-    // ✅ L'objet retourné ici doit correspondre pile-poil à l'interface AuthPayload ci-dessus
+    // 🚩 RETOUR DU PAYLOAD SCELLÉ (Doit correspondre à l'interface AuthPayload)
     return {
-      U_Id: userId,
+      U_Id: payload.U_Id || payload.sub,
       U_Email: payload.U_Email,
       U_Role: payload.U_Role,
       tenantId: payload.tenantId,
       U_TenantDomain: payload.U_TenantDomain || 'elite',
-      assignedProcessId: payload.assignedProcessId || null
+      assignedProcessId: payload.assignedProcessId || null,
     };
   }
 }

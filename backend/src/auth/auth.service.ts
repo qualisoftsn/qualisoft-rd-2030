@@ -1,26 +1,16 @@
-// auth/auth.service.ts
-import {
-  Injectable,
-  UnauthorizedException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { compare } from 'bcryptjs';
-import { User } from '@prisma/client';
 
-/**
- * 🚩 INTERFACE DE DONNÉES SCELLÉES
- * Alignée sur JwtStrategy et AuthController pour éviter les erreurs TS2353
- */
+// ✅ L'INTERFACE DOIT ÊTRE EXPORTÉE CLAIREMENT
 export interface AuthPayload {
   U_Id: string;
   U_Email: string;
   U_Role: string;
   tenantId: string;
-  U_TenantDomain: string; // ✅ AJOUTÉ : Indispensable pour le routage Matrix
+  U_TenantDomain: string;
   assignedProcessId?: string | null;
 }
 
@@ -34,41 +24,20 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async validateUser(
-    email: string,
-    password: string,
-    tenantId?: string,
-  ): Promise<{ accessToken: string; refreshToken: string; user: any }> {
-    // 🔍 RECHERCHE DE L'UTILISATEUR AVEC SA RELATION TENANT
+  async validateUser(email: string, password: string, tenantId?: string): Promise<{ accessToken: string; refreshToken: string; user: any }> {
     const user = await this.prisma.user.findFirst({
       where: {
         U_Email: email.toLowerCase().trim(),
         U_IsActive: true,
         ...(tenantId && tenantId !== 'MATRIX' ? { tenantId } : {}),
       },
-      include: {
-        tenant: true, // 🔑 Récupère T_Domain depuis la table Tenant
-      },
+      include: { tenant: true },
     });
 
-    if (!user) {
+    if (!user || !(await compare(password, user.U_PasswordHash))) {
       throw new UnauthorizedException('Identifiants invalides');
     }
 
-    // 🔐 VÉRIFICATION DU MOT DE PASSE
-    const isValid = await compare(password, user.U_PasswordHash);
-    if (!isValid) {
-      this.logger.warn(`Tentative de connexion échouée pour ${email}`);
-      throw new UnauthorizedException('Identifiants invalides');
-    }
-
-    // 🚩 CAS SPÉCIAL : SUPER_ADMIN (accès multi-tenant)
-    if (user.U_Role === 'SUPER_ADMIN' && !tenantId) {
-      throw new BadRequestException('Le tenantId est requis pour les SUPER_ADMIN');
-    }
-
-    // ✅ PRÉPARATION DU PAYLOAD MATRIX
-    // On extrait le domaine du tenant ou on met 'elite' par défaut
     const payload: AuthPayload = {
       U_Id: user.U_Id,
       U_Email: user.U_Email,
@@ -78,15 +47,13 @@ export class AuthService {
       assignedProcessId: null
     };
 
-    const accessToken = this.generateAccessToken(payload);
-    const refreshToken = await this.generateRefreshToken(payload);
-
-    return { accessToken, refreshToken, user };
+    return {
+      accessToken: this.generateAccessToken(payload),
+      refreshToken: await this.generateRefreshToken(payload),
+      user,
+    };
   }
 
-  /**
-   * ✅ GÉNÉRATION ACCESS TOKEN
-   */
   generateAccessToken(payload: AuthPayload): string {
     return this.jwtService.sign(payload, {
       expiresIn: '15m',
@@ -94,9 +61,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * ✅ GÉNÉRATION REFRESH TOKEN
-   */
   async generateRefreshToken(payload: AuthPayload): Promise<string> {
     return this.jwtService.sign(payload, {
       expiresIn: '7d',
@@ -104,17 +68,12 @@ export class AuthService {
     });
   }
 
-  /**
-   * ✅ VÉRIFICATION REFRESH TOKEN (Utilisée par le Guard)
-   */
   async verifyRefreshToken(token: string): Promise<AuthPayload> {
     try {
-      const payload = this.jwtService.verify(token, {
+      return this.jwtService.verify(token, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      });
-      return payload as AuthPayload;
-    } catch (e) {
-      this.logger.warn('Refresh token invalide ou expiré');
+      }) as AuthPayload;
+    } catch {
       throw new UnauthorizedException('Session expirée');
     }
   }
