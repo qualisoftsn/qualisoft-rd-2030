@@ -3,14 +3,15 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { compare } from 'bcryptjs';
+import { User, Role } from '../types/elite-sde'; // ✅ Import de tes types
 
-// ✅ L'INTERFACE DOIT ÊTRE EXPORTÉE CLAIREMENT
+// ✅ Interface étendue pour le Payload Matrix
 export interface AuthPayload {
   U_Id: string;
   U_Email: string;
-  U_Role: string;
+  U_Role: Role;
   tenantId: string;
-  U_TenantDomain: string;
+  U_TenantDomain: string; // 🚩 Requis pour le déploiement fédéré
   assignedProcessId?: string | null;
 }
 
@@ -38,13 +39,17 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants invalides');
     }
 
+    if (user.U_Role === Role.SUPER_ADMIN && !tenantId) {
+      throw new BadRequestException('Le tenantId est requis pour les SUPER_ADMIN');
+    }
+
     const payload: AuthPayload = {
       U_Id: user.U_Id,
       U_Email: user.U_Email,
-      U_Role: user.U_Role,
+      U_Role: user.U_Role as Role,
       tenantId: user.tenantId,
       U_TenantDomain: (user as any).tenant?.T_Domain || 'elite',
-      assignedProcessId: null
+      assignedProcessId: user.U_AssignedProcessId || null
     };
 
     return {
