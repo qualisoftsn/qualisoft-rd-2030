@@ -1,11 +1,11 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SessionProvider } from 'next-auth/react'; 
+import { useAuth } from '@/core/providers/auth-provider'; 
 import { ReactNode, useState } from 'react';
 
 export default function Providers({ children }: { children: ReactNode }) {
-  // On crée le client pour gérer le cache des données
+  // On crÃ©e le client pour gÃ©rer le cache des donnÃ©es
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
@@ -16,12 +16,12 @@ export default function Providers({ children }: { children: ReactNode }) {
   }));
 
   return (
-    // 🛡️ SESSION PROVIDER : L'enveloppe vitale pour l'identité SDE
-    <SessionProvider>
+    // ðŸ›¡ï¸ SESSION PROVIDER : L'enveloppe vitale pour l'identitÃ© SDE
+    
       <QueryClientProvider client={queryClient}>
         {children}
-        {/* Note : Le Toaster est déjà géré dans layout.tsx, inutile de le remettre ici */}
+        {/* Note : Le Toaster est dÃ©jÃ  gÃ©rÃ© dans layout.tsx, inutile de le remettre ici */}
       </QueryClientProvider>
-    </SessionProvider>
+    
   );
 }

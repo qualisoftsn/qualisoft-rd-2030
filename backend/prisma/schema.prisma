@@ -1317,6 +1317,23 @@ model SurveyResult {
 
   @@index([RES_CampaignId])
 }
+
+model VitrineContent {
+  id        String   @id @default(cuid())
+  type      String   // "SERVICE", "ACTUALITE", "FORMATION", "RESSOURCE"
+  title     String
+  slug      String   @unique
+  catch     String?  @db.Text
+  content   String   @db.Text
+  features  String[] // Liste des points forts
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([slug])
+}
+
 // ==========================================
 // ENUMS (INTÉGRITÉ DU PROJET)
 // ==========================================

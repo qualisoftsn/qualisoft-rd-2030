@@ -1133,3 +1133,16 @@ export interface SurveyResult {
   RES_Date: Date | string;
   RES_Status: string;
 }
+
+export interface VitrineContent {
+  id: string;
+  type:      String;   // "FORMATION", "ACTUALITE", "SERVICE"
+  title:     String;
+  slug:     string; 
+  content:   string;
+  category?:  string;
+  imageUrl?:  string;
+  createdAt: Date;
+  updatedAt: Date;
+  published: Boolean;
+}

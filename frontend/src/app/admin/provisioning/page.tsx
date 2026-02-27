@@ -17,14 +17,14 @@ import {
   Phone,
   MapPin,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useAuth } from '@/core/providers/auth-provider';
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 /**
- * 🛰️ INTERFACE DE SAISIE ÉLITE (SCELLÉE)
- * Note : Le mot de passe est géré au niveau du Noyau pour la sécurité initiale.
+ * ðŸ›°ï¸ INTERFACE DE SAISIE Ã‰LITE (SCELLÃ‰E)
+ * Note : Le mot de passe est gÃ©rÃ© au niveau du Noyau pour la sÃ©curitÃ© initiale.
  */
 interface ProvisionFormData {
   companyName: string;
@@ -44,7 +44,7 @@ interface BackendErrorResponse {
 }
 
 export default function ProvisioningPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -59,21 +59,21 @@ export default function ProvisioningPage() {
     displayPassword: "Qualisoft@2026", 
   });
 
-  // 🛡️ PROTECTION RÉGALIENNE : Seul le SUPER_ADMIN accède au provisioning
+  // ðŸ›¡ï¸ PROTECTION RÃ‰GALIENNE : Seul le SUPER_ADMIN accÃ¨de au provisioning
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/auth/login");
     } else if (
       status === "authenticated" &&
-      session?.user?.U_Role !== "SUPER_ADMIN"
+      user?.U_Role !== "SUPER_ADMIN"
     ) {
-      toast.error("Accès régalien refusé.");
+      toast.error("AccÃ¨s rÃ©galien refusÃ©.");
       router.replace("/dashboard");
     }
   }, [status, session, router]);
 
   /**
-   * 🖋️ PROTOCOLE DE DÉPLOIEMENT SOUVERAIN
+   * ðŸ–‹ï¸ PROTOCOLE DE DÃ‰PLOIEMENT SOUVERAIN
    */
   const handleDeploy = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,9 +81,9 @@ export default function ProvisioningPage() {
 
     try {
       /**
-       * ✅ ALIGNEMENT SCELLÉ
-       * On extrait manuellement les propriétés pour correspondre au type ProvisioningPayload
-       * qui interdit désormais la propriété 'password'.
+       * âœ… ALIGNEMENT SCELLÃ‰
+       * On extrait manuellement les propriÃ©tÃ©s pour correspondre au type ProvisioningPayload
+       * qui interdit dÃ©sormais la propriÃ©tÃ© 'password'.
        */
       const payload: ProvisioningPayload = {
         companyName: formData.companyName,
@@ -97,9 +97,9 @@ export default function ProvisioningPage() {
 
       await matrixApi.initialize(payload);
 
-      toast.success(`Nœud Matrix pour ${formData.companyName} scellé avec succès.`);
+      toast.success(`NÅ“ud Matrix pour ${formData.companyName} scellÃ© avec succÃ¨s.`);
 
-      // Réinitialisation du formulaire
+      // RÃ©initialisation du formulaire
       setFormData({
         companyName: "",
         ceoName: "",
@@ -114,7 +114,7 @@ export default function ProvisioningPage() {
       // Propulsion vers le registre
       setTimeout(() => router.push("/admin/matrix"), 2500);
     } catch (err: unknown) {
-      let errorMessage = "Échec de la communication avec le Noyau Master";
+      let errorMessage = "Ã‰chec de la communication avec le Noyau Master";
       
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as BackendErrorResponse;
@@ -127,7 +127,7 @@ export default function ProvisioningPage() {
     }
   };
 
-  if (status === "loading") {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0B0F1A] italic">
         <Loader2 className="animate-spin text-blue-600" size={40} />
@@ -138,7 +138,7 @@ export default function ProvisioningPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans italic selection:bg-blue-100 overflow-x-hidden pb-20">
       
-      {/* 🔝 BARRE DE NAVIGATION */}
+      {/* ðŸ” BARRE DE NAVIGATION */}
       <nav className="bg-slate-900 text-white p-6 shadow-2xl flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-blue-500" size={24} />
@@ -147,7 +147,7 @@ export default function ProvisioningPage() {
           </span>
         </div>
         <div className="flex items-center gap-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-          <Crown size={14} className="text-amber-400" /> {session?.user?.U_Email}
+          <Crown size={14} className="text-amber-400" /> {user?.U_Email}
         </div>
       </nav>
 
@@ -173,12 +173,12 @@ export default function ProvisioningPage() {
           {/* SECTION 1 : ORGANISATION */}
           <div className="space-y-6">
             <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] flex items-center gap-2 border-b border-slate-100 pb-4">
-              <Building2 size={14} /> Identité & Coordonnées du Nœud
+              <Building2 size={14} /> IdentitÃ© & CoordonnÃ©es du NÅ“ud
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">Dénomination Sociale</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">DÃ©nomination Sociale</label>
                 <input 
                   required 
                   type="text" 
@@ -189,7 +189,7 @@ export default function ProvisioningPage() {
                 />
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">CEO / Directeur Général</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">CEO / Directeur GÃ©nÃ©ral</label>
                 <div className="relative">
                   <UserCheck className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                   <input 
@@ -198,7 +198,7 @@ export default function ProvisioningPage() {
                     className="w-full pl-16 pr-6 py-6 bg-slate-50 border-2 border-transparent rounded-[1.8rem] font-black text-slate-900 outline-none focus:border-blue-600 focus:bg-white transition-all italic" 
                     value={formData.ceoName} 
                     onChange={(e) => setFormData({ ...formData, ceoName: e.target.value })} 
-                    placeholder="Prénom & Nom du CEO" 
+                    placeholder="PrÃ©nom & Nom du CEO" 
                   />
                 </div>
               </div>
@@ -206,7 +206,7 @@ export default function ProvisioningPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">Téléphone Professionnel</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">TÃ©lÃ©phone Professionnel</label>
                 <div className="relative">
                   <Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                   <input 
@@ -220,7 +220,7 @@ export default function ProvisioningPage() {
                 </div>
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">Adresse du Siège</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">Adresse du SiÃ¨ge</label>
                 <div className="relative">
                   <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                   <input 
@@ -229,14 +229,14 @@ export default function ProvisioningPage() {
                     className="w-full pl-16 pr-6 py-6 bg-slate-50 border-2 border-transparent rounded-[1.8rem] font-black text-slate-900 outline-none focus:border-blue-600 focus:bg-white transition-all italic" 
                     value={formData.address} 
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
-                    placeholder="Dakar, Sénégal" 
+                    placeholder="Dakar, SÃ©nÃ©gal" 
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">Aperçu de l&apos;URL Souveraine</label>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">AperÃ§u de l&apos;URL Souveraine</label>
               <div className="p-6 bg-slate-100 rounded-[1.8rem] font-black text-slate-500 italic flex items-center gap-2 border border-slate-200/50">
                 <Globe size={16} className="text-slate-400" />
                 <span className="truncate">
@@ -250,11 +250,11 @@ export default function ProvisioningPage() {
           {/* SECTION 2 : ADMIN RACINE */}
           <div className="space-y-6">
             <h3 className="text-[10px] font-black text-amber-600 uppercase tracking-[0.3em] flex items-center gap-2 border-b border-slate-100 pb-4">
-              <User size={14} /> Administrateur Racine (Contrôleur SMI)
+              <User size={14} /> Administrateur Racine (ContrÃ´leur SMI)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">Prénom Admin</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">PrÃ©nom Admin</label>
                 <input required type="text" className="w-full p-6 bg-slate-50 border-2 border-transparent rounded-[1.8rem] font-black text-slate-900 outline-none focus:border-blue-600 focus:bg-white transition-all italic" value={formData.adminFirstName} onChange={(e) => setFormData({ ...formData, adminFirstName: e.target.value })} />
               </div>
               <div className="space-y-3">
@@ -279,7 +279,7 @@ export default function ProvisioningPage() {
                 </div>
               </div>
               <div className="space-y-3 opacity-60">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2 italic">Mot de passe initial (Auto-scellé)</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2 italic">Mot de passe initial (Auto-scellÃ©)</label>
                 <div className="relative">
                   <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                   <input 
@@ -293,7 +293,7 @@ export default function ProvisioningPage() {
             </div>
           </div>
 
-          {/* ACTION DE DÉPLOIEMENT */}
+          {/* ACTION DE DÃ‰PLOIEMENT */}
           <button 
             type="submit" 
             disabled={loading} 
@@ -304,7 +304,7 @@ export default function ProvisioningPage() {
             ) : (
               <>
                 <Rocket size={20} className="animate-pulse" /> 
-                Lancer le Déploiement Matrix
+                Lancer le DÃ©ploiement Matrix
               </>
             )}
           </button>
@@ -312,7 +312,7 @@ export default function ProvisioningPage() {
 
         <footer className="mt-24 text-center border-t border-slate-200 pt-12">
           <p className="text-[9px] font-black uppercase tracking-[0.6em] text-slate-300 italic">
-            Qualisoft Elite Sovereign Infrastructure • Protocol v2.1.2 • 2026
+            Qualisoft Elite Sovereign Infrastructure â€¢ Protocol v2.1.2 â€¢ 2026
           </p>
         </footer>
       </div>

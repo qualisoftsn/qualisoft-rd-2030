@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // NOM DU FICHIER : frontend/app/dashboard/reclamations/page.tsx
 /**
- * 🛠️ FONCTION : Dashboard de monitoring du registre des réclamations.
- * RÔLE : Centralise les flux entrants, gère le filtrage dynamique et
- * l'accès rapide aux dossiers de pilotage opérationnel.
+ * ðŸ› ï¸ FONCTION : Dashboard de monitoring du registre des rÃ©clamations.
+ * RÃ”LE : Centralise les flux entrants, gÃ¨re le filtrage dynamique et
+ * l'accÃ¨s rapide aux dossiers de pilotage opÃ©rationnel.
  */
 
 "use client";
@@ -12,11 +12,11 @@
 import Sidebar from "@/app/dashboard/sidebar";
 import apiClient from "@/core/api/api-client";
 import { Eye, Loader2, Plus, Search, X } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useAuth } from '@/core/providers/auth-provider';
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
-// Définition de l'interface stricte pour l'intégrité des données SMI
+// DÃ©finition de l'interface stricte pour l'intÃ©gritÃ© des donnÃ©es SMI
 interface Reclamation {
   REC_Id: string;
   REC_Reference: string;
@@ -30,11 +30,11 @@ interface Reclamation {
 }
 
 export default function ReclamationsPage() {
-  const { data: session } = useSession();
-  const user = session?.user as any;
+  const { data: session } = useAuth();
+  const user = user as any;
   const isSuperAdmin = user?.U_Role === "SUPER_ADMIN";
 
-  // --- ÉTATS DE GESTION DES FLUX ---
+  // --- Ã‰TATS DE GESTION DES FLUX ---
   const [recs, setRecs] = useState<Reclamation[]>([]);
   const [dataSources, setDataSources] = useState({ processus: [], tiers: [] });
   const [selectedRec, setSelectedRec] = useState<Reclamation | null>(null);
@@ -44,8 +44,8 @@ export default function ReclamationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   /**
-   * 📡 SYNCHRONISATION SMI
-   * Agrégation des réclamations, des processus métiers et de la base tiers (Clients/Fournisseurs).
+   * ðŸ“¡ SYNCHRONISATION SMI
+   * AgrÃ©gation des rÃ©clamations, des processus mÃ©tiers et de la base tiers (Clients/Fournisseurs).
    */
   const fetchData = useCallback(async () => {
     try {
@@ -55,7 +55,7 @@ export default function ReclamationsPage() {
         apiClient.get("/processus"),
         apiClient.get("/tiers"),
       ]);
-      // Extraction sécurisée des données selon le format de réponse API
+      // Extraction sÃ©curisÃ©e des donnÃ©es selon le format de rÃ©ponse API
       setRecs(resRec.data?.data || resRec.data || []);
       setDataSources({
         processus: resProcs.data?.data || resProcs.data || [],
@@ -73,8 +73,8 @@ export default function ReclamationsPage() {
   }, [fetchData]);
 
   /**
-   * 🔍 MOTEUR DE RECHERCHE DYNAMIQUE
-   * Filtrage par référence documentaire ou objet de la plainte.
+   * ðŸ” MOTEUR DE RECHERCHE DYNAMIQUE
+   * Filtrage par rÃ©fÃ©rence documentaire ou objet de la plainte.
    */
   const filteredRecs = useMemo(
     () =>
@@ -87,23 +87,23 @@ export default function ReclamationsPage() {
   );
 
   /**
-   * 💾 PERSISTANCE DES MODIFICATIONS
-   * Met à jour le dossier de réclamation via un PATCH partiel.
+   * ðŸ’¾ PERSISTANCE DES MODIFICATIONS
+   * Met Ã  jour le dossier de rÃ©clamation via un PATCH partiel.
    */
   const handleUpdate = async () => {
     if (!selectedRec) return;
     try {
       await apiClient.patch(`/reclamations/${selectedRec.REC_Id}`, selectedRec);
-      toast.success("Dossier mis à jour");
+      toast.success("Dossier mis Ã  jour");
       setIsEditing(false);
       fetchData();
       setSelectedRec(null);
     } catch (e) {
-      toast.error("Échec de la persistance");
+      toast.error("Ã‰chec de la persistance");
     }
   };
 
-  // --- RENDU ÉLITE ---
+  // --- RENDU Ã‰LITE ---
   if (loading)
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
@@ -119,14 +119,14 @@ export default function ReclamationsPage() {
       <Sidebar user={user} isSuperAdmin={isSuperAdmin} />
 
       <main className="flex-1 ml-72 p-10 text-white italic overflow-y-auto h-screen scrollbar-hide">
-        {/* 🔝 HEADER STRATÉGIQUE */}
+        {/* ðŸ” HEADER STRATÃ‰GIQUE */}
         <header className="mb-12 flex justify-between items-end border-b border-white/5 pb-10">
           <div>
             <h1 className="text-5xl font-black uppercase tracking-tighter italic leading-none">
-              Pilotage <span className="text-blue-600">Réclamations</span>
+              Pilotage <span className="text-blue-600">RÃ©clamations</span>
             </h1>
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.5em] mt-4 italic">
-              Management de la satisfaction — ISO 10002 (§8.2.1)
+              Management de la satisfaction â€” ISO 10002 (Â§8.2.1)
             </p>
           </div>
           <div className="flex gap-6">
@@ -146,19 +146,19 @@ export default function ReclamationsPage() {
               onClick={() => setIsCreateModalOpen(true)}
               className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-5 rounded-2xl font-black text-xs flex items-center gap-4 uppercase transition-all shadow-2xl shadow-blue-900/40 border-none cursor-pointer italic"
             >
-              <Plus size={20} strokeWidth={3} /> Déclarer un écart
+              <Plus size={20} strokeWidth={3} /> DÃ©clarer un Ã©cart
             </button>
           </div>
         </header>
 
-        {/* 📊 TABLEAU DE BORD DU REGISTRE */}
+        {/* ðŸ“Š TABLEAU DE BORD DU REGISTRE */}
         <div className="bg-slate-900/40 rounded-[3.5rem] border border-white/5 overflow-hidden shadow-2xl backdrop-blur-3xl">
           <table className="w-full text-left border-collapse">
             <thead className="bg-white/5 text-[10px] font-black uppercase text-slate-500 italic tracking-[0.2em]">
               <tr>
-                <th className="p-10">Objet / Référence</th>
-                <th className="p-10">Processus Imputé</th>
-                <th className="p-10 text-center">Statut Opérationnel</th>
+                <th className="p-10">Objet / RÃ©fÃ©rence</th>
+                <th className="p-10">Processus ImputÃ©</th>
+                <th className="p-10 text-center">Statut OpÃ©rationnel</th>
                 <th className="p-10 text-right">Consultation</th>
               </tr>
             </thead>
@@ -204,7 +204,7 @@ export default function ReclamationsPage() {
           </table>
           {filteredRecs.length === 0 && (
             <div className="p-20 text-center text-slate-600 font-black uppercase italic tracking-widest opacity-20">
-              Aucune donnée de réclamation indexée.
+              Aucune donnÃ©e de rÃ©clamation indexÃ©e.
             </div>
           )}
         </div>
@@ -219,13 +219,13 @@ export default function ReclamationsPage() {
           />
         )}
 
-        {/* TIROIR DE DÉTAILS (VERSION LIGHT) */}
+        {/* TIROIR DE DÃ‰TAILS (VERSION LIGHT) */}
         {selectedRec && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-110 flex justify-end animate-in fade-in duration-300">
             <div className="h-screen w-160 bg-[#0F172A] border-l border-white/10 p-16 flex flex-col shadow-4xl animate-in slide-in-from-right duration-500">
               <div className="flex justify-between items-center mb-12 border-b border-white/5 pb-8">
                 <h2 className="text-4xl font-black uppercase italic tracking-tighter">
-                  Détails <span className="text-blue-500">Dossier</span>
+                  DÃ©tails <span className="text-blue-500">Dossier</span>
                 </h2>
                 <button
                   onClick={() => {
@@ -272,14 +272,14 @@ export default function ReclamationsPage() {
                       onClick={handleUpdate}
                       className="w-full py-7 bg-blue-600 hover:bg-blue-500 text-white rounded-4xl font-black uppercase text-xs italic transition-all shadow-2xl shadow-blue-900/40 border-none cursor-pointer"
                     >
-                      Valider LA MISE À JOUR
+                      Valider LA MISE Ã€ JOUR
                     </button>
                   ) : (
                     <button
                       onClick={() => setIsEditing(true)}
                       className="w-full py-7 bg-white/5 border border-white/10 text-white rounded-4xl font-black uppercase text-xs italic hover:bg-white/10 transition-all border-none cursor-pointer"
                     >
-                      OUVRIR LE DOSSIER EN ÉDITION
+                      OUVRIR LE DOSSIER EN Ã‰DITION
                     </button>
                   )}
                 </div>
@@ -340,9 +340,9 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
       });
       onRefresh();
       onClose();
-      toast.success("RÉCLAMATION INDEXÉE");
+      toast.success("RÃ‰CLAMATION INDEXÃ‰E");
     } catch (err) {
-      toast.error("CONTRÔLE DE VALIDITÉ ÉCHOUÉ");
+      toast.error("CONTRÃ”LE DE VALIDITÃ‰ Ã‰CHOUÃ‰");
     } finally {
       setSaving(false);
     }
@@ -355,7 +355,7 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
         className="bg-[#0F172A] w-full max-w-2xl rounded-[4rem] border border-white/10 p-16 space-y-10 shadow-[0_50px_100px_rgba(0,0,0,0.5)]"
       >
         <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter">
-          Déclaration <span className="text-blue-600">Incident Client</span>
+          DÃ©claration <span className="text-blue-600">Incident Client</span>
         </h2>
 
         <div className="space-y-6">
@@ -400,7 +400,7 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
 
           <textarea
             required
-            placeholder="DESCRIPTION DÉTAILLÉE DES ÉCARTS CONSTATÉS"
+            placeholder="DESCRIPTION DÃ‰TAILLÃ‰E DES Ã‰CARTS CONSTATÃ‰S"
             rows={4}
             className="w-full bg-white/5 border border-white/10 p-7 rounded-4xl font-bold text-white outline-none focus:border-blue-600 transition-all shadow-inner resize-none italic"
             value={form.REC_Description}
@@ -411,7 +411,7 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
 
           <div className="bg-white/5 p-6 rounded-4xl border border-white/10 shadow-inner">
             <label className="text-[10px] font-black text-slate-500 uppercase italic tracking-widest block mb-2">
-              Échéance de traitement souhaitée
+              Ã‰chÃ©ance de traitement souhaitÃ©e
             </label>
             <input
               type="date"
@@ -433,7 +433,7 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
             {saving ? (
               <Loader2 className="animate-spin" />
             ) : (
-              "Valider LA DÉCLARATION"
+              "Valider LA DÃ‰CLARATION"
             )}
           </button>
           <button

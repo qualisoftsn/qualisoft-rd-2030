@@ -31,13 +31,13 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { useAuth } from '@/core/providers/auth-provider';
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 
-// --- 🛰️ INTERFACE SOUVERAINE ---
+// --- ðŸ›°ï¸ INTERFACE SOUVERAINE ---
 export interface SidebarUser {
   U_Id: string;
   U_Email: string;
@@ -70,7 +70,7 @@ export default function Sidebar({
   isSuperAdmin: boolean;
 }) {
   const pathname = usePathname();
-  // Groupes ouverts par défaut (Stratégie & Déploiement)
+  // Groupes ouverts par dÃ©faut (StratÃ©gie & DÃ©ploiement)
   const [expandedGroups, setExpandedGroups] = useState<string[]>([
     "pilotage",
     "onboarding",
@@ -78,7 +78,7 @@ export default function Sidebar({
   const [isImpersonated, setIsImpersonated] = useState<boolean>(false);
 
   /**
-   * 🛡️ UNITÉ DE DÉTECTION SCELLÉE (Bypass SSR)
+   * ðŸ›¡ï¸ UNITÃ‰ DE DÃ‰TECTION SCELLÃ‰E (Bypass SSR)
    */
   useEffect(() => {
     const timer = requestAnimationFrame(() => {
@@ -93,7 +93,7 @@ export default function Sidebar({
   const isPilote = userRole === "PILOTE" && !!assignedProcessId;
 
   /**
-   * 🗺️ LOGIQUE D'ACCÈS ÉLARGIE (Sovereign Access)
+   * ðŸ—ºï¸ LOGIQUE D'ACCÃˆS Ã‰LARGIE (Sovereign Access)
    */
   const hasAccess = (item: MenuItem): boolean => {
     if (isSuperAdmin) return true;
@@ -111,7 +111,7 @@ export default function Sidebar({
   };
 
   /**
-   * 🗂️ DICTIONNAIRE DE NAVIGATION SDE CONSOLIDÉ (useMemo pur)
+   * ðŸ—‚ï¸ DICTIONNAIRE DE NAVIGATION SDE CONSOLIDÃ‰ (useMemo pur)
    */
   const menuGroups: MenuGroup[] = useMemo(() => {
     // Redirection dynamique pour les Pilotes de Processus
@@ -124,11 +124,11 @@ export default function Sidebar({
     const groups: MenuGroup[] = [
       {
         id: "pilotage",
-        label: "1. PILOTAGE & STRATÉGIE",
+        label: "1. PILOTAGE & STRATÃ‰GIE",
         icon: Activity,
         items: [
           {
-            title: "Cockpit Exécutif SMI",
+            title: "Cockpit ExÃ©cutif SMI",
             path: "/dashboard/smi-global",
             icon: Target,
             access: "ALL",
@@ -161,7 +161,7 @@ export default function Sidebar({
       },
       {
         id: "onboarding",
-        label: "2. DÉPLOIEMENT & SETUP",
+        label: "2. DÃ‰PLOIEMENT & SETUP",
         icon: Rocket,
         items: [
           {
@@ -190,19 +190,19 @@ export default function Sidebar({
         icon: FolderOpen,
         items: [
           {
-            title: "Bibliothèque (GED)",
+            title: "BibliothÃ¨que (GED)",
             path: "/dashboard/ged",
             icon: FileText,
             access: "ALL",
           },
           {
-            title: "Archives Légales",
+            title: "Archives LÃ©gales",
             path: "/dashboard/archives",
             icon: Archive,
             access: "ALL",
           },
           {
-            title: "Sénégal-Légal",
+            title: "SÃ©nÃ©gal-LÃ©gal",
             path: "/dashboard/senegal-legal",
             icon: Leaf,
             access: "ALL",
@@ -233,7 +233,7 @@ export default function Sidebar({
             access: "MANAGER",
           },
           {
-            title: "Enquêtes",
+            title: "EnquÃªtes",
             path: "/dashboard/quality/surveys",
             icon: Leaf,
             access: "MANAGER",
@@ -260,7 +260,7 @@ export default function Sidebar({
       },
       {
         id: "audit-amelioration",
-        label: "5. AUDIT & AMÉLIORATION",
+        label: "5. AUDIT & AMÃ‰LIORATION",
         icon: ShieldCheck,
         items: [
           {
@@ -270,7 +270,7 @@ export default function Sidebar({
             access: "ALL",
           },
           {
-            title: "Non-Conformités (8D)",
+            title: "Non-ConformitÃ©s (8D)",
             path: "/dashboard/non-conformites",
             icon: AlertTriangle,
             access: "MANAGER",
@@ -300,19 +300,19 @@ export default function Sidebar({
             access: "ALL",
           },
           {
-            title: "Réclamations",
+            title: "RÃ©clamations",
             path: "/dashboard/reclamations",
             icon: FileText,
             access: "ALL",
           },
           {
-            title: "Statistiques & Agrégats",
+            title: "Statistiques & AgrÃ©gats",
             path: "/dashboard/improvement",
             icon: Leaf,
             access: "ALL",
           },
           {
-            title: "Amélioration continue",
+            title: "AmÃ©lioration continue",
             path: "/dashboard/continuous-improvement",
             icon: Leaf,
             access: "ALL",
@@ -321,11 +321,11 @@ export default function Sidebar({
       },
       {
         id: "it-security",
-        label: "6. SÉCURITÉ IT (ISO 27001)",
+        label: "6. SÃ‰CURITÃ‰ IT (ISO 27001)",
         icon: Lock,
         items: [
           {
-            title: "Conformité Légale & RGPD",
+            title: "ConformitÃ© LÃ©gale & RGPD",
             path: "/dashboard/requirements",
             icon: Scale,
             access: "ALL",
@@ -337,7 +337,7 @@ export default function Sidebar({
             access: "ALL",
           },
           {
-            title: "Actifs IT & Sécurité",
+            title: "Actifs IT & SÃ©curitÃ©",
             path: "/dashboard/equipment",
             icon: Database,
             access: "ALL",
@@ -350,13 +350,13 @@ export default function Sidebar({
         icon: Users,
         items: [
           {
-            title: "Gestion des Compétences",
+            title: "Gestion des CompÃ©tences",
             path: "/dashboard/rh",
             icon: Users,
             access: "ALL",
           },
           {
-            title: "Matrice des Compétences",
+            title: "Matrice des CompÃ©tences",
             path: "/dashboard/rh/matrice",
             icon: Network,
             access: "MANAGER",
@@ -371,17 +371,17 @@ export default function Sidebar({
       },
       {
         id: "environnement-sse",
-        label: "8. SÉCURITÉ & ENVIRONNEMENT",
+        label: "8. SÃ‰CURITÃ‰ & ENVIRONNEMENT",
         icon: Leaf,
         items: [
           {
-            title: "Hub Santé/Sécurité (SSE)",
+            title: "Hub SantÃ©/SÃ©curitÃ© (SSE)",
             path: "/dashboard/environment",
             icon: HardHat,
             access: "ALL",
           },
           {
-            title: "Causeries Sécurité",
+            title: "Causeries SÃ©curitÃ©",
             path: "/dashboard/sse/causeries",
             icon: Users,
             access: "ALL",
@@ -393,7 +393,7 @@ export default function Sidebar({
             access: "ALL",
           },
           {
-            title: "Déchets",
+            title: "DÃ©chets",
             path: "/dashboard/environment/wastes",
             icon: Leaf,
             access: "ALL",
@@ -414,7 +414,7 @@ export default function Sidebar({
       },
       {
         id: "admin",
-        label: "⚙️ CONFIGURATION ELITE",
+        label: "âš™ï¸ CONFIGURATION ELITE",
         icon: Settings2,
         items: [
           {
@@ -424,13 +424,13 @@ export default function Sidebar({
             access: "ALL",
           },
           {
-            title: "Types d'unités organiques",
+            title: "Types d'unitÃ©s organiques",
             path: "/dashboard/org-units-type",
             icon: Leaf,
             access: "ALL",
           },
           {
-            title: "Unités Organiques",
+            title: "UnitÃ©s Organiques",
             path: "/dashboard/org-units",
             icon: Network,
             access: "ALL",
@@ -448,7 +448,7 @@ export default function Sidebar({
             access: "ADMIN",
           },
           {
-            title: "Paramètres Système",
+            title: "ParamÃ¨tres SystÃ¨me",
             path: "/dashboard/admin/setup",
             icon: Settings2,
             access: "ADMIN",
@@ -460,7 +460,7 @@ export default function Sidebar({
     if (isSuperAdmin && !isImpersonated) {
       groups.push({
         id: "superadmin",
-        label: "👑 CONSOLE MAÎTRE",
+        label: "ðŸ‘‘ CONSOLE MAÃŽTRE",
         icon: Crown,
         items: [
           {
@@ -482,7 +482,7 @@ export default function Sidebar({
             access: "SUPERADMIN",
           },
           {
-            title: "Sécurité Globale",
+            title: "SÃ©curitÃ© Globale",
             path: "/dashboard/superadmin/security",
             icon: ShieldAlert,
             access: "SUPERADMIN",
@@ -498,13 +498,13 @@ export default function Sidebar({
       className={`w-[320px] h-screen flex flex-col fixed left-0 top-0 z-50 border-r-2 transition-all duration-500 font-sans italic shadow-2xl
       ${isImpersonated ? "bg-[#1A1515] border-amber-500/30" : "bg-[#0B0F1A] border-white/5"}`}
     >
-      {/* 🔴 BANDEAU IMPERSONATION (SOVEREIGN MODE) */}
+      {/* ðŸ”´ BANDEAU IMPERSONATION (SOVEREIGN MODE) */}
       {isImpersonated && (
         <div className="bg-amber-600 px-6 py-3 flex items-center justify-between animate-pulse shrink-0 shadow-lg">
           <div className="flex items-center gap-3">
             <ShieldAlert size={16} className="text-white" strokeWidth={3} />
             <span className="text-[11px] font-black uppercase text-white tracking-[0.3em] leading-none mt-1">
-              Qualisoft Contrôle
+              Qualisoft ContrÃ´le
             </span>
           </div>
           <button
@@ -516,7 +516,7 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* 🔝 LOGO & BRANDING */}
+      {/* ðŸ” LOGO & BRANDING */}
       <div
         className={`p-8 shrink-0 border-b-2 border-white/5 flex items-center gap-5 ${isImpersonated ? "bg-[#110D0D]" : "bg-[#151A2D]"}`}
       >
@@ -540,7 +540,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* 🧭 NAVIGATION DYNAMIQUE (ACCORDION ÉLÉGANT) */}
+      {/* ðŸ§­ NAVIGATION DYNAMIQUE (ACCORDION Ã‰LÃ‰GANT) */}
       <nav className="flex-1 overflow-y-auto px-6 py-10 space-y-6 custom-scrollbar">
         {menuGroups.map((group) => {
           const visibleItems = group.items.filter(hasAccess);
@@ -584,7 +584,7 @@ export default function Sidebar({
               >
                 <div className="overflow-hidden pl-6 ml-4 border-l-2 border-white/5 space-y-2">
                   {visibleItems.map((item, idx) => {
-                    // Maintien de l'état actif même dans les sous-pages (ex: /dashboard/actions/nouveau)
+                    // Maintien de l'Ã©tat actif mÃªme dans les sous-pages (ex: /dashboard/actions/nouveau)
                     const isActive =
                       pathname === item.path ||
                       pathname.startsWith(`${item.path}/`);
@@ -600,7 +600,7 @@ export default function Sidebar({
                               : "text-slate-400 hover:text-white hover:bg-white/5"
                           }`}
                       >
-                        {/* Barre active latérale glowy */}
+                        {/* Barre active latÃ©rale glowy */}
                         {isActive && (
                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-white" />
                         )}
@@ -625,7 +625,7 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* 👤 PROFIL UTILISATEUR & DECONNEXION */}
+      {/* ðŸ‘¤ PROFIL UTILISATEUR & DECONNEXION */}
       <div
         className={`p-8 border-t-2 border-white/5 shrink-0 ${isImpersonated ? "bg-[#110D0D]" : "bg-[#151A2D]"}`}
       >
@@ -649,7 +649,7 @@ export default function Sidebar({
           <button
             onClick={() => signOut({ callbackUrl: "/auth/login" })}
             className="p-3 text-slate-500 hover:text-rose-500 transition-all hover:bg-rose-500/10 rounded-xl border-none bg-transparent cursor-pointer shrink-0 ml-2"
-            title="Déconnexion sécurisée"
+            title="DÃ©connexion sÃ©curisÃ©e"
           >
             <LogOut size={20} strokeWidth={2.5} />
           </button>

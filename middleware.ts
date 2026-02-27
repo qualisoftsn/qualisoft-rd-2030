@@ -1,93 +1,95 @@
-// middleware.ts
+/**
+ * 🛡️ MIDDLEWARE MATRIX SDE - QUALISOFT ELITE
+ * -------------------------------------------------------------------------
+ * RÔLE : Sécurité périmétrale & Gestion de Session HttpOnly
+ * -------------------------------------------------------------------------
+ */
+
+// Utilisation d'un import explicite pour éviter les conflits de résolution d'IDE
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_ROUTES = [
+const PUBLIC_PATHS = [
   '/login',
-  '/api/auth/login',
-  '/api/auth/refresh',
-  '/api/public/tenants',
+  '/api/trial/request',
+  '/api/trial/verify',
   '/_next',
   '/favicon.ico',
 ];
 
-// ✅ DÉTECTION DU TENANT VIA SOUS-DOMAINE (OVH)
-const extractTenantFromHost = (host: string): { slug: string; isMaster: boolean } => {
+// --- LOGIQUE DE DÉTECTION DU TENANT (DNS OVH) ---
+const getTenantInfo = (host: string) => {
   const parts = host.split('.');
-  
-  // Cas MASTER : matrix.qualisoft.sn OU www.qualisoft.sn (redirige vers matrix)
+  // Cas MASTER (matrix ou www)
   if (parts[0] === 'matrix' || parts[0] === 'www') {
     return { slug: 'matrix', isMaster: true };
   }
-  
-  // Cas Tenant : sagam.qualisoft.sn → slug = "sagam"
-  if (parts.length > 2 && parts[1] === 'qualisoft' && parts[2] === 'sn') {
+  // Cas CLIENT (ex: sagam.qualisoft.sn)
+  if (parts.length >= 3 && parts[1] === 'qualisoft') {
     return { slug: parts[0], isMaster: false };
   }
-  
-  // Fallback : domaine racine (redirige vers www)
-  return { slug: 'www', isMaster: true };
+  return { slug: 'matrix', isMaster: true };
 };
 
 export async function middleware(request: NextRequest) {
-  const { pathname, host } = request.nextUrl;
-  const { slug: currentSlug, isMaster: isMasterNode } = extractTenantFromHost(host);
+  const { pathname } = request.nextUrl;
+  const host = request.headers.get('host') || '';
+  const { isMaster } = getTenantInfo(host);
 
-  // ✅ SKIP POUR ROUTES PUBLIQUES
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+  // 1. SKIP POUR LES ROUTES PUBLIQUES
+  if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  // ✅ VÉRIFICATION DU REFRESH TOKEN (COOKIE HTTPONLY)
-  const refreshToken = request.cookies.get('refresh_token');
-  
-  if (!refreshToken) {
+  // 2. RÉCUPÉRATION DES SESSIONS MATRIX (Cookies HttpOnly)
+  const tenantId = request.cookies.get('qualisoft_tenant_id')?.value;
+  const userId = request.cookies.get('qualisoft_user_id')?.value;
+
+  // 3. REDIRECTION SI NON AUTHENTIFIÉ
+  if (!tenantId || !userId) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ✅ CSP STRICT ADAPTÉE À L'INFRASTRUCTURE OVH
+  // 4. SÉCURITÉ : CSP & HEADERS (Optimisé OVH/Docker)
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' https://www.googletagmanager.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' data: https://*.qualisoft.sn https://*.ovh.net;
     font-src 'self' https://fonts.gstatic.com;
-    connect-src 'self' https://*.qualisoft.sn https://*.ovh.net https://api.qualisoft.sn;
-    frame-src 'none';
-    object-src 'none';
-    base-uri 'self';
-    form-action 'self';
+    connect-src 'self' https://*.qualisoft.sn https://*.ovh.net;
+    frame-ancestors 'none';
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, ' ').trim();
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('Content-Security-Policy', cspHeader);
-  requestHeaders.set('X-Frame-Options', 'DENY');
-  requestHeaders.set('X-Content-Type-Options', 'nosniff');
-  requestHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  requestHeaders.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Création de la réponse avec les headers
+  const response = NextResponse.next();
+  
+  // Injection des headers de sécurité ISO 27001
+  response.headers.set('Content-Security-Policy', cspHeader);
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
-  // ✅ REDIRECTION INTELLIGENTE ENTRE SOUS-DOMAINES
-  // Ex: Accès à /dashboard sur www.qualisoft.sn → redirige vers matrix.qualisoft.sn
-  if (pathname.startsWith('/dashboard') && !isMasterNode) {
+  // 5. LOGIQUE DE ROUTAGE INTER-DOMAINES
+  if (pathname.startsWith('/admin') && !isMaster) {
     const matrixUrl = new URL(`https://matrix.qualisoft.sn${pathname}`);
-    return NextResponse.redirect(matrixUrl, { headers: requestHeaders });
+    return NextResponse.redirect(matrixUrl);
   }
 
-  // Ex: Accès Matrix depuis un sous-domaine client → redirige vers matrix.qualisoft.sn
-  if (pathname.startsWith('/admin') && !isMasterNode) {
-    const matrixUrl = new URL(`https://matrix.qualisoft.sn${pathname}`);
-    return NextResponse.redirect(matrixUrl, { headers: requestHeaders });
-  }
-
-  return NextResponse.next({ headers: requestHeaders });
+  return response;
 }
 
+// --- CONFIGURATION DU MATCHER ---
 export const config = {
   matcher: [
-    '/((?!api/auth/login|api/auth/refresh|api/public/tenants|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Matcher toutes les routes sauf celles exclues explicitement
+     */
+    '/((?!api/trial/request|api/trial/verify|_next/static|_next/image|favicon.ico|login).*)',
     '/dashboard/:path*',
     '/admin/:path*',
   ],

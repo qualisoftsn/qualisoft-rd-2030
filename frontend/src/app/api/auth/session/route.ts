@@ -1,34 +1,38 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// app/api/auth/session/route.ts
+// app/api/auth/route.ts
 import { NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
-  try {
-    const cookies = request.headers.get('cookie');
-    const refreshToken = cookies?.match(/refresh_token=([^;]+)/)?.[1];
-
-    if (!refreshToken) {
-      return NextResponse.json({ isAuthenticated: false });
-    }
-
-    // ✅ VALIDATION SIMPLE DU REFRESH TOKEN (sans générer de nouveau token)
-    const refreshSecret = process.env.JWT_REFRESH_SECRET;
-    if (!refreshSecret) {
-      throw new Error('JWT_REFRESH_SECRET not configured');
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      import('jsonwebtoken').then(jwt => {
-        jwt.default.verify(refreshToken, refreshSecret, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-    });
-
-    // ✅ RÉPONSE POSITIVE (le frontend générera un nouveau token via /refresh si nécessaire)
-    return NextResponse.json({ isAuthenticated: true });
-  } catch (error) {
-    return NextResponse.json({ isAuthenticated: false });
+/**
+ * 🔐 POINT D'ENTRÉE UNIQUE D'AUTHENTIFICATION
+ * Toutes les requêtes d'authentification sont redirigées vers les endpoints dédiés
+ */
+export async function POST(request: Request) {
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  
+  // Redirection intelligente vers les endpoints existants
+  if (pathname.includes('/login-master')) {
+    return NextResponse.redirect(new URL('/api/auth/login-master', request.url));
   }
+  
+  return NextResponse.redirect(new URL('/api/auth/login', request.url));
+}
+
+export async function GET(request: Request) {
+  return NextResponse.json({
+    status: 'active',
+    auth_system: 'QUALISOFT_ELITE_HTTPONLY',
+    endpoints: {
+      login: '/api/auth/login',
+      login_master: '/api/auth/login-master',
+      refresh: '/api/auth/refresh',
+      logout: '/api/auth/logout',
+      session: '/api/auth/session'
+    },
+    security: {
+      token_storage: 'HttpOnly Cookies',
+      cross_subdomain: true,
+      tenant_isolation: true
+    }
+  });
 }

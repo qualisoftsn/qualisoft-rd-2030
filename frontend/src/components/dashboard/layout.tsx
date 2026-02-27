@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🏢 MODULE : ReclamationsPage
+ * ðŸ¢ MODULE : ReclamationsPage
  * -------------------------------------------------------------------------
- * FONCTION : Management des réclamations tiers (§ISO 10002).
- * RÔLE : Traitement, analyse des causes et scellage des preuves de résolution.
- * ISOLATION : Filtrage automatique par Tenant via l'apiClient scellé.
+ * FONCTION : Management des rÃ©clamations tiers (Â§ISO 10002).
+ * RÃ”LE : Traitement, analyse des causes et scellage des preuves de rÃ©solution.
+ * ISOLATION : Filtrage automatique par Tenant via l'apiClient scellÃ©.
  */
 
 "use client";
@@ -27,7 +27,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useAuth } from '@/core/providers/auth-provider';
 import React, {
   useCallback,
   useEffect,
@@ -38,11 +38,11 @@ import React, {
 import { toast } from "react-hot-toast";
 
 export default function ReclamationsPage() {
-  const { data: session, status } = useSession();
-  const user = session?.user as any;
+  const { data: session, status } = useAuth();
+  const user = user as any;
   const isSuperAdmin = user?.U_Role === "SUPER_ADMIN";
 
-  // --- ÉTATS SÉCURISÉS ---
+  // --- Ã‰TATS SÃ‰CURISÃ‰S ---
   const [recs, setRecs] = useState<any[]>([]);
   const [processus, setProcessus] = useState<any[]>([]);
   const [tiers, setTiers] = useState<any[]>([]);
@@ -58,7 +58,7 @@ export default function ReclamationsPage() {
   const API_BASE_URL = "https://elite.qualisoft.sn:3000";
 
   /**
-   * 📡 SYNCHRONISATION MATRIX
+   * ðŸ“¡ SYNCHRONISATION MATRIX
    */
   const fetchData = useCallback(async () => {
     try {
@@ -73,7 +73,7 @@ export default function ReclamationsPage() {
       setProcessus(extract(resProcs));
       setTiers(extract(resTiers));
     } catch (err) {
-      console.error("Échec Synchro SDE", err);
+      console.error("Ã‰chec Synchro SDE", err);
     } finally {
       setLoading(false);
     }
@@ -93,7 +93,7 @@ export default function ReclamationsPage() {
   }, [recs, searchTerm]);
 
   /**
-   * 💾 SCELLAGE DES MODIFICATIONS
+   * ðŸ’¾ SCELLAGE DES MODIFICATIONS
    */
   const handleUpdate = async () => {
     if (!selectedRec) return;
@@ -102,7 +102,7 @@ export default function ReclamationsPage() {
       !selectedRec.REC_SolutionProposed ||
       selectedRec.REC_SolutionProposed.trim() === ""
     ) {
-      toast.error("Analyse & Solutions requises pour clôturer l'écart.");
+      toast.error("Analyse & Solutions requises pour clÃ´turer l'Ã©cart.");
       return;
     }
 
@@ -123,12 +123,12 @@ export default function ReclamationsPage() {
       };
 
       await apiClient.patch(`/reclamations/${selectedRec.REC_Id}`, payload);
-      toast.success("Registre mis à jour");
+      toast.success("Registre mis Ã  jour");
       setIsEditing(false);
       fetchData();
       setSelectedRec(null);
     } catch (e: any) {
-      toast.error("Échec du scellage des données");
+      toast.error("Ã‰chec du scellage des donnÃ©es");
     } finally {
       setSubmitting(false);
     }
@@ -149,7 +149,7 @@ export default function ReclamationsPage() {
         REC_PreuveURL: res.data.url,
         REC_PreuveName: res.data.filename || file.name,
       }));
-      toast.success("Document de preuve indexé");
+      toast.success("Document de preuve indexÃ©");
     } catch (err: any) {
       toast.error("Erreur d'upload infrastructure");
     } finally {
@@ -157,7 +157,7 @@ export default function ReclamationsPage() {
     }
   };
 
-  if (status === "loading" || loading)
+  if (isLoading || loading)
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
         <Loader2 className="animate-spin text-blue-500" size={50} />
@@ -176,10 +176,10 @@ export default function ReclamationsPage() {
         <header className="mb-14 flex justify-between items-end border-b border-white/5 pb-10">
           <div>
             <h1 className="text-6xl font-black uppercase italic tracking-tighter leading-none">
-              Pilotage <span className="text-blue-500">Réclamations</span>
+              Pilotage <span className="text-blue-500">RÃ©clamations</span>
             </h1>
             <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.5em] mt-4 italic">
-              Management Stratégique ISO 10002
+              Management StratÃ©gique ISO 10002
             </p>
           </div>
           <div className="flex gap-6">
@@ -199,20 +199,20 @@ export default function ReclamationsPage() {
               onClick={() => setIsCreateModalOpen(true)}
               className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-5 rounded-2xl font-black text-xs flex items-center gap-4 shadow-3xl shadow-blue-600/30 transition-all active:scale-95 uppercase border-none cursor-pointer italic"
             >
-              <Plus size={22} strokeWidth={3} /> Déclarer un écart
+              <Plus size={22} strokeWidth={3} /> DÃ©clarer un Ã©cart
             </button>
           </div>
         </header>
 
-        {/* TABLEAU DES RÉCLAMATIONS */}
+        {/* TABLEAU DES RÃ‰CLAMATIONS */}
         <div className="bg-slate-950/40 rounded-[4rem] border border-white/5 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] backdrop-blur-3xl">
           <table className="w-full text-left">
             <thead className="bg-white/5 text-[10px] font-black uppercase text-slate-500 italic tracking-[0.2em]">
               <tr>
-                <th className="p-10">Objet / Référence Scellée</th>
-                <th className="p-10">Processus Impacté</th>
+                <th className="p-10">Objet / RÃ©fÃ©rence ScellÃ©e</th>
+                <th className="p-10">Processus ImpactÃ©</th>
                 <th className="p-10 text-center">Statut Flux</th>
-                <th className="p-10 text-right">Contrôle</th>
+                <th className="p-10 text-right">ContrÃ´le</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 italic uppercase font-black text-xs">
@@ -230,7 +230,7 @@ export default function ReclamationsPage() {
                     </p>
                   </td>
                   <td className="p-10 text-blue-500/80">
-                    {r.REC_Processus?.PR_Libelle || "NON ASSIGNÉ"}
+                    {r.REC_Processus?.PR_Libelle || "NON ASSIGNÃ‰"}
                   </td>
                   <td className="p-10 text-center">
                     <span
@@ -259,7 +259,7 @@ export default function ReclamationsPage() {
             <div className="py-32 text-center opacity-20">
               <ShieldCheck size={80} className="mx-auto mb-4" />
               <p className="font-black uppercase tracking-[0.4em]">
-                Aucune donnée détectée
+                Aucune donnÃ©e dÃ©tectÃ©e
               </p>
             </div>
           )}
@@ -291,7 +291,7 @@ export default function ReclamationsPage() {
                     Traitement <span className="text-blue-500">SMI</span>
                   </h2>
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2">
-                    Dossier de non-conformité opérationnel
+                    Dossier de non-conformitÃ© opÃ©rationnel
                   </p>
                 </div>
                 <button
@@ -321,12 +321,12 @@ export default function ReclamationsPage() {
                     >
                       <option value="NOUVELLE">Nouvelle</option>
                       <option value="EN_COURS">En cours</option>
-                      <option value="REGLEE">Réglée</option>
+                      <option value="REGLEE">RÃ©glÃ©e</option>
                     </select>
                   </div>
                   <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 flex flex-col justify-center">
                     <p className="text-[9px] font-black text-slate-500 uppercase mb-2 tracking-widest">
-                      Référence Indexée
+                      RÃ©fÃ©rence IndexÃ©e
                     </p>
                     <p className="text-sm font-black uppercase text-white tracking-tighter truncate">
                       {selectedRec.REC_Reference}
@@ -339,12 +339,12 @@ export default function ReclamationsPage() {
                 >
                   <h4 className="text-[10px] font-black text-slate-500 uppercase mb-8 flex items-center gap-3 tracking-[0.4em] italic leading-none">
                     <ShieldCheck size={18} className="text-blue-500" />{" "}
-                    Responsabilité & Ancrage
+                    ResponsabilitÃ© & Ancrage
                   </h4>
                   <div className="space-y-8">
                     <div className="space-y-3">
                       <label className="text-[9px] font-black text-slate-500 uppercase ml-4">
-                        Objet de l&apos;écart
+                        Objet de l&apos;Ã©cart
                       </label>
                       <input
                         readOnly={!isEditing}
@@ -362,7 +362,7 @@ export default function ReclamationsPage() {
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <label className="text-[9px] font-black text-slate-500 uppercase ml-4">
-                          Partie Intéressée (Tier)
+                          Partie IntÃ©ressÃ©e (Tier)
                         </label>
                         <select
                           disabled={!isEditing}
@@ -384,7 +384,7 @@ export default function ReclamationsPage() {
                       </div>
                       <div className="space-y-3">
                         <label className="text-[9px] font-black text-slate-500 uppercase ml-4">
-                          Date de Résolution
+                          Date de RÃ©solution
                         </label>
                         <input
                           type="date"
@@ -407,7 +407,7 @@ export default function ReclamationsPage() {
                   </div>
                 </div>
 
-                {/* ZONE ANALYTIQUE (§10.2) */}
+                {/* ZONE ANALYTIQUE (Â§10.2) */}
                 <div className="p-12 bg-slate-900/60 rounded-[4rem] border border-white/5 space-y-8">
                   <h4 className="text-[11px] font-black text-blue-500 uppercase italic flex items-center gap-3 tracking-[0.3em]">
                     <BarChart3 size={20} /> Analyse des Causes & Solutions
@@ -427,7 +427,7 @@ export default function ReclamationsPage() {
 
                   <div className="space-y-6">
                     <label className="text-[10px] font-black text-slate-600 uppercase italic tracking-widest">
-                      Documents de Preuve (§7.5)
+                      Documents de Preuve (Â§7.5)
                     </label>
                     {selectedRec.REC_PreuveURL ? (
                       <div className="flex items-center justify-between p-8 bg-emerald-500/5 border border-emerald-500/20 rounded-[2.5rem] group">
@@ -479,7 +479,7 @@ export default function ReclamationsPage() {
                         />
                         <UploadCloud size={40} className="text-slate-700" />
                         <p className="text-[10px] font-black uppercase text-slate-500 italic tracking-[0.4em]">
-                          Déposer la preuve digitale
+                          DÃ©poser la preuve digitale
                         </p>
                       </div>
                     )}
@@ -505,7 +505,7 @@ export default function ReclamationsPage() {
                       onClick={() => setIsEditing(true)}
                       className="w-full py-8 bg-white/5 border border-white/10 text-white rounded-[3rem] font-black uppercase text-sm hover:bg-white/10 transition-all flex items-center justify-center gap-4 border-none cursor-pointer italic shadow-xl"
                     >
-                      <Edit3 size={24} /> Ouvrir le dossier en édition
+                      <Edit3 size={24} /> Ouvrir le dossier en Ã©dition
                     </button>
                   )}
                 </div>
@@ -518,7 +518,7 @@ export default function ReclamationsPage() {
   );
 }
 
-// --- MODAL DE CRÉATION ÉLITE ---
+// --- MODAL DE CRÃ‰ATION Ã‰LITE ---
 function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
   const [form, setForm] = useState({
     REC_Object: "",
@@ -548,11 +548,11 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
         REC_SolutionProposed: form.REC_SolutionProposed || "",
       };
       await apiClient.post("/reclamations", payload);
-      toast.success("Réclamation enregistrée au registre SDE");
+      toast.success("RÃ©clamation enregistrÃ©e au registre SDE");
       onRefresh();
       onClose();
     } catch (err: any) {
-      toast.error("Échec de l'initialisation du dossier");
+      toast.error("Ã‰chec de l'initialisation du dossier");
     } finally {
       setSaving(false);
     }
@@ -576,7 +576,7 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
         <div className="space-y-6">
           <input
             required
-            placeholder="OBJET DE LA RÉCLAMATION"
+            placeholder="OBJET DE LA RÃ‰CLAMATION"
             className="w-full bg-white/5 border border-white/10 p-7 rounded-2xl font-black italic outline-none focus:border-blue-500 text-white uppercase text-sm tracking-tight transition-all"
             value={form.REC_Object}
             onChange={(e) =>
@@ -592,7 +592,7 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
               onChange={(e) => setForm({ ...form, REC_TierId: e.target.value })}
             >
               <option value="" className="bg-slate-900">
-                -- PARTIE INTÉRESSÉE --
+                -- PARTIE INTÃ‰RESSÃ‰E --
               </option>
               {tiers.map((t: any) => (
                 <option key={t.TR_Id} value={t.TR_Id} className="bg-slate-900">
@@ -621,7 +621,7 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
 
           <div className="space-y-3 text-left">
             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4">
-              Échéance Target (ISO)
+              Ã‰chÃ©ance Target (ISO)
             </label>
             <input
               type="date"
@@ -635,7 +635,7 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
 
           <textarea
             required
-            placeholder="DESCRIPTION CIRCONSTANCIELLE DE L'ÉCART"
+            placeholder="DESCRIPTION CIRCONSTANCIELLE DE L'Ã‰CART"
             rows={4}
             className="w-full bg-white/5 border border-white/10 p-7 rounded-3xl font-bold outline-none text-white italic text-sm leading-relaxed transition-all focus:border-blue-500"
             value={form.REC_Description}
@@ -656,14 +656,14 @@ function CreateModal({ onClose, onRefresh, tiers, processus }: any) {
             ) : (
               <ShieldCheck size={24} />
             )}{" "}
-            Initialiser la Réclamation
+            Initialiser la RÃ©clamation
           </button>
           <button
             type="button"
             onClick={onClose}
             className="text-slate-600 text-[11px] font-black uppercase tracking-[0.4em] hover:text-white transition-all text-center border-none bg-transparent cursor-pointer italic"
           >
-            Annuler la procédure
+            Annuler la procÃ©dure
           </button>
         </div>
       </form>

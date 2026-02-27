@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from '@/core/providers/auth-provider';
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { 
@@ -16,7 +16,7 @@ import {
 import apiClient from "@/core/api/api-client";
 import { AxiosError } from "axios";
 
-// --- INTERFACES ÉLITE ---
+// --- INTERFACES Ã‰LITE ---
 interface TenantMatrix {
   T_Id: string;
   T_Name: string;
@@ -34,14 +34,14 @@ interface ApiErrorResponse {
 }
 
 export default function MatrixDashboard() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useAuth();
   const router = useRouter();
   const [tenants, setTenants] = useState<TenantMatrix[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [query, setQuery] = useState<string>("");
 
   /**
-   * 📡 SYNCHRONISATION MATRIX
+   * ðŸ“¡ SYNCHRONISATION MATRIX
    */
   const fetchTenants = useCallback(async (): Promise<void> => {
     try {
@@ -49,7 +49,7 @@ export default function MatrixDashboard() {
       setTenants(data);
     } catch (exception: unknown) {
       const axiosError = exception as AxiosError<ApiErrorResponse>;
-      const message = axiosError.response?.data?.message || "Échec de synchronisation avec le cluster.";
+      const message = axiosError.response?.data?.message || "Ã‰chec de synchronisation avec le cluster.";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -57,12 +57,12 @@ export default function MatrixDashboard() {
   }, []);
 
   /**
-   * 🛡️ PROTECTION ET CHARGEMENT
+   * ðŸ›¡ï¸ PROTECTION ET CHARGEMENT
    */
   useEffect(() => {
-    if (status === "loading") return;
+    if (isLoading) return;
 
-    if (status === "unauthenticated" || session?.user?.U_Role !== "SUPER_ADMIN") {
+    if (status === "unauthenticated" || user?.U_Role !== "SUPER_ADMIN") {
       router.replace("/auth/login");
       return;
     }
@@ -71,21 +71,21 @@ export default function MatrixDashboard() {
   }, [status, session, router, fetchTenants]);
 
   /**
-   * 🔑 IMPERSONATION SOUVERAINE
+   * ðŸ”‘ IMPERSONATION SOUVERAINE
    */
   const onImpersonate = async (tenantId: string): Promise<void> => {
-    const toastId = toast.loading("Génération du jeton souverain...");
+    const toastId = toast.loading("GÃ©nÃ©ration du jeton souverain...");
     try {
       const { data } = await apiClient.post<{ access_token: string }>(`/admin/matrix/impersonate/${tenantId}`);
       
-      // Stockage sécurisé du jeton maître
+      // Stockage sÃ©curisÃ© du jeton maÃ®tre
       localStorage.setItem("master_token", data.access_token);
-      toast.success("Autorisation accordée. Redirection...", { id: toastId });
+      toast.success("Autorisation accordÃ©e. Redirection...", { id: toastId });
       
       router.push("/dashboard");
     } catch (exception: unknown) {
       const axiosError = exception as AxiosError<ApiErrorResponse>;
-      const message = axiosError.response?.data?.message || "Accès régalien refusé.";
+      const message = axiosError.response?.data?.message || "AccÃ¨s rÃ©galien refusÃ©.";
       toast.error(message, { id: toastId });
     }
   };
@@ -108,7 +108,7 @@ export default function MatrixDashboard() {
           </span>
         </div>
         <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/10 text-[10px] font-black uppercase text-slate-400">
-          Super-Admin Node | {session?.user?.U_Email}
+          Super-Admin Node | {user?.U_Email}
         </div>
       </nav>
 
@@ -116,7 +116,7 @@ export default function MatrixDashboard() {
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
           <div className="space-y-4">
             <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none italic">Matrix</h1>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em]">Souveraineté et Surveillance des Instances</p>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em]">SouverainetÃ© et Surveillance des Instances</p>
           </div>
           <div className="relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={18} />

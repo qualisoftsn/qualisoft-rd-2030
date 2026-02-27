@@ -1,13 +1,13 @@
 # ==============================================================================
-# 🛰️ QUALISOFT ELITE RD 2030 - ARCHITECTURE FÉDÉRÉE
-# STRATÉGIE : Isolation Multi-Tenant & Persistance Souveraine
+# 🛰️ QUALISOFT ELITE RD 2030 - ARCHITECTURE FÉDÉRÉE (OPTIMISÉE)
+# STRATÉGIE : Isolation Multi-Tenant & Pilotage Vitrine Centralisé
 # ==============================================================================
 
 services:
-  # 🗄️ LE COEUR DE DONNÉES
+  # 🗄️ LE COEUR DE DONNÉES (POSTGRESQL)
   db:
     image: postgres:16-alpine
-    container_name: qualisoft-db # Sync avec DATABASE_URL
+    container_name: qualisoft-db
     restart: always
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
@@ -23,7 +23,7 @@ services:
     networks:
       - qualisoft_network
 
-  # 🧠 LE NOYAU API (NestJS)
+  # 🧠 LE NOYAU API (NestJS - Matrix Engine)
   backend:
     build: 
       context: ./backend
@@ -39,9 +39,8 @@ services:
       - NODE_ENV=production
       - PORT=9000
       - JWT_SECRET=${JWT_SECRET}
-      # 🚩 CORS : On autorise tout le domaine qualisoft.sn
+      # 🚩 CORS : Ajout de la vitrine qualisoft.sn pour le Web Publisher
       - FRONTEND_URL=https://qualisoft.sn,https://app.qualisoft.sn,https://qs.qualisoft.sn,https://pad.qualisoft.sn,https://sagam.qualisoft.sn
-      - JWT_EXPIRES_IN=30d
     ports:
       - "9000:9000"
     depends_on:
@@ -50,7 +49,7 @@ services:
     networks:
       - qualisoft_network
 
-  # 💻 LE COCKPIT (Next.js)
+  # 💻 LE COCKPIT ELITE (Next.js - Admin & Matrix Control)
   frontend:
     build:
       context: ./frontend
@@ -62,18 +61,31 @@ services:
         limits:
           memory: 4G
     environment:
-      # 🚩 URLs PUBLIQUES (Utilisées par le navigateur)
       - NEXT_PUBLIC_API_URL=https://api.qualisoft.sn/api
       - NEXT_PUBLIC_APP_NAME=Qualisoft Elite
-      
-      # 🚩 CONFIGURATION NEXTAUTH (Indispensable pour le scellage des cookies)
-      - NEXTAUTH_URL=https://qualisoft.sn
-      - NEXTAUTH_SECRET=${JWT_SECRET}
-      
-      # 🚩 RÉSEAU INTERNE (Tunnel Docker)
+      # 🚩 SESSION QUALISOFT (Remplacement NextAuth par ton système JWT)
+      - SESSION_SECRET=${JWT_SECRET}
       - API_URL_INTERNAL=http://qualisoft-backend:9000/api
     ports:
       - "3001:3001"
+    depends_on:
+      - backend
+    networks:
+      - qualisoft_network
+
+  # 🌐 LA VITRINE PUBLIQUE (qualisoft.sn)
+  # À ajouter si tu veux piloter les deux via le même docker-compose
+  vitrine:
+    build:
+      context: ../qualisoft-vitrine
+      dockerfile: Dockerfile
+    container_name: qualisoft-vitrine-prod
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=https://api.qualisoft.sn/api # Pour les appels client
+      - API_URL_INTERNAL=http://qualisoft-backend:9000/api # Pour les appels serveur (ISR)
+    ports:
+      - "3000:3000"
     depends_on:
       - backend
     networks:

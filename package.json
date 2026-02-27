@@ -9,20 +9,37 @@
     "npm": ">=10.0.0"
   },
   "scripts": {
+    "preinstall": "node -e \"if(!process.version.startsWith('v20')){console.error('\\x1b[31m[!] ERREUR CRITIQUE : Qualisoft nécessite Node 20 LTS.\\x1b[0m');process.exit(1)}\"",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "dev:all": "concurrently \"npm run start:dev --prefix backend\" \"npm run dev --prefix frontend\"",
-    "preinstall": "node -e \"if(!process.version.startsWith('v20')){console.error('\\x1b[31m[!] ERREUR CRITIQUE : Qualisoft nécessite Node 20 LTS.\\x1b[0m');process.exit(1)}\""
+    "dev:all": "concurrently -n \"BACK,FRONT\" -c \"cyan,magenta\" \"npm run start:dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "build:all": "concurrently \"npm run build --prefix backend\" \"npm run build --prefix frontend\"",
+    "clean:matrix": "rimraf .next node_modules && cd frontend && rimraf .next node_modules && cd ../backend && rimraf dist node_modules",
+    "lint": "next lint"
   },
   "dependencies": {
-    "axios": "^1.13.2",
-    "bcryptjs": "^3.0.3",
-    "form-data": "^4.0.5",
-    "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^7.0.12"
+    "@prisma/client": "^6.19.2",
+    "axios": "^1.7.0",
+    "bcryptjs": "^2.4.3",
+    "form-data": "^4.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.575.0",
+    "next": "14.2.3",
+    "nodemailer": "^6.9.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
-    "@jest/globals": "^30.2.0",
-    "@types/nodemailer": "^7.0.5",
-    "concurrently": "^9.1.0"
+    "@jest/globals": "^29.7.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.19.34",
+    "@types/nodemailer": "^6.4.15",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "concurrently": "^8.2.2",
+    "prisma": "^6.19.2",
+    "rimraf": "^5.0.7",
+    "typescript": "^5.4.5"
   }
 }

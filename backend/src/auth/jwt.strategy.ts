@@ -1,18 +1,33 @@
 /**
  * 🛰️ JWT STRATEGY - QUALISOFT ELITE RD 2030
  * RÔLE : Déchiffrement et validation du jeton pour chaque requête.
- * VERSION : 2.1.0 (Alignée sur le protocole Multi-Tenant)
+ * VERSION : 2.1.1 (Correction Typescript & Alignement Multi-Tenant)
  */
 
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuthPayload } from './auth.service';
 
-// Interface étendue pour inclure les champs standards du JWT
-interface JwtDecodedPayload extends AuthPayload {
+// 🚩 DÉFINITION LOCALE DES INTERFACES POUR GARANTIR LE BUILD
+// Cela évite les conflits si AuthPayload dans auth.service n'est pas à jour
+export interface AuthPayload {
+  U_Id: string;
+  U_Email: string;
+  U_Role: string;
+  tenantId: string;
+  U_TenantDomain: string;
+  assignedProcessId?: string | null;
+}
+
+interface JwtDecodedPayload {
+  U_Id?: string;
   sub?: string;
+  U_Email: string;
+  U_Role: string;
+  tenantId: string;
+  U_TenantDomain: string;
+  assignedProcessId?: string;
   iat?: number;
   exp?: number;
 }
@@ -29,6 +44,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     super({
+      // ✅ Récupération via Header Bearer pour l'API
+      // ✅ On peut aussi ajouter un extracteur de cookie si nécessaire pour la Vitrine
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: secret,
@@ -48,8 +65,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         U_Id: 'CORE_MASTER',
         U_Email: payload.U_Email || 'ab.thiongane@qualisoft.sn',
         U_Role: 'SUPER_ADMIN',
-        tenantId: 'MATRIX', // 🚩 CORRECTION CRITIQUE : Aligné sur les Guards
-        U_TenantDomain: payload.U_TenantDomain || 'elite', // 🚩 CORRECTION : Indispensable pour TS et Routage
+        tenantId: 'MATRIX',
+        U_TenantDomain: payload.U_TenantDomain || 'elite',
         assignedProcessId: null
       };
     }
@@ -66,12 +83,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Territoire non identifié.');
     }
 
-    // 🚩 RETOUR DU PAYLOAD SCELLÉ (Répond à l'interface AuthPayload)
+    // 🚩 RETOUR DU PAYLOAD SCELLÉ
     return {
       U_Id: userId,
       U_Email: payload.U_Email,
       tenantId: payload.tenantId,
-      U_TenantDomain: payload.U_TenantDomain, // 🚩 CORRECTION : Répond à l'erreur TS2741
+      U_TenantDomain: payload.U_TenantDomain,
       U_Role: payload.U_Role,
       assignedProcessId: payload.assignedProcessId || null
     };

@@ -15,10 +15,10 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession } from 'next-auth/react'; // 👈 AJOUT CRUCIAL
+import { useAuth } from '@/core/providers/auth-provider'; // ðŸ‘ˆ AJOUT CRUCIAL
 
 /**
- * 🛰️ INTERFACES SOUVERAINES (Scellées)
+ * ðŸ›°ï¸ INTERFACES SOUVERAINES (ScellÃ©es)
  */
 interface SlimNavItemProps {
   href: string;
@@ -31,16 +31,16 @@ interface SlimNavItemProps {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
-  // On récupère la session NextAuth (le cookie SDE)
-  const { data: session, status } = useSession();
+  // On rÃ©cupÃ¨re la session NextAuth (le cookie SDE)
+  const { data: session, status } = useAuth();
   
-  // On récupère le store local (Zustand)
+  // On rÃ©cupÃ¨re le store local (Zustand)
   const { user, token, logout, setLogin } = useAuthStore();
   
   const [hasMounted, setHasMounted] = useState(false);
 
   /**
-   * 🛰️ ACTIVATION SCELLÉE DU MONTAGE
+   * ðŸ›°ï¸ ACTIVATION SCELLÃ‰E DU MONTAGE
    * On utilise requestAnimationFrame pour sortir du cycle de rendu synchrone.
    */
   useEffect(() => {
@@ -51,14 +51,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   /**
-   * 🔄 RÉHYDRATATION DE LA SESSION (LA CORRECTION DU VIDE)
-   * Si NextAuth a trouvé un cookie (status authenticated) mais que le Store est vide,
-   * on injecte les données de NextAuth dans le Store immédiatement.
+   * ðŸ”„ RÃ‰HYDRATATION DE LA SESSION (LA CORRECTION DU VIDE)
+   * Si NextAuth a trouvÃ© un cookie (status authenticated) mais que le Store est vide,
+   * on injecte les donnÃ©es de NextAuth dans le Store immÃ©diatement.
    */
   useEffect(() => {
-    if (status === "authenticated" && session?.user && !user) {
-      console.log("🔄 Réhydratation automatique de l'identité SDE...");
-      // On force la mise à jour du store avec les données du cookie
+    if (status === "authenticated" && user && !user) {
+      console.log("ðŸ”„ RÃ©hydratation automatique de l'identitÃ© SDE...");
+      // On force la mise Ã  jour du store avec les donnÃ©es du cookie
       setLogin(session.user as any); 
     }
   }, [status, session, user, setLogin]);
@@ -66,8 +66,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const SUPER_ADMIN_EMAIL = "ab.thiongane@qualisoft.sn";
 
   const isSuperAdmin = useMemo(() => {
-    // On vérifie d'abord la session, puis le user du store
-    const currentUser = user || session?.user;
+    // On vÃ©rifie d'abord la session, puis le user du store
+    const currentUser = user || user;
     
     if (!currentUser) return false;
     
@@ -75,7 +75,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ? localStorage.getItem('master_access') === 'true' 
       : false;
 
-    // Conversion de type sécurisée (Supporte structure Store et Session)
+    // Conversion de type sÃ©curisÃ©e (Supporte structure Store et Session)
     const uEmail = (currentUser as any).U_Email || (currentUser as any).email;
     const uRole = (currentUser as any).U_Role;
 
@@ -87,10 +87,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, session]);
 
   const initials = useMemo(() => {
-    const currentUser = user || session?.user;
+    const currentUser = user || user;
     if (!currentUser) return "QS";
     
-    // Typage dynamique pour gérer les différences Store/Session
+    // Typage dynamique pour gÃ©rer les diffÃ©rences Store/Session
     const uFirst = (currentUser as any).U_FirstName;
     const uLast = (currentUser as any).U_LastName;
     const uEmail = (currentUser as any).U_Email || (currentUser as any).email;
@@ -110,8 +110,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  // 1. Écran de chargement (On attend que NextAuth ait fini de vérifier le cookie)
-  if (!hasMounted || status === "loading") {
+  // 1. Ã‰cran de chargement (On attend que NextAuth ait fini de vÃ©rifier le cookie)
+  if (!hasMounted || isLoading) {
     return (
       <div className="min-h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -122,13 +122,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // 2. Barrière de Sécurité (Redirection si non connecté NI dans le store NI dans la session)
+  // 2. BarriÃ¨re de SÃ©curitÃ© (Redirection si non connectÃ© NI dans le store NI dans la session)
   // On est strict : si NextAuth dit "unauthenticated", c'est fini.
   if (status === "unauthenticated") {
     return (
       <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center font-sans italic">
         <div className="text-center">
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mb-6">Identité non validée</p>
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mb-6">IdentitÃ© non validÃ©e</p>
           <Link href="/auth/login" className="px-10 py-4 bg-blue-600 rounded-2xl text-white text-[10px] font-black uppercase shadow-2xl hover:bg-blue-500 transition-all">
             Retourner au Portail
           </Link>
@@ -138,10 +138,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   // Si le user n'est pas encore dans le store mais qu'on a la session, on affiche temporairement
-  // le layout avec les données de session en attendant que le useEffect fasse le setLogin.
-  const currentUser = user || (session?.user as any);
+  // le layout avec les donnÃ©es de session en attendant que le useEffect fasse le setLogin.
+  const currentUser = user || (user as any);
 
-  if (!currentUser) return null; // Sécurité ultime
+  if (!currentUser) return null; // SÃ©curitÃ© ultime
 
   return (
     <div className="h-screen bg-[#0B0F1A] flex italic selection:bg-blue-600/30 font-sans overflow-hidden">
@@ -203,7 +203,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex items-center gap-3">
               <ShieldCheck size={12} className={isSuperAdmin ? "text-amber-500" : "text-blue-500"} />
               <span className="text-[8px] font-black text-slate-400 uppercase italic">
-                {isSuperAdmin ? 'Noyau Maître' : 'Certifié ISO 9001:2015'}
+                {isSuperAdmin ? 'Noyau MaÃ®tre' : 'CertifiÃ© ISO 9001:2015'}
               </span>
             </div>
           </footer>
