@@ -1,8 +1,6 @@
 /**
  * CHEMIN ABSOLU : /src/store/authStore.ts
- * RÔLE : Store souverain Zustand avec persistance et synchronisation Middleware.
  */
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
@@ -40,8 +38,7 @@ export const useAuthStore = create<AuthState>()(
 
       setLogin: (data) => {
         if (typeof window !== 'undefined') {
-          // Scellage du cookie pour le Middleware Next.js
-          document.cookie = `qualisoft_token=${data.token}; Path=/; Max-Age=86400; SameSite=Strict; Secure`;
+          document.cookie = `qualisoft_token=${data.token}; Path=/; Max-Age=86400; SameSite=Lax; Secure`;
         }
         set({ 
           token: data.token, 
@@ -59,19 +56,13 @@ export const useAuthStore = create<AuthState>()(
           sessionStorage.clear();
           document.cookie = "qualisoft_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
         }
-        set({ 
-          token: null, 
-          tenantId: null, 
-          user: null,
-          isAuthenticated: false
-        });
+        set({ token: null, tenantId: null, user: null, isAuthenticated: false });
       },
     }),
     { 
       name: 'qualisoft-auth-storage', 
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
-        // Cette fonction s'exécute après la lecture du localStorage
         if (state) {
           state.setInitialized(true);
           state.isAuthenticated = !!state.token;
