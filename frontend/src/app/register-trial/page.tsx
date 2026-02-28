@@ -130,7 +130,7 @@ export default function LandingPage() {
         {/* FOND IMMERSIF */}
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <img
-            src="/qs_fondecran.webp"
+            src="/images/qs_fondecran.webp"
             alt="Qualisoft Sovereign Background"
             className="w-full h-full object-cover scale-110 blur-sm"
           />

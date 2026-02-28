@@ -74,7 +74,7 @@ export default function ResourceDownloadPage() {
       {/* --- BACKGROUND MATRIX --- */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         <img
-          src="/qs_fondecran.webp"
+          src="/images/qs_fondecran.webp"
           alt="Matrix"
           className="w-full h-full object-cover"
         />
