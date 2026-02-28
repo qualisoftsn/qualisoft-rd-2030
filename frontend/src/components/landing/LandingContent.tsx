@@ -116,7 +116,7 @@ export default function LandingContent() {
         <div className="flex items-center gap-5">
           <div className="h-12 w-auto flex items-center justify-center relative group">
             <img
-              src="/QSLogo.PNG"
+              src="/qslogo.png"
               alt="Qualisoft Logo"
               className="h-full w-auto object-contain filter brightness-110 group-hover:scale-105 transition-transform duration-500"
             />
@@ -144,7 +144,7 @@ export default function LandingContent() {
       <section className="relative pt-56 pb-12 px-6 overflow-hidden text-center">
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <img
-            src="/QS_FondEcran.webp"
+            src="/qs_fondecran.webp"
             alt="Fond Matrix"
             className="w-full h-full object-cover"
           />
@@ -243,14 +243,14 @@ export default function LandingContent() {
               <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">QS Matrix V2</span>
               <h4 className="text-lg font-black italic uppercase leading-tight">Cockpit Opérationnel</h4>
             </div>
-            <img src="/QS_cockpit.jpg" alt="Cockpit" className="w-full h-auto opacity-80 group-hover:opacity-100 transition-opacity" />
+            <img src="/qs_cockpit.jpg" alt="Cockpit" className="w-full h-auto opacity-80 group-hover:opacity-100 transition-opacity" />
           </div>
           <div className="group relative rounded-[2.5rem] overflow-hidden border border-white/10 bg-slate-900/50 shadow-2xl transition-all hover:scale-[1.02]">
             <div className="p-6 text-left">
               <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">Intelligence Stratégique</span>
               <h4 className="text-lg font-black italic uppercase leading-tight">Revue de Direction</h4>
             </div>
-            <img src="/QS_Revuedirection.jpg" alt="Revue" className="w-full h-auto opacity-80 group-hover:opacity-100 transition-opacity" />
+            <img src="/qs_revuedirection.jpg" alt="Revue" className="w-full h-auto opacity-80 group-hover:opacity-100 transition-opacity" />
           </div>
           <div className="group relative rounded-[2.5rem] overflow-hidden border border-white/10 bg-slate-900/50 shadow-2xl transition-all hover:scale-[1.02]">
             <div className="p-6 text-left">
@@ -302,7 +302,7 @@ export default function LandingContent() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-16 relative z-10 mb-20">
           <div>
             <div className="flex items-center gap-4 mb-6">
-              <img src="/QSLogo.PNG" alt="Qualisoft Elite" className="h-10 w-auto" />
+              <img src="/qslogo.png" alt="Qualisoft Elite" className="h-10 w-auto" />
               <h4 className="text-2xl font-black uppercase tracking-tighter text-white">Qualisoft <br /><span className="text-blue-600">ELITE</span></h4>
             </div>
             <p className="text-[10px] text-slate-400 uppercase font-bold italic leading-relaxed">Le standard industriel de la digitalisation QHSE avec des économies réelles.</p>

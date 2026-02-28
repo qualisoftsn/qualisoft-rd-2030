@@ -103,7 +103,7 @@ export default function DashboardRedirect() {
           Erreur de Trajectoire
         </h2>
         <p className="text-slate-500 text-xs mb-8 uppercase font-bold tracking-widest">
-          Le noyau n&apos;a pas pu déterminer votre cockpit opérationnel.
+          Le noyau n&apos;a pas pu déterminer le cockpit opérationnel.
         </p>
         <button
           onClick={() => (window.location.href = "/auth/login")}

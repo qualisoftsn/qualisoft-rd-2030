@@ -80,7 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="min-h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
         <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest animate-pulse">
-           Synchronisation Matrix...
+           Synchronisation Qualisoft Matrix OS ...
         </p>
       </div>
     );
