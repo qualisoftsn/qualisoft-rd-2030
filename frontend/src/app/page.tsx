@@ -1,49 +1,32 @@
 /**
  * 🛰️ ROOT PAGE - AIGUILLAGE MULTI-TENANT SOUVERAIN
- * RÔLE : Détecter le sous-domaine et afficher soit la Vitrine, soit le Login.
+ * -------------------------------------------------------------------------
+ * RÔLE : Distribuer l'affichage et injecter le contexte de Tenant.
  * -------------------------------------------------------------------------
  */
 
 import { headers } from "next/headers";
 import LandingContent from "@/components/landing/LandingContent";
-import LoginPage from "@/app/(auth)/login/page";
+import LoginPage from "@/app/auth/login/page";
 
 export default async function RootPage() {
-  // 1. Récupération des headers serveur
+  // 1. Récupération des étiquettes (headers) posées par le Middleware
   const headerList = await headers();
   
-  // On récupère le host (ex: sagam.qualisoft.sn) 
-  // ou le x-forwarded-host si Nginx est derrière un proxy
-  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "";
-  
-  // 2. Analyse précise du domaine
-  const parts = host.split('.');
-  const slug = parts[0].toLowerCase();
-  
-  // 3. Liste d'exclusion (Ceux qui doivent voir la Landing Page)
-  // On ajoute 'qualisoft' au cas où on accède via qualisoft.sn sans sous-domaine
-  const masterSlugs = [
-    'elite', 
-    'www', 
-    'qualisoft', 
-    'localhost', 
-    'matrix', 
-    'app'
-  ];
+  const tenantType = headerList.get("x-tenant-type") || "LANDING";
+  const tenantSlug = headerList.get("x-tenant-slug") || "vitrine";
 
-  // 🚩 LOGIQUE D'AIGUILLAGE CRITIQUE
-  
-  // Si on a un sous-domaine ET qu'il n'est pas dans la liste Master
-  // Exemple : sagam.qualisoft.sn -> parts.length est 3, slug est 'sagam'
-  const isClientTenant = parts.length >= 2 && !masterSlugs.includes(slug);
+  /**
+   * 🚩 LOGIQUE DE ROUTAGE 
+   * On utilise 'tenantSlug' pour personnaliser l'expérience client.
+   */
 
-  if (isClientTenant) {
-    // On affiche le portail de login. 
-    // Le composant LoginPage que nous avons écrit a sa propre logique
-    // pour détecter le tenant et afficher "Instance : Sagam".
-    return <LoginPage />;
+  // CAS 1 : LA VITRINE (qualisoft.sn)
+  if (tenantType === "LANDING") {
+    return <LandingContent />;
   }
 
-  // Par défaut, ou si c'est un domaine Master : on affiche la Landing
-  return <LandingContent />;
+  // CAS 2 & 3 : LES PORTAILS (MASTER OU TENANT)
+  // 🚀 On injecte le 'tenantSlug' pour que LoginPage sache qui il sert !
+  return <LoginPage tenantSlug={tenantSlug} />;
 }
