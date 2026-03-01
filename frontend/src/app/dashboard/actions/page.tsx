@@ -352,7 +352,7 @@ export default function ActionsPage() {
                         <PriorityBadge priority={action.ACT_Priority} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={action.ACT_Status} isOverdue={isOverdue} />
+                        <StatusBadge status={action.ACT_Status} isOverdue={!!isOverdue} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <ChevronRight className="h-5 w-5 text-gray-400" aria-hidden="true" />
