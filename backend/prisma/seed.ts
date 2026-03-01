@@ -1,8 +1,8 @@
 /**
  * 🛰️ PROTOCOLE DE SCELLAGE MASTER - QUALISOFT ELITE RD 2030
- * VERSION : 8.0.0 (Correction de la hiérarchie de purge)
- * RÔLE : Nettoyage atomique et reconstruction des 3 Nœuds Piliers.
- * SÉCURITÉ : Hachage Bcrypt Round 12 + Isolation stricte par TenantID.
+ * VERSION : 8.5.0 (Souveraineté Totale & Harmonisation Matrix)
+ * RÔLE : Reconstruction atomique des piliers de la Fédération Qualisoft.
+ * CIBLE : PostgreSQL (Qualisoft_DB)
  */
 
 import { PrismaClient, Plan, SubscriptionStatus, Role, ProcessFamily } from '@prisma/client';
@@ -17,38 +17,55 @@ async function seedMasterSystem(): Promise<void> {
 
   try {
     /**
-     * ⚠️ ORDRE DE SUPPRESSION CRITIQUE (Fix P2003)
-     * On supprime d'abord les "Enfants" qui pointent vers des "Parents"
+     * ⚠️ ORDRE DE SUPPRESSION CRITIQUE (Respect des contraintes P2003)
+     * On démonte l'architecture de la périphérie vers le centre.
      */
-    await prisma.processus.deleteMany();        // 1. Dépend de User (Pilote) et ProcessType
-    await prisma.user.deleteMany();             // 2. Dépend de OrgUnit, Site et Tenant
-    await prisma.orgUnit.deleteMany();          // 3. Dépend de OrgUnitType et Site
-    await prisma.processType.deleteMany();      // 4. Dépend de Tenant
-    await prisma.orgUnitType.deleteMany();      // 5. Dépend de Tenant
-    await prisma.site.deleteMany();             // 6. Dépend de Tenant
-    await prisma.tenant.deleteMany();           // 7. Racine finale
+    await prisma.processus.deleteMany();     // Niveau 4
+    await prisma.user.deleteMany();          // Niveau 3
+    await prisma.orgUnit.deleteMany();       // Niveau 2
+    await prisma.processType.deleteMany();   // Niveau 2
+    await prisma.orgUnitType.deleteMany();   // Niveau 2
+    await prisma.site.deleteMany();          // Niveau 1
+    await prisma.tenant.deleteMany();        // Racine (Niveau 0)
 
-    console.log('✨ BASE PURGÉE SANS VIOLATION DE CONTRAINTE.');
+    console.log('✨ BASE PURGÉE : PRÊTE POUR RECONSTRUCTION.');
 
     const SALT = 12;
 
-    // --- DONNÉES DE LA FÉDÉRATION (Zéro Élimination) ---
+    // --- REGISTRE DE LA FÉDÉRATION (Les 4 Piliers) ---
     const tenantsData = [
       {
-        id: 'TENANT_QS_CORP',
+        id: 'MATRIX', // 🚩 ID CRITIQUE pour la Console Master
         name: 'QUALISOFT CORPORATE',
-        domain: 'qs.qualisoft.sn',
+        domain: 'app.qualisoft.sn',
         ceo: 'Abdoulaye Thiongane',
         email: 'ab.thiongane@qualisoft.sn',
         address: '247, Rue du Lac Rose, Dakar, Sénégal',
-        phone: '77441 09 02',
+        phone: '77 441 09 02',
         plan: Plan.GROUPE,
         admin: {
           firstName: 'Abdoulaye',
           lastName: 'THIONGANE',
           email: 'ab.thiongane@qualisoft.sn',
-          password: 'mohamed1965ab1711@@@', 
+          password: 'mohamed1965ab1711@@@', // Mot de passe Souverain
           role: Role.SUPER_ADMIN
+        }
+      },
+      {
+        id: 'TENANT_SDE',
+        name: 'SÉNÉGALAISE DES EAUX',
+        domain: 'sde.qualisoft.sn',
+        ceo: 'Directeur SDE',
+        email: 'contact@sde.sn',
+        address: 'Hann, Dakar, Sénégal',
+        phone: '33 839 37 00',
+        plan: Plan.ENTREPRISE,
+        admin: {
+          firstName: 'Admin',
+          lastName: 'SDE',
+          email: 'admin.iso@sde.sn',
+          password: 'sde@2026',
+          role: Role.ADMIN
         }
       },
       {
@@ -88,8 +105,9 @@ async function seedMasterSystem(): Promise<void> {
     ];
 
     for (const t of tenantsData) {
-      console.log(`📡 Partenaire validé : ${t.domain}...`);
+      console.log(`📡 SCELLAGE DU NŒUD : ${t.domain}...`);
 
+      // 1. Création du Tenant (Racine)
       const currentTenant = await prisma.tenant.create({
         data: {
           T_Id: t.id,
@@ -106,6 +124,7 @@ async function seedMasterSystem(): Promise<void> {
         },
       });
 
+      // 2. Création du Site (Siège Social)
       const currentSite = await prisma.site.create({
         data: {
           S_Id: `SITE_${t.id}`,
@@ -116,6 +135,7 @@ async function seedMasterSystem(): Promise<void> {
         },
       });
 
+      // 3. Typologie des Unités Organisationnelles
       const dirType = await prisma.orgUnitType.create({
         data: { OUT_Id: `OUT_DIR_${t.id}`, OUT_Label: 'DIRECTION', tenantId: currentTenant.T_Id }
       });
@@ -124,6 +144,7 @@ async function seedMasterSystem(): Promise<void> {
         data: { OUT_Id: `OUT_DEP_${t.id}`, OUT_Label: 'DÉPARTEMENT', tenantId: currentTenant.T_Id }
       });
 
+      // 4. Création de l'Unité Racine (DG)
       const rootUnit = await prisma.orgUnit.create({
         data: {
           OU_Id: `OU_DG_${t.id}`,
@@ -134,6 +155,7 @@ async function seedMasterSystem(): Promise<void> {
         },
       });
 
+      // 5. Architecture des Processus (Cartographie)
       const pilotageType = await prisma.processType.create({
         data: {
           PT_Id: `PT_PIL_${t.id}`,
@@ -154,6 +176,7 @@ async function seedMasterSystem(): Promise<void> {
         }
       });
 
+      // 6. Création de l'Administrateur Souverain du Nœud
       const hashedPassword = await bcrypt.hash(t.admin.password, SALT);
       const adminUser = await prisma.user.create({
         data: {
@@ -171,6 +194,7 @@ async function seedMasterSystem(): Promise<void> {
         },
       });
 
+      // 7. Initialisation des Processus Standards ISO
       const procs = [
         { id: `PR_SMI_${t.id}`, code: 'PR-SMI', libelle: 'Amélioration Continue', typeId: pilotageType.PT_Id },
         { id: `PR_RH_${t.id}`, code: 'PR-RH', libelle: 'Ressources Humaines', typeId: supportType.PT_Id },
