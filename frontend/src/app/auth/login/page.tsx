@@ -20,11 +20,13 @@ import apiClient from '@/core/api/api-client';
 import { useAuthStore } from '@/store/authStore';
 import Image from 'next/image';
 
+// 🚩 AJOUT DE ISMASTER DANS L'INTERFACE
 interface LoginProps {
   tenantSlug?: string;
+  isMaster?: boolean;
 }
 
-function LoginFormContent({ tenantSlug }: LoginProps) {
+function LoginFormContent({ tenantSlug, isMaster }: LoginProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
@@ -32,7 +34,8 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
   const { setLogin, isAuthenticated } = useAuthStore();
 
   const [mode, setMode] = useState<'LOADING' | 'CHOICE' | 'LOGIN_FORM'>('LOADING');
-  const [loginType, setLoginType] = useState<'MASTER' | 'TENANT'>('TENANT');
+  // 🚩 Utilisation de isMaster pour pré-configurer le type de login
+  const [loginType, setLoginType] = useState<'MASTER' | 'TENANT'>(isMaster ? 'MASTER' : 'TENANT');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [detectedTenant, setDetectedTenant] = useState<any>(null);
@@ -52,17 +55,15 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
         const res = await apiClient.get('/public/tenants');
         const tenants = res.data;
 
-        // On utilise la priorité : 1. La prop serveur | 2. Le calcul local (fallback)
         const currentSlug = tenantSlug || (typeof window !== 'undefined' ? window.location.hostname.split('.')[0] : '');
         const slug = currentSlug.toLowerCase();
 
         const masterKeywords = ['matrix', 'elite', 'admin', 'app'];
 
-        if (masterKeywords.includes(slug)) {
+        if (isMaster || masterKeywords.includes(slug)) {
           setLoginType('MASTER');
           setMode('LOGIN_FORM');
         } else {
-          // Identification du client dans la base Matrix
           const match = tenants.find((t: any) => t.T_Domain.split('.')[0].toLowerCase() === slug);
           if (match) {
             setDetectedTenant(match);
@@ -70,7 +71,6 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
             setLoginType('TENANT');
             setMode('LOGIN_FORM');
           } else {
-            // Domaine inconnu ou vitrine : on propose le choix du portail
             setMode('CHOICE');
           }
         }
@@ -82,11 +82,10 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
     };
 
     initMatrixAuth();
-  }, [tenantSlug]);
+  }, [tenantSlug, isMaster]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (loginType === 'TENANT' && !form.tenantId) {
       toast.error('Identification de l’organisation requise.');
       return;
@@ -122,19 +121,14 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
           return;
       }
 
-      // Appel API standard
       const res = await apiClient.post('/auth/login', payload);
       const { accessToken, user, expiresIn } = res.data;
 
-      // Scellage du Cookie (Souveraineté Middleware)
       const duration = expiresIn || 28800;
       document.cookie = `qualisoft_token=${accessToken}; path=/; max-age=${duration}; Secure; SameSite=Lax`;
-
-      // Hydratation du Store global
       setLogin({ token: accessToken, user });
 
       toast.success('Autorisation confirmée.', { id: tid });
-      
       const destination = (user.U_Role === 'SUPER_ADMIN') ? '/admin/matrix' : callbackUrl;
       router.push(destination);
 
@@ -150,28 +144,17 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
     return (
       <div className="flex flex-col items-center justify-center p-20">
         <Loader2 className="animate-spin text-blue-600 h-12 w-12 mb-4" />
-        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest animate-pulse italic">
-          Identification du nœud...
-        </p>
+        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest animate-pulse italic">Identification du nœud...</p>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-lg bg-slate-900/40 border border-white/5 rounded-[3rem] p-12 shadow-2xl backdrop-blur-3xl animate-in fade-in zoom-in duration-500 relative">
-      
-      {/* 🖼️ LOGO DYNAMIQUE */}
       <div className="text-center mb-10">
         <div className="mb-6 flex justify-center">
-          <Image 
-            src="/images/qslogo.png" 
-            alt="Qualisoft Logo" 
-            width={200}
-            height={64}
-            className="h-16 w-auto drop-shadow-2xl object-contain"
-          />
+          <Image src="/images/qslogo.png" alt="Qualisoft Logo" width={200} height={64} className="h-16 w-auto drop-shadow-2xl object-contain" />
         </div>
-        
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
           {detectedTenant ? detectedTenant.T_Name : 'QUALISOFT ELITE'}
         </h1>
@@ -189,7 +172,6 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
             </div>
             <Globe className="text-slate-600 group-hover:text-indigo-500" size={28} />
           </button>
-          
           <button onClick={() => { setLoginType('TENANT'); setMode('LOGIN_FORM'); }} className="w-full bg-blue-600 p-8 rounded-4xl flex justify-between items-center hover:bg-blue-500 transition-all cursor-pointer group shadow-lg">
             <div className="text-left">
               <p className="text-[10px] text-blue-200 font-black uppercase tracking-[0.3em] mb-1">Organisation</p>
@@ -203,51 +185,21 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
           <div className="space-y-6">
             <div className="relative">
               <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-              <input 
-                required 
-                type="email" 
-                placeholder="COURRIEL" 
-                className="w-full pl-16 pr-6 py-6 bg-white/5 border border-white/10 rounded-3xl text-white outline-none focus:border-blue-500 transition-all font-bold text-sm" 
-                value={form.email} 
-                onChange={(e) => setForm({ ...form, email: e.target.value })} 
-              />
+              <input required type="email" placeholder="COURRIEL" className="w-full pl-16 pr-6 py-6 bg-white/5 border border-white/10 rounded-3xl text-white outline-none focus:border-blue-500 transition-all font-bold text-sm" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="relative">
               <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-              <input 
-                required 
-                type={showPassword ? 'text' : 'password'} 
-                placeholder="CODE D'ACCÈS" 
-                className="w-full pl-16 pr-16 py-6 bg-white/5 border border-white/10 rounded-3xl text-white outline-none focus:border-blue-500 transition-all font-bold text-sm" 
-                value={form.password} 
-                onChange={(e) => setForm({ ...form, password: e.target.value })} 
-              />
-              <button 
-                type="button" 
-                onClick={() => setShowPassword(!showPassword)} 
-                className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors cursor-pointer"
-              >
+              <input required type={showPassword ? 'text' : 'password'} placeholder="CODE D'ACCÈS" className="w-full pl-16 pr-16 py-6 bg-white/5 border border-white/10 rounded-3xl text-white outline-none focus:border-blue-500 transition-all font-bold text-sm" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors cursor-pointer">
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
-
           <div className="flex flex-col gap-6">
-            <button 
-              disabled={isLoading} 
-              type="submit" 
-              className={`w-full py-6 text-white rounded-4xl font-black uppercase text-xs tracking-widest flex justify-center items-center gap-4 cursor-pointer transition-all shadow-xl ${loginType === 'MASTER' ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'}`}
-            >
+            <button disabled={isLoading} type="submit" className={`w-full py-6 text-white rounded-4xl font-black uppercase text-xs tracking-widest flex justify-center items-center gap-4 cursor-pointer transition-all shadow-xl ${loginType === 'MASTER' ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'}`}>
               {isLoading ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={20} /> AUTORISER L&apos;ACCÈS</>}
             </button>
-            
-            <button 
-              type="button" 
-              onClick={() => setMode('CHOICE')} 
-              className="w-full text-[9px] font-black text-slate-600 uppercase tracking-widest hover:text-white transition-colors"
-            >
-              ← Changer de portail d&apos;accès
-            </button>
+            <button type="button" onClick={() => setMode('CHOICE')} className="w-full text-[9px] font-black text-slate-600 uppercase tracking-widest hover:text-white transition-colors">← Changer de portail d&apos;accès</button>
           </div>
         </form>
       )}
@@ -255,19 +207,12 @@ function LoginFormContent({ tenantSlug }: LoginProps) {
   );
 }
 
-export default function LoginPage({ tenantSlug }: LoginProps) {
+export default function LoginPage({ tenantSlug, isMaster }: LoginProps) {
   return (
     <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-4 italic font-sans relative overflow-hidden">
-      {/* Halo Matrix Background */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-125 h-125 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
-      
-      <Suspense fallback={
-        <div className="flex flex-col items-center">
-          <Loader2 className="animate-spin text-blue-600 h-12 w-12" />
-          <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-4">Ouverture du tunnel...</p>
-        </div>
-      }>
-        <LoginFormContent tenantSlug={tenantSlug} />
+      <Suspense fallback={<div className="flex flex-col items-center"><Loader2 className="animate-spin text-blue-600 h-12 w-12" /><p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-4">Ouverture du tunnel...</p></div>}>
+        <LoginFormContent tenantSlug={tenantSlug} isMaster={isMaster} />
       </Suspense>
     </div>
   );
