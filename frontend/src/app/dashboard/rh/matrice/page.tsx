@@ -251,7 +251,7 @@ export default function RHMasterMatrix() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 rounded-full bg-amber-100"></div>
-                    <span className="text-xs text-gray-700">En cours (< seuil >)</span>
+                    <span className="text-xs text-gray-700">En cours ({"< seuil >"})</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 rounded-full bg-gray-100"></div>
