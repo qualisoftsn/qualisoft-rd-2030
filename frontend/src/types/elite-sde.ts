@@ -353,6 +353,7 @@ export interface Tenant {
 }
 
 export interface User {
+  U_Competences: any;
   U_Id: string;
   U_Email: string;
   U_PasswordHash: string;
