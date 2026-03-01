@@ -465,6 +465,7 @@ export interface Action {
 }
 
 export interface PAQ {
+  PAQ_Processus: any;
   PAQ_Id: string;
   PAQ_Title: string;
   PAQ_Description?: string | null;

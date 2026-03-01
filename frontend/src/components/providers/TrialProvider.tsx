@@ -1,17 +1,20 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
- * ⏳ MODULE : TrialProvider
+ * ⏳ MODULE : TRIAL PROVIDER (GESTION DES LICENCES)
  * -------------------------------------------------------------------------
- * RÔLE : Surveillance du cycle de vie de la licence du Tenant.
- * FONCTION : Vérifie l'état de l'abonnement (TRIAL/ACTIVE) et verrouille 
- * l'accès en cas d'expiration pour protéger l'intégrité du SDE.
+ * RÔLE : Contrôle de l'accès selon l'état de l'abonnement du Tenant.
+ * FONCTION : Verrouillage automatique du SDE si la licence expire.
+ * -------------------------------------------------------------------------
+ * DATE : 01 Mars 2026 | 15:45 GMT
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
+import { useAuthStore } from '@/store/authStore';
 
 interface TrialContextType {
   isTrial: boolean;
@@ -26,61 +29,49 @@ const TrialContext = createContext<TrialContextType | null>(null);
 
 export function TrialProvider({ children }: { children: React.ReactNode }) {
   const [trialData, setTrialData] = useState<TrialContextType | null>(null);
+  const { isAuthenticated, tenantId } = useAuthStore();
   const pathname = usePathname();
   const router = useRouter();
 
-  useEffect(() => {
-    // 🛡️ SÉCURISATION BUILD : Protection contre le pathname null
-    if (!pathname) return;
+  /**
+   * 📡 PROTOCOLE DE VÉRIFICATION DE LICENCE
+   * Interroge le Kernel Matrix pour valider les droits d'usage.
+   */
+  const checkStatus = useCallback(async () => {
+    // On ne vérifie que si l'utilisateur est loggé et dans le dashboard
+    if (!isAuthenticated || !pathname?.startsWith('/dashboard')) return;
 
-    // Périmètre de surveillance : Uniquement les routes internes
-    if (!pathname.startsWith('/trial') && !pathname.startsWith('/dashboard')) {
-      return;
-    }
-
-    /**
-     * 🛰️ checkStatus
-     * Interroge le noyau Matrix pour récupérer l'état du Tenant courant.
-     * Le backend extrait le TenantId du token JWT pour garantir l'isolation.
-     */
-    const checkStatus = async () => {
-      try {
-        const res = await apiClient.get('/tenant/status');
-        
-        // Mapping de l'état du Tenant
-        const isTrialMode = res.data?.subscriptionStatus === 'TRIAL';
-        
-        setTrialData({
-          isTrial: isTrialMode,
-          daysLeft: res.data.daysLeft || 0,
-          isExpired: res.data.isExpired || false,
-          tenantName: res.data.tenantName || 'Instance Elite',
-          showBanner: isTrialMode,
-          setShowBanner: (show) => setTrialData(prev => prev ? { ...prev, showBanner: show } : null)
-        });
-        
-        // 🚨 Redirection automatique si le délai de grâce est dépassé
-        if (res.data.isExpired && !pathname.includes('/essai/expire')) {
-          router.push('/essai/expire');
-        }
-      } catch (err) {
-        // En cas d'erreur de communication, on reste silencieux pour ne pas 
-        // bloquer l'UI, mais l'accès API reste protégé par le token.
-        console.warn("Qualisoft Kernel : Erreur de synchronisation Trial.");
+    try {
+      const res = await apiClient.get('/tenant/status');
+      const data = res.data;
+      
+      const isTrialMode = data.subscriptionStatus === 'TRIAL';
+      
+      setTrialData({
+        isTrial: isTrialMode,
+        daysLeft: data.daysLeft || 0,
+        isExpired: data.isExpired || false,
+        tenantName: data.tenantName || 'Instance Elite',
+        showBanner: isTrialMode && !data.isExpired,
+        setShowBanner: (show) => setTrialData(prev => prev ? { ...prev, showBanner: show } : null)
+      });
+      
+      // 🚨 REDIRECTION SOUVERAINE : En cas d'expiration, on bloque l'usage
+      if (data.isExpired && !pathname.includes('/auth/expired')) {
+        router.push('/auth/expired');
       }
-    };
+    } catch (err) {
+      console.warn("⚠️ Qualisoft Kernel : Échec de la surveillance licence.");
+    }
+  }, [isAuthenticated, pathname, router]);
 
+  useEffect(() => {
     checkStatus();
     
-    // Fréquence de rafraîchissement (5 minutes) pour la précision du pilotage
-    const interval = setInterval(checkStatus, 300000); 
+    // Rafraîchissement toutes les 10 minutes (suffisant pour le cycle de vie)
+    const interval = setInterval(checkStatus, 600000); 
     return () => clearInterval(interval);
-  }, [pathname, router]);
-
-  // Fallback pendant l'hydratation du contexte
-  if (!trialData) {
-    return <>{children}</>;
-  }
+  }, [checkStatus]);
 
   return (
     <TrialContext.Provider value={trialData}>
@@ -89,4 +80,8 @@ export function TrialProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useTrial = () => useContext(TrialContext);
+export const useTrial = () => {
+  const context = useContext(TrialContext);
+  // Retourne un objet vide par défaut pour éviter les erreurs de déstructuration
+  return context || { isTrial: false, daysLeft: 0, isExpired: false, showBanner: false };
+};

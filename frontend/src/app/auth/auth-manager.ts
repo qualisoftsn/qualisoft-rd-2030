@@ -1,67 +1,88 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// core/auth/auth-manager.ts
+/**
+ * 🛰️ MODULE : SOUVERAIN DE SESSION (AUTH MANAGER)
+ * -------------------------------------------------------------------------
+ * RÔLE : Gestion de la logique de domaine et cycle de vie des jetons.
+ * SÉCURITÉ : Zéro persistance locale (In-Memory Only) / Anti-XSS.
+ * -------------------------------------------------------------------------
+ * DATE : 01 Mars 2026 | 15:10 GMT
+ */
+
 class AuthManager {
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
-  private refreshPromise: Promise<void> | null = null; // ✅ CORRECTION 1 : Promise<void> au lieu de Promise<string>
+  private refreshPromise: Promise<void> | null = null;
   private onTokenChangeCallbacks: Array<(token: string | null) => void> = [];
   private isAuthenticated = false;
-  private currentTenantSlug: string | null = null;
   private isMasterSession = false;
 
-  // ✅ DÉTECTION DU TENANT COURANT VIA SOUS-DOMAINE
+  /**
+   * 🌐 DÉTECTION DU NŒUD (TENANT) COURANT
+   * Analyse l'URL pour déterminer si nous sommes sur le Matrix ou un Tenant.
+   */
   getCurrentTenantSlug(): string {
     if (typeof window === 'undefined') return 'matrix';
     
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
     
-    if (parts[0] === 'matrix') return 'matrix';
-    if (parts.length > 2 && parts[1] === 'qualisoft' && parts[2] === 'sn') {
+    // Cas local ou matrix.qualisoft.sn
+    if (parts[0] === 'matrix' || parts[0] === 'localhost') return 'matrix';
+    
+    // Cas sous-domaine client : [tenant].qualisoft.sn
+    if (parts.length >= 3 && parts[1] === 'qualisoft') {
       return parts[0];
     }
     
     return 'matrix';
   }
 
-  // ✅ STOCKAGE EN MÉMOIRE UNIQUEMENT (ZÉRO localStorage)
+  /**
+   * 🔑 SCÉLLAGE DU TOKEN EN MÉMOIRE
+   * @param token JWT
+   * @param expiresIn Durée de validité en secondes
+   * @param isMaster Indique si c'est une session d'Architecte
+   */
   setToken(token: string, expiresIn: number, isMaster: boolean = false) {
     this.accessToken = token;
-    this.tokenExpiry = Date.now() + expiresIn * 1000;
+    this.tokenExpiry = Date.now() + (expiresIn * 1000);
     this.isAuthenticated = true;
     this.isMasterSession = isMaster;
-    this.currentTenantSlug = this.getCurrentTenantSlug();
     this.notifyTokenChange(token);
   }
 
+  /**
+   * 📡 RÉCUPÉRATION SÉCURISÉE
+   * Gère le rafraîchissement automatique avant expiration.
+   */
   getToken(): string | null {
     if (!this.accessToken || !this.tokenExpiry) return null;
 
-    // ✅ REFRESH SILENCIEUX 60s AVANT EXPIRATION
-    if (Date.now() >= this.tokenExpiry - 60000 && !this.refreshPromise) {
-      this.silentRefresh(); // Appel fire-and-forget (pas d'await)
+    // Déclenche un refresh silencieux 2 minutes avant l'expiration
+    if (Date.now() >= this.tokenExpiry - 120000 && !this.refreshPromise) {
+      this.silentRefresh();
     }
 
     return this.accessToken;
   }
 
-  // ✅ CORRECTION 2 : Fonction VOID non-asynchrone (fire-and-forget)
+  /**
+   * 🔄 REFRESH SILENCIEUX (PROTOCOLE ARRIÈRE-PLAN)
+   * Évite la déconnexion brutale de l'utilisateur.
+   */
   silentRefresh(): void {
-    if (this.refreshPromise) return; // Évite les appels multiples
+    if (this.refreshPromise) return;
 
     this.refreshPromise = fetch('/api/auth/refresh', {
       method: 'POST',
-      credentials: 'include',
+      credentials: 'include', // Important pour envoyer le Refresh Cookie
     })
       .then(async (res) => {
-        if (!res.ok) throw new Error('Refresh échoué');
+        if (!res.ok) throw new Error('Refresh Interrompu');
         const data = await res.json();
-        // ✅ PAS DE RETURN ICI — setToken gère la mise à jour interne
         this.setToken(data.accessToken, data.expiresIn, data.isMaster);
       })
       .catch((error) => {
-        console.warn('Silent refresh failed:', error);
+        console.warn('⚠️ Session Matrix expirée :', error);
         this.clear();
       })
       .finally(() => {
@@ -69,19 +90,22 @@ class AuthManager {
       });
   }
 
+  /**
+   * 🧹 PURGE DE SESSION
+   */
   clear() {
     this.accessToken = null;
     this.tokenExpiry = null;
     this.refreshPromise = null;
     this.isAuthenticated = false;
     this.isMasterSession = false;
-    this.currentTenantSlug = null;
     this.notifyTokenChange(null);
   }
 
+  /**
+   * 👑 CONNEXION MASTER (ARCHITECTE)
+   */
   async signInMaster(password: string): Promise<void> {
-    const tid = 'master-login';
-    
     try {
       const res = await fetch('/api/auth/login-master', {
         method: 'POST',
@@ -90,41 +114,41 @@ class AuthManager {
         credentials: 'include',
       });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Accès Matrix refusé');
-      }
+      if (!res.ok) throw new Error('Autorité Matrix Refusée');
 
       const data = await res.json();
       this.setToken(data.accessToken, data.expiresIn, true);
       
+      // Redirection vers la console souveraine
       window.location.href = 'https://matrix.qualisoft.sn/admin/matrix';
-    } catch (err: any) {
-      console.error('Master login failed:', err);
+    } catch (err) {
+      console.error('Master Access Error:', err);
       throw err;
     }
   }
 
+  /**
+   * 🚪 DÉCONNEXION GLOBALE
+   */
   async signOut() {
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
-    } catch (e) {
-      console.warn('Logout API failed (cookie already cleared)', e);
     } finally {
       this.clear();
-      const currentSlug = this.getCurrentTenantSlug();
-      
-      if (currentSlug === 'matrix') {
-        window.location.href = '/login?session=master-logout';
-      } else {
-        window.location.href = `https://${currentSlug}.qualisoft.sn/login?session=logout`;
-      }
+      const slug = this.getCurrentTenantSlug();
+      // Redirection propre selon le domaine
+      const baseUrl = slug === 'matrix' ? '' : `https://${slug}.qualisoft.sn`;
+      window.location.href = `${baseUrl}/auth/login?session=logout`;
     }
   }
 
+  /**
+   * 📡 SYSTÈME D'ÉCOUTE
+   * Permet aux autres modules (comme apiClient) de réagir au changement de token.
+   */
   onTokenChange(callback: (token: string | null) => void) {
     this.onTokenChangeCallbacks.push(callback);
     return () => {
@@ -136,34 +160,24 @@ class AuthManager {
     this.onTokenChangeCallbacks.forEach((cb) => cb(token));
   }
 
-  getIsAuthenticated(): boolean {
-    return this.isAuthenticated && this.accessToken !== null && this.tokenExpiry !== null;
-  }
-
-  getIsMasterSession(): boolean {
-    return this.isMasterSession;
-  }
-
-  getCurrentTenantSlugPublic(): string {
-    return this.currentTenantSlug || 'matrix';
-  }
+  getIsAuthenticated(): boolean { return this.isAuthenticated; }
 }
 
 export const authManager = new AuthManager();
 
-// ✅ NETTOYAGE SÉCURISÉ DES TOKENS EXISTANTS DANS localStorage (migration)
+/**
+ * 🧹 MIGRATION & SÉCURITÉ : NETTOYAGE DES VESTIGES
+ * Supprime les anciens tokens stockés par erreur dans le localStorage.
+ */
 if (typeof window !== 'undefined') {
-  const oldToken = localStorage.getItem('qualisoft-auth-token');
-  const oldStorage = localStorage.getItem('qualisoft-auth-storage');
-  
-  if (oldToken || oldStorage) {
-    console.warn('🧹 Migration sécurité OVH : nettoyage des tokens obsolètes de localStorage');
-    localStorage.removeItem('qualisoft-auth-token');
-    localStorage.removeItem('qualisoft-auth-storage');
-    
-    if (sessionStorage.getItem('auth-migration-shown') !== 'true') {
-      sessionStorage.setItem('auth-migration-shown', 'true');
-      console.info('✅ Session migrée vers une méthode sécurisée (HttpOnly cookies + sous-domaines)');
-    }
-  }
+  const securityCheck = () => {
+    const keys = ['qualisoft-auth-token', 'qualisoft-auth-storage', 'token'];
+    keys.forEach(key => {
+      if (localStorage.getItem(key)) {
+        localStorage.removeItem(key);
+        console.warn(`🛡️ Sécurité Matrix : Purge de ${key} détecté dans le stockage non-sécurisé.`);
+      }
+    });
+  };
+  securityCheck();
 }

@@ -1,428 +1,461 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🛰️ POSTE DE PILOTAGE TACTIQUE - ACTION CORRECTIVE / PRÉVENTIVE
- * -------------------------------------------------------------------------
- * RÉFÉRENTIEL : types/elite-sde.ts (§10.2 ISO 9001)
- * ENVIRONNEMENT : Production - Multi-Tenant Isolation
- * CALCULS : Délais et Efficacité en temps réel (Base 2026)
- * DESIGN : Full-Space Matrix (max-w-500)
- * -------------------------------------------------------------------------
+ * FICHIER : app/(dashboard)/actions/[id]/page.tsx
+ * ===========================================================================
+ * PAGE DÉTAIL D'UNE ACTION CORRECTIVE/PRÉVENTIVE (CAPA)
+ * Rôle : Pilotage tactique et suivi d'exécution d'une action (ISO 9001 §10.2)
+ * Design : Style ClickUp professionnel (sobre, épuré, orienté productivité)
+ * Conformité : 100% schéma Prisma — zéro champ inventé
+ * Dernière mise à jour : 2026-03-01 15:45 UTC+0 (Dakar)
+ * ===========================================================================
  */
 
-"use client";
+'use client';
 
-import apiClient from "@/core/api/api-client";
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import apiClient from '@/core/api/api-client';
 import {
-  Activity,
   ArrowLeft,
   Calendar,
   CheckCircle2,
   Clock,
-  Fingerprint,
-  Info,
   Loader2,
   Printer,
   Save,
-  ShieldCheck,
+  Target,
+  User as UserIcon,
+  AlertCircle,
+  X,
   TrendingUp,
+  Info,
+  FileText,
+} from 'lucide-react';
+import { toast, Toaster } from 'sonner';
+import {
+  Action,
+  ActionStatus,
+  Priority,
+  ActionOrigin,
+  ActionType,
   User,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { use, useCallback, useEffect, useMemo, useState } from "react";
-import { toast, Toaster } from "sonner";
+  PAQ,
+  Preuve,
+} from '@/types/elite-sde';
 
-// --- 🏗️ RÉFÉRENTIEL ÉLITE-SDE STRICT ---
-import { ActionStatus, Priority } from "@/types/elite-sde";
-
-import EvidenceSection from "@/app/dashboard/action-items/[id]/evidence-section";
-
-// --- 🛠️ UTILITAIRES DE CALCUL ---
+// --- UTILITAIRE CN ---
 const cn = (...classes: (string | boolean | undefined | null)[]) =>
-  classes.filter(Boolean).join(" ");
+  classes.filter(Boolean).join(' ');
 
-const formatDate = (date: string | Date | null | undefined) => {
-  if (!date) return "00/00/0000";
-  return new Intl.DateTimeFormat("fr-FR").format(new Date(date));
-};
-
-export default function DetailActionPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function DetailActionPage() {
+  const params = useParams();
   const router = useRouter();
-  const resolvedParams = use(params);
-  const actionId = resolvedParams.id;
+  const actionId = params?.id as string;
 
-  // --- 📦 ÉTATS DE PRODUCTION ---
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [isMutating, setIsMutating] = useState<boolean>(false);
+  const [action, setAction] = useState<Action | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [paqs, setPaqs] = useState<PAQ[]>([]);
+  const [preuves, setPreuves] = useState<Preuve[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    ACT_Description: '',
+    ACT_Status: '' as ActionStatus,
+  });
 
-  // Formulaire synchrone avec le Noyau
-  const [rapport, setRapport] = useState<string>("");
-  const [currentStatus, setCurrentStatus] = useState<ActionStatus>(
-    ActionStatus.A_FAIRE,
-  );
+  // --- CHARGEMENT DES DONNÉES ---
+  const fetchData = useCallback(async () => {
+    if (!actionId) return;
 
-  /**
-   * 📡 SYNCHRONISATION KERNEL
-   */
-  const syncKernel = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get(`/actions/${actionId}`);
-      const actionData = res.data?.data || res.data;
+      const [actionRes, usersRes, paqsRes, preuvesRes] = await Promise.all([
+        apiClient.get<Action>(`/actions/${actionId}`),
+        apiClient.get<User[]>('/users'),
+        apiClient.get<PAQ[]>('/paq'),
+        apiClient.get<Preuve[]>(`/preuves?actionId=${actionId}`),
+      ]);
 
-      if (!actionData) throw new Error("NullData");
-
-      setData(actionData);
-      setRapport(actionData.ACT_Description || "");
-      setCurrentStatus(actionData.ACT_Status as ActionStatus);
-    } catch (e: any) {
-      toast.error(
-        `RUPTURE SDE : IMPOSSIBLE D'ACCÉDER À L'ACTION ${actionId.substring(0, 8)}`,
-      );
-      router.push("/dashboard/actions");
+      const actionData = actionRes.data;
+      setAction(actionData);
+      setUsers(usersRes.data || []);
+      setPaqs(paqsRes.data || []);
+      setPreuves(preuvesRes.data || []);
+      setFormData({
+        ACT_Description: actionData.ACT_Description || '',
+        ACT_Status: actionData.ACT_Status,
+      });
+    } catch (err) {
+      console.error('[ACTION_DETAIL] Failed to load ', err);
+      toast.error('Échec du chargement des détails de l\'action');
+      router.push('/dashboard/actions');
     } finally {
       setLoading(false);
     }
   }, [actionId, router]);
 
   useEffect(() => {
-    syncKernel();
-  }, [syncKernel]);
+    fetchData();
+  }, [fetchData]);
 
-  /**
-   * 📊 CALCULS DE PRODUCTION (DÉLAIS)
-   */
+  // --- STATISTIQUES EN TEMPS RÉEL ---
   const stats = useMemo(() => {
-    if (!data?.ACT_Deadline) return { daysLeft: 0, isOverdue: false };
-    const deadline = new Date(data.ACT_Deadline).getTime();
+    if (!action?.ACT_Deadline) return { daysLeft: 0, isOverdue: false };
+
+    const deadline = new Date(action.ACT_Deadline).getTime();
     const now = new Date().getTime();
     const diff = deadline - now;
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
     return {
       daysLeft: days < 0 ? Math.abs(days) : days,
-      isOverdue: days < 0,
+      isOverdue: days < 0 && action.ACT_Status !== 'TERMINEE',
     };
-  }, [data]);
+  }, [action]);
 
-  /**
-   * 💾 SCELLAGE SDE (§10.2.1)
-   */
-  const commitChanges = async () => {
-    setIsMutating(true);
-    const tid = toast.loading("TRANSMISSION AU NOYAU...");
+  // --- SOUMISSION DES MODIFICATIONS ---
+  const handleSave = async () => {
+    if (!action) return;
+
+    setIsSaving(true);
     try {
-      await apiClient.patch(`/actions/${actionId}`, {
-        ACT_Description: rapport,
-        ACT_Status: currentStatus,
-        ACT_CompletedAt:
-          currentStatus === ActionStatus.TERMINEE
-            ? new Date().toISOString()
-            : null,
-      });
-      toast.success("MUTATION SCELLÉE DANS LE SMI", { id: tid });
-      syncKernel();
-    } catch {
-      toast.error("ÉCHEC DE LA COMMUTATION SDE", { id: tid });
+      const payload: Partial<Action> = {
+        ACT_Description: formData.ACT_Description.trim() || undefined,
+        ACT_Status: formData.ACT_Status,
+      };
+
+      // Si l'action passe à "TERMINEE", on met à jour la date de complétion
+      if (formData.ACT_Status === 'TERMINEE' && action.ACT_Status !== 'TERMINEE') {
+        payload.ACT_CompletedAt = new Date().toISOString();
+      }
+
+      await apiClient.patch(`/actions/${action.ACT_Id}`, payload);
+      toast.success('Action mise à jour avec succès');
+      fetchData();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Échec de la mise à jour de l\'action';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
     } finally {
-      setIsMutating(false);
+      setIsSaving(false);
     }
   };
 
-  if (loading || !data)
+  // --- GESTION DU CHARGEMENT ---
+  if (loading || !action) {
     return (
-      <div className="ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] gap-12">
-        <Loader2
-          className="animate-spin text-blue-600"
-          size={100}
-          strokeWidth={1}
-        />
-        <span className="text-blue-500 font-black uppercase italic tracking-[1.5em] text-[12px] animate-pulse">
-          Sync Production SDE...
-        </span>
+      <div className="ml-72 flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="relative inline-block">
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-gray-600">Chargement des détails de l&apos;action...</p>
+        </div>
       </div>
     );
+  }
+
+  // --- DONNÉES CONTEXTUELLES ---
+  const responsible = users.find((u) => u.U_Id === action.ACT_ResponsableId);
+  const creator = users.find((u) => u.U_Id === action.ACT_CreatorId);
+  const paq = paqs.find((p) => p.PAQ_Id === action.ACT_PAQId);
+  const isCompleted = action.ACT_Status === 'TERMINEE';
 
   return (
-    <div className="p-16 bg-[#0B0F1A] min-h-screen ml-72 text-white italic font-sans text-left relative selection:bg-blue-600/30 overflow-x-hidden">
+    <div className="ml-72 bg-gray-50 min-h-screen p-6">
       <Toaster position="top-right" richColors />
 
-      {/* 🔝 COCKPIT HEADER (max-w-500) */}
-      <header className="mb-20 flex justify-between items-center w-full max-w-500 mx-auto border-b-4 border-white/5 pb-16">
-        <div className="flex items-center gap-12">
-          <button
-            onClick={() => router.back()}
-            className="p-8 bg-white/5 rounded-[2.5rem] hover:bg-white/10 transition-all border-2 border-white/10 cursor-pointer shadow-4xl group"
-          >
-            <ArrowLeft
-              size={36}
-              className="group-hover:-translate-x-3 transition-transform"
-              strokeWidth={3}
-            />
-          </button>
-          <div className="space-y-4">
-            <div className="flex items-center gap-6">
-              <span className="px-6 py-2 bg-blue-600/20 text-blue-500 text-[12px] font-black uppercase tracking-[0.4em] rounded-xl border-2 border-blue-500/20 shadow-inner">
-                ACTION NO: {data.ACT_Id.slice(0, 15).toUpperCase()}
-              </span>
-              <p className="text-slate-600 font-black text-[13px] uppercase tracking-[0.8em] italic leading-none">
-                Command & Control Interface
-              </p>
-            </div>
-            <h1 className="text-8xl font-black uppercase italic tracking-tighter leading-none text-white">
-              {data.ACT_Title}
-            </h1>
-          </div>
-        </div>
-
-        <div className="flex gap-10">
-          <button
-            onClick={() => window.print()}
-            className="px-16 py-8 bg-white/5 border-2 border-white/10 rounded-[3rem] text-[13px] font-black uppercase flex items-center gap-6 hover:bg-white/10 transition-all cursor-pointer italic"
-          >
-            <Printer size={32} /> Print Matrix
-          </button>
-          <button
-            onClick={commitChanges}
-            disabled={isMutating || data.ACT_Status === ActionStatus.TERMINEE}
-            className="px-24 py-8 bg-blue-600 rounded-[3rem] text-[13px] font-black uppercase flex items-center gap-8 shadow-[0_20px_60px_rgba(37,99,235,0.4)] hover:bg-white hover:text-blue-600 transition-all border-none disabled:opacity-30 cursor-pointer group active:scale-95 italic"
-          >
-            {isMutating ? (
-              <Loader2 className="animate-spin" size={32} />
-            ) : (
-              <Save size={32} />
-            )}{" "}
-            Valider CAPA
-          </button>
-        </div>
-      </header>
-
-      {/* 📊 MATRIX CORE (max-w-500) */}
-      <main className="grid grid-cols-12 gap-20 w-full max-w-500 mx-auto items-start">
-        {/* 📋 COLONNE ALPHA : MÉTADONNÉES BRUTES */}
-        <div className="col-span-12 lg:col-span-4 space-y-16">
-          {/* Commutateur de Statut Production */}
-          <div className="bg-[#151A2D] border-4 border-white/5 rounded-[6rem] p-16 shadow-4xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-16 opacity-[0.03] rotate-12">
-              <TrendingUp size={250} />
-            </div>
-
-            <h3 className="text-[14px] font-black uppercase text-slate-500 mb-12 tracking-[1em] flex items-center gap-8 italic leading-none">
-              <Activity size={28} className="text-blue-500" /> Cycle de Vie
-            </h3>
-
-            <div className="grid grid-cols-1 gap-6 relative z-10">
-              {Object.values(ActionStatus).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setCurrentStatus(s)}
-                  disabled={data.ACT_Status === ActionStatus.TERMINEE}
-                  className={cn(
-                    "p-10 rounded-[3rem] border-2 font-black uppercase italic text-[13px] tracking-[0.5em] transition-all text-left flex items-center justify-between group/btn shadow-lg",
-                    currentStatus === s
-                      ? "bg-blue-600 border-transparent text-white shadow-2xl scale-105"
-                      : "bg-black/20 border-white/5 text-slate-700 hover:border-blue-600/40 hover:text-slate-400 cursor-pointer",
-                  )}
-                >
-                  {s.replace("_", " ")}
-                  {currentStatus === s && (
-                    <CheckCircle2
-                      size={28}
-                      className="animate-in zoom-in duration-500"
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Analyse de Performance (Calculée) */}
-          <div className="bg-[#151A2D] border-4 border-white/5 rounded-[6rem] p-16 shadow-4xl space-y-12 italic relative">
-            <div className="flex items-center gap-10">
-              <div
-                className={cn(
-                  "w-24 h-24 rounded-4xl flex items-center justify-center border-2 shadow-2xl transition-all",
-                  stats.isOverdue
-                    ? "bg-red-600/10 border-red-600/20 text-red-600"
-                    : "bg-blue-600/10 border-blue-600/20 text-blue-600",
-                )}
+      <div className="mx-auto max-w-7xl space-y-8">
+        {/* 🔝 HEADER */}
+        <header className="border-b border-gray-200 pb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.back()}
+                className="rounded-full bg-gray-100 p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                aria-label="Retour"
               >
-                <Clock
-                  size={40}
-                  className={stats.isOverdue ? "animate-pulse" : ""}
-                />
-              </div>
+                <ArrowLeft className="h-5 w-5" />
+              </button>
               <div>
-                <p className="text-[12px] font-black text-slate-600 uppercase tracking-widest italic mb-2">
-                  {stats.isOverdue ? "Retard Constaté" : "Délai Restant"}
-                </p>
-                <p className="text-4xl font-black text-white uppercase tracking-tighter leading-none">
-                  {stats.daysLeft} Jours
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+                    Réf: {action.ACT_Id.slice(0, 8).toUpperCase()}
+                  </span>
+                  <span className="text-sm text-gray-500">•</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {action.ACT_Origin.replace('_', ' ')}
+                  </span>
+                </div>
+                <h1 className="mt-2 text-2xl font-bold text-gray-900">{action.ACT_Title}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                  <div className="flex items-center gap-1.5">
+                    <Target className="h-4 w-4 text-gray-400" />
+                    <span>PAQ: {paq?.PAQ_Title || 'Non assigné'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <UserIcon className="h-4 w-4 text-gray-400" />
+                    <span>
+                      Créée par {creator ? `${creator.U_FirstName} ${creator.U_LastName}` : 'Système'} le{' '}
+                      {new Date(action.ACT_CreatedAt).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-10">
-              <div className="w-24 h-24 bg-amber-600/10 rounded-4xl flex items-center justify-center border-2 border-amber-600/20 shadow-2xl">
-                <ShieldCheck size={40} className="text-amber-500" />
+            <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-0">
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                aria-label="Imprimer le rapport"
+              >
+                <Printer className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving || isCompleted}
+                className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enregistrement...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Enregistrer les modifications
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* 📊 GRID PRINCIPAL */}
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* COLONNE 1 : MÉTADONNÉES ET STATUT */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* STATUT DE L'ACTION */}
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-6">
+              <h2 className="text-sm font-semibold text-gray-900">Statut de l&apos;action</h2>
+              <div className="mt-4 space-y-3">
+                {Object.values(ActionStatus).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => !isCompleted && setFormData({ ...formData, ACT_Status: status })}
+                    disabled={isCompleted}
+                    className={cn(
+                      'w-full flex items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors',
+                      formData.ACT_Status === status
+                        ? 'bg-indigo-50 text-indigo-700 ring-2 ring-indigo-500'
+                        : 'text-gray-700 hover:bg-gray-50',
+                      isCompleted && 'cursor-not-allowed opacity-50',
+                    )}
+                  >
+                    <span>{status.replace('_', ' ')}</span>
+                    {formData.ACT_Status === status && (
+                      <CheckCircle2 className="h-5 w-5 text-indigo-600" />
+                    )}
+                  </button>
+                ))}
               </div>
-              <div>
-                <p className="text-[12px] font-black text-slate-600 uppercase tracking-widest italic mb-2">
-                  Priorité Indexée
-                </p>
-                <p
-                  className={cn(
-                    "text-3xl font-black uppercase tracking-tighter leading-none",
-                    data.ACT_Priority === Priority.CRITICAL ||
-                      data.ACT_Priority === Priority.HIGH
-                      ? "text-red-500"
-                      : "text-amber-500",
+            </div>
+
+            {/* INDICATEURS DE PERFORMANCE */}
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-6">
+              <h2 className="text-sm font-semibold text-gray-900">Indicateurs de performance</h2>
+              <div className="mt-6 space-y-6">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+                    <span>Échéance</span>
+                    <span
+                      className={cn(
+                        'font-medium',
+                        stats.isOverdue ? 'text-red-600' : 'text-gray-900',
+                      )}
+                    >
+                      {action.ACT_Deadline
+                        ? new Date(action.ACT_Deadline).toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : 'Non définie'}
+                    </span>
+                  </div>
+                  {stats.isOverdue && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-600">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <span>En retard de {stats.daysLeft} jour{stats.daysLeft > 1 ? 's' : ''}</span>
+                    </div>
                   )}
-                >
-                  {data.ACT_Priority || "0"}
-                </p>
-              </div>
-            </div>
+                </div>
 
-            <div className="flex items-center gap-10">
-              <div className="w-24 h-24 bg-emerald-600/10 rounded-4xl flex items-center justify-center border-2 border-emerald-500/20 shadow-2xl">
-                <User size={40} className="text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-[12px] font-black text-slate-600 uppercase tracking-widest italic mb-2">
-                  Responsable Pilote
-                </p>
-                <p className="text-3xl font-black text-white uppercase tracking-tighter leading-none">
-                  {data.Responsable?.U_FirstName || "NON"}{" "}
-                  {data.Responsable?.U_LastName || "ASSIGNÉ"}
-                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+                    <span>Priorité</span>
+                    <PriorityBadge priority={action.ACT_Priority} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+                    <span>Responsable</span>
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-800 font-medium text-xs">
+                        {responsible?.U_FirstName?.charAt(0) || '?'}
+                        {responsible?.U_LastName?.charAt(0) || '?'}
+                      </div>
+                      <span className="text-sm text-gray-900">
+                        {responsible
+                          ? `${responsible.U_FirstName} ${responsible.U_LastName}`
+                          : 'Non assigné'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {action.ACT_CompletedAt && (
+                  <div className="space-y-2 pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+                      <span>Clôture</span>
+                      <span className="text-sm text-gray-900">
+                        {new Date(action.ACT_CompletedAt).toLocaleDateString('fr-FR')}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ⚙️ COLONNE BETA : EXÉCUTION & DOSSIER DE PREUVE */}
-        <div className="col-span-12 lg:col-span-8 space-y-16">
-          {/* Rapport de Réalisation Expert */}
-          <div className="bg-[#151A2D] border-4 border-white/5 rounded-[7rem] p-20 shadow-4xl relative group">
-            <div className="absolute left-0 top-24 w-4 h-64 bg-blue-600 rounded-r-full shadow-[0_0_60px_rgba(37,99,235,0.7)]" />
-
-            <div className="flex justify-between items-center mb-20">
-              <h2 className="text-6xl font-black uppercase italic flex items-center gap-12 text-white tracking-tighter leading-none">
-                <span className="text-blue-600 text-[10rem] opacity-10 leading-none select-none">
-                  ACT
-                </span>{" "}
-                Rapport d&apos;Exécution
-              </h2>
-              <div className="flex items-center gap-8 bg-white/5 px-12 py-6 rounded-[2.5rem] border-2 border-white/10 shadow-inner italic">
-                <Info size={32} className="text-blue-500" />
-                <span className="text-[14px] font-black text-slate-500 uppercase tracking-[0.5em] leading-none">
+          {/* COLONNES 2-3 : RAPPORT ET PREUVES */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* RAPPORT D'EXÉCUTION */}
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-900">Rapport d&apos;exécution</h2>
+                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
                   Preuve §10.2.1
                 </span>
               </div>
+              <textarea
+                value={formData.ACT_Description}
+                onChange={(e) => setFormData({ ...formData, ACT_Description: e.target.value })}
+                disabled={isCompleted}
+                placeholder="Saisissez le rapport d'exécution technique détaillant les actions menées, les résultats obtenus et les leçons apprises..."
+                className={cn(
+                  'mt-4 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500',
+                  isCompleted ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : '',
+                )}
+                rows={10}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                Ce rapport constitue une preuve objective de l&apos;efficacité de l&apos;action corrective/préventive
+              </p>
             </div>
 
-            <textarea
-              value={rapport}
-              onChange={(e) => setRapport(e.target.value)}
-              disabled={data.ACT_Status === ActionStatus.TERMINEE}
-              placeholder="SAISIE DU RAPPORT D'EXÉCUTION TECHNIQUE - AUCUNE SIMULATION TOLÉRÉE..."
-              className="w-full p-24 bg-black/40 border-4 border-white/5 rounded-[6rem] text-4xl font-medium text-white outline-none focus:border-blue-600 min-h-150 leading-relaxed italic placeholder-slate-900 transition-all focus:bg-black/80 shadow-inner resize-none text-left"
-            />
-
-            <div className="mt-20 grid grid-cols-2 gap-16">
-              <div className="p-12 bg-white/5 rounded-[5rem] border-2 border-white/10 flex items-center gap-12 italic shadow-2xl transition-all hover:bg-white/8">
-                <div className="p-10 bg-blue-600 rounded-[2.5rem] shadow-lg shadow-blue-900/40">
-                  <Calendar size={48} />
-                </div>
-                <div className="text-left">
-                  <p className="text-[13px] font-black text-slate-600 uppercase tracking-[0.6em] italic mb-3">
-                    Target Date
-                  </p>
-                  <p className="text-4xl font-black text-white uppercase tracking-tighter leading-none">
-                    {formatDate(data.ACT_Deadline)}
-                  </p>
-                </div>
+            {/* DOSSIER DE PREUVES */}
+            <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-900">Dossier de preuves</h2>
+                <button className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                  <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  Ajouter une preuve
+                </button>
               </div>
-              <div className="p-12 bg-white/5 rounded-[5rem] border-2 border-white/10 flex items-center gap-12 italic shadow-2xl transition-all hover:bg-emerald-600/10">
-                <div className="p-10 bg-emerald-600 rounded-[2.5rem] shadow-lg shadow-emerald-900/40">
-                  <CheckCircle2 size={48} />
-                </div>
-                <div className="text-left">
-                  <p className="text-[13px] font-black text-slate-600 uppercase tracking-[0.6em] italic mb-3">
-                    Clôture SDE
-                  </p>
-                  <p className="text-4xl font-black text-white uppercase tracking-tighter leading-none">
-                    {formatDate(data.ACT_CompletedAt)}
-                  </p>
-                </div>
+              <div className="mt-6">
+                {preuves.length > 0 ? (
+                  <div className="space-y-4">
+                    {preuves.map((preuve) => (
+                      <div
+                        key={preuve.PV_Id}
+                        className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900">{preuve.PV_FileName}</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {preuve.PV_Commentaire || 'Aucun commentaire'}
+                          </p>
+                        </div>
+                        <button className="shrink-0 rounded bg-gray-100 p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-12">
+                    <FileText className="h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-sm font-medium text-gray-900">Aucune preuve associée</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Ajoutez des documents, photos ou rapports pour justifier l&apos;efficacité de l&apos;action
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-
-          {/* Dossier de Preuves SDE */}
-          <EvidenceSection
-            itemId={actionId}
-            initialEvidences={data.Preuves || []}
-          />
         </div>
-      </main>
 
-      {/* 🧩 FOOTER DE PRODUCTION (max-w-500) */}
-      <footer className="mt-48 pt-24 border-t-8 border-white/5 flex justify-between items-center opacity-40 w-full max-w-500 mx-auto group">
-        <div className="flex items-center gap-12">
-          <Fingerprint
-            size={60}
-            className="text-blue-600 group-hover:rotate-360 transition-all duration-3000"
-            strokeWidth={2.5}
-          />
-          <div className="text-left">
-            <p className="text-[16px] font-black uppercase tracking-[1.5em] text-slate-500 italic leading-none">
-              PRODUCTION SDE KERNEL
-            </p>
-            <p className="text-[13px] font-bold text-slate-700 uppercase tracking-[0.8em] mt-4 italic leading-none">
-              Elite RD 2030 Matrix Infrastructure • Integrated CAPA Engine
-            </p>
+        {/* 🛡️ BLOC DE CONFORMITÉ ISO */}
+        <div className="rounded-xl bg-indigo-50 p-6 border border-indigo-100">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600">
+                <span className="text-xs font-bold text-white">§</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-indigo-900">Exigence ISO 9001:2015 §10.2</h3>
+                <p className="mt-1 text-sm text-indigo-800">
+                  Lorsqu&apos;une non-conformité survient, l&apos;organisation doit réagir, évaluer la nécessité d&apos;agir pour éliminer la cause afin d&apos;éviter que la non-conformité ne se reproduise ou ne se produise ailleurs.
+                </p>
+                <p className="mt-2 text-xs text-indigo-700">
+                  Cette action fait partie du Plan d&apos;Amélioration Continue (CAPA) et sa traçabilité est garantie pour les audits internes et externes.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3 md:mt-0">
+              <button
+                onClick={handleSave}
+                disabled={isSaving || isCompleted}
+                className={cn(
+                  'inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
+                  isCompleted
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700',
+                )}
+              >
+                <Save className="mr-1.5 h-4 w-4" />
+                {isCompleted ? 'Action clôturée' : 'Valider les modifications'}
+              </button>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-20">
-          <div className="flex flex-col items-end italic">
-            <span className="text-[14px] font-black text-slate-600 uppercase tracking-widest">
-              SMI Audit Token
-            </span>
-            <span className="text-[18px] font-mono text-blue-900 mt-3 font-black">
-              {data.ACT_Id.toUpperCase()}
-            </span>
-          </div>
-          <div className="flex gap-8">
-            <div className="w-6 h-6 rounded-full bg-blue-600 shadow-[0_0_30px_blue] animate-pulse" />
-            <div className="w-6 h-6 rounded-full bg-emerald-600 shadow-[0_0_30px_emerald]" />
-            <div className="w-6 h-6 rounded-full bg-slate-800" />
-          </div>
-        </div>
-      </footer>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 0px;
-        }
-        * {
-          scrollbar-width: none !important;
-          -ms-overflow-style: none !important;
-        }
-        textarea::placeholder {
-          font-style: italic;
-          opacity: 0.1;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.6em;
-          color: white;
-        }
-      `}</style>
+      </div>
     </div>
+  );
+}
+
+// ============================================================================
+// COMPOSANTS RÉUTILISABLES
+// ============================================================================
+
+function PriorityBadge({ priority }: { priority: Priority }) {
+  const config: Record<Priority, { label: string; color: string }> = {
+    LOW: { label: 'Basse', color: 'text-gray-800' },
+    MEDIUM: { label: 'Moyenne', color: 'text-blue-800' },
+    HIGH: { label: 'Haute', color: 'text-amber-800' },
+    URGENT: { label: 'Urgente', color: 'text-orange-800' },
+    CRITICAL: { label: 'Critique', color: 'text-red-800' },
+  };
+
+  const { label, color } = config[priority] || config.MEDIUM;
+  return (
+    <span className={`inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium ${color}`}>
+      {label}
+    </span>
   );
 }

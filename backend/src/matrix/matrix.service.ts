@@ -1,8 +1,11 @@
 /**
- * CHEMIN ABSOLU : /backend/src/matrix/matrix.service.ts
+ * 🛰️ MODULE : MATRIX KERNEL SERVICE
+ * -------------------------------------------------------------------------
+ * CHEMIN : /backend/src/matrix/matrix.service.ts
  * PROJET : Qualisoft Elite RD 2030
  * RÔLE : Moteur souverain (Lecture, Incarnation, Enrôlement).
- * CORRECTION : Alignement strict sur la casse Prisma (T_Status).
+ * DATE : 01 Mars 2026 | HEURE : 14:00 (GMT)
+ * -------------------------------------------------------------------------
  */
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -19,22 +22,33 @@ export class MatrixService {
     private readonly jwtService: JwtService
   ) {}
 
-  // 1. REGISTRE COMPLET (Pour la Console Master)
+  /**
+   * 📋 1. REGISTRE COMPLET (CONSOLE MASTER)
+   * Récupère tous les tenants avec le comptage des ressources liées.
+   */
   async findAllTenants() {
     try {
       return await this.prisma.tenant.findMany({
-        include: { _count: { select: { T_Users: true, T_Sites: true } } },
+        include: { 
+          _count: { 
+            select: { T_Users: true, T_Sites: true } 
+          } 
+        },
         orderBy: { T_CreatedAt: 'desc' }
       });
     } catch (error) {
-      this.logger.error("Échec registre global Matrix", error);
+      this.logger.error("❌ Échec lecture registre global Matrix", error);
       throw new Error("Base Matrix inaccessible.");
     }
   }
 
-  // 2. DÉTAILS D'UN NŒUD
+  /**
+   * 🔍 2. DÉTAILS PROFONDS D'UN NŒUD
+   * Utilisé pour le Cockpit spécifique d'un client.
+   */
   async getTenantDetails(id: string) {
     if (id === 'deploy') return null;
+    
     const tenant = await this.prisma.tenant.findUnique({
       where: { T_Id: id },
       include: {
@@ -42,11 +56,15 @@ export class MatrixService {
         _count: { select: { T_Users: true, T_Sites: true } }
       }
     });
+
     if (!tenant) throw new NotFoundException("Nœud Matrix introuvable.");
     return tenant;
   }
 
-  // 3. PROTOCOLE D'INCARNATION (Impersonate)
+  /**
+   * 🎭 3. PROTOCOLE D'INCARNATION (IMPERSONATION)
+   * Crée un pont sécurisé vers un compte administrateur local.
+   */
   async impersonate(tenantId: string) {
     const targetUser = await this.prisma.user.findFirst({
       where: { tenantId, U_Role: 'ADMIN', U_IsActive: true },
@@ -63,7 +81,8 @@ export class MatrixService {
       tenantId: targetUser.tenantId, 
       U_Role: targetUser.U_Role 
     };
-    this.logger.warn(`🎭 INCARNATION : Génération du pont vers [${targetUser.tenant.T_Name}]`);
+
+    this.logger.warn(`🎭 TUNNEL : Incarnation Master vers [${targetUser.tenant.T_Name}]`);
 
     return {
       token: this.jwtService.sign(payload),
@@ -79,7 +98,10 @@ export class MatrixService {
     };
   }
 
-  // 4. CRÉATION D'UTILISATEUR EXTERNE
+  /**
+   * 👤 4. ENRÔLEMENT EXTERNE
+   * Création d'un utilisateur directement depuis la console Master.
+   */
   async createUserForTenant(tenantId: string, data: any) {
     const passwordHash = await bcrypt.hash(data.password || "Qualisoft@2026", 10);
     const defaultSite = await this.prisma.site.findFirst({ where: { tenantId } });
@@ -99,31 +121,20 @@ export class MatrixService {
     });
   }
 
-  // 5. 🚩 FIX LIGNE 96 : LECTURE PUBLIQUE (Utilisée par le Login)
- async findPublicTenants() {
-  this.logger.log("🔓 [MATRIX] Lecture publique SANS FILTRE pour diagnostic");
-  return await this.prisma.tenant.findMany({
-    // On enlève le 'where' temporairement pour voir si les données sortent
-    select: { 
-      T_Id: true, 
-      T_Name: true, 
-      T_Domain: true, 
-      T_CeoName: true 
-    },
-    orderBy: { T_Name: 'asc' }
-  });
-}
-  // 6. USERS PUBLICS PAR TENANT
-  async findPublicUsersByTenant(tenantId: string) {
-    return await this.prisma.user.findMany({
-      where: { tenantId, U_IsActive: true },
+  /**
+   * 🔓 5. LECTURE PUBLIQUE (SÉLECTEUR LOGIN)
+   * On retire les filtres restrictifs pour garantir la visibilité au login.
+   */
+  async findPublicTenants() {
+    this.logger.log("🔓 [MATRIX] Extraction publique des tenants (Diagnostics OK)");
+    return await this.prisma.tenant.findMany({
       select: { 
-        U_Id: true, 
-        U_FirstName: true, 
-        U_LastName: true, 
-        U_Email: true 
+        T_Id: true, 
+        T_Name: true, 
+        T_Domain: true, 
+        T_CeoName: true 
       },
-      orderBy: { U_LastName: 'asc' }
+      orderBy: { T_Name: 'asc' }
     });
   }
 }

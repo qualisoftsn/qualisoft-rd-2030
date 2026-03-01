@@ -1,229 +1,126 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import apiClient from '@/core/api/api-client';
-import { 
-  Truck, UserPlus, Search, Globe, MoreHorizontal, 
-  Loader2, Building, Mail, X, CheckCircle2
-} from 'lucide-react';
+/**
+ * 📦 MODULE : REGISTRE DES TIERS (SDE)
+ * -------------------------------------------------------------------------
+ * DATE : 01 Mars 2026 | 16:25 GMT
+ */
 
-interface TierEntry {
-  TR_Id: string;
-  TR_Name: string;
-  TR_Type: string;
-  TR_Email?: string;
-  TR_CodeExterne?: string;
-}
+import React, { useState, useEffect, useCallback } from 'react';
+import apiClient from '@/core/api/api-client';
+import { Truck, UserPlus, Search, Globe, MoreHorizontal, Loader2, Building, Mail, X, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface TierEntry { TR_Id: string; TR_Name: string; TR_Type: string; TR_Email?: string; TR_CodeExterne?: string; }
 
 export default function TiersRegistryPage() {
   const [tiers, setTiers] = useState<TierEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [modal, setModal] = useState(false);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ TR_Name: '', TR_Type: 'CLIENT', TR_Email: '', TR_CodeExterne: '' });
 
-  const [formData, setFormData] = useState({
-    TR_Name: '',
-    TR_Type: 'CLIENT',
-    TR_Email: '',
-    TR_CodeExterne: ''
-  });
-
-  const fetchTiers = async () => {
+  const fetchTiers = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await apiClient.get('/tiers');
       setTiers(res.data);
-    } catch (err) {
-      console.error("Erreur récupération tiers");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTiers();
+    } catch (err) { toast.error("Défaut du registre des Tiers."); }
+    finally { setLoading(false); }
   }, []);
+
+  useEffect(() => { fetchTiers(); }, [fetchTiers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
+    const tid = toast.loading("Enregistrement du partenaire...");
     try {
-      await apiClient.post('/tiers', formData);
-      setFormData({ TR_Name: '', TR_Type: 'CLIENT', TR_Email: '', TR_CodeExterne: '' });
-      setIsModalOpen(false);
-      await fetchTiers();
-    } catch (err) {
-      alert("Erreur lors de la création du partenaire.");
-    } finally {
-      setIsSaving(false);
-    }
+      await apiClient.post('/tiers', form);
+      setForm({ TR_Name: '', TR_Type: 'CLIENT', TR_Email: '', TR_CodeExterne: '' });
+      setModal(false);
+      fetchTiers();
+      toast.success("Tiers enrôlé avec succès.", { id: tid });
+    } catch (err) { toast.error("Erreur de scellage.", { id: tid }); }
   };
 
-  const filteredTiers = tiers.filter(t => 
-    t.TR_Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.TR_CodeExterne?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = tiers.filter(t => t.TR_Name.toLowerCase().includes(search.toLowerCase()) || t.TR_CodeExterne?.toLowerCase().includes(search.toLowerCase()));
 
   if (loading) return (
-    <div className="ml-72 flex h-screen items-center justify-center bg-[#0B0F1A]">
-      <Loader2 className="animate-spin text-blue-500" size={40} />
-    </div>
+    <div className="ml-72 flex h-screen items-center justify-center bg-[#0B0F1A]"><Loader2 className="animate-spin text-blue-500" size={50} /></div>
   );
 
   return (
-    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-10 ml-72 text-white font-sans italic text-left relative overflow-x-hidden">
-      
-      {/* HEADER ELITE */}
-      <header className="flex justify-between items-end mb-12 border-b border-white/5 pb-10">
+    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-10 ml-72 text-white font-sans italic text-left selection:bg-blue-600/30">
+      <header className="flex flex-col lg:flex-row justify-between lg:items-end mb-16 border-b border-white/5 pb-10 gap-8">
         <div>
-          <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
-            Registre <span className="text-blue-500">Tiers</span>
-          </h1>
-          <div className="flex gap-6 mt-6">
-            <StatCard count={tiers.length} label="Total Partenaires" color="blue" />
-            <StatCard count={tiers.filter(t => t.TR_Type === 'CLIENT').length} label="Portefeuille Clients" color="emerald" />
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">Registre <span className="text-blue-500 text-5xl">Tiers</span></h1>
+          <div className="flex gap-6 mt-8">
+            <StatSmall count={tiers.length} label="Total Partenaires" color="blue" />
+            <StatSmall count={tiers.filter(t => t.TR_Type === 'CLIENT').length} label="Portefeuille Clients" color="emerald" />
           </div>
         </div>
 
-        <div className="flex gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-4 text-slate-500" size={18} />
-            <input 
-              type="text"
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-xs font-bold outline-none focus:border-blue-500 w-64 transition-all"
-            />
+        <div className="flex gap-4 w-full lg:w-auto">
+          <div className="relative flex-1 lg:w-80 font-sans">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <input placeholder="Filtrer le registre..." value={search} onChange={e => setSearch(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-3xl pl-12 pr-6 py-4 text-xs font-black outline-none focus:border-blue-500 transition-all uppercase italic text-white w-full" />
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-black uppercase italic text-xs shadow-lg shadow-blue-900/20 flex items-center gap-3 transition-all active:scale-95"
-          >
-            <UserPlus size={18} /> Nouveau Tiers
-          </button>
+          <button onClick={() => setModal(true)} className="bg-blue-600 hover:bg-white hover:text-blue-600 text-white px-8 py-4 rounded-3xl font-black uppercase italic text-[10px] tracking-widest shadow-3xl transition-all border-none cursor-pointer active:scale-95"><UserPlus size={18} /> Nouveau Tiers</button>
         </div>
       </header>
 
-      {/* GRID DES TIERS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredTiers.length > 0 ? filteredTiers.map((t) => (
-          <div key={t.TR_Id} className="bg-slate-900/40 border border-white/5 p-8 rounded-[3rem] hover:bg-white/2 transition-all group relative overflow-hidden">
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-blue-500 border border-white/10 group-hover:scale-110 transition-transform">
-                <Truck size={24} />
-              </div>
-              <span className={`text-[8px] font-black px-3 py-1 rounded-lg border uppercase tracking-widest ${
-                t.TR_Type === 'CLIENT' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 
-                t.TR_Type === 'FOURNISSEUR' ? 'text-orange-500 border-orange-500/20 bg-orange-500/5' : 
-                'text-blue-400 border-blue-500/20 bg-blue-500/5'
-              }`}>
-                {t.TR_Type}
-              </span>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+        {filtered.map((t) => (
+          <div key={t.TR_Id} className="bg-slate-900/40 border border-white/5 p-10 rounded-[3.5rem] group relative overflow-hidden backdrop-blur-3xl hover:border-blue-500/50 transition-all duration-500">
+            <div className="flex justify-between items-start mb-10">
+              <div className="w-16 h-16 bg-white/5 rounded-3xl flex items-center justify-center text-blue-500 border border-white/10 group-hover:bg-blue-600 group-hover:text-white transition-all"><Truck size={28} /></div>
+              <span className={`text-[9px] font-black px-4 py-1.5 rounded-full border uppercase tracking-widest italic ${t.TR_Type === 'CLIENT' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 'text-orange-500 border-orange-500/20 bg-orange-500/5'}`}>{t.TR_Type}</span>
             </div>
-
-            <h3 className="text-xl font-black uppercase italic tracking-tighter mb-1 text-slate-100">{t.TR_Name}</h3>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6 italic truncate">
-              CODE: {t.TR_CodeExterne || 'SANS_ID'}
-            </p>
-
-            <div className="space-y-3 pt-6 border-t border-white/5">
-              <div className="flex items-center gap-3 text-slate-400 text-[10px] font-bold italic uppercase">
-                <Mail size={12} className="text-blue-500" /> {t.TR_Email || 'Email non défini'}
-              </div>
-              <div className="flex items-center gap-3 text-slate-400 text-[10px] font-bold italic uppercase">
-                <Globe size={12} className="text-emerald-500" /> Partenaire Externe
-              </div>
+            <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white leading-none mb-3 group-hover:text-blue-500 transition-colors">{t.TR_Name}</h3>
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic mb-10">ID SYSTEM: {t.TR_CodeExterne || 'SANS_ID'}</p>
+            <div className="space-y-4 pt-8 border-t border-white/5 relative z-10">
+              <div className="flex items-center gap-3 text-slate-400 text-[10px] font-black italic uppercase tracking-widest"><Mail size={14} className="text-blue-500" /> {t.TR_Email || 'Contact non scellé'}</div>
+              <div className="flex items-center gap-3 text-slate-400 text-[10px] font-black italic uppercase tracking-widest"><Globe size={14} className="text-emerald-500" /> Écosystème SMI</div>
             </div>
-
-            <button className="absolute top-8 right-8 text-slate-700 hover:text-white transition-colors">
-              <MoreHorizontal size={20} />
-            </button>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-blue-600/10 transition-all" />
           </div>
-        )) : (
-          <div className="col-span-full py-24 text-center bg-white/5 rounded-[4rem] border border-dashed border-white/10 opacity-30">
-            <Building size={48} className="mx-auto mb-4" />
-            <p className="font-black uppercase italic text-xs tracking-[0.3em]">Aucun tiers identifié dans le registre</p>
-          </div>
-        )}
+        ))}
       </div>
 
-      {/* MODAL D'AJOUT ELITE */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-200 flex items-center justify-center p-6 backdrop-blur-md">
-          <div className="absolute inset-0 bg-[#0B0F1A]/80" onClick={() => setIsModalOpen(false)}></div>
-          <form 
-            onSubmit={handleSubmit}
-            className="relative bg-slate-900 border border-white/10 p-12 rounded-[4rem] w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200"
-          >
-            <div className="flex justify-between items-center mb-10">
-              <h2 className="text-3xl font-black uppercase italic tracking-tighter leading-none">
-                Ajouter un <span className="text-blue-500">Tiers</span>
-              </h2>
-              <button 
-                type="button"
-                onClick={() => setIsModalOpen(false)} 
-                className="p-3 bg-white/5 rounded-2xl hover:bg-red-500/20 text-slate-500 hover:text-red-500 transition-all"
-              >
-                <X size={20} />
-              </button>
+      {modal && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-8 backdrop-blur-3xl bg-black/80">
+          <form onSubmit={handleSubmit} className="relative bg-slate-900 border border-white/10 p-16 rounded-[4rem] w-full max-w-xl shadow-3xl text-left animate-in zoom-in-95 duration-500 font-sans">
+            <button type="button" onClick={() => setModal(false)} className="absolute top-10 right-10 text-slate-500 hover:text-white bg-transparent border-none cursor-pointer"><X size={32} /></button>
+            <div className="flex items-center gap-6 mb-12">
+              <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center shadow-3xl shadow-blue-900/40 text-white"><UserPlus size={32} /></div>
+              <h2 className="text-4xl font-black uppercase italic tracking-tighter text-white leading-none">Ajouter un <span className="text-blue-500">Tiers</span></h2>
             </div>
-
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">Raison Sociale</label>
-                <input 
-                  required
-                  placeholder="Nom de l'entreprise"
-                  className="w-full bg-[#0B0F1A] border border-white/10 rounded-2xl p-5 text-sm font-bold outline-none focus:border-blue-500 transition-all shadow-inner"
-                  value={formData.TR_Name}
-                  onChange={e => setFormData({...formData, TR_Name: e.target.value})}
-                />
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic tracking-widest">Raison Sociale Officielle</label>
+                <input required placeholder="NOM DE L'ENTREPRISE" className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm font-black text-white outline-none focus:border-blue-500 transition-all italic uppercase tracking-tighter" value={form.TR_Name} onChange={e => setForm({...form, TR_Name: e.target.value})} />
               </div>
-
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">Type de relation</label>
-                  <select 
-                    className="w-full bg-[#0B0F1A] border border-white/10 rounded-2xl p-5 text-sm font-black text-blue-400 outline-none cursor-pointer"
-                    value={formData.TR_Type}
-                    onChange={e => setFormData({...formData, TR_Type: e.target.value})}
-                  >
-                    <option value="CLIENT">Client</option>
-                    <option value="FOURNISSEUR">Fournisseur</option>
-                    <option value="PARTENAIRE">Partenaire</option>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic tracking-widest">Nature Relation</label>
+                  <select className="w-full bg-slate-950 border border-white/10 rounded-3xl p-6 text-xs font-black text-blue-500 outline-none italic cursor-pointer" value={form.TR_Type} onChange={e => setForm({...form, TR_Type: e.target.value})}>
+                    <option value="CLIENT">CLIENT</option>
+                    <option value="FOURNISSEUR">FOURNISSEUR</option>
+                    <option value="PARTENAIRE">PARTENAIRE</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">Code Externe</label>
-                  <input 
-                    placeholder="Ex: C-2024-001"
-                    className="w-full bg-[#0B0F1A] border border-white/10 rounded-2xl p-5 text-sm font-bold outline-none focus:border-blue-500 transition-all"
-                    value={formData.TR_CodeExterne}
-                    onChange={e => setFormData({...formData, TR_CodeExterne: e.target.value})}
-                  />
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic tracking-widest">Code Identité</label>
+                  <input placeholder="EX: C-2026-001" className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm font-black text-white outline-none focus:border-blue-500 transition-all italic uppercase" value={form.TR_CodeExterne} onChange={e => setForm({...form, TR_CodeExterne: e.target.value})} />
                 </div>
               </div>
-
-              <div className="space-y-2 pb-6">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">Email de contact</label>
-                <input 
-                  type="email"
-                  placeholder="contact@partenaire.com"
-                  className="w-full bg-[#0B0F1A] border border-white/10 rounded-2xl p-5 text-sm font-bold outline-none focus:border-blue-500 transition-all"
-                  value={formData.TR_Email}
-                  onChange={e => setFormData({...formData, TR_Email: e.target.value})}
-                />
+              <div className="space-y-3 pb-8">
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-4 italic tracking-widest">Email Certification / Contact</label>
+                <input type="email" placeholder="CONTACT@PARTENAIRE.SN" className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm font-black text-white outline-none focus:border-blue-500 transition-all italic uppercase" value={form.TR_Email} onChange={e => setForm({...form, TR_Email: e.target.value})} />
               </div>
-
-              <button 
-                type="submit" 
-                disabled={isSaving}
-                className="w-full bg-blue-600 py-6 rounded-3xl font-black uppercase italic text-sm shadow-xl shadow-blue-900/40 hover:bg-blue-500 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
-              >
-                {isSaving ? <Loader2 className="animate-spin" size={20} /> : <><CheckCircle2 size={20} /> Valider l&apos;enrôlement</>}
-              </button>
+              <button type="submit" className="w-full bg-blue-600 hover:bg-white hover:text-blue-600 py-7 rounded-4xl font-black uppercase italic text-xs tracking-[0.3em] flex items-center justify-center gap-4 shadow-3xl shadow-blue-900/40 transition-all border-none cursor-pointer text-white active:scale-95"><CheckCircle2 size={20} /> Valider l&apos;Enrôlement</button>
             </div>
           </form>
         </div>
@@ -232,22 +129,11 @@ export default function TiersRegistryPage() {
   );
 }
 
-// COMPOSANT STATS INTERNE
-function StatCard({ count, label, color }: { count: number, label: string, color: 'blue' | 'emerald' }) {
-  const colorMap = {
-    blue: "bg-blue-600/20 text-blue-500 border-blue-500/20",
-    emerald: "bg-emerald-500/20 text-emerald-500 border-emerald-500/20"
-  };
-
+function StatSmall({ count, label, color }: { count: number, label: string, color: 'blue' | 'emerald' }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-3xl p-5 flex items-center gap-4 min-w-45">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black italic border ${colorMap[color]}`}>
-        {count}
-      </div>
-      <div>
-        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 italic">{label}</p>
-        <p className="text-xs font-black text-white uppercase italic">Enregistrés</p>
-      </div>
+    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 flex items-center gap-4 min-w-55">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black italic border ${color === 'blue' ? 'bg-blue-600/10 text-blue-500 border-blue-500/20' : 'bg-emerald-600/10 text-emerald-500 border-emerald-500/20'}`}>{count}</div>
+      <div className="text-left"><p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic leading-none mb-1">{label}</p><p className="text-xs font-black text-white uppercase italic leading-none">Scellés</p></div>
     </div>
   );
 }
