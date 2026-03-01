@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+//* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -35,10 +35,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [hasMounted, setHasMounted] = useState(false);
 
   /**
-   * 🛡️ ACTIVATION DU MONTAGE
+   * 🛡️ ACTIVATION DU MONTAGE SÉCURISÉ (Fix setState Error)
+   * On utilise un marqueur pour empêcher la mise à jour d'un composant démonté.
    */
   useEffect(() => {
-    setHasMounted(true);
+    const timer = setTimeout(() => {
+      setHasMounted(true);
+    }, 0);
+
+    return () => clearTimeout(timer); // Nettoyage parfait
   }, []);
 
   /**
@@ -74,13 +79,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/auth/login");
   };
 
-  // 1. Écran de transition souverain
-  if (!hasMounted || !user) {
+  // 1. Écran de transition souverain (Évite les flashs d'UI et les erreurs de variables nulles)
+  if (!hasMounted || !isAuthenticated || !user) {
     return (
       <div className="min-h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
         <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest animate-pulse">
-           Synchronisation Qualisoft Matrix OS ...
+          Synchronisation Qualisoft Matrix OS ...
         </p>
       </div>
     );
