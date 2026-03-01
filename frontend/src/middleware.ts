@@ -1,72 +1,91 @@
 /**
- * 🛡️ MIDDLEWARE MATRIX SDE - QUALISOFT ELITE
+ * 🛡️ MIDDLEWARE MATRIX SDE - QUALISOFT ELITE RD 2030
  * -------------------------------------------------------------------------
- * RÔLE : Sécurité périmétrale, Routage Multi-Tenant & Session JWT
- * FIX : Autorisation de la racine (Landing Page) & Gestion des domaines
+ * RÔLE : Routage Multi-Tenant Intelligent, Sécurité CSP & Gestion de Session
+ * FIX : Séparation stricte Vitrine (qualisoft.sn) vs Elite (elite.qualisoft.sn)
  * -------------------------------------------------------------------------
  */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// 🚀 Routes exemptées de la vérification du token JWT
+// 🚀 Chemins totalement publics (Accessibles sans authentification)
 const PUBLIC_PATHS = [
-  '/',                  // ✅ FIX : La Landing Page doit être publique
-  '/auth/login',        // Page de connexion Elite
-  '/api/trial/request',
-  '/api/trial/verify',
-  '/assets',            // Dossier des logos
+  '/auth/login',
+  '/api/public',
+  '/images',     // Dossier des logos et fonds
+  '/assets',
   '/favicon.ico',
+  '/robots.txt',
 ];
 
-// --- LOGIQUE DE DÉTECTION DU TENANT (DNS OVH WILDCARD) ---
-const getTenantInfo = (host: string) => {
-  const cleanHost = host.split(':')[0];
+// --- LOGIQUE DE DÉTECTION DE L'IDENTITÉ DU DOMAINE ---
+const getDomainContext = (host: string) => {
+  const cleanHost = host.split(':')[0].toLowerCase();
   const parts = cleanHost.split('.');
 
-  // Cas MASTER (matrix, www, elite, api)
-  if (['matrix', 'www', 'elite', 'api'].includes(parts[0])) {
-    return { slug: parts[0], isMaster: true };
+  // 1. CAS VITRINE (Landing Page principale)
+  if (cleanHost === 'qualisoft.sn' || cleanHost === 'www.qualisoft.sn') {
+    return { slug: 'vitrine', type: 'LANDING', isMaster: false };
   }
-  
-  // Cas CLIENT (ex: sde.qualisoft.sn -> parts[0] = 'sde')
-  if (parts.length >= 3 && parts[1] === 'qualisoft') {
-    return { slug: parts[0], isMaster: false };
+
+  // 2. CAS MASTER (Console d'administration Matrix)
+  if (parts[0] === 'matrix' || parts[0] === 'elite' || parts[0] === 'admin') {
+    return { slug: 'matrix', type: 'MASTER', isMaster: true };
   }
-  
-  return { slug: 'matrix', isMaster: true };
+
+  // 3. CAS TENANT (Clients ex: sagam.qualisoft.sn)
+  if (parts.length >= 3 && parts[parts.length - 2] === 'qualisoft') {
+    return { slug: parts[0], type: 'TENANT', isMaster: false };
+  }
+
+  // Par défaut, retour à la vitrine pour éviter les fuites de sécurité
+  return { slug: 'vitrine', type: 'LANDING', isMaster: false };
 };
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get('host') || '';
-  const { isMaster, slug } = getTenantInfo(host);
+  const context = getDomainContext(host);
 
-  // 1. BYPASS POUR LES ROUTES PUBLIQUES
-  // On vérifie si le chemin exact est dans PUBLIC_PATHS ou s'il commence par un dossier public
-  const isPublic = PUBLIC_PATHS.some(path => 
-    pathname === path || pathname.startsWith('/_next') || pathname.startsWith('/assets')
-  );
-
-  if (isPublic) {
+  // 1. GESTION DE LA VITRINE (qualisoft.sn)
+  // On laisse passer tout le trafic sur le domaine principal pour la Landing
+  if (context.type === 'LANDING') {
     return NextResponse.next();
   }
 
-  // 2. RÉCUPÉRATION DU JETON SOUVERAIN
+  // 2. BYPASS DES ROUTES PUBLIQUES POUR LES AUTRES DOMAINES
+  const isPublicPath = PUBLIC_PATHS.some(path => 
+    pathname === path || pathname.startsWith(path) || pathname.startsWith('/_next')
+  );
+
+  if (isPublicPath) {
+    return NextResponse.next();
+  }
+
+  // 3. VÉRIFICATION DU JETON SOUVERAIN (Anti-NextAuth)
   const token = request.cookies.get('qualisoft_token')?.value;
 
-  // 3. REDIRECTION SÉCURISÉE SI NON AUTHENTIFIÉ
-  // On ne redirige vers le login QUE si l'utilisateur n'est pas sur une route publique
+  // 4. PROTECTION DES ESPACES PRIVÉS (Elite & Tenants)
   if (!token) {
-    const loginUrl = new URL('/auth/login', request.url);
-    // On évite de boucler si on est déjà sur le login
-    if (pathname !== '/auth/login') {
+    // Si on essaie d'accéder à la racine d'un sous-domaine (ex: sagam.qualisoft.sn/)
+    // on redirige vers le login
+    if (pathname === '/' || !isPublicPath) {
+      const loginUrl = new URL('/auth/login', request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
     }
   }
 
-  // 4. SÉCURITÉ ISO 27001 : CSP & HEADERS
+  // 5. ISOLATION DES DROITS MASTER
+  // Empêcher un utilisateur "Tenant" d'accéder aux routes /admin
+  if (pathname.startsWith('/admin') && !context.isMaster) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // 6. SÉCURITÉ ISO 27001 : CSP & HEADERS
+  const response = NextResponse.next();
+  
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-inline' 'unsafe-eval';
@@ -78,22 +97,15 @@ export async function middleware(request: NextRequest) {
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, ' ').trim();
 
-  const response = NextResponse.next();
-  
   response.headers.set('Content-Security-Policy', cspHeader);
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-
-  // 5. ISOLATION DES ROUTES MASTER
-  if (pathname.startsWith('/admin') && !isMaster) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // 6. TRANSMISSION DU CONTEXTE AU HEADER
-  response.headers.set('x-tenant-slug', slug);
-  response.headers.set('x-is-master', String(isMaster));
+  
+  // Transmission du contexte aux composants et à l'API via les headers
+  response.headers.set('x-tenant-slug', context.slug);
+  response.headers.set('x-tenant-type', context.type);
+  response.headers.set('x-is-master', String(context.isMaster));
 
   return response;
 }
@@ -102,8 +114,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Exécute le middleware sur tout sauf les fichiers statiques internes
+     * Match toutes les routes sauf :
+     * 1. Fichiers statiques internes (_next/static, _next/image)
+     * 2. Assets publics (images, favicon)
+     * 3. API publique
      */
-    '/((?!_next/static|_next/image|assets|favicon.ico|api/public).*)',
+    '/((?!_next/static|_next/image|images|assets|favicon.ico|api/public).*)',
   ],
 };
