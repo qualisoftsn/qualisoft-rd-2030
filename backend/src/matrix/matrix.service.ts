@@ -4,7 +4,8 @@
  * CHEMIN : /backend/src/matrix/matrix.service.ts
  * PROJET : Qualisoft Elite RD 2030
  * RÔLE : Moteur souverain (Lecture, Incarnation, Enrôlement).
- * DATE : 01 Mars 2026 | HEURE : 17:30 (GMT)
+ * FIX : Ajout de la méthode findPublicUsersByTenant requise par le contrôleur.
+ * DATE : 01 Mars 2026 | HEURE : 23:45 (GMT)
  * -------------------------------------------------------------------------
  */
 
@@ -138,6 +139,32 @@ export class MatrixService {
         T_CeoName: true 
       },
       orderBy: { T_Name: 'asc' }
+    });
+  }
+
+  /**
+   * 🔓 6. LECTURE PUBLIQUE DES UTILISATEURS
+   * Récupère la liste sécurisée des utilisateurs d'un Tenant spécifique (Login).
+   */
+  async findPublicUsersByTenant(tenantId: string) {
+    if (!tenantId) {
+      throw new NotFoundException("Identifiant d'instance requis.");
+    }
+
+    return await this.prisma.user.findMany({
+      where: { 
+        tenantId: tenantId,
+        U_IsActive: true 
+      },
+      // Sécurité : On ne sélectionne QUE les champs non sensibles
+      select: {
+        U_Id: true,
+        U_Email: true,
+        U_FirstName: true,
+        U_LastName: true,
+        U_Role: true
+      },
+      orderBy: { U_FirstName: 'asc' }
     });
   }
 }
