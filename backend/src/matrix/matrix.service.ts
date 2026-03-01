@@ -4,7 +4,7 @@
  * CHEMIN : /backend/src/matrix/matrix.service.ts
  * PROJET : Qualisoft Elite RD 2030
  * RÔLE : Moteur souverain (Lecture, Incarnation, Enrôlement).
- * DATE : 01 Mars 2026 | HEURE : 14:00 (GMT)
+ * DATE : 01 Mars 2026 | HEURE : 17:30 (GMT)
  * -------------------------------------------------------------------------
  */
 
@@ -24,7 +24,7 @@ export class MatrixService {
 
   /**
    * 📋 1. REGISTRE COMPLET (CONSOLE MASTER)
-   * Récupère tous les tenants avec le comptage des ressources liées.
+   * Extraction de tous les nœuds avec agrégations de ressources.
    */
   async findAllTenants() {
     try {
@@ -44,7 +44,7 @@ export class MatrixService {
 
   /**
    * 🔍 2. DÉTAILS PROFONDS D'UN NŒUD
-   * Utilisé pour le Cockpit spécifique d'un client.
+   * Analyse complète d'une instance spécifique pour audit master.
    */
   async getTenantDetails(id: string) {
     if (id === 'deploy') return null;
@@ -63,7 +63,7 @@ export class MatrixService {
 
   /**
    * 🎭 3. PROTOCOLE D'INCARNATION (IMPERSONATION)
-   * Crée un pont sécurisé vers un compte administrateur local.
+   * Génération d'un pont JWT sécurisé vers un compte administrateur local.
    */
   async impersonate(tenantId: string) {
     const targetUser = await this.prisma.user.findFirst({
@@ -99,11 +99,14 @@ export class MatrixService {
   }
 
   /**
-   * 👤 4. ENRÔLEMENT EXTERNE
-   * Création d'un utilisateur directement depuis la console Master.
+   * 👤 4. ENRÔLEMENT EXTERNE (INITIALISATION)
+   * Création forcée d'un utilisateur racine lors du provisioning.
    */
   async createUserForTenant(tenantId: string, data: any) {
+    // Hashage conforme aux standards Qualisoft
     const passwordHash = await bcrypt.hash(data.password || "Qualisoft@2026", 10);
+    
+    // Récupération du site par défaut pour rattachement structurel
     const defaultSite = await this.prisma.site.findFirst({ where: { tenantId } });
 
     return await this.prisma.user.create({
@@ -123,11 +126,11 @@ export class MatrixService {
 
   /**
    * 🔓 5. LECTURE PUBLIQUE (SÉLECTEUR LOGIN)
-   * On retire les filtres restrictifs pour garantir la visibilité au login.
+   * Mise à disposition des identités visuelles pour le portail d'entrée.
    */
   async findPublicTenants() {
-    this.logger.log("🔓 [MATRIX] Extraction publique des tenants (Diagnostics OK)");
     return await this.prisma.tenant.findMany({
+      where: { T_IsActive: true },
       select: { 
         T_Id: true, 
         T_Name: true, 
