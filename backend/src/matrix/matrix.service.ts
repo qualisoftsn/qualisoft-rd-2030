@@ -100,25 +100,19 @@ export class MatrixService {
   }
 
   // 5. 🚩 FIX LIGNE 96 : LECTURE PUBLIQUE (Utilisée par le Login)
-  async findPublicTenants() {
-    this.logger.log("🔓 [MATRIX] Lecture publique des tenants pour le login");
-    return await this.prisma.tenant.findMany({
-      where: { 
-        OR: [
-          { T_IsActive: true },
-          { T_SubscriptionStatus: 'ACTIVE' } // 🔍 Changé T_STATUS en T_Status
-        ]
-      },
-      select: { 
-        T_Id: true, 
-        T_Name: true, 
-        T_Domain: true, 
-        T_CeoName: true 
-      },
-      orderBy: { T_Name: 'asc' }
-    });
-  }
-
+ async findPublicTenants() {
+  this.logger.log("🔓 [MATRIX] Lecture publique SANS FILTRE pour diagnostic");
+  return await this.prisma.tenant.findMany({
+    // On enlève le 'where' temporairement pour voir si les données sortent
+    select: { 
+      T_Id: true, 
+      T_Name: true, 
+      T_Domain: true, 
+      T_CeoName: true 
+    },
+    orderBy: { T_Name: 'asc' }
+  });
+}
   // 6. USERS PUBLICS PAR TENANT
   async findPublicUsersByTenant(tenantId: string) {
     return await this.prisma.user.findMany({

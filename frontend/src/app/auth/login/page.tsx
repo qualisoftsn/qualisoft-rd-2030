@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -35,30 +36,29 @@ function LoginFormContent({ tenantSlug, isMaster }: LoginProps) {
     const initMatrixAuth = async () => {
       try {
         const res = await apiClient.get('/public/tenants');
-        const tenants = res.data;
+        const tenants = res.data || []; // On évite le crash si nul
 
         const currentSlug = tenantSlug || (typeof window !== 'undefined' ? window.location.hostname.split('.')[0] : '');
         const slug = currentSlug.toLowerCase();
-        const masterKeywords = ['matrix', 'elite', 'admin', 'app'];
 
-        if (isMaster || masterKeywords.includes(slug)) {
-          setLoginType('MASTER');
-          setMode('LOGIN_FORM');
-        } else {
-          // ✅ Correction : On vérifie si tenants existe avant de chercher
-          const match = tenants?.find((t: any) => t.T_Domain.split('.')[0].toLowerCase() === slug);
+        // 🚩 FORCE : Si on est sur un sous-domaine (ex: sagam), on force le formulaire
+        if (slug !== 'qualisoft' && slug !== 'www' && slug !== 'app' && slug !== 'matrix') {
+          setLoginType('TENANT');
+          setMode('LOGIN_FORM'); // On force l'affichage du formulaire
+          
+          const match = tenants.find((t: any) => t.T_Domain.split('.')[0].toLowerCase() === slug);
           if (match) {
             setDetectedTenant(match);
             setForm(prev => ({ ...prev, tenantId: match.T_Id }));
-            setLoginType('TENANT');
-            setMode('LOGIN_FORM');
-          } else {
-            setMode('CHOICE');
           }
+        } else if (['app', 'matrix', 'admin'].includes(slug)) {
+          setLoginType('MASTER');
+          setMode('LOGIN_FORM');
+        } else {
+          setMode('CHOICE');
         }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
-        setMode('CHOICE');
+        setMode('CHOICE'); // En cas d'erreur API, on laisse le choix manuel
       }
     };
     initMatrixAuth();
