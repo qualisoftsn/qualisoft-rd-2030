@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * FICHIER DE TYPAGE INTÉGRAL - QUALISOFT RD 2030
  * -------------------------------------------------------------------------
@@ -772,7 +773,6 @@ export interface IndicatorValue {
 export interface Reclamation {
   REC_SolutionProposed: string;
   Tier: any;
-  REC_SolutionProposed: string;
   REC_Id: string;
   REC_Reference: string;
   REC_Object: string;
