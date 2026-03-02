@@ -1,26 +1,31 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
-
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 🚨 MODULE : SSE ACCIDENT REPORT MODAL
+ * 🚨 MODULE : SseModal.tsx
  * -------------------------------------------------------------------------
- * FONCTION : Signalement immédiat d'un accident ou incident SSE.
- * RÔLE : Initier le workflow de traitement (§10.2 ISO 45001).
- * ISOLATION : Liaison stricte aux sites et employés du Tenant.
+ * RÔLE : Déclaration d'événements SSE (Accidents/Incidents).
+ * PHILOSOPHIE : Réactivité maximale et traçabilité légale (§10.2).
+ * RÉVISION : 02 Mars 2026 | 19:25 GMT
  */
 
+"use client";
+
+import React, { useEffect, useState, useCallback } from "react";
+import { AlertCircle, Loader2, MapPin, ShieldAlert, X, User, Activity } from "lucide-react";
 import apiClient from "@/core/api/api-client";
-import { AlertCircle, Loader2, MapPin, ShieldAlert, X } from "lucide-react";
-import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-export default function SseModal({ onClose, onSuccess }: any) {
-  const [loading, setLoading] = useState(false);
-  const [sites, setSites] = useState([]);
-  const [users, setUsers] = useState([]);
+interface Props {
+  onClose: () => void;
+  onSuccess: () => void;
+}
 
-  const [formData, setFormData] = useState({
+export default function SseModal({ onClose, onSuccess }: Props) {
+  const [loading, setLoading] = useState(false);
+  const [sites, setSites] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+
+  const [form, setForm] = useState({
     SSE_Type: "ACCIDENT_TRAVAIL",
     SSE_Lieu: "",
     SSE_Description: "",
@@ -32,189 +37,121 @@ export default function SseModal({ onClose, onSuccess }: any) {
     SSE_Lesions: "",
   });
 
-  useEffect(() => {
-    // Synchronisation multi-sources scellée
-    Promise.all([apiClient.get("/sites"), apiClient.get("/users")])
-      .then(([s, u]) => {
-        setSites(s.data);
-        setUsers(u.data);
-      })
-      .catch(() => toast.error("Échec synchro Kernel"));
+  const syncKernel = useCallback(async () => {
+    try {
+      const [sRes, uRes] = await Promise.all([
+        apiClient.get("/sites"),
+        apiClient.get("/users")
+      ]);
+      setSites(Array.isArray(sRes.data) ? sRes.data : []);
+      setUsers(Array.isArray(uRes.data) ? uRes.data : []);
+    } catch (err) {
+      toast.error("ERREUR : Rupture de liaison avec le Kernel");
+    }
   }, []);
+
+  useEffect(() => {
+    syncKernel();
+  }, [syncKernel]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const tid = toast.loading("Enregistrement du sinistre...");
+    const tid = toast.loading("Indexation du sinistre SSE...");
     try {
-      await apiClient.post("/sse", formData);
-      toast.success("ÉVÉNEMENT SSE INDEXÉ", { id: tid });
+      await apiClient.post("/sse", form);
+      toast.success("ÉVÉNEMENT SSE ARCHIVÉ ET SCELLÉ", { id: tid });
       onSuccess();
       onClose();
+    /// eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      toast.error("REJET DÉCLARATION", { id: tid });
+      toast.error("REJET : Erreur d'intégrité des données", { id: tid });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-2xl z-100 flex items-center justify-center p-6 italic font-sans animate-in fade-in duration-500">
-      <div className="bg-white w-full max-w-3xl rounded-[4rem] shadow-4xl overflow-hidden animate-in slide-in-from-bottom-12 duration-700">
-        {/* HEADER D'URGENCE */}
-        <div className="p-10 bg-red-600 text-white flex justify-between items-center relative overflow-hidden">
-          <div className="flex items-center gap-5 relative z-10 text-left">
-            <div className="p-4 bg-white/20 rounded-3xl backdrop-blur-md animate-pulse">
-              <AlertCircle size={32} />
+    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-2xl z-200 flex items-center justify-center p-6 italic font-sans text-left animate-in fade-in duration-500">
+      <div className="bg-white w-full max-w-4xl rounded-[4rem] shadow-4xl overflow-hidden animate-in slide-in-from-bottom-12 duration-700">
+        
+        {/* HEADER D'URGENCE ROUGE */}
+        <header className="p-12 bg-red-600 text-white flex justify-between items-center relative overflow-hidden">
+          <ShieldAlert className="absolute -right-10 -bottom-10 opacity-10 text-white rotate-12" size={280} />
+          
+          <div className="flex items-center gap-6 relative z-10">
+            <div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md animate-pulse shadow-xl">
+              <AlertCircle size={36} />
             </div>
-            <div>
-              <h2 className="text-3xl font-black uppercase italic tracking-tighter leading-none">
-                Déclarer un{" "}
-                <span className="text-slate-900">Événement SSE</span>
+            <div className="leading-none">
+              <h2 className="text-4xl font-black uppercase italic tracking-tighter m-0">
+                Déclarer un <span className="text-slate-900 underline decoration-white/20">Événement SSE</span>
               </h2>
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] mt-3 opacity-80">
-                Rapport de sinistre scellé RD 2026
+              <p className="text-[10px] font-black uppercase tracking-[0.5em] mt-3 opacity-70 m-0">
+                Rapport de sinistre scellé • ISO 45001
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-3 bg-white/10 hover:bg-white/30 rounded-full transition-all border-none cursor-pointer text-white relative z-10"
-          >
-            <X size={28} />
+          <button onClick={onClose} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all border-none cursor-pointer text-white relative z-10">
+            <X size={32} />
           </button>
-          <ShieldAlert
-            className="absolute -right-8 -bottom-8 opacity-10 text-white rotate-12"
-            size={200}
-          />
-        </div>
+        </header>
 
-        <form
-          onSubmit={handleSubmit}
-          className="p-12 grid grid-cols-2 gap-8 text-left"
-        >
-          <div className="col-span-2 space-y-3">
-            <label className="text-[11px] font-black uppercase text-slate-500 ml-4 tracking-widest italic leading-none">
-              Type de l&apos;écart SSE
-            </label>
+        <form onSubmit={handleSubmit} className="p-14 grid grid-cols-2 gap-10">
+          
+          <div className="col-span-2 space-y-4">
+            <label className="text-[11px] font-black uppercase text-slate-500 ml-5 tracking-[0.2em] italic">Catégorie de l&apos;écart SSE</label>
             <select
-              className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-4xl text-sm font-black outline-none focus:border-red-600 transition-all uppercase italic appearance-none cursor-pointer"
-              value={formData.SSE_Type}
-              onChange={(e) =>
-                setFormData({ ...formData, SSE_Type: e.target.value })
-              }
+              className="w-full bg-slate-50 border-2 border-slate-100 p-7 rounded-4xl text-sm font-black outline-none focus:border-red-600 transition-all uppercase italic cursor-pointer shadow-inner appearance-none"
+              value={form.SSE_Type}
+              onChange={(e) => setForm({ ...form, SSE_Type: e.target.value })}
             >
               <option value="ACCIDENT_TRAVAIL">Accident de Travail (AT)</option>
               <option value="ACCIDENT_TRAJET">Accident de Trajet</option>
-              <option value="PRESQU_ACCIDENT">
-                Presqu&apos;Accident (Nearly Miss)
-              </option>
+              <option value="PRESQU_ACCIDENT">Presqu&apos;Accident (Nearly Miss)</option>
               <option value="SITUATION_DANGEREUSE">Situation Dangereuse</option>
             </select>
           </div>
 
-          <div className="space-y-3">
-            <label className="text-[11px] font-black uppercase text-slate-500 ml-4 tracking-widest italic">
-              Horodatage des faits
-            </label>
-            <input
-              type="date"
-              required
-              className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-4xl text-sm font-black outline-none focus:border-red-600"
-              value={formData.SSE_DateEvent}
-              onChange={(e) =>
-                setFormData({ ...formData, SSE_DateEvent: e.target.value })
-              }
-            />
+          <div className="space-y-4 text-left">
+            <label className="text-[11px] font-black uppercase text-slate-500 ml-5 tracking-widest italic">Date & Heure des faits</label>
+            <input type="date" required className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl text-sm font-black outline-none focus:border-red-600 shadow-inner" value={form.SSE_DateEvent} onChange={(e) => setForm({ ...form, SSE_DateEvent: e.target.value })} />
           </div>
 
-          <div className="space-y-3">
-            <label className="text-[11px] font-black uppercase text-slate-500 ml-4 tracking-widest italic flex items-center gap-2">
-              <MapPin size={14} /> Site Matrix
-            </label>
-            <select
-              className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-4xl text-sm font-black outline-none focus:border-red-600 uppercase italic cursor-pointer"
-              value={formData.SSE_SiteId}
-              onChange={(e) =>
-                setFormData({ ...formData, SSE_SiteId: e.target.value })
-              }
-            >
-              <option value="">SÉLECTIONNER UN PÉRIMÈTRE</option>
-              {sites.map((s: any) => (
-                <option key={s.S_Id} value={s.S_Id}>
-                  {s.S_Name}
-                </option>
-              ))}
+          <div className="space-y-4 text-left">
+            <label className="text-[11px] font-black uppercase text-slate-500 ml-5 tracking-widest italic flex items-center gap-2"><MapPin size={16} /> Site de l&apos;événement</label>
+            <select className="w-full bg-slate-50 border-2 border-slate-100 p-6 rounded-3xl text-sm font-black outline-none focus:border-red-600 uppercase italic cursor-pointer shadow-inner" value={form.SSE_SiteId} onChange={(e) => setForm({ ...form, SSE_SiteId: e.target.value })}>
+              <option value="">-- CHOISIR UN SITE --</option>
+              {sites.map((s) => <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>)}
             </select>
           </div>
 
-          <div className="col-span-2 space-y-3">
-            <label className="text-[11px] font-black uppercase text-slate-500 ml-4 tracking-widest italic leading-none">
-              Description & Circonstances de l&apos;écart
-            </label>
-            <textarea
-              required
-              className="w-full bg-slate-50 border-2 border-slate-100 p-8 rounded-[2.5rem] text-sm font-bold outline-none focus:border-red-600 min-h-30 italic leading-relaxed"
-              placeholder="DÉCRIRE LES FAITS, LES CAUSES IMMÉDIATES ET LES LÉSIONS ÉVENTUELLES..."
-              value={formData.SSE_Description}
-              onChange={(e) =>
-                setFormData({ ...formData, SSE_Description: e.target.value })
-              }
-            />
+          <div className="col-span-2 space-y-4 text-left">
+            <label className="text-[11px] font-black uppercase text-slate-500 ml-5 tracking-widest italic">Description & Circonstances</label>
+            <textarea required rows={3} className="w-full bg-slate-50 border-2 border-slate-100 p-8 rounded-[2.5rem] text-sm font-bold outline-none focus:border-red-600 italic leading-relaxed shadow-inner" placeholder="Décrivez précisément les faits, les causes immédiates..." value={form.SSE_Description} onChange={(e) => setForm({ ...form, SSE_Description: e.target.value })} />
           </div>
 
-          {/* GESTION DES ARRÊTS */}
-          <div className="col-span-2 p-8 bg-slate-50 rounded-4xl flex items-center justify-between group border-2 border-transparent hover:border-red-100 transition-all">
-            <div className="flex items-center gap-5">
-              <input
-                type="checkbox"
-                className="w-8 h-8 rounded-xl border-slate-200 text-red-600 focus:ring-red-600 cursor-pointer shadow-inner"
-                checked={formData.SSE_AvecArret}
-                onChange={(e) =>
-                  setFormData({ ...formData, SSE_AvecArret: e.target.checked })
-                }
-              />
+          {/* IMPACT ET ARRÊTS */}
+          <div className="col-span-2 p-8 bg-slate-50 rounded-[2.5rem] flex items-center justify-between border-2 border-transparent hover:border-red-100 transition-all italic">
+            <div className="flex items-center gap-6">
+              <input type="checkbox" className="w-10 h-10 rounded-xl border-slate-300 text-red-600 focus:ring-red-600 cursor-pointer shadow-inner" checked={form.SSE_AvecArret} onChange={(e) => setForm({ ...form, SSE_AvecArret: e.target.checked })} />
               <div>
-                <label className="text-sm font-black uppercase italic text-slate-900 leading-none">
-                  Impact sur la continuité (Arrêt de travail)
-                </label>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">
-                  Indice de gravité de l&apos;événement
-                </p>
+                <label className="text-sm font-black uppercase text-slate-900 m-0 leading-none">Indice de gravité : Arrêt de travail</label>
+                <p className="text-[9px] font-black text-slate-400 uppercase mt-2 m-0 tracking-[0.2em]">Interruption de la continuité de service</p>
               </div>
             </div>
 
-            {formData.SSE_AvecArret && (
+            {form.SSE_AvecArret && (
               <div className="flex items-center gap-4 animate-in slide-in-from-right duration-500">
-                <span className="text-[10px] font-black text-red-600 uppercase italic tracking-widest">
-                  Nb Jours :
-                </span>
-                <input
-                  type="number"
-                  className="w-24 bg-white border-2 border-red-100 p-4 rounded-xl text-sm font-black outline-none text-red-600 text-center shadow-lg"
-                  value={formData.SSE_NbJoursArret}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      SSE_NbJoursArret: parseInt(e.target.value),
-                    })
-                  }
-                />
+                <span className="text-[11px] font-black text-red-600 uppercase italic">Jours d&apos;arrêt :</span>
+                <input type="number" className="w-24 bg-white border-2 border-red-100 p-4 rounded-xl text-lg font-black outline-none text-red-600 text-center shadow-lg" value={form.SSE_NbJoursArret} onChange={(e) => setForm({ ...form, SSE_NbJoursArret: parseInt(e.target.value) })} />
               </div>
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="col-span-2 bg-slate-950 py-8 rounded-[3rem] font-black uppercase italic text-sm tracking-[0.4em] text-white shadow-4xl hover:bg-red-600 transition-all flex justify-center items-center gap-6 border-none cursor-pointer active:scale-95"
-          >
-            {loading ? (
-              <Loader2 className="animate-spin" size={24} />
-            ) : (
-              <ShieldAlert size={24} />
-            )}
-            Valider le rapport de sinistre
+          <button type="submit" disabled={loading} className="col-span-2 bg-slate-950 py-8 rounded-[3rem] font-black uppercase italic text-xs tracking-[0.5em] text-white shadow-4xl hover:bg-red-600 transition-all flex justify-center items-center gap-6 border-none cursor-pointer active:scale-95 disabled:opacity-30 mt-6">
+            {loading ? <Loader2 className="animate-spin" size={24} /> : <Activity size={24} />}
+            Sceller le rapport de sinistre
           </button>
         </form>
       </div>

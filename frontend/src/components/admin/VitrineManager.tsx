@@ -142,7 +142,7 @@ export default function VitrineManager() {
 function ContentCard({ title, type, status, onEdit }: any) {
   return (
     <div className="p-8 bg-[#0F172A] border border-white/5 rounded-[3rem] hover:border-blue-500/40 transition-all group relative overflow-hidden flex flex-col justify-between min-h-70">
-      <div className="absolute -inset-px bg-gradient-to-br from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      <div className="absolute -inset-px bg-linear-to-br from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
       
       <div className="relative z-10 flex justify-between items-start">
         <span className={`text-[8px] font-black px-3 py-1.5 rounded-full italic uppercase border ${type === 'ACTUALITE' ? 'bg-blue-600/10 text-blue-400 border-blue-600/20' : 'bg-emerald-600/10 text-emerald-400 border-emerald-600/20'}`}>
