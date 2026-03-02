@@ -1,57 +1,40 @@
-"use client";
 /**
- * 🛰️ MODULE : ProspectHighlight
+ * 🛰️ MODULE : FeatureHighlight.tsx
  * -------------------------------------------------------------------------
- * FONCTION : Mise en avant des piliers technologiques Qualisoft Elite.
- * RÔLE : Présentation marketing des capacités de digitalisation et d'isolation.
- * PHILOSOPHIE : Clarté, impact visuel et mise en avant de la souveraineté.
+ * RÔLE : Présentation stratégique des capacités Matrix.
+ * RÉVISION : 02 Mars 2026 | 18:50 GMT
  */
 
-import { PieChart, ShieldCheck, Users, Zap } from "lucide-react";
+"use client";
 
-export default function ProspectHighlight() {
-  // Définition des "High-Lights" stratégiques du système Matrix
+import React from 'react';
+import { PieChart, ShieldCheck, Users, Zap, ArrowUpRight } from "lucide-react";
+
+export default function FeatureHighlight() {
   const highlights = [
-    {
-      title: "SMI 100% Digital",
-      desc: "Passage au zéro papier pour tous vos processus ISO avec scellage numérique.",
-      icon: Zap,
-    },
-    {
-      title: "Gestion des Risques",
-      desc: "Anticipation proactive des menaces critiques via le monitoring Kernel.",
-      icon: ShieldCheck,
-    },
-    {
-      title: "Rapports Automatisés",
-      desc: "Génération de PDF analytiques en temps réel pour vos audits de certification.",
-      icon: PieChart,
-    },
-    {
-      title: "Multi-Sites & Tenant",
-      desc: "Isolation scellée des données : pilotez vos filiales sans aucune fuite de flux.",
-      icon: Users,
-    },
+    { title: "SMI 100% Digital", desc: "Digitalisation intégrale des processus ISO avec scellage.", icon: Zap, color: "bg-amber-500" },
+    { title: "Gestion des Risques", desc: "Anticipation proactive via le monitoring Kernel Matrix.", icon: ShieldCheck, color: "bg-emerald-500" },
+    { title: "Rapports IA", desc: "Génération de PDF analytiques pour vos audits de certification.", icon: PieChart, color: "bg-blue-600" },
+    { title: "Multi-Tenant", desc: "Isolation scellée des données filiales sans fuite de flux.", icon: Users, color: "bg-indigo-600" },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-blue-600/5 border border-blue-500/20 rounded-[2.5rem]">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-8 bg-blue-600/5 border border-blue-500/20 rounded-[3.5rem] italic font-sans text-left relative overflow-hidden group">
+      <div className="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full" />
+      
       {highlights.map((h, i) => (
-        <div key={i} className="p-4 space-y-2 group transition-all duration-300 hover:bg-white/40 rounded-3xl">
-          {/* Conteneur d'icône avec style Matrix Blue */}
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform">
-            <h.icon size={16} />
+        <div key={i} className="p-8 space-y-5 group/item transition-all duration-500 hover:bg-white rounded-[2.5rem] hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer relative z-10 border border-transparent hover:border-blue-500/10">
+          <div className={`w-12 h-12 ${h.color} rounded-2xl flex items-center justify-center text-white shadow-xl group-hover/item:rotate-12 transition-all`}>
+            <h.icon size={22} />
           </div>
-          
-          {/* Titrage en typographie Elite */}
-          <h4 className="text-[10px] font-black uppercase text-blue-900 tracking-tighter italic">
-            {h.title}
-          </h4>
-          
-          {/* Description métier */}
-          <p className="text-[9px] text-slate-500 font-medium leading-tight">
-            {h.desc}
-          </p>
+          <div>
+            <h4 className="text-[12px] font-black uppercase text-slate-900 tracking-tighter italic m-0 flex items-center gap-2">
+              {h.title} <ArrowUpRight size={14} className="opacity-0 group-hover/item:opacity-100 transition-opacity" />
+            </h4>
+            <p className="text-[10px] text-slate-500 font-bold leading-relaxed mt-3 m-0 opacity-80 group-hover/item:opacity-100 transition-opacity">
+              {h.desc}
+            </p>
+          </div>
         </div>
       ))}
     </div>

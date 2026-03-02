@@ -365,15 +365,17 @@ function KPICard({ title, value, trend, icon: Icon, color, subtitle, href }: any
   const ciplo = { emerald: 'text-emerald-400 border-emerald-500/20', blue: 'text-blue-400 border-blue-500/20', amber: 'text-amber-400 border-amber-500/20', purple: 'text-purple-400 border-purple-500/20' }[color as string];
   return (
     <Link href={href} className="group block">
-      <div className={`h-full bg-[#151A2D]/80 border ${ciplo} p-8 rounded-[2.5rem] transition-all hover:bg-[#1a2030] shadow-xl hover:-translate-y-1 backdrop-blur-xl`}>
+      <div className={`h-full bg-[#151A2D]/80 border ${ciplo || 'border-transparent'} p-8 rounded-[2.5rem] transition-all hover:bg-[#1a2030] shadow-xl hover:-translate-y-1 backdrop-blur-xl`}>
         <div className="flex justify-between items-start mb-6">
-          <div className={`w-14 h-14 rounded-2xl bg-white/5 ${ciplo.split(' ')[0]} flex items-center justify-center border border-white/5 transition-transform group-hover:scale-110`}><Icon size={24} /></div>
+          {/*  ✅ Utilisation du safe navigation operator (?.) et fallback sur une chaîne vide */}
+          <div className={`w-14 h-14 rounded-2xl bg-white/5 ${ciplo?.split(' ')[0] || ''} flex items-center justify-center border border-white/5 transition-transform group-hover:scale-110`}>
+            <Icon size={24} />
+          </div>
         </div>
-        <div>
-          <p className="text-4xl font-black italic text-white tracking-tighter leading-none mb-2">{value}</p>
-          <p className="text-xs font-black uppercase text-slate-400 tracking-widest">{title}</p>
-        </div>
-      </div>
+      <div>
+    <p className="text-4xl font-black italic text-white tracking-tighter leading-none mb-2">{value}</p>
+  </div>
+</div>
     </Link>
   );
 }

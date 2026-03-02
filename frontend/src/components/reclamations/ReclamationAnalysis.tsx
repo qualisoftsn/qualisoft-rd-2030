@@ -1,161 +1,101 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
-
 /**
- * 🔍 MODULE : ReclamationAnalysis
+ * 🔍 MODULE : ReclamationAnalysis.tsx
  * -------------------------------------------------------------------------
- * RÔLE : Interface d'expertise et de résolution des réclamations.
- * FONCTION : Permet l'analyse des causes, le feedback client et le déclenchement 
- * automatisé du Plan d'Action Correctif (CAPA).
+ * RÔLE : Résolution d'écarts et déclenchement CAPA (Plan d'Actions).
+ * RÉVISION : 02 Mars 2026 | 18:55 GMT
  */
 
-import React, { useState } from 'react';
+"use client";
+
+import { useState } from 'react';
 import apiClient from '@/core/api/api-client';
-import { PlayCircle, CheckCircle2, XCircle, RotateCcw, Loader2 } from 'lucide-react';
+import { PlayCircle, CheckCircle2, XCircle, RotateCcw, ShieldAlert } from 'lucide-react';
+import { toast } from 'sonner';
 
-type RecStatus = 'NOUVELLE' | 'EN_ANALYSE' | 'ACTION_EN_COURS' | 'TRAITEE' | 'REJETEE';
-
-interface ReclamationAnalysisProps {
-  reclamation: any;
-  onRefresh: () => void;
-}
-
-export default function ReclamationAnalysis({ reclamation, onRefresh }: ReclamationAnalysisProps) {
+export default function ReclamationAnalysis({ reclamation, onRefresh }: { reclamation: any, onRefresh: () => void }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [solution, setSolution] = useState(reclamation.REC_SolutionProposed || '');
-  const [feedback, setFeedback] = useState(reclamation.REC_ClientFeedback || '');
 
-  /**
-   * 🔄 handleStatusChange
-   * Met à jour le cycle de vie de la réclamation.
-   * L'isolation est garantie car l'API n'autorise la modif que sur le Tenant de l'utilisateur.
-   */
-  const handleStatusChange = async (targetStatus: RecStatus) => {
+  const updateWorkflow = async (targetStatus: string) => {
     setIsUpdating(true);
+    const tid = toast.loading("Mise à jour du registre...");
     try {
       await apiClient.patch(`/reclamations/${reclamation.REC_Id}/status`, {
         status: targetStatus,
-        solution: solution,
-        feedback: feedback
+        solution
       });
-      
+      toast.success("Registre mis à jour avec succès", { id: tid });
       onRefresh();
     } catch (error) {
-      console.error("Qualisoft Error : Mise à jour workflow échouée.");
+      toast.error("Échec de synchronisation Kernel", { id: tid });
     } finally {
       setIsUpdating(false);
     }
   };
 
-  /**
-   * ⚡ handleLaunchActions
-   * Transformation transactionnelle : Crée une action dans le PAQ (Plan d'Action Qualité)
-   * et lie l'ID de l'action à cette réclamation spécifique.
-   */
-  const handleLaunchActions = async () => {
-    if (!solution) {
-      alert("Analyse requise avant lancement du plan d'action.");
-      return;
-    }
-    
+  const launchCAPA = async () => {
+    if (!solution) return toast.warning("Analyse des causes requise avant CAPA");
     setIsUpdating(true);
     try {
-      // Déclenche la création d'une action corrective au niveau du noyau
       await apiClient.post(`/actions/from-reclamation/${reclamation.REC_Id}`);
+      toast.success("PLAN D'ACTION GÉNÉRÉ (§10.2)");
       onRefresh();
     } catch (error) {
-      console.error("Qualisoft Error : Échec de génération CAPA.");
+      toast.error("Erreur de génération CAPA");
     } finally {
       setIsUpdating(false);
     }
   };
 
   return (
-    <div className="bg-white p-6 rounded-4xl border border-slate-200 shadow-xl space-y-6 relative overflow-hidden text-left">
-      {/* HEADER DE L'ANALYSE */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+    <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-4xl space-y-8 relative overflow-hidden italic text-left">
+      <div className="absolute top-0 right-0 p-8 opacity-5"><ShieldAlert size={120}/></div>
+      
+      <header className="flex items-center justify-between border-b border-slate-50 pb-6">
         <div>
-          <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tighter">
-            Analyse : {reclamation.REC_Reference}
+          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter m-0">
+            Expertise : <span className="text-blue-600">{reclamation.REC_Reference}</span>
           </h3>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Expertise Qualité ISO 9001</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Maîtrise des sorties non conformes</p>
         </div>
-        <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase italic ${
-          reclamation.REC_Status === 'ACTION_EN_COURS' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+        <div className={`px-5 py-2 rounded-2xl text-[10px] font-black uppercase border-2 ${
+          reclamation.REC_Status === 'ACTION_EN_COURS' ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-slate-50 border-slate-100 text-slate-500'
         }`}>
-          {reclamation.REC_Status}
-        </span>
-      </div>
+          {reclamation.REC_Status.replace(/_/g, ' ')}
+        </div>
+      </header>
 
-      <div className="space-y-5">
-        {/* CHAMP SOLUTION / CAUSES */}
-        <div className="text-left">
-          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1 italic">
-            Analyse des causes & Solutions (5 Pourquoi / Ishikawa)
-          </label>
+      <div className="space-y-6">
+        <div>
+          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 ml-2">Analyse des causes (5 Pourquoi / Ishikawa)</label>
           <textarea
-            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none transition-all font-medium text-slate-700 italic"
-            rows={4}
+            className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:border-blue-600 outline-none transition-all font-bold text-slate-800 italic text-sm shadow-inner"
+            rows={5}
             value={solution}
             onChange={(e) => setSolution(e.target.value)}
-            placeholder="Détaillez ici l'analyse technique..."
+            placeholder="Détaillez ici l'expertise technique..."
           />
         </div>
 
-        {/* FEEDBACK CLIENT */}
-        <div className="text-left">
-          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1 italic">
-            Validation / Feedback Client
-          </label>
-          <input
-            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-slate-700 italic"
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            placeholder="Retour après traitement..."
-          />
-        </div>
-
-        {/* WORKFLOW ACTIONS */}
-        <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-50">
+        <div className="flex flex-wrap gap-4 pt-6 border-t border-slate-50">
           {reclamation.REC_Status === 'NOUVELLE' && (
-            <button
-              onClick={() => handleStatusChange('EN_ANALYSE')}
-              disabled={isUpdating}
-              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase italic transition shadow-lg shadow-amber-500/20"
-            >
-              <RotateCcw size={14} /> Démarrer l&apos;Analyse
-            </button>
+            <ActionButton onClick={() => updateWorkflow('EN_ANALYSE')} color="bg-amber-500" icon={RotateCcw} label="Initier l'Analyse" disabled={isUpdating} />
           )}
-
-          {(reclamation.REC_Status === 'NOUVELLE' || reclamation.REC_Status === 'EN_ANALYSE') && (
-            <button
-              onClick={handleLaunchActions}
-              disabled={isUpdating}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase italic transition shadow-lg shadow-blue-500/20"
-            >
-              {isUpdating ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />}
-              Lancer des Actions Correctives
-            </button>
-          )}
-
-          <button
-            onClick={() => handleStatusChange('TRAITEE')}
-            disabled={isUpdating}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase italic transition shadow-lg shadow-emerald-500/20"
-          >
-            <CheckCircle2 size={14} /> Clôturer l&apos;Ecart
-          </button>
-          
-          <button
-            onClick={() => handleStatusChange('REJETEE')}
-            disabled={isUpdating}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-black text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase italic transition shadow-lg shadow-slate-900/20"
-          >
-            <XCircle size={14} /> Rejeter
-          </button>
+          <ActionButton onClick={launchCAPA} color="bg-blue-600" icon={PlayCircle} label="Générer Action Corrective" disabled={isUpdating || reclamation.REC_Status === 'TRAITEE'} />
+          <ActionButton onClick={() => updateWorkflow('TRAITEE')} color="bg-emerald-600" icon={CheckCircle2} label="Clôturer le Dossier" disabled={isUpdating} />
+          <ActionButton onClick={() => updateWorkflow('REJETEE')} color="bg-slate-900" icon={XCircle} label="Rejeter" disabled={isUpdating} />
         </div>
       </div>
     </div>
+  );
+}
+
+function ActionButton({ onClick, color, icon: Icon, label, disabled }: any) {
+  return (
+    <button onClick={onClick} disabled={disabled} className={`${color} text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl border-none cursor-pointer disabled:opacity-50`}>
+      <Icon size={16} /> {label}
+    </button>
   );
 }
