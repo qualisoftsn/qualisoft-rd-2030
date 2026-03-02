@@ -48,7 +48,11 @@ export enum Role {
   SAFETY_OFFICER = "SAFETY_OFFICER",
   RQ = "RQ",
   DIRECTION = "DIRECTION",
-  OBSERVATEUR = "OBSERVATEUR"
+  OBSERVATEUR = "OBSERVATEUR",
+  MANAGER = "MANAGER",
+  MANAGER = "MANAGER",
+  MANAGER = "MANAGER",
+  MANAGER = "MANAGER"
 }
 
 export enum ContextType {
@@ -634,6 +638,9 @@ export interface Finding {
 }
 
 export interface NonConformite {
+  NC_AnalyseCauses: string;
+  NC_ActionsImmediates: string;
+  NC_Efficacite: string;
   NC_Id: string;
   NC_Code: string;
   NC_Title: string;

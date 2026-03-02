@@ -1,92 +1,104 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 📝 COMPOSANT : GenericForm
+ * 📝 MODULE : src/components/common/GenericForm.tsx
  * -------------------------------------------------------------------------
- * FONCTION : Moteur de génération dynamique de formulaires métiers.
- * RÔLE : Unifier la saisie de données à travers tous les modules SMI.
- * DESIGN : Structure Elite (Italic, Font-Black, Rounded-4xl).
+ * FONCTION : Moteur de génération dynamique de formulaires QHSE.
+ * RÔLE : Unifier l'expérience de saisie sur l'ensemble du SMI §8.1.
+ * DESIGN : Elite SDE (Italic, High-Density, Rounded-4xl).
+ * -------------------------------------------------------------------------
+ * RÉVISION : 02 Mars 2026 | 18:30 GMT
  */
 
 "use client";
 
-import { ChevronDown, Save } from "lucide-react";
 import React, { useState } from "react";
+import { ChevronDown, Save, Loader2, Info } from "lucide-react";
 
-interface Field {
+// --- 🔱 INTERFACES SCELLÉES ---
+export interface FormField {
   name: string;
   label: string;
-  type:
-    | "text"
-    | "email"
-    | "password"
-    | "date"
-    | "select"
-    | "textarea"
-    | "number";
+  type: "text" | "email" | "password" | "date" | "select" | "textarea" | "number";
   placeholder?: string;
   required?: boolean;
-  options?: { label: string; value: string }[];
+  fullWidth?: boolean;
+  options?: { label: string; value: string | number }[];
   defaultValue?: any;
 }
 
 interface GenericFormProps {
   title: string;
-  fields: Field[];
+  fields: FormField[];
   onSubmit: (data: any) => void;
   submitLabel?: string;
+  loading?: boolean;
+  description?: string;
 }
 
 export default function GenericForm({
   title,
   fields,
   onSubmit,
-  submitLabel = "Valider les données",
+  submitLabel = "Sceller les données",
+  loading = false,
+  description,
 }: GenericFormProps) {
-  // Initialisation avec les valeurs par défaut pour éviter les composants non-contrôlés
+  
+  /**
+   * ⚙️ INITIALISATION DU NOYAU DE DONNÉES
+   * On mappe les valeurs par défaut pour garantir un composant contrôlé.
+   */
   const [formData, setFormData] = useState<any>(
     fields.reduce(
-      (acc, field) => ({ ...acc, [field.name]: field.defaultValue || "" }),
-      {},
-    ),
+      (acc, field) => ({ ...acc, [field.name]: field.defaultValue ?? "" }),
+      {}
+    )
   );
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("💾 [FORM] Soumission des données au noyau...");
+    if (loading) return;
     onSubmit(formData);
   };
 
   return (
-    <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-500 text-left">
-      <header className="mb-10 flex items-center gap-4">
-        <div className="h-8 w-2 bg-blue-600 rounded-full" />
-        <h2 className="text-2xl font-black italic uppercase text-slate-900 tracking-tighter leading-none">
-          {title}
-        </h2>
+    <div className="bg-white rounded-[2.5rem] lg:rounded-[3.5rem] p-8 lg:p-12 shadow-4xl border border-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-700 text-left font-sans italic">
+      
+      {/* 🔝 HEADER DU FORMULAIRE (§ISO CONTEXT) */}
+      <header className="mb-12 relative">
+        <div className="flex items-center gap-5 mb-4">
+          <div className="h-10 w-2 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.4)]" />
+          <h2 className="text-3xl font-black uppercase text-slate-900 tracking-tighter leading-none m-0">
+            {title}
+          </h2>
+        </div>
+        {description && (
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-7 m-0">
+            {description}
+          </p>
+        )}
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+      <form onSubmit={handleFormSubmit} className="space-y-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
           {fields.map((field) => (
             <div
               key={field.name}
-              className={`flex flex-col ${field.type === "textarea" ? "md:col-span-2" : ""}`}
+              className={`flex flex-col ${
+                field.type === "textarea" || field.fullWidth ? "md:col-span-2" : ""
+              }`}
             >
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-2 italic">
-                {field.label}{" "}
-                {field.required && <span className="text-red-500">*</span>}
+              {/* LABEL ÉLITE */}
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] mb-3 ml-4 italic flex items-center gap-2">
+                {field.label}
+                {field.required && <span className="text-red-500 text-lg leading-none">*</span>}
               </label>
 
               <div className="relative group">
@@ -97,9 +109,9 @@ export default function GenericForm({
                       required={field.required}
                       value={formData[field.name]}
                       onChange={handleChange}
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-sm font-bold text-slate-800 focus:border-blue-500 focus:bg-white outline-none transition-all appearance-none italic"
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-sm font-black text-slate-800 focus:border-blue-600 focus:bg-white outline-none transition-all appearance-none italic shadow-inner"
                     >
-                      <option value="">Sélectionner une option...</option>
+                      <option value="" disabled>-- Sélectionner --</option>
                       {field.options?.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label.toUpperCase()}
@@ -107,28 +119,28 @@ export default function GenericForm({
                       ))}
                     </select>
                     <ChevronDown
-                      className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                      size={18}
+                      className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none transition-colors"
+                      size={20}
                     />
                   </div>
                 ) : field.type === "textarea" ? (
                   <textarea
                     name={field.name}
-                    placeholder={field.placeholder}
+                    placeholder={field.placeholder?.toUpperCase()}
                     required={field.required}
                     value={formData[field.name]}
                     onChange={handleChange}
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-4xl px-6 py-5 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:border-blue-500 focus:bg-white outline-none transition-all italic min-h-30 resize-none shadow-inner"
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] px-8 py-6 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:border-blue-600 focus:bg-white outline-none transition-all italic min-h-40 resize-none shadow-inner leading-relaxed"
                   />
                 ) : (
                   <input
                     type={field.type}
                     name={field.name}
-                    placeholder={field.placeholder}
+                    placeholder={field.placeholder?.toUpperCase()}
                     required={field.required}
                     value={formData[field.name]}
                     onChange={handleChange}
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:border-blue-500 focus:bg-white outline-none transition-all italic shadow-inner"
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-sm font-black text-slate-800 placeholder:text-slate-300 focus:border-blue-600 focus:bg-white outline-none transition-all italic shadow-inner"
                   />
                 )}
               </div>
@@ -136,21 +148,30 @@ export default function GenericForm({
           ))}
         </div>
 
-        {/* Pied du formulaire avec bouton Elite */}
-        <div className="pt-6 border-t border-slate-50 mt-10">
+        {/* 🏁 ACTIONS DE VALIDATION */}
+        <div className="pt-10 border-t border-slate-100 mt-12 flex flex-col items-center">
           <button
             type="submit"
-            className="w-full bg-slate-900 hover:bg-blue-600 text-white font-black py-6 rounded-2xl shadow-xl shadow-slate-200 transition-all uppercase text-[11px] tracking-[0.3em] italic flex items-center justify-center gap-4 active:scale-95 group"
+            disabled={loading}
+            className="w-full lg:w-2/3 bg-slate-950 hover:bg-blue-600 text-white font-black py-7 rounded-4xl shadow-3xl shadow-slate-200 transition-all uppercase text-[12px] tracking-[0.4em] italic flex items-center justify-center gap-5 active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer"
           >
-            <Save
-              size={20}
-              className="group-hover:rotate-12 transition-transform"
-            />
+            {loading ? (
+              <Loader2 className="animate-spin" size={24} />
+            ) : (
+              <Save
+                size={22}
+                className="group-hover:rotate-12 transition-transform"
+              />
+            )}
             {submitLabel}
           </button>
-          <p className="text-[9px] text-center text-slate-400 uppercase font-bold mt-6 tracking-widest italic">
-            Données soumises au protocole de sécurité Qualisoft Elite
-          </p>
+          
+          <div className="mt-8 flex items-center gap-3 opacity-40">
+            <Info size={14} className="text-blue-600" />
+            <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest italic m-0">
+              Protocole de sécurisation des données Qualisoft SDE actif
+            </p>
+          </div>
         </div>
       </form>
     </div>

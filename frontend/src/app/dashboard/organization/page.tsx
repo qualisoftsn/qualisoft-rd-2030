@@ -5,8 +5,8 @@
  * 🛡️ NOM ABSOLU : src/app/dashboard/organization/page.tsx
  * FONCTION : Cockpit de Pilotage de l'Architecture et des Ressources.
  * RÔLE : Monitoring de la structure (§5.3 Rôles, Responsabilités et Autorités ISO 9001).
- * ARCHITECTURE : One-Pager (No-Scroll Global), Densité Haute, Thème Dark Matrix.
- * DONNÉES : 100% Production. Calculées en temps réel via l'API.
+ * ARCHITECTURE : One-Pager, Densité Haute, Thème Dark Matrix, Zéro NextAuth.
+ * DATE : 02 Mars 2026 | 12:34 GMT
  */
 
 "use client";
@@ -22,12 +22,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import apiClient from "@/core/api/api-client";
 import { toast, Toaster } from "sonner";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+// Utilitaire Matrix standardisé
+const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
 // --- 🛡️ INTERFACES SCELLÉES SDE ---
 interface OrgUnit {
@@ -74,13 +71,9 @@ export default function OrganizationDashboard() {
     unitsByType: [], coverageRate: 0, alerts: [], sites: []
   });
 
-  /**
-   * 🛰️ PROTOCOLE DE RÉCUPÉRATION ET CALCUL DES DONNÉES (PRODUCTION)
-   */
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      // Requêtes parallèles vers le Noyau SDE
       const [resUnits, resSites, resUsers, resAlerts] = await Promise.all([
         apiClient.get<OrgUnit[]>('/units').catch(() => ({ data: [] })),
         apiClient.get<OrgSite[]>('/sites').catch(() => ({ data: [] })),
@@ -88,17 +81,15 @@ export default function OrganizationDashboard() {
         apiClient.get<OrgAlert[]>('/alerts?category=ORGANIZATION').catch(() => ({ data: [] }))
       ]);
 
-      const units = resUnits.data;
-      const sites = resSites.data;
-      const users = resUsers.data;
-      const alerts = resAlerts.data;
+      const units = resUnits.data || [];
+      const sites = resSites.data || [];
+      const users = resUsers.data || [];
+      const alerts = resAlerts.data || [];
 
-      // 🧠 MOTEUR DE CALCUL DES KPIs
       const totalUnits = units.length;
       const managedUnits = units.filter(u => u.UN_ManagerId !== null).length;
       const coverageRate = totalUnits > 0 ? Math.round((managedUnits / totalUnits) * 100) : 0;
 
-      // Agrégation par type d'unité
       const typeMap: Record<string, number> = {};
       units.forEach(u => { typeMap[u.UN_Type] = (typeMap[u.UN_Type] || 0) + 1; });
       
@@ -107,18 +98,9 @@ export default function OrganizationDashboard() {
         type: key,
         count: typeMap[key],
         color: colors[index % colors.length]
-      })).sort((a, b) => b.count - a.count); // Tri décroissant
+      })).sort((a, b) => b.count - a.count);
 
-      setStats({
-        totalUnits,
-        totalSites: sites.length,
-        totalUsers: users.length,
-        coverageRate,
-        unitsByType,
-        alerts,
-        sites
-      });
-
+      setStats({ totalUnits, totalSites: sites.length, totalUsers: users.length, coverageRate, unitsByType, alerts, sites });
     } catch (error) {
       toast.error("ÉCHEC DE SYNCHRONISATION AVEC L'ARCHITECTURE MATRIX.");
     } finally {
@@ -128,9 +110,6 @@ export default function OrganizationDashboard() {
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
-  /**
-   * 🏥 CALCULATEUR DE SANTÉ ORGANISATIONNELLE
-   */
   const globalHealth = useMemo(() => {
     if (stats.totalUnits === 0) return 0;
     return Math.round((stats.coverageRate + (stats.totalUsers > 0 ? 100 : 0)) / 2);
@@ -138,7 +117,7 @@ export default function OrganizationDashboard() {
 
   if (loading) {
     return (
-      <div className="ml-80 h-screen flex items-center justify-center bg-[#0B0F1A] italic">
+      <div className="ml-0 lg:ml-72 h-screen flex items-center justify-center bg-[#0B0F1A] italic">
         <div className="text-center space-y-4">
           <Loader2 className="animate-spin text-blue-500 mx-auto" size={40} />
           <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.5em] animate-pulse">
@@ -150,11 +129,9 @@ export default function OrganizationDashboard() {
   }
 
   return (
-    // 📏 Cadrage One-Pager : h-screen et overflow-hidden
-    <div className="ml-80 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 selection:bg-blue-600/30 overflow-hidden">
+    <div className="ml-0 lg:ml-72 h-screen bg-[#0B0F1A] text-white italic font-sans flex flex-col p-6 lg:p-10 selection:bg-blue-600/30 overflow-hidden">
       <Toaster position="top-right" richColors theme="dark" />
 
-      {/* 🚀 HEADER : CONTEXTE ET ACTIONS RAPIDES */}
       <header className="shrink-0 flex justify-between items-end border-b-2 border-white/5 pb-4 mb-4">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -165,45 +142,34 @@ export default function OrganizationDashboard() {
               <ShieldCheck size={12} /> ISO 9001 §5.3
             </span>
           </div>
-          <h1 className="text-3xl font-black uppercase tracking-tighter text-white leading-none m-0 flex items-center gap-3">
+          <h1 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-white leading-none m-0 flex items-center gap-3">
             Architecture <span className="text-blue-500">SMI</span>
             <button onClick={fetchDashboardData} className="p-1.5 bg-white/5 rounded-lg hover:text-blue-500 cursor-pointer border-none transition-colors"><RefreshCw size={14}/></button>
           </h1>
         </div>
 
         <div className="flex gap-3">
-          <Link
-            href="/dashboard/organization/chart"
-            className="px-6 py-3 bg-[#151A2D] border border-white/10 rounded-2xl text-slate-300 font-black uppercase text-[10px] tracking-widest shadow-sm hover:border-blue-500 hover:text-white transition-all flex items-center gap-2 group no-underline"
-          >
-            <GitGraph size={16} className="text-blue-500 group-hover:rotate-12 transition-transform" /> 
-            Organigramme
+          <Link href="/dashboard/organization/chart" className="hidden sm:flex px-6 py-3 bg-[#151A2D] border border-white/10 rounded-2xl text-slate-300 font-black uppercase text-[10px] tracking-widest shadow-sm hover:border-blue-500 hover:text-white transition-all items-center gap-2 group no-underline">
+            <GitGraph size={16} className="text-blue-500 group-hover:rotate-12 transition-transform" /> Organigramme
           </Link>
-          <button
-            onClick={() => router.push("/dashboard/organization/units/new")}
-            className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/40 hover:bg-blue-500 transition-all flex items-center gap-2 border-none cursor-pointer"
-          >
+          <button onClick={() => router.push("/dashboard/organization/units/new")} className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/40 hover:bg-white hover:text-blue-600 transition-all flex items-center gap-2 border-none cursor-pointer">
             <Plus size={16} strokeWidth={3} /> Créer Unité
           </button>
         </div>
       </header>
 
-      {/* 📊 GRILLE DES KPIs (Hauteur Fixe) */}
-      <div className="shrink-0 grid grid-cols-4 gap-4 mb-4 h-24">
+      <div className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 h-auto lg:h-24">
         <KPICard icon={Building2} label="Unités Organiques" value={stats.totalUnits} trend="Actives" color="blue" />
         <KPICard icon={MapPin} label="Sites Gérés" value={stats.totalSites} trend="100% Connectés" color="emerald" />
         <KPICard icon={Users} label="Citoyens" value={stats.totalUsers} trend="Rattachés" color="amber" />
         <KPICard icon={Target} label="Conformité §5.3" value={`${stats.coverageRate}%`} trend={stats.coverageRate >= 85 ? "Optimal" : "Alerte"} trendUp={stats.coverageRate >= 85} color="purple" />
       </div>
 
-      {/* 🧩 GRILLE PRINCIPALE (3 Colonnes) Extensible */}
-      <div className="flex-1 min-h-0 flex gap-4">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
         
-        {/* COLONNE 1 : PYRAMIDE ET SANTÉ (30%) */}
-        <div className="w-[30%] flex flex-col gap-4 min-h-0">
-          
-          {/* Santé Globale */}
-          <div className="shrink-0 bg-[#151A2D] rounded-[2.5rem] p-6 border border-white/5 shadow-4xl relative overflow-hidden group">
+        {/* PYRAMIDE */}
+        <div className="w-full lg:w-[30%] flex flex-col gap-4 min-h-0">
+          <div className="shrink-0 bg-[#151A2D] rounded-[2.5rem] p-6 border border-white/5 shadow-2xl relative overflow-hidden group backdrop-blur-md">
             <div className="absolute -right-8 -top-8 text-blue-500/10 group-hover:rotate-12 transition-transform duration-700 pointer-events-none">
               <ShieldCheck size={120} />
             </div>
@@ -219,8 +185,7 @@ export default function OrganizationDashboard() {
             </div>
           </div>
 
-          {/* Pyramide Structurelle */}
-          <div className="flex-1 bg-[#151A2D] rounded-[2.5rem] p-6 border border-white/5 shadow-4xl flex flex-col min-h-0">
+          <div className="flex-1 bg-[#151A2D] rounded-[2.5rem] p-6 border border-white/5 shadow-2xl flex flex-col min-h-0 backdrop-blur-md">
             <div className="flex items-center gap-3 mb-4 shrink-0">
               <Layers className="text-blue-500" size={18} />
               <h2 className="text-[11px] font-black uppercase italic text-slate-400 tracking-[0.3em] m-0">Pyramide Structurelle</h2>
@@ -236,10 +201,7 @@ export default function OrganizationDashboard() {
                     <span className="text-lg font-black text-white italic leading-none m-0">{item.count}</span>
                   </div>
                   <div className="h-1.5 bg-black/60 rounded-full overflow-hidden shadow-inner">
-                    <div
-                      className={`h-full ${item.color} transition-all duration-1000 ease-out`}
-                      style={{ width: `${(item.count / stats.totalUnits) * 100}%` }}
-                    />
+                    <div className={`h-full ${item.color} transition-all duration-1000 ease-out`} style={{ width: `${(item.count / stats.totalUnits) * 100}%` }} />
                   </div>
                 </div>
               )) : (
@@ -253,8 +215,8 @@ export default function OrganizationDashboard() {
           </div>
         </div>
 
-        {/* COLONNE 2 : MAILLAGE DES SITES (40%) */}
-        <div className="w-[40%] bg-[#151A2D] rounded-[3rem] p-6 border border-white/5 shadow-4xl flex flex-col min-h-0">
+        {/* MAILLAGE TERRITORIAL */}
+        <div className="w-full lg:w-[40%] bg-[#151A2D] rounded-[3rem] p-6 border border-white/5 shadow-2xl flex flex-col min-h-0 backdrop-blur-md">
           <div className="flex justify-between items-center mb-6 shrink-0">
              <h2 className="text-[11px] font-black uppercase italic text-slate-400 tracking-[0.3em] m-0 flex items-center gap-2">
                <MapPin size={16} className="text-blue-500" /> Maillage Territorial
@@ -266,20 +228,14 @@ export default function OrganizationDashboard() {
           
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 grid grid-cols-1 gap-4">
             {stats.sites.length > 0 ? stats.sites.map((site, idx) => (
-              <div
-                key={site.SI_Id || idx}
-                className="bg-black/40 rounded-3xl p-5 border border-white/5 hover:border-blue-500/30 transition-all group cursor-pointer shadow-inner flex flex-col justify-between"
-                onClick={() => router.push(`/dashboard/sites/${site.SI_Id || idx + 1}`)}
-              >
+              <div key={site.SI_Id || idx} className="bg-black/40 rounded-3xl p-5 border border-white/5 hover:border-blue-500/30 transition-all group cursor-pointer shadow-inner flex flex-col justify-between" onClick={() => router.push(`/dashboard/sites/${site.SI_Id || idx + 1}`)}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
                     <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border", site.SI_Status === "WARNING" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20")}>
                       <Building2 size={18} />
                     </div>
                     <div>
-                      <h3 className="text-sm font-black uppercase italic text-white m-0 leading-none group-hover:text-blue-400 transition-colors">
-                        {site.SI_Name}
-                      </h3>
+                      <h3 className="text-sm font-black uppercase italic text-white m-0 leading-none group-hover:text-blue-400 transition-colors">{site.SI_Name}</h3>
                       <p className="text-[9px] font-black text-slate-500 uppercase mt-1 flex items-center gap-1.5 italic m-0 tracking-widest">
                         <MapPin size={10} className="text-blue-500" /> {site.SI_Location}
                       </p>
@@ -308,11 +264,9 @@ export default function OrganizationDashboard() {
           </div>
         </div>
 
-        {/* COLONNE 3 : ALERTES & COMMANDES SOUVERAINES (30%) */}
-        <div className="w-[30%] flex flex-col gap-4 min-h-0">
-          
-          {/* Anomalies Matrix */}
-          <div className="flex-3 bg-[#151A2D] rounded-[3rem] p-6 border border-white/5 shadow-4xl flex flex-col min-h-0">
+        {/* ALERTES & COMMANDES */}
+        <div className="w-full lg:w-[30%] flex flex-col gap-4 min-h-0">
+          <div className="flex-3 bg-[#151A2D] rounded-[3rem] p-6 border border-white/5 shadow-2xl flex flex-col min-h-0 backdrop-blur-md">
             <div className="flex justify-between items-center mb-4 shrink-0">
               <h3 className="text-[11px] font-black uppercase italic text-rose-500 tracking-[0.3em] m-0 flex items-center gap-2">
                 <AlertCircle size={16} /> Anomalies Matrix
@@ -324,15 +278,9 @@ export default function OrganizationDashboard() {
             
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
               {stats.alerts.length > 0 ? stats.alerts.map((alert, idx) => (
-                <div key={alert.AL_Id || idx} className={cn(
-                  "p-4 rounded-2xl border-l-4 shadow-inner text-left",
-                  alert.AL_Priority === "CRITICAL" ? "bg-rose-950/20 border-rose-500" : alert.AL_Priority === "HIGH" ? "bg-amber-950/20 border-amber-500" : "bg-blue-950/20 border-blue-500"
-                )}>
+                <div key={alert.AL_Id || idx} className={cn("p-4 rounded-2xl border-l-4 shadow-inner text-left", alert.AL_Priority === "CRITICAL" ? "bg-rose-950/20 border-rose-500" : alert.AL_Priority === "HIGH" ? "bg-amber-950/20 border-amber-500" : "bg-blue-950/20 border-blue-500")}>
                   <div className="flex justify-between items-start mb-2">
-                    <span className={cn(
-                      "text-[7px] font-black uppercase px-2 py-0.5 rounded leading-none",
-                      alert.AL_Priority === "CRITICAL" ? "bg-rose-600 text-white" : alert.AL_Priority === "HIGH" ? "bg-amber-500 text-black" : "bg-blue-600 text-white"
-                    )}>
+                    <span className={cn("text-[7px] font-black uppercase px-2 py-0.5 rounded leading-none", alert.AL_Priority === "CRITICAL" ? "bg-rose-600 text-white" : alert.AL_Priority === "HIGH" ? "bg-amber-500 text-black" : "bg-blue-600 text-white")}>
                       {alert.AL_Priority}
                     </span>
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{alert.AL_Entity || 'SMI GLOBAL'}</span>
@@ -351,8 +299,7 @@ export default function OrganizationDashboard() {
             </div>
           </div>
 
-          {/* Commandes Souveraines */}
-          <div className="flex-2 bg-blue-900/20 border border-blue-500/30 rounded-[3rem] p-6 shadow-4xl flex flex-col shrink-0">
+          <div className="flex-2 bg-blue-900/20 border border-blue-500/30 rounded-[3rem] p-6 shadow-2xl flex flex-col shrink-0">
             <h3 className="text-[10px] font-black uppercase mb-4 tracking-[0.4em] text-blue-400 italic text-center m-0">
               Commandes Souveraines
             </h3>
@@ -367,7 +314,7 @@ export default function OrganizationDashboard() {
       </div>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(37,99,235,0.5); }
@@ -375,10 +322,6 @@ export default function OrganizationDashboard() {
     </div>
   );
 }
-
-// ============================================================================
-// 🧩 COMPOSANTS INTERNES DÉDIÉS AU DASHBOARD
-// ============================================================================
 
 function KPICard({ icon: Icon, label, value, trend, trendUp, color }: { icon: any, label: string, value: string|number, trend: string, trendUp?: boolean, color: string }) {
   const colors: Record<string, string> = {
@@ -389,7 +332,7 @@ function KPICard({ icon: Icon, label, value, trend, trendUp, color }: { icon: an
   };
   
   return (
-    <div className="bg-[#151A2D] rounded-3xl p-5 border border-white/5 shadow-inner flex flex-col justify-between group overflow-hidden relative">
+    <div className="bg-[#151A2D] rounded-4xl p-5 border border-white/5 shadow-2xl flex flex-col justify-between group overflow-hidden relative backdrop-blur-md">
       <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-125 transition-transform duration-700 pointer-events-none">
         <Icon size={80} />
       </div>
@@ -411,10 +354,7 @@ function KPICard({ icon: Icon, label, value, trend, trendUp, color }: { icon: an
 
 function QuickAction({ icon: Icon, label, onClick }: { icon: any, label: string, onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full p-3 bg-black/40 hover:bg-blue-600/20 rounded-xl flex items-center gap-3 transition-all group text-left border border-white/5 hover:border-blue-500/30 outline-none cursor-pointer"
-    >
+    <button onClick={onClick} className="w-full p-3 bg-black/40 hover:bg-blue-600/20 rounded-xl flex items-center gap-3 transition-all group text-left border border-white/5 hover:border-blue-500/30 outline-none cursor-pointer">
       <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 text-slate-400">
         <Icon size={14} />
       </div>

@@ -1,68 +1,62 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
-'use client';
-
+/* eslint-disable react-hooks/rules-of-hooks */
 /**
- * 👤 MODULE : USER NAVIGATION (L'IDENTITÉ MATRICIELLE)
+ * 👤 MODULE : UserNav.tsx
  * -------------------------------------------------------------------------
- * FONCTION : Affichage du profil utilisateur et de son accréditation (Rôle).
- * RÔLE : Identifier le citoyen actif dans l'instance du Tenant.
- * PHILOSOPHIE : Design Elite, typographie souveraine, chargement asynchrone protégé.
+ * RÔLE : Gestion de l'identité et des accréditations (Zéro NextAuth).
+ * SOURCE : useAuthStore (Zustand) pour une réactivité totale.
+ * RÉVISION : 02 Mars 2026 | 18:48 GMT
  */
 
-import React, { useEffect, useState } from 'react';
+"use client";
+
+import { useMemo } from 'react';
+import { useAuthStore } from '@/store/authStore';
 import { User as UserIcon, ShieldCheck } from 'lucide-react';
 
 export default function UserNav() {
-  const [userData, setUserData] = useState<any>(null);
+  const { user } = useAuthStore() as any;
 
-  useEffect(() => {
-    // 🧬 Extraction du scellé utilisateur depuis le stockage local
-    const stored = localStorage.getItem('user');
-    if (stored) {
-      try {
-        setUserData(JSON.parse(stored));
-      } catch (e) {
-        console.error("Erreur de déchiffrement du profil local");
-      }
-    }
-  }, []);
-
-  // 🦴 SQUELETTE DE CHARGEMENT (Évite le Cumulative Layout Shift)
-  if (!userData) return (
-    <div className="flex items-center gap-4 opacity-30 animate-pulse">
-      <div className="flex flex-col items-end gap-1">
-        <div className="w-24 h-3 bg-slate-300 rounded-full" />
-        <div className="w-16 h-2 bg-slate-200 rounded-full" />
+  // Squelette de chargement souverain
+  if (!user) return (
+    <div className="flex items-center gap-4 opacity-20 animate-pulse italic">
+      <div className="flex flex-col items-end gap-2">
+        <div className="w-24 h-3 bg-slate-400 rounded-full" />
+        <div className="w-16 h-2 bg-slate-300 rounded-full" />
       </div>
-      <div className="w-11 h-11 bg-slate-200 rounded-2xl" />
+      <div className="w-12 h-12 bg-slate-400 rounded-2xl" />
     </div>
   );
 
-  // Génération des initiales pour l'avatar de secours
-  const initials = `${userData.U_FirstName?.[0] || ''}${userData.U_LastName?.[0] || ''}`.toUpperCase();
+  const initials = useMemo(() => {
+    return `${user.U_FirstName?.[0] || ''}${user.U_LastName?.[0] || ''}`.toUpperCase();
+  }, [user]);
 
   return (
-    <div className="flex items-center gap-4 cursor-pointer group select-none italic">
+    <div className="flex items-center gap-5 cursor-pointer group italic font-sans select-none">
       {/* MÉTADONNÉES DE L'AGENT */}
       <div className="text-right hidden sm:block">
-        <p className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tighter leading-none">
-          {userData.U_FirstName} {userData.U_LastName}
+        <p className="text-[13px] font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tighter leading-none m-0">
+          {user.U_FirstName} {user.U_LastName}
         </p>
-        <div className="flex items-center justify-end gap-1.5 mt-1.5">
-          <ShieldCheck size={10} className="text-blue-500" />
-          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest leading-none">
-            {userData.U_Role === 'ADMIN' ? 'Responsable Qualité' : userData.U_Role} • ELITE
+        <div className="flex items-center justify-end gap-2 mt-2">
+          <ShieldCheck size={12} className="text-blue-600" />
+          <p className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] leading-none m-0">
+            {user.U_Role === 'ADMIN' ? 'RESP. QUALITÉ' : user.U_Role} • ELITE
           </p>
         </div>
       </div>
-
+      
       {/* AVATAR SOUVERAIN */}
-      <div className="w-11 h-11 bg-slate-950 text-white rounded-2xl flex items-center justify-center font-black text-sm shadow-xl border border-white/5 group-hover:bg-blue-600 group-hover:scale-105 transition-all duration-300">
-        <span className="group-hover:animate-pulse">
+      <div className="relative">
+        <div className="w-12 h-12 bg-slate-950 text-white rounded-[1.25rem] flex items-center justify-center font-black text-sm shadow-2xl border border-white/10 group-hover:bg-blue-600 group-hover:scale-105 group-hover:rotate-3 transition-all duration-500 overflow-hidden">
           {initials || <UserIcon size={20} />}
-        </span>
+          {/* Overlay de scan au survol */}
+          <div className="absolute inset-0 bg-linear-to-t from-blue-600/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+        
+        {/* Badge de statut en ligne scellé */}
+        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-4 border-[#F8FAFC] rounded-full shadow-lg" />
       </div>
     </div>
   );

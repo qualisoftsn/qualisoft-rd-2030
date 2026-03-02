@@ -1,27 +1,26 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 🏢 MODULE : ORG-UNITS MANAGER SDE (§5.3)
+ * -------------------------------------------------------------------------
+ * RÔLE : Gestion haute performance de la structure organique ISO 9001.
+ * ARCHITECTURE : Zéro NextAuth • Intégration API SDE pure.
+ * DESIGN : Transféré vers Sovereign Matrix Elite (Dark Industrial).
+ * -------------------------------------------------------------------------
+ * DATE : 02 Mars 2026 | 12:25 GMT
+ */
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Plus, Search, MoreHorizontal, Edit2, Trash2, 
-  ChevronRight, Building2, MapPin, Layers, 
-  Filter, Download, RefreshCcw, LayoutGrid, 
-  Settings2, X, Save, Loader2, GitGraph
+  Plus, Search, Edit2, Trash2, Building2, MapPin, 
+  RefreshCcw, X, Save, Loader2, GitGraph
 } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
 import { toast, Toaster } from 'sonner';
-import { cn } from '@/core/utils/cn';
-
-/**
- * 🏢 ORG-UNITS MATRIX (CLICKUP-EDITION)
- * -------------------------------------------------------------------------
- * Gestion haute performance de la structure organique §5.3
- * -------------------------------------------------------------------------
- */
 
 export default function OrgUnitsManager() {
-  // --- ÉTATS ---
   const [units, setUnits] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
@@ -30,18 +29,11 @@ export default function OrgUnitsManager() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Formulaire initialisé selon le modèle OrgUnit
   const [formData, setFormData] = useState({
-    OU_Id: '',
-    OU_Name: '',
-    OU_Code: '',
-    OU_TypeId: '',
-    OU_SiteId: '',
-    OU_ParentId: '',
-    OU_IsActive: true
+    OU_Id: '', OU_Name: '', OU_Code: '', OU_TypeId: '', 
+    OU_SiteId: '', OU_ParentId: '', OU_IsActive: true
   });
 
-  // --- SYNC DATA ---
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -54,7 +46,7 @@ export default function OrgUnitsManager() {
       setSites(sRes.data?.data || sRes.data || []);
       setTypes(tRes.data?.data || tRes.data || []);
     } catch (err) {
-      toast.error("Erreur de synchronisation Matrix");
+      toast.error("ERREUR DE SYNCHRONISATION MATRICIELLE");
     } finally {
       setLoading(false);
     }
@@ -62,36 +54,27 @@ export default function OrgUnitsManager() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // --- FILTRAGE ---
   const filteredUnits = useMemo(() => {
-    return units.filter(u => 
-      u.OU_Name.toLowerCase().includes(search.toLowerCase()) ||
-      u.OU_Code?.toLowerCase().includes(search.toLowerCase())
-    );
+    return units.filter(u => u.OU_Name.toLowerCase().includes(search.toLowerCase()) || u.OU_Code?.toLowerCase().includes(search.toLowerCase()));
   }, [units, search]);
 
-  // --- ACTIONS CRUD ---
   const handleEdit = (unit: any) => {
     setFormData({
-      OU_Id: unit.OU_Id,
-      OU_Name: unit.OU_Name,
-      OU_Code: unit.OU_Code || '',
-      OU_TypeId: unit.OU_TypeId,
-      OU_SiteId: unit.OU_SiteId,
-      OU_ParentId: unit.OU_ParentId || '',
-      OU_IsActive: unit.OU_IsActive
+      OU_Id: unit.OU_Id, OU_Name: unit.OU_Name, OU_Code: unit.OU_Code || '',
+      OU_TypeId: unit.OU_TypeId, OU_SiteId: unit.OU_SiteId,
+      OU_ParentId: unit.OU_ParentId || '', OU_IsActive: unit.OU_IsActive
     });
     setShowDrawer(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Confirmer la suppression ? Cela peut affecter la hiérarchie ISO.")) return;
+    if (!confirm("ALERTE SDE : Confirmer la suppression ? Impact possible sur la hiérarchie ISO.")) return;
     try {
       await apiClient.delete(`/org-units/${id}`);
-      toast.success("Unité décommissionnée");
+      toast.success("UNITÉ DÉCOMMISSIONNÉE");
       fetchData();
     } catch (err) {
-      toast.error("Échec de la suppression");
+      toast.error("ÉCHEC DE LA SUPPRESSION (DÉPENDANCES ACTIVES)");
     }
   };
 
@@ -99,272 +82,202 @@ export default function OrgUnitsManager() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const payload = {
-        ...formData,
-        OU_ParentId: formData.OU_ParentId === "" ? null : formData.OU_ParentId
-      };
-
+      const payload = { ...formData, OU_ParentId: formData.OU_ParentId === "" ? null : formData.OU_ParentId };
       if (formData.OU_Id) {
         await apiClient.patch(`/org-units/${formData.OU_Id}`, payload);
-        toast.success("Structure mise à jour");
+        toast.success("STRUCTURE MISE À JOUR");
       } else {
         await apiClient.post('/org-units', payload);
-        toast.success("Nouvelle unité scellée");
+        toast.success("NOUVELLE UNITÉ SCELLÉE");
       }
       setShowDrawer(false);
       fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erreur Matrix");
+      toast.error("ERREUR D'ÉCRITURE KERNEL");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (loading) return (
-    <div className="ml-72 flex h-screen items-center justify-center bg-white italic font-bold text-gray-400 uppercase tracking-widest">
-      <Loader2 className="animate-spin mr-3 text-indigo-600" /> Synchronisation SDE...
+    <div className="ml-0 lg:ml-72 flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-500 italic font-black uppercase tracking-widest">
+      <Loader2 className="animate-spin mr-3" /> Synchronisation SDE...
     </div>
   );
 
   return (
-    <div className="ml-72 flex flex-col h-screen bg-[#F9F9FB] font-sans">
-      <Toaster position="top-right" richColors />
+    <div className="ml-0 lg:ml-72 flex flex-col min-h-screen bg-[#0B0F1A] text-white font-sans italic selection:bg-blue-600/30">
+      <Toaster position="top-right" richColors theme="dark" />
 
-      {/* 🔝 HEADER CLICKUP-STYLE */}
-      <header className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-            <Building2 size={20} />
+      {/* 🔝 HEADER MATRIX */}
+      <header className="h-24 bg-[#0F172A]/80 border-b border-white/5 px-8 flex flex-col sm:flex-row items-start sm:items-center justify-between shrink-0 backdrop-blur-md">
+        <div className="flex items-center gap-4 mt-4 sm:mt-0">
+          <div className="p-3 bg-blue-600/10 text-blue-500 rounded-2xl border border-blue-500/20">
+            <Building2 size={24} />
           </div>
-          <h1 className="text-lg font-black uppercase tracking-tight text-gray-800 italic">
-            Unités <span className="text-indigo-600">Organisationnelles</span>
+          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">
+            Unités <span className="text-blue-500">Organiques</span>
           </h1>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors" />
+        <div className="flex items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto">
+          <div className="relative group flex-1 sm:flex-none">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
             <input 
               value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher une unité..." 
-              className="pl-10 pr-4 py-2 bg-gray-100 border-none rounded-md text-xs font-bold uppercase tracking-wider focus:ring-2 focus:ring-indigo-500/20 w-64 outline-none transition-all"
+              placeholder="Rechercher unité..." 
+              className="w-full sm:w-64 pl-12 pr-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
             />
           </div>
-          <button onClick={fetchData} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"><RefreshCcw size={18}/></button>
-          <button 
-            onClick={() => { setFormData({OU_Id:'', OU_Name:'', OU_Code:'', OU_TypeId:'', OU_SiteId:'', OU_ParentId:'', OU_IsActive:true}); setShowDrawer(true); }}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all active:scale-95"
-          >
-            <Plus size={16} /> Ajouter
+          <button onClick={fetchData} className="p-3 text-slate-400 hover:text-white bg-white/5 rounded-2xl transition-all cursor-pointer border-none"><RefreshCcw size={16}/></button>
+          <button onClick={() => { setFormData({OU_Id:'', OU_Name:'', OU_Code:'', OU_TypeId:'', OU_SiteId:'', OU_ParentId:'', OU_IsActive:true}); setShowDrawer(true); }} className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-blue-600 shadow-xl shadow-blue-900/20 transition-all cursor-pointer border-none">
+            <Plus size={16} /> Créer
           </button>
         </div>
       </header>
 
-      {/* 📊 CONTENU PRINCIPAL */}
-      <main className="flex-1 overflow-hidden p-8 flex flex-col gap-6">
+      {/* 📊 CONTENU */}
+      <main className="flex-1 p-8 flex flex-col gap-8 overflow-x-hidden">
         
-        {/* KPI BAR */}
-        <div className="flex gap-4">
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex-1">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total Unités</p>
-            <p className="text-2xl font-black text-gray-800 italic">{units.length}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-[#151A2D]/80 p-6 rounded-4xl shadow-xl border border-white/5 backdrop-blur-xl">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Unités</p>
+            <p className="text-4xl font-black text-white mt-2">{units.length}</p>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex-1">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Maillage Hiérarchique</p>
-            <p className="text-2xl font-black text-indigo-600 italic">{units.filter(u => u.OU_ParentId).length}</p>
+          <div className="bg-[#151A2D]/80 p-6 rounded-4xl shadow-xl border border-white/5 backdrop-blur-xl">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Maillage Hiérarchique</p>
+            <p className="text-4xl font-black text-blue-500 mt-2">{units.filter(u => u.OU_ParentId).length}</p>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex-1">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Ancrage Sites</p>
-            <p className="text-2xl font-black text-emerald-600 italic">{sites.length}</p>
+          <div className="bg-[#151A2D]/80 p-6 rounded-4xl shadow-xl border border-white/5 backdrop-blur-xl">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ancrage Sites</p>
+            <p className="text-4xl font-black text-emerald-500 mt-2">{sites.length}</p>
           </div>
         </div>
 
-        {/* TABLE WRAPPER */}
-        <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden flex flex-col">
-          <div className="overflow-y-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
-                <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">
-                  <th className="px-6 py-4">Désignation & Code</th>
-                  <th className="px-6 py-4">Typologie</th>
-                  <th className="px-6 py-4">Unité Parente</th>
-                  <th className="px-6 py-4">Site Géo</th>
-                  <th className="px-6 py-4">Statut</th>
-                  <th className="px-6 py-4 text-right">Pilotage</th>
+        <div className="bg-[#151A2D]/80 rounded-[2.5rem] shadow-2xl border border-white/5 overflow-hidden backdrop-blur-xl">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse min-w-200">
+              <thead className="bg-black/40 border-b border-white/5">
+                <tr className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">
+                  <th className="px-8 py-5">Identité & Code</th>
+                  <th className="px-8 py-5">Typologie</th>
+                  <th className="px-8 py-5">Lien Hiérarchique</th>
+                  <th className="px-8 py-5">Site Géographique</th>
+                  <th className="px-8 py-5">Statut</th>
+                  <th className="px-8 py-5 text-right">Pilotage</th>
                 </tr>
               </thead>
-             <tbody className="divide-y divide-gray-50 italic">
-  {filteredUnits.map((u) => (
-    <tr key={u.OU_Id} className="hover:bg-indigo-50/30 group transition-all duration-200">
-      {/* IDENTIFICATION : NOM & CODE */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs uppercase shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-            {u.OU_Name.slice(0, 2)}
-          </div>
-          <div>
-            <p className="text-xs font-black text-gray-800 uppercase tracking-tight leading-none">
-              {u.OU_Name}
-            </p>
-            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-              {u.OU_Code || 'SDE-UNIT'}
-            </p>
-          </div>
-        </div>
-      </td>
-
-      {/* TYPOLOGIE */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span className="text-[9px] font-black uppercase tracking-widest bg-gray-100 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-200">
-          {u.OU_Type?.OUT_Label || 'N/A'}
-        </span>
-      </td>
-
-      {/* HIÉRARCHIE (UNITÉ PARENTE) */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-tighter italic">
-          <GitGraph size={14} className="text-indigo-400" />
-          {u.OU_Parent?.OU_Name || (
-            <span className="text-gray-300 font-black">UNITÉ RACINE</span>
-          )}
-        </div>
-      </td>
-
-      {/* ANCRAGE GÉOGRAPHIQUE (SITE) */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter italic">
-          <MapPin size={14} className="text-gray-300" />
-          {u.OU_Site?.S_Name || 'NON LOCALISÉ'}
-        </div>
-      </td>
-
-      {/* STATUT (INDICATEUR VISUEL) */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            "h-1.5 w-10 rounded-full transition-all",
-            u.OU_IsActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]" : "bg-red-400"
-          )} />
-          <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-            {u.OU_IsActive ? 'On' : 'Off'}
-          </span>
-        </div>
-      </td>
-
-      {/* PILOTAGE (ACTIONS CRUD) */}
-      <td className="px-6 py-4 whitespace-nowrap text-right">
-        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
-          <button 
-            onClick={() => handleEdit(u)} 
-            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-xl transition-all"
-            title="Modifier l'unité"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button 
-            onClick={() => handleDelete(u.OU_Id)} 
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-white hover:shadow-sm rounded-xl transition-all"
-            title="Supprimer l'unité"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
+              <tbody className="divide-y divide-white/5">
+                {filteredUnits.map((u) => (
+                  <tr key={u.OU_Id} className="hover:bg-white/5 group transition-all duration-200">
+                    <td className="px-8 py-5 whitespace-nowrap">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-blue-900/30 text-blue-400 flex items-center justify-center font-black text-xs uppercase border border-blue-500/20 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                          {u.OU_Name.slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-white uppercase tracking-tight">{u.OU_Name}</p>
+                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">{u.OU_Code || 'SDE-UNIT'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 whitespace-nowrap">
+                      <span className="text-[9px] font-black uppercase tracking-widest bg-white/5 text-slate-400 px-3 py-1.5 rounded-lg border border-white/10">
+                        {u.OU_Type?.OUT_Label || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5 whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <GitGraph size={14} className="text-blue-500" />
+                        {u.OU_Parent?.OU_Name || <span className="text-slate-600 font-black">RACINE</span>}
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <MapPin size={14} className="text-slate-600" />
+                        {u.OU_Site?.S_Name || 'NON LOCALISÉ'}
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-1.5 w-10 rounded-full ${u.OU_IsActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500"}`} />
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{u.OU_IsActive ? 'ACTIF' : 'INACTIF'}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => handleEdit(u)} className="text-slate-500 hover:text-blue-500 bg-transparent border-none cursor-pointer"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete(u.OU_Id)} className="text-slate-500 hover:text-red-500 bg-transparent border-none cursor-pointer"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>
       </main>
 
-      {/* 🛠️ DRAWER (MODAL LATÉRALE) */}
+      {/* 🛠️ DRAWER MATRIX (MODAL LATÉRALE) */}
       {showDrawer && (
-        <div className="fixed inset-0 z-100 bg-black/20 backdrop-blur-sm flex justify-end">
-          <div className="w-112.5 bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-            <header className="h-20 border-b border-gray-100 px-8 flex items-center justify-between shrink-0">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
+          <div className="w-full max-w-md bg-[#0F172A] border-l border-white/10 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <header className="h-24 border-b border-white/5 px-8 flex items-center justify-between shrink-0 bg-black/20">
               <div>
-                <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-800 italic">
-                  {formData.OU_Id ? 'Modifier' : 'Sceller'} <span className="text-indigo-600">Unité</span>
+                <h2 className="text-lg font-black uppercase tracking-tighter text-white">
+                  {formData.OU_Id ? 'Édition' : 'Création'} <span className="text-blue-500">Unité</span>
                 </h2>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1 italic">Registre Organique §5.3</p>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Registre Organique §5.3</p>
               </div>
-              <button onClick={() => setShowDrawer(false)} className="p-2 text-gray-400 hover:text-gray-600"><X size={20}/></button>
+              <button onClick={() => setShowDrawer(false)} className="p-2 text-slate-500 hover:text-white bg-transparent border-none cursor-pointer"><X size={24}/></button>
             </header>
 
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 flex flex-col gap-6 italic">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 flex flex-col gap-6">
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Désignation Officielle *</label>
-                <input 
-                  required value={formData.OU_Name} onChange={(e)=>setFormData({...formData, OU_Name: e.target.value.toUpperCase()})}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all"
-                  placeholder="EX: DIRECTION DES OPÉRATIONS"
-                />
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Désignation SDE *</label>
+                <input required value={formData.OU_Name} onChange={(e)=>setFormData({...formData, OU_Name: e.target.value.toUpperCase()})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-black uppercase text-white outline-none focus:border-blue-500 transition-all placeholder:text-slate-700" placeholder="EX: DIRECTION DES OPÉRATIONS" />
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Code SDE (Facultatif)</label>
-                <input 
-                  value={formData.OU_Code} onChange={(e)=>setFormData({...formData, OU_Code: e.target.value.toUpperCase()})}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all"
-                  placeholder="EX: DIR-OPS"
-                />
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Code Unique</label>
+                <input value={formData.OU_Code} onChange={(e)=>setFormData({...formData, OU_Code: e.target.value.toUpperCase()})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-black uppercase text-white outline-none focus:border-blue-500 transition-all placeholder:text-slate-700" placeholder="EX: DIR-OPS" />
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Type d&apos;Unité *</label>
-                <select 
-                  required value={formData.OU_TypeId} onChange={(e)=>setFormData({...formData, OU_TypeId: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs font-bold uppercase outline-none cursor-pointer"
-                >
-                  <option value="">Sélectionner...</option>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Typologie SDE *</label>
+                <select required value={formData.OU_TypeId} onChange={(e)=>setFormData({...formData, OU_TypeId: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-xs font-black uppercase text-white outline-none cursor-pointer appearance-none focus:border-blue-500">
+                  <option value="">AFFECTATION...</option>
                   {types.map(t => <option key={t.OUT_Id} value={t.OUT_Id}>{t.OUT_Label}</option>)}
                 </select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Ancrage sur Site *</label>
-                <select 
-                  required value={formData.OU_SiteId} onChange={(e)=>setFormData({...formData, OU_SiteId: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs font-bold uppercase outline-none cursor-pointer"
-                >
-                  <option value="">Sélectionner...</option>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Ancrage Site *</label>
+                <select required value={formData.OU_SiteId} onChange={(e)=>setFormData({...formData, OU_SiteId: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-xs font-black uppercase text-white outline-none cursor-pointer appearance-none focus:border-blue-500">
+                  <option value="">AFFECTATION...</option>
                   {sites.map(s => <option key={s.S_Id} value={s.S_Id}>{s.S_Name}</option>)}
                 </select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Hiérarchie (Unité Parente)</label>
-                <select 
-                  value={formData.OU_ParentId} onChange={(e)=>setFormData({...formData, OU_ParentId: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs font-bold uppercase outline-none cursor-pointer"
-                >
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Hiérarchie (Unité Parente)</label>
+                <select value={formData.OU_ParentId} onChange={(e)=>setFormData({...formData, OU_ParentId: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-xs font-black uppercase text-white outline-none cursor-pointer appearance-none focus:border-blue-500">
                   <option value="">-- UNITÉ RACINE --</option>
-                  {units.filter(u => u.OU_Id !== formData.OU_Id).map(u => (
-                    <option key={u.OU_Id} value={u.OU_Id}>{u.OU_Name}</option>
-                  ))}
+                  {units.filter(u => u.OU_Id !== formData.OU_Id).map(u => <option key={u.OU_Id} value={u.OU_Id}>{u.OU_Name}</option>)}
                 </select>
               </div>
 
-              <div className="mt-auto pt-6 flex gap-4">
-                <button 
-                  type="button" onClick={()=>setShowDrawer(false)}
-                  className="flex-1 px-6 py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:bg-gray-100 transition-all"
-                >
-                  Annuler
-                </button>
-                <button 
-                  disabled={isSubmitting} type="submit"
-                  className="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>}
-                  {formData.OU_Id ? 'Mettre à jour' : 'Sceller'}
+              <div className="mt-auto pt-8">
+                <button disabled={isSubmitting} type="submit" className="w-full bg-blue-600 text-white px-6 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-white hover:text-blue-600 transition-all flex items-center justify-center gap-3 border-none cursor-pointer">
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
+                  {formData.OU_Id ? 'Mettre à jour' : 'Sceller l\'unité'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+      <style jsx global>{`.custom-scrollbar::-webkit-scrollbar { height: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }`}</style>
     </div>
   );
 }

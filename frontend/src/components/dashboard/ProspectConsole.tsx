@@ -1,58 +1,62 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-'use client';
+/**
+ * 🚀 MODULE : ProspectConsole.tsx
+ * -------------------------------------------------------------------------
+ * RÔLE : Interface de démonstration des avantages stratégiques RD-2026.
+ * RÉVISION : 02 Mars 2026 | 18:42 GMT
+ */
+
+"use client";
+
 import React from 'react';
-import { Play, ShieldCheck, Zap, Globe, FileCheck, ArrowUpRight } from 'lucide-react';
+import { 
+  Play, ShieldCheck, Zap, Globe, FileBarChart, ArrowUpRight 
+} from 'lucide-react';
 
 export default function ProspectConsole() {
   const features = [
-    { title: "Zéro Papier", desc: "Digitalisation intégrale des processus ISO", icon: Zap, color: "bg-amber-500" },
-    { title: "Conformité", desc: "Monitoring en temps réel des exigences", icon: ShieldCheck, iconColor: "text-emerald-500", color: "bg-emerald-500/10" },
-    { title: "Multi-Tenant", desc: "Isolation stricte des données clients", icon: Globe, color: "bg-blue-500" },
-    { title: "Reporting", desc: "Génération de Revues de Direction PDF", icon: FileBarChart, color: "bg-indigo-500" }
+    { title: "Zéro Papier", desc: "Digitalisation intégrale ISO", icon: Zap, color: "bg-amber-500" },
+    { title: "Conformité", desc: "Monitoring §9.1 temps réel", icon: ShieldCheck, color: "bg-emerald-500" },
+    { title: "Multi-Tenant", desc: "Isolation Kernel souveraine", icon: Globe, color: "bg-blue-500" },
+    { title: "Reporting", desc: "Revues de direction PDF", icon: FileBarChart, color: "bg-indigo-500" }
   ];
 
   return (
-    <div className="bg-linear-to-br from-slate-900 to-blue-900 rounded-[3rem] p-8 text-white shadow-2xl relative overflow-hidden italic mb-8">
-      {/* Badge Mode Démo */}
-      <div className="absolute top-6 right-8 bg-blue-500 text-[8px] font-black uppercase px-3 py-1 rounded-full tracking-[0.2em] animate-pulse">
+    <div className="bg-linear-to-br from-[#0F172A] to-[#1E293B] rounded-[3.5rem] p-10 lg:p-14 text-white shadow-4xl relative overflow-hidden italic font-sans text-left group">
+      
+      <div className="absolute top-10 right-10 bg-blue-600 text-[8px] font-black uppercase px-4 py-1.5 rounded-full tracking-[0.3em] animate-pulse shadow-lg shadow-blue-900/40 z-20">
         Mode Présentation Elite
       </div>
 
       <div className="relative z-10">
-        <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">
-          Console <span className="text-blue-400">Prospects</span>
+        <h2 className="text-4xl font-black uppercase tracking-tighter m-0 italic">
+          Console <span className="text-blue-500 underline decoration-white/10">Prospects</span>
         </h2>
-        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-8">
-          Arguments stratégiques Qualisoft RD 2030
-        </p>
+        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-4 mb-12 italic">Arguments stratégiques Qualisoft RD 2026</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((f, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-white/10 transition-all cursor-default group">
-              <div className={`w-8 h-8 ${f.color} rounded-xl flex items-center justify-center mb-4 shadow-lg`}>
-                <f.icon size={16} className="text-white" />
+            <div key={i} className="bg-white/5 border border-white/10 p-7 rounded-[2.5rem] hover:bg-white/10 hover:border-blue-500/30 transition-all cursor-default group/item">
+              <div className={`w-10 h-10 ${f.color} rounded-2xl flex items-center justify-center mb-6 shadow-2xl group-hover/item:scale-110 transition-transform`}>
+                <f.icon size={20} className="text-white" />
               </div>
-              <h4 className="text-xs font-black uppercase mb-1 group-hover:text-blue-400 transition-colors">{f.title}</h4>
-              <p className="text-[9px] text-slate-400 font-medium leading-tight lowercase italic">{f.desc}</p>
+              <h4 className="text-xs font-black uppercase italic m-0 group-hover/item:text-blue-400 transition-colors">{f.title}</h4>
+              <p className="text-[10px] text-slate-500 font-bold leading-tight lowercase italic mt-2 m-0 opacity-70 group-hover/item:opacity-100">{f.desc}</p>
             </div>
           ))}
         </div>
 
-        <div className="mt-8 flex gap-4">
-          <button className="px-6 py-3 bg-blue-600 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-blue-500 transition-all">
-            <Play size={14} fill="currentColor" /> Lancer la visite guidée
+        <div className="mt-12 flex flex-wrap gap-6">
+          <button className="px-10 py-5 bg-blue-600 hover:bg-white hover:text-blue-600 rounded-2xl text-[10px] font-black uppercase flex items-center gap-3 transition-all border-none cursor-pointer italic tracking-widest shadow-2xl">
+            <Play size={16} fill="currentColor" /> Lancer la Visite Guidée
           </button>
-          <button className="px-6 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-white/20 transition-all border border-white/10">
-            Télécharger la Plaquette <ArrowUpRight size={14} />
+          <button className="px-10 py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black uppercase text-white flex items-center gap-3 transition-all cursor-pointer italic tracking-widest">
+            Plaquette SDE <ArrowUpRight size={16} />
           </button>
         </div>
       </div>
 
-      {/* Déco fond */}
-      <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-blue-600/20 blur-[100px] rounded-full" />
+      {/* DÉCORATION DYNAMIQUE */}
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-600/10 rounded-full blur-[120px] group-hover:bg-blue-600/20 transition-all duration-1000" />
     </div>
   );
 }
-
-// Icone manquant dans l'import local
-import { FileBarChart } from 'lucide-react';
