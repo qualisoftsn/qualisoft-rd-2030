@@ -164,7 +164,19 @@ export default function SenegalLegalPage() {
                 <th className="p-5">Autorité de Régulation</th>
                 <th className="p-5">Échéance</th>
                 <th className="p-5 text-center">Statut</th>
-                <th className="p-5 text-right pr-8"><RefreshCw size={14} className="cursor-pointer hover:text-blue-500 transition-colors" onClick={fetchData} title="Rafraîchir"/></th>
+                <th className="p-5 text-right pr-8">
+                  <button
+                    type="button"
+                    onClick={() => fetchData()}
+                    title="Rafraîchir le registre légal"
+                    className="bg-transparent border-none p-2 cursor-pointer text-slate-500 hover:text-blue-500 transition-all active:scale-90"
+                  >
+                    <RefreshCw 
+                      size={16} 
+                      className={loading ? "animate-spin" : ""} 
+                    />
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
