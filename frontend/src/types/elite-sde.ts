@@ -50,9 +50,7 @@ export enum Role {
   DIRECTION = "DIRECTION",
   OBSERVATEUR = "OBSERVATEUR",
   MANAGER = "MANAGER",
-  MANAGER = "MANAGER",
-  MANAGER = "MANAGER",
-  MANAGER = "MANAGER"
+  
 }
 
 export enum ContextType {
@@ -1148,13 +1146,13 @@ export interface SurveyResult {
 
 export interface VitrineContent {
   id: string;
-  type:      String;   // "FORMATION", "ACTUALITE", "SERVICE"
-  title:     String;
+  type:      string;   // "FORMATION", "ACTUALITE", "SERVICE"
+  title:     string;
   slug:     string; 
   content:   string;
   category?:  string;
   imageUrl?:  string;
   createdAt: Date;
   updatedAt: Date;
-  published: Boolean;
+  published: boolean;
 }
