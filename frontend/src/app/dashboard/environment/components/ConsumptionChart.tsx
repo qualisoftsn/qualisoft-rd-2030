@@ -11,7 +11,6 @@ interface ConsumptionChartProps {
 }
 
 export default function ConsumptionChart({ consumptions, period, siteId }: ConsumptionChartProps) {
-  // Préparation des données pour le graphique
   const chartData = React.useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -22,72 +21,40 @@ export default function ConsumptionChart({ consumptions, period, siteId }: Consu
       const date = new Date(currentYear, now.getMonth() - i, 1);
       const month = date.getMonth() + 1;
       
-      // Filtrer les consommations pour ce mois et site
       const siteFilter = siteId === 'ALL' ? () => true : (c: any) => c.CON_SiteId === siteId;
       
       const energy = consumptions
         .filter(c => c.CON_Month === month && c.CON_Year === currentYear && siteFilter(c))
-        .filter(c => c.CON_Type.toLowerCase().includes('electric') || c.CON_Type.toLowerCase().includes('énergie'))
-        .reduce((sum: number, c: any) => sum + c.CON_Value, 0);
+        .filter(c => c.CON_Type.toLowerCase().match(/electric|énergie/))
+        .reduce((sum: number, c: any) => sum + (Number(c.CON_Value) || 0), 0);
       
       const water = consumptions
         .filter(c => c.CON_Month === month && c.CON_Year === currentYear && siteFilter(c))
-        .filter(c => c.CON_Type.toLowerCase().includes('eau') || c.CON_Type.toLowerCase().includes('water'))
-        .reduce((sum: number, c: any) => sum + c.CON_Value, 0);
+        .filter(c => c.CON_Type.toLowerCase().match(/eau|water/))
+        .reduce((sum: number, c: any) => sum + (Number(c.CON_Value) || 0), 0);
       
       data.push({
-        month: date.toLocaleString('fr-FR', { month: 'short' }),
+        month: date.toLocaleString('fr-FR', { month: 'short' }).toUpperCase(),
         energy: Math.round(energy),
         water: Math.round(water)
       });
     }
-    
     return data;
   }, [consumptions, period, siteId]);
 
   return (
-    <div className="h-87.5">
+    <div className="h-80 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-          <XAxis 
-            dataKey="month" 
-            stroke="rgba(255,255,255,0.6)" 
-            fontSize={12} 
-            fontWeight="bold"
-          />
-          <YAxis 
-            stroke="rgba(255,255,255,0.6)" 
-            fontSize={12} 
-            fontWeight="bold"
-          />
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis dataKey="month" stroke="rgba(255,255,255,0.5)" fontSize={10} fontWeight="900" axisLine={false} tickLine={false} />
+          <YAxis stroke="rgba(255,255,255,0.5)" fontSize={10} fontWeight="900" axisLine={false} tickLine={false} />
           <Tooltip 
-            contentStyle={{ 
-              backgroundColor: 'rgba(11, 15, 26, 0.95)', 
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px'
-            }}
-            labelStyle={{ color: 'white', fontWeight: 'bold' }}
-            itemStyle={{ color: 'white' }}
+            contentStyle={{ backgroundColor: '#0B0F1A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', fontSize: '10px', fontWeight: '900', fontStyle: 'italic' }}
+            labelStyle={{ color: 'white', marginBottom: '8px' }}
           />
-          <Line 
-            type="monotone" 
-            dataKey="energy" 
-            stroke="#f59e0b" 
-            strokeWidth={3} 
-            dot={{ fill: '#f59e0b', strokeWidth: 2 }}
-            activeDot={{ r: 8 }}
-            name="Énergie (kWh)"
-          />
-          <Line 
-            type="monotone" 
-            dataKey="water" 
-            stroke="#3b82f6" 
-            strokeWidth={3} 
-            dot={{ fill: '#3b82f6', strokeWidth: 2 }}
-            activeDot={{ r: 8 }}
-            name="Eau (m³)"
-          />
+          <Line type="monotone" dataKey="energy" stroke="#f59e0b" strokeWidth={4} dot={{ r: 4, fill: '#f59e0b', strokeWidth: 0 }} activeDot={{ r: 8 }} name="ÉNERGIE (kWh)" />
+          <Line type="monotone" dataKey="water" stroke="#3b82f6" strokeWidth={4} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 8 }} name="EAU (m³)" />
         </LineChart>
       </ResponsiveContainer>
     </div>

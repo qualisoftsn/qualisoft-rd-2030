@@ -1,39 +1,25 @@
-//* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 💡 CE QUE FAIT CETTE PAGE :
- * --------------------------
- * Fichier : app/dashboard/checklists/iso14001/page.tsx
- * Rôle : Interface pour l'évaluation de la conformité ISO 14001:2015 (Management Environnemental).
- * * * Fonctionnalités clés :
- * 1. KPIs Environnementaux : Suivi de la conso énergétique, déchets et recyclage.
- * 2. Analyse Réglementaire Spécifique : Prise en charge des obligations légales du Sénégal (Code de l'Environnement).
- * 3. Matrice de Conformité : Identification des exigences maîtrisées et des risques (écarts).
- * 4. Traçabilité Documentaire : Possibilité de lier des preuves (certificats de destruction, relevés, etc.).
+ * 💡 MODULE : CHECKLIST D'AUDIT ISO 14001:2015
+ * -------------------------------------------------------------------------
+ * RÔLE : Évaluation du Système de Management Environnemental (SME).
+ * FIX : Migration vers Sonner pour la gestion des alertes, optimisation 
+ * du chargement et de la grille responsive (lg:ml-72).
+ * -------------------------------------------------------------------------
+ * DATE : 02 Mars 2026 | 13:43 GMT
  */
 
 "use client";
 
 import apiClient from "@/core/api/api-client";
 import {
-  AlertTriangle,
-  CheckCircle,
-  ChevronDown,
-  Download,
-  FileText,
-  Flame,
-  Leaf,
-  MapPin,
-  Recycle,
-  RefreshCw,
-  Search,
-  Target,
-  UploadCloud,
-  Users,
-  XCircle,
-  Zap,
+  AlertTriangle, CheckCircle, ChevronDown, Download, FileText, Flame,
+  Leaf, MapPin, Minus, Recycle, RefreshCw, Search, Target, UploadCloud,
+  Users, XCircle, Zap,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
-import { toast } from "react-hot-toast";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { toast, Toaster } from "sonner";
 
 // --- TYPES STRICTS ---
 type ResponseType = "YES" | "NO" | "PARTIAL" | "NA";
@@ -54,7 +40,7 @@ interface ChecklistItem {
   LC_Description: string;
   LC_Criteria: string;
   LC_Reference?: string;
-  LC_SenegalSpecific?: boolean; // Attribut spécifique pour la conformité locale
+  LC_SenegalSpecific?: boolean;
   response?: ChecklistResponse;
 }
 
@@ -67,7 +53,6 @@ interface ChecklistStats {
 }
 
 export default function ISO14001ChecklistPage() {
-  // --- ÉTATS ---
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [stats, setStats] = useState<ChecklistStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,81 +60,49 @@ export default function ISO14001ChecklistPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("ALL");
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
-  const [uploadingEvidence, setUploadingEvidence] = useState<string | null>(
-    null,
-  );
+  const [uploadingEvidence, setUploadingEvidence] = useState<string | null>(null);
 
-  // Groupes de clauses ISO 14001
-  const clauseGroups = useMemo(
-    () => [
-      {
-        id: "4",
-        label: "Contexte de l'organisation (§4)",
-        color: "from-green-500 to-emerald-600",
-      },
-      { id: "5", label: "Leadership (§5)", color: "from-teal-500 to-cyan-600" },
-      {
-        id: "6",
-        label: "Planification (§6)",
-        color: "from-lime-500 to-green-600",
-      },
-      { id: "7", label: "Support (§7)", color: "from-emerald-500 to-teal-600" },
-      {
-        id: "8",
-        label: "Réalisation (§8)",
-        color: "from-green-500 to-lime-600",
-      },
-      {
-        id: "9",
-        label: "Évaluation des performances (§9)",
-        color: "from-teal-500 to-emerald-600",
-      },
-      {
-        id: "10",
-        label: "Amélioration (§10)",
-        color: "from-lime-500 to-green-700",
-      },
-    ],
-    [],
-  );
+  const clauseGroups = useMemo(() => [
+    { id: "4", label: "Contexte de l'organisation (§4)", color: "from-green-500 to-emerald-600" },
+    { id: "5", label: "Leadership (§5)", color: "from-teal-500 to-cyan-600" },
+    { id: "6", label: "Planification (§6)", color: "from-lime-500 to-green-600" },
+    { id: "7", label: "Support (§7)", color: "from-emerald-500 to-teal-600" },
+    { id: "8", label: "Réalisation (§8)", color: "from-green-500 to-lime-600" },
+    { id: "9", label: "Évaluation des performances (§9)", color: "from-teal-500 to-emerald-600" },
+    { id: "10", label: "Amélioration (§10)", color: "from-lime-500 to-green-700" },
+  ], []);
 
-  // --- CHARGEMENT DES DONNÉES ---
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [checklistRes, statsRes] = await Promise.all([
-        apiClient.get<ChecklistItem[]>("/checklist?standard=ISO_14001_2015"),
-        apiClient.get<ChecklistStats>(
-          "/checklist/stats?standard=ISO_14001_2015",
-        ),
+        apiClient.get("/checklist?standard=ISO_14001_2015"),
+        apiClient.get("/checklist/stats?standard=ISO_14001_2015"),
       ]);
-      setChecklistItems(checklistRes.data);
-      setStats(statsRes.data);
+      const itemsData = checklistRes.data?.data || checklistRes.data;
+      const statsData = statsRes.data?.data || statsRes.data;
+      
+      setChecklistItems(Array.isArray(itemsData) ? itemsData : []);
+      setStats(statsData || null);
     } catch (error) {
-      console.error("Erreur chargement checklist ISO 14001:", error);
-      toast.error("Erreur lors du chargement de la checklist");
+      toast.error("Erreur de synchronisation ISO 14001");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // --- ACTIONS ---
   const handleResponseChange = async (itemId: string, response: string) => {
     setSavingItemId(itemId);
+    const tid = toast.loading("Enregistrement de l'évaluation...");
     try {
-      await apiClient.post("/checklist/response", {
-        CR_ChecklistId: itemId,
-        CR_Response: response,
-      });
-      toast.success("Réponse enregistrée avec succès");
+      await apiClient.post("/checklist/response", { CR_ChecklistId: itemId, CR_Response: response });
+      toast.success("Évaluation environnementale mise à jour.", { id: tid });
       fetchData();
     } catch (error) {
-      console.error("Erreur sauvegarde réponse:", error);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error("Échec de l'enregistrement", { id: tid });
     } finally {
       setSavingItemId(null);
     }
@@ -157,25 +110,16 @@ export default function ISO14001ChecklistPage() {
 
   const handleEvidenceUpload = async (itemId: string, file: File) => {
     setUploadingEvidence(itemId);
+    const tid = toast.loading("Téléchargement de la preuve...");
     try {
       const formData = new FormData();
       formData.append("file", file);
-
-      const res = await apiClient.post<{ url: string }>("/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      await apiClient.post("/checklist/response", {
-        CR_ChecklistId: itemId,
-        CR_Response: "YES",
-        CR_Evidence: res.data.url,
-      });
-
-      toast.success("Preuve environnementale téléchargée");
+      const res = await apiClient.post("/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      await apiClient.post("/checklist/response", { CR_ChecklistId: itemId, CR_Response: "YES", CR_Evidence: res.data.url });
+      toast.success("Preuve documentaire attachée avec succès.", { id: tid });
       fetchData();
     } catch (error) {
-      console.error("Erreur upload preuve:", error);
-      toast.error("Erreur lors du téléchargement");
+      toast.error("Échec de l'upload.", { id: tid });
     } finally {
       setUploadingEvidence(null);
     }
@@ -184,72 +128,43 @@ export default function ISO14001ChecklistPage() {
   const handleCommentChange = async (itemId: string, comment: string) => {
     setSavingItemId(itemId);
     try {
-      await apiClient.post("/checklist/response", {
-        CR_ChecklistId: itemId,
-        CR_Response:
-          checklistItems.find((i) => i.LC_Id === itemId)?.response
-            ?.CR_Response || "PARTIAL",
-        CR_Comment: comment,
-      });
-      toast.success("Commentaire enregistré");
+      const currentResp = checklistItems.find((i) => i.LC_Id === itemId)?.response?.CR_Response || "PARTIAL";
+      await apiClient.post("/checklist/response", { CR_ChecklistId: itemId, CR_Response: currentResp, CR_Comment: comment });
+      toast.success("Plan d'action mis à jour.");
       fetchData();
     } catch (error) {
-      console.error("Erreur sauvegarde commentaire:", error);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error("Erreur lors de l'enregistrement du commentaire.");
     } finally {
       setSavingItemId(null);
     }
   };
 
   const handleGenerateReport = async () => {
+    const tid = toast.loading("Génération du rapport de performance...");
     try {
-      const response = await apiClient.post(
-        "/audit-report/generate",
-        {
-          auditId: "checklist-iso14001",
-          template: "ISO_14001",
-        },
-        { responseType: "blob" },
-      );
-
-      const url = window.URL.createObjectURL(
-        new Blob([response.data as BlobPart]),
-      );
+      const response = await apiClient.post("/audit-report/generate", { auditId: "checklist-iso14001", template: "ISO_14001" }, { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute(
-        "download",
-        `checklist-iso14001-${new Date().toISOString().split("T")[0]}.pdf`,
-      );
+      link.setAttribute("download", `Rapport_ISO14001_${new Date().toISOString().split("T")[0]}.pdf`);
       document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      toast.success("Rapport environnemental généré avec succès");
+      link.click(); link.remove(); window.URL.revokeObjectURL(url);
+      toast.success("Rapport téléchargé.", { id: tid });
     } catch (error) {
-      console.error("Erreur génération rapport:", error);
-      toast.error("Erreur lors de la génération du rapport");
+      toast.error("Échec de la génération.", { id: tid });
     }
   };
 
-  // --- FILTRES ET REGROUPEMENTS ---
+  // --- FILTRES ---
   const filteredItems = useMemo(() => {
     return checklistItems.filter((item) => {
-      const matchesSearch =
-        item.LC_Clause.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.LC_Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.LC_Description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.LC_Reference &&
-          item.LC_Reference.toLowerCase().includes(searchTerm.toLowerCase()));
-
+      const searchStr = searchTerm.toLowerCase();
+      const matchesSearch = item.LC_Clause.toLowerCase().includes(searchStr) || item.LC_Title.toLowerCase().includes(searchStr) || item.LC_Description.toLowerCase().includes(searchStr) || (item.LC_Reference && item.LC_Reference.toLowerCase().includes(searchStr));
       if (!matchesSearch) return false;
-
       if (filterStatus === "ALL") return true;
       if (filterStatus === "COMPLIANT") return item.response?.CR_IsCompliant;
-      if (filterStatus === "NON_COMPLIANT")
-        return item.response && !item.response.CR_IsCompliant;
+      if (filterStatus === "NON_COMPLIANT") return item.response && !item.response.CR_IsCompliant;
       if (filterStatus === "PENDING") return !item.response;
-
       return true;
     });
   }, [checklistItems, searchTerm, filterStatus]);
@@ -257,23 +172,18 @@ export default function ISO14001ChecklistPage() {
   const groupedItems = useMemo(() => {
     const groups: Record<string, ChecklistItem[]> = {};
     clauseGroups.forEach((group) => {
-      groups[group.id] = filteredItems.filter(
-        (item) =>
-          item.LC_Clause.startsWith(group.id + ".") ||
-          item.LC_Clause === group.id,
-      );
+      groups[group.id] = filteredItems.filter((item) => item.LC_Clause.startsWith(group.id + ".") || item.LC_Clause === group.id);
     });
     return groups;
   }, [filteredItems, clauseGroups]);
 
-  // --- ÉTAT DE CHARGEMENT ---
-  if (loading) {
+  if (loading && checklistItems.length === 0) {
     return (
-      <div className="ml-72 h-screen flex items-center justify-center bg-[#0B0F1A]">
+      <div className="ml-0 lg:ml-72 h-screen flex items-center justify-center bg-[#0B0F1A]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin mb-6 mx-auto"></div>
-          <p className="text-slate-500 font-black uppercase italic text-[10px] tracking-widest">
-            Chargement de la checklist ISO 14001:2015...
+          <p className="text-green-500 font-black uppercase italic text-xs tracking-widest">
+            Chargement ISO 14001...
           </p>
         </div>
       </div>
@@ -281,579 +191,313 @@ export default function ISO14001ChecklistPage() {
   }
 
   return (
-    <div className="ml-72 min-h-screen bg-[#0B0F1A] text-white font-sans p-8">
-      {/* HEADER */}
-      <header className="mb-10 border-b border-white/5 pb-8">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-linear-to-br from-green-600 to-emerald-700 p-4 rounded-2xl shadow-lg shadow-green-500/20">
+    <div className="ml-0 lg:ml-72 min-h-screen bg-[#0B0F1A] text-white font-sans p-6 lg:p-10 selection:bg-green-600/30 pb-24">
+      <Toaster position="top-right" richColors theme="dark" />
+
+      <div className="max-w-400 mx-auto">
+        {/* HEADER */}
+        <header className="mb-10 border-b-2 border-white/5 pb-8 mt-12 lg:mt-0">
+          <div className="flex flex-col xl:flex-row justify-between xl:items-start gap-8 mb-6">
+            <div className="flex items-start gap-5">
+              <div className="bg-linear-to-br from-green-600 to-emerald-800 p-5 rounded-4xl shadow-xl shadow-green-900/20 border border-green-500/20 shrink-0">
                 <Leaf size={40} className="text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-black uppercase italic tracking-tighter">
-                  Checklist{" "}
-                  <span className="text-green-500">ISO 14001:2015</span>
+                <h1 className="text-4xl lg:text-5xl font-black uppercase italic tracking-tighter m-0 leading-none">
+                  Checklist <span className="text-green-500">ISO 14001</span>
                 </h1>
-                <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-2 italic">
+                <p className="text-slate-500 font-bold text-[10px] lg:text-xs uppercase tracking-[0.4em] mt-3 italic m-0">
                   Management Environnemental • Performance Durable
                 </p>
               </div>
             </div>
 
-            {stats && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-                <StatCard
-                  label="Taux de Conformité"
-                  value={`${stats.complianceRate}%`}
-                  icon={<Target className="text-emerald-500" />}
-                  color="bg-emerald-500/10 border-emerald-500/20"
-                  target="≥ 85%"
-                />
-                <StatCard
-                  label="Aspects Maîtrisés"
-                  value={`${stats.compliant}/${stats.total}`}
-                  icon={<Leaf className="text-green-500" />}
-                  color="bg-green-500/10 border-green-500/20"
-                />
-                <StatCard
-                  label="Risques Environnementaux"
-                  value={stats.nonCompliant}
-                  icon={<Flame className="text-amber-500" />}
-                  color="bg-amber-500/10 border-amber-500/20"
-                />
-                <StatCard
-                  label="Objectifs Environnementaux"
-                  value="3/5"
-                  icon={<Recycle className="text-cyan-500" />}
-                  color="bg-cyan-500/10 border-cyan-500/20"
-                />
-              </div>
-            )}
+            <div className="flex flex-wrap gap-3 shrink-0">
+              <button onClick={handleGenerateReport} className="flex-1 sm:flex-none bg-linear-to-r from-green-600 to-emerald-800 hover:from-green-500 hover:to-emerald-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs flex justify-center items-center gap-2 transition-all shadow-xl shadow-green-900/20 border-none cursor-pointer">
+                <Download size={18} /> Rapport
+              </button>
+              <button onClick={fetchData} className="flex-1 sm:flex-none bg-white/5 hover:bg-white/10 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs flex justify-center items-center gap-2 transition-all cursor-pointer border-none">
+                <RefreshCw size={18} /> Actualiser
+              </button>
+            </div>
           </div>
 
-          <div className="flex gap-4">
-            <button
-              onClick={handleGenerateReport}
-              className="bg-linear-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all shadow-lg cursor-pointer"
+          {stats && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+              <StatCard label="Taux de Conformité" value={`${stats.complianceRate}%`} icon={<Target />} color="emerald" target="≥ 85%" />
+              <StatCard label="Aspects Maîtrisés" value={`${stats.compliant}/${stats.total}`} icon={<Leaf />} color="green" />
+              <StatCard label="Risques Env." value={stats.nonCompliant} icon={<Flame />} color="amber" />
+              <StatCard label="Objectifs Atteints" value="3/5" icon={<Recycle />} color="cyan" />
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-4 mt-8">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors" size={18} />
+              <input
+                type="text"
+                placeholder="Rechercher aspect environnemental, exigence..."
+                className="w-full bg-black/40 border-2 border-white/10 rounded-3xl pl-12 pr-4 py-4 text-xs font-bold uppercase text-white focus:border-green-500 outline-none transition-colors"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+              className="bg-black/40 border-2 border-white/10 rounded-3xl px-6 py-4 text-xs font-black uppercase text-white focus:border-green-500 outline-none min-w-50 cursor-pointer appearance-none transition-colors"
             >
-              <Download size={18} /> Rapport Environnemental
-            </button>
-            <button
-              onClick={fetchData}
-              className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 transition-all cursor-pointer"
-            >
-              <RefreshCw size={18} className="hover:animate-spin" /> Actualiser
-            </button>
+              <option value="ALL" className="bg-[#0B0F1A]">Tous les statuts</option>
+              <option value="COMPLIANT" className="bg-[#0B0F1A]">Conforme (Oui)</option>
+              <option value="NON_COMPLIANT" className="bg-[#0B0F1A]">Non Conforme (Non)</option>
+              <option value="PENDING" className="bg-[#0B0F1A]">Non évalué</option>
+            </select>
+          </div>
+        </header>
+
+        {/* INDICATEURS ENVIRONNEMENTAUX */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+          <EnvironmentalKpi title="Conso. Énergétique" value="8,450 kWh" trend="-5%" icon={<Zap />} color="amber" target="Objectif: -10% annuel" />
+          <EnvironmentalKpi title="Taux de Recyclage" value="72%" trend="+8%" icon={<Recycle />} color="green" target="Objectif: ≥ 75%" />
+          <EnvironmentalKpi title="Déchets Dangereux" value="120 kg" trend="-15%" icon={<Flame />} color="red" target="Objectif: Zéro déchet" />
+        </div>
+
+        {/* PROGRESSION GLOBALE ISO 14001 */}
+        <div className="bg-linear-to-r from-green-900/20 to-emerald-900/20 border-2 border-green-500/20 rounded-[3rem] p-8 lg:p-10 mb-10 shadow-2xl">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-6 mb-6">
+            <div>
+              <h2 className="text-2xl font-black uppercase italic m-0 text-white">Performance Environnementale</h2>
+              <p className="text-xs font-bold tracking-widest text-green-400 mt-2 m-0 uppercase">
+                Suivi de la conformité ISO 14001 et locale
+              </p>
+            </div>
+            <div className="text-left sm:text-right">
+              <span className="text-4xl font-black italic text-white leading-none">{stats?.complianceRate || 0}%</span>
+            </div>
+          </div>
+          <div className="w-full bg-black/40 rounded-full h-4 overflow-hidden border border-white/5">
+            <div className="h-full bg-linear-to-r from-green-500 to-emerald-400 transition-all duration-1000" style={{ width: `${stats?.complianceRate || 0}%` }} />
           </div>
         </div>
 
-        {/* BARRE DE FILTRES */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Rechercher aspect environnemental, exigence..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+        {/* CHECKLIST PAR SECTION ISO */}
+        <div className="space-y-6">
+          {clauseGroups.map((group) => {
+            const items = groupedItems[group.id];
+            if (!items || items.length === 0) return null;
+            const isExpanded = expandedSection === group.id;
 
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-            className="bg-[#151B2B] border border-white/10 rounded-xl px-4 py-2 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none min-w-45 cursor-pointer"
-          >
-            <option value="ALL">Tous les statuts</option>
-            <option value="COMPLIANT">Conforme (Oui)</option>
-            <option value="NON_COMPLIANT">Non Conforme (Non)</option>
-            <option value="PENDING">Non évalué</option>
-          </select>
-        </div>
-      </header>
-
-      {/* INDICATEURS ENVIRONNEMENTAUX */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        <EnvironmentalKpi
-          title="Consommation Énergétique"
-          value="8,450 kWh"
-          trend="-5%"
-          icon={<Zap className="text-amber-400" />}
-          color="bg-amber-500/10 border-amber-500/20"
-          target="Objectif: -10% annuel"
-        />
-        <EnvironmentalKpi
-          title="Taux de Recyclage"
-          value="72%"
-          trend="+8%"
-          icon={<Recycle className="text-green-400" />}
-          color="bg-green-500/10 border-green-500/20"
-          target="Objectif: ≥ 75%"
-        />
-        <EnvironmentalKpi
-          title="Déchets Dangereux"
-          value="120 kg"
-          trend="-15%"
-          icon={<Flame className="text-red-400" />}
-          color="bg-red-500/10 border-red-500/20"
-          target="Objectif: Zéro déchet dangereux"
-        />
-      </div>
-
-      {/* PROGRESSION GLOBALE ISO 14001 */}
-      <div className="bg-linear-to-r from-green-900/30 to-emerald-900/30 border border-green-500/20 rounded-3xl p-6 mb-10">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h2 className="text-xl font-black">
-              Performance Environnementale Globale
-            </h2>
-            <p className="text-[10px] text-slate-400 mt-1 italic">
-              Suivi de la conformité aux exigences ISO 14001:2015 et
-              réglementation sénégalaise
-            </p>
-          </div>
-          <div className="text-right">
-            <span className="text-3xl font-black">
-              {stats?.complianceRate || 0}%
-            </span>
-            <p className="text-[10px] text-slate-400 mt-1">
-              Taux de conformité environnementale
-            </p>
-          </div>
-        </div>
-
-        <div className="w-full bg-white/5 rounded-full h-4 overflow-hidden">
-          <div
-            className="h-full bg-linear-to-r from-green-500 to-emerald-500 transition-all duration-500"
-            style={{ width: `${stats?.complianceRate || 0}%` }}
-          ></div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-4 text-center text-[10px] font-black">
-          <div>
-            <div className="text-green-400">{stats?.compliant || 0}</div>
-            <div>Maîtrisés</div>
-          </div>
-          <div>
-            <div className="text-amber-400">{stats?.nonCompliant || 0}</div>
-            <div>Risques</div>
-          </div>
-          <div>
-            <div className="text-blue-400">{stats?.notAnswered || 0}</div>
-            <div>Non Évalués</div>
-          </div>
-          <div>
-            <div className="text-slate-400">{stats?.total || 0}</div>
-            <div>Total</div>
-          </div>
-        </div>
-      </div>
-
-      {/* CHECKLIST PAR SECTION ISO */}
-      <div className="space-y-8">
-        {clauseGroups.map((group) => {
-          const items = groupedItems[group.id];
-          if (!items || items.length === 0) return null;
-
-          const isExpanded = expandedSection === group.id;
-
-          return (
-            <section
-              key={group.id}
-              className="bg-slate-900/40 border border-white/5 rounded-3xl overflow-hidden"
-            >
-              <button
-                onClick={() => setExpandedSection(isExpanded ? null : group.id)}
-                className="w-full p-6 text-left bg-linear-to-r hover:from-slate-800 hover:to-slate-900 transition-all cursor-pointer"
-                style={{
-                  background: isExpanded
-                    ? `linear-gradient(90deg, ${group.color.replace("from-", "rgb(").replace(" to-", ",")})`
-                    : "transparent",
-                }}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="text-[10px] font-black uppercase bg-green-500/20 text-green-300 px-2.5 py-0.5 rounded mr-3">
+            return (
+              <section key={group.id} className="bg-slate-900/40 border-2 border-white/5 rounded-[2.5rem] overflow-hidden shadow-xl transition-all">
+                <button
+                  onClick={() => setExpandedSection(isExpanded ? null : group.id)}
+                  className="w-full p-6 lg:p-8 text-left transition-all cursor-pointer border-none flex flex-col md:flex-row justify-between md:items-center gap-6"
+                  style={{ background: isExpanded ? `linear-gradient(90deg, ${group.color.replace("from-", "rgba(").replace(" to-", ", 0.2)")}, transparent)` : "transparent" }}
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-black uppercase bg-green-500/20 text-green-400 px-3 py-1.5 rounded-xl border border-green-500/30 shrink-0">
                       §{group.id}
                     </span>
-                    <span className="text-xl font-black">{group.label}</span>
+                    <span className="text-xl lg:text-2xl font-black uppercase italic text-white m-0">{group.label}</span>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 text-[10px] font-black">
+                  <div className="flex items-center gap-6 shrink-0 w-full md:w-auto">
+                    <div className="flex items-center gap-2 text-[10px] font-black tracking-widest bg-black/40 px-4 py-2 rounded-xl">
                       <Leaf className="text-green-500" size={16} />
-                      <span>
-                        {items.filter((i) => i.response?.CR_IsCompliant).length}
-                      </span>
-                      <span className="text-slate-500">/</span>
-                      <span>{items.length}</span>
+                      <span className="text-white">{items.filter((i) => i.response?.CR_IsCompliant).length} / {items.length}</span>
                     </div>
-                    <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-green-500"
-                        style={{
-                          width: `${Math.round((items.filter((i) => i.response?.CR_IsCompliant).length / items.length) * 100)}%`,
-                        }}
-                      ></div>
+                    <div className="hidden sm:block w-32 h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                      <div className="h-full bg-green-500" style={{ width: `${Math.round((items.filter((i) => i.response?.CR_IsCompliant).length / items.length) * 100)}%` }} />
                     </div>
-                    <ChevronDown
-                      className={`text-slate-500 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
-                      size={20}
-                    />
+                    <ChevronDown className={`text-slate-500 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} size={24} />
                   </div>
-                </div>
-              </button>
+                </button>
 
-              {isExpanded && (
-                <div className="divide-y divide-white/5">
-                  {items.map((item) => {
-                    const response = item.response;
-                    const isCompliant = response?.CR_IsCompliant;
-                    const hasEvidence = response?.CR_Evidence;
-                    const isSenegalSpecific = item.LC_SenegalSpecific;
+                {isExpanded && (
+                  <div className="divide-y divide-white/5 border-t-2 border-white/5 bg-black/20">
+                    {items.map((item) => {
+                      const response = item.response;
+                      const isCompliant = response?.CR_IsCompliant;
+                      const hasEvidence = response?.CR_Evidence;
 
-                    return (
-                      <div
-                        key={item.LC_Id}
-                        className="p-6 hover:bg-white/2 transition-colors"
-                      >
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                          {/* COLONNE 1: EXIGENCE */}
-                          <div className="lg:col-span-2">
-                            <div className="flex items-start gap-3 mb-3">
-                              <span className="text-[10px] font-black bg-green-500/20 text-green-300 px-2 py-0.5 rounded shrink-0">
-                                {item.LC_Clause}
-                              </span>
-                              <div className="flex-1">
-                                <h3 className="font-black text-lg">
-                                  {item.LC_Title}
-                                </h3>
-                                {isSenegalSpecific && (
-                                  <span className="text-[9px] font-black bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded mt-1 inline-block">
-                                    <MapPin size={10} className="inline mr-1" />{" "}
-                                    Spécifique Sénégal
+                      return (
+                        <div key={item.LC_Id} className="p-6 lg:p-8 hover:bg-white/5 transition-colors">
+                          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                            
+                            {/* EXIGENCE */}
+                            <div className="xl:col-span-2 space-y-4">
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="text-[10px] font-black uppercase bg-green-500/20 text-green-400 px-2.5 py-1 rounded-lg border border-green-500/20">
+                                  §{item.LC_Clause}
+                                </span>
+                                {item.LC_SenegalSpecific && (
+                                  <span className="text-[9px] font-black uppercase bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-lg border border-amber-500/20 flex items-center gap-1.5">
+                                    <MapPin size={12} /> Exigence Sénégal
                                   </span>
                                 )}
                               </div>
-                            </div>
-
-                            <p className="text-[11px] text-slate-400 mb-3 italic">
-                              {item.LC_Description}
-                            </p>
-
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
-                              <p className="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-2">
-                                <FileText
-                                  size={14}
-                                  className="text-green-500"
-                                />{" "}
-                                Critère d&apos;évaluation
+                              <h3 className="font-black text-lg lg:text-xl uppercase italic text-white m-0 leading-tight">
+                                {item.LC_Title}
+                              </h3>
+                              <p className="text-xs text-slate-400 italic m-0 leading-relaxed border-l-2 border-white/10 pl-4">
+                                {item.LC_Description}
                               </p>
-                              <p className="text-[11px] text-slate-300">
-                                {item.LC_Criteria}
-                              </p>
-                            </div>
-
-                            {item.LC_Reference && (
-                              <div className="text-[10px] text-slate-500 italic">
-                                <span className="font-black text-green-400">
-                                  Référence légale:
-                                </span>{" "}
-                                {item.LC_Reference}
+                              <div className="bg-black/40 border border-white/5 rounded-2xl p-5 mt-4">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2 m-0">
+                                  <FileText size={16} className="text-green-500" /> Critère d&apos;évaluation
+                                </p>
+                                <p className="text-xs text-slate-300 font-bold m-0 leading-relaxed">{item.LC_Criteria}</p>
                               </div>
-                            )}
-                          </div>
-
-                          {/* COLONNE 2: RÉPONSE & ACTIONS */}
-                          <div className="space-y-4">
-                            <div>
-                              <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block">
-                                notre réponse
-                              </label>
-                              <div className="grid grid-cols-2 gap-2">
-                                {(["YES", "NO", "PARTIAL", "NA"] as const).map(
-                                  (resp) => (
-                                    <button
-                                      key={resp}
-                                      onClick={() =>
-                                        handleResponseChange(item.LC_Id, resp)
-                                      }
-                                      disabled={savingItemId === item.LC_Id}
-                                      className={`p-3 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${
-                                        response?.CR_Response === resp
-                                          ? resp === "YES"
-                                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                            : resp === "NO"
-                                              ? "bg-red-500/20 text-red-300 border border-red-500/30"
-                                              : resp === "PARTIAL"
-                                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                                : "bg-slate-500/20 text-slate-300 border border-slate-500/30"
-                                          : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
-                                      }`}
-                                    >
-                                      {resp === "YES" && (
-                                        <CheckCircle
-                                          size={14}
-                                          className="mx-auto mb-1"
-                                        />
-                                      )}
-                                      {resp === "NO" && (
-                                        <XCircle
-                                          size={14}
-                                          className="mx-auto mb-1"
-                                        />
-                                      )}
-                                      {resp === "PARTIAL" && (
-                                        <AlertTriangle
-                                          size={14}
-                                          className="mx-auto mb-1"
-                                        />
-                                      )}
-                                      {resp}
-                                    </button>
-                                  ),
-                                )}
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block items-center gap-2">
-                                <UploadCloud
-                                  size={14}
-                                  className="text-green-500 inline mr-1"
-                                />{" "}
-                                Preuve environnementale
-                              </label>
-                              {hasEvidence ? (
-                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
-                                  <a
-                                    href={response.CR_Evidence}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-                                  >
-                                    <FileText size={14} /> Voir la preuve
-                                    (photo, certificat, relevé)
-                                  </a>
+                              {item.LC_Reference && (
+                                <div className="text-[10px] text-slate-500 italic uppercase tracking-widest mt-2">
+                                  <span className="font-black text-green-400">Réf. légale:</span> {item.LC_Reference}
                                 </div>
-                              ) : (
-                                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl bg-white/5 border-white/10 hover:border-green-500/30 hover:bg-green-500/5 cursor-pointer transition-all">
-                                  <UploadCloud
-                                    size={24}
-                                    className="text-green-400 mb-2"
-                                  />
-                                  <span className="text-[10px] font-black text-slate-400">
-                                    {uploadingEvidence === item.LC_Id
-                                      ? "Téléchargement..."
-                                      : "Uploader preuve"}
-                                  </span>
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    onChange={(e) =>
-                                      e.target.files &&
-                                      handleEvidenceUpload(
-                                        item.LC_Id,
-                                        e.target.files[0],
-                                      )
-                                    }
-                                    disabled={uploadingEvidence === item.LC_Id}
-                                  />
-                                </label>
                               )}
                             </div>
 
-                            <div>
-                              <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block">
-                                Commentaires / Actions
-                              </label>
-                              <textarea
-                                value={response?.CR_Comment || ""}
-                                onChange={(e) =>
-                                  handleCommentChange(
-                                    item.LC_Id,
-                                    e.target.value,
-                                  )
-                                }
-                                placeholder="Décrivez les actions mises en place ou à prévoir..."
-                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-white focus:border-green-500 focus:ring-1 focus:ring-green-500/50 outline-none min-h-15"
-                              />
-                            </div>
+                            {/* RÉPONSE & PREUVE */}
+                            <div className="space-y-6">
+                              <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 block">Notre Évaluation</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {(["YES", "NO", "PARTIAL", "NA"] as const).map((resp) => (
+                                    <button
+                                      key={resp}
+                                      onClick={() => handleResponseChange(item.LC_Id, resp)}
+                                      disabled={savingItemId === item.LC_Id}
+                                      className={`p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none flex flex-col items-center gap-2 ${
+                                        response?.CR_Response === resp
+                                          ? resp === "YES" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/20"
+                                          : resp === "NO" ? "bg-red-600 text-white shadow-lg shadow-red-900/20"
+                                          : resp === "PARTIAL" ? "bg-amber-500 text-white shadow-lg shadow-amber-900/20"
+                                          : "bg-slate-600 text-white shadow-lg"
+                                          : "bg-white/5 text-slate-500 hover:bg-white/10 hover:text-white"
+                                      }`}
+                                    >
+                                      {resp === "YES" && <CheckCircle size={16} />}
+                                      {resp === "NO" && <XCircle size={16} />}
+                                      {resp === "PARTIAL" && <AlertTriangle size={16} />}
+                                      {resp === "NA" && <Minus size={16} />}
+                                      {resp}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
 
-                            <div className="pt-2 border-t border-white/5 flex justify-end">
-                              <span
-                                className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-                                  isCompliant
-                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                    : response
-                                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                      : "bg-slate-500/20 text-slate-300 border border-slate-500/30"
-                                }`}
-                              >
-                                {isCompliant
-                                  ? "Maîtrisé"
-                                  : response
-                                    ? "À améliorer"
-                                    : "Non évalué"}
-                              </span>
+                              <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+                                  <UploadCloud size={16} className="text-green-500" /> Preuve Matérielle
+                                </label>
+                                {hasEvidence ? (
+                                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between">
+                                    <a href={response.CR_Evidence} target="_blank" rel="noopener noreferrer" className="text-xs font-black uppercase tracking-widest text-emerald-400 hover:text-white flex items-center gap-2 no-underline transition-colors">
+                                      <FileText size={16} /> Voir le document
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-3xl bg-black/40 border-white/10 hover:border-green-500/50 hover:bg-green-500/5 cursor-pointer transition-all">
+                                    <UploadCloud size={24} className="text-green-500 mb-2" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                      {uploadingEvidence === item.LC_Id ? "Upload en cours..." : "Joindre un fichier"}
+                                    </span>
+                                    <input type="file" className="hidden" onChange={(e) => e.target.files && handleEvidenceUpload(item.LC_Id, e.target.files[0])} disabled={uploadingEvidence === item.LC_Id} />
+                                  </label>
+                                )}
+                              </div>
+
+                              <div>
+                                <textarea
+                                  value={response?.CR_Comment || ""}
+                                  onChange={(e) => handleCommentChange(item.LC_Id, e.target.value)}
+                                  placeholder="Plan d'action, remarques de l'auditeur..."
+                                  className="w-full bg-black/40 border-2 border-white/10 rounded-3xl p-5 text-xs text-white focus:border-green-500 outline-none min-h-25 resize-y italic transition-colors"
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
-
-      {/* ENGAGEMENTS SÉNÉGAL (Compliance locale) */}
-      <section className="mt-10 bg-linear-to-r from-amber-900/20 to-green-900/20 border border-amber-500/20 rounded-3xl p-8">
-        <h2 className="text-2xl font-black mb-4 flex items-center gap-3 text-green-400">
-          <Users size={28} /> Engagements Réglementaires Sénégalais
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <EngagementCard
-            title="Code de l'Environnement"
-            description="Respect des dispositions du Code de l'Environnement du Sénégal"
-            status="Conforme"
-            color="bg-emerald-500/10 border-emerald-500/20"
-          />
-          <EngagementCard
-            title="Déchets Dangereux"
-            description="Gestion conforme selon le Décret n° 2015-1537 du 11 décembre 2015"
-            status="En cours"
-            color="bg-amber-500/10 border-amber-500/20"
-          />
-          <EngagementCard
-            title="Études d'Impact"
-            description="Réalisation selon le Décret n° 2015-1229 du 28 octobre 2015"
-            status="Non requis"
-            color="bg-slate-500/10 border-slate-500/20"
-          />
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
-      </section>
 
-      {/* FOOTER */}
-      <footer className="mt-12 pt-8 border-t border-white/5 text-center">
-        <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em]">
-          Qualisoft SMI • Checklist Conformité ISO 14001:2015 • Conforme au Code
-          de l&apos;Environnement Sénégal
-        </p>
-        <p className="text-[8px] font-bold text-slate-600 uppercase italic tracking-[0.3em] mt-1">
-          Aspects Environnementaux • Objectifs • Conformité Légale • Évaluation
-          des Performances
-        </p>
-      </footer>
-    </div>
-  );
-}
-
-// --- SOUS-COMPOSANTS ---
-
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color: string;
-  target?: string;
-}
-
-function StatCard({ label, value, icon, color, target }: StatCardProps) {
-  return (
-    <div className={`${color} rounded-2xl p-5`}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="p-2 bg-white/10 rounded-lg">{icon}</div>
-        {target && (
-          <span className="text-[9px] font-black bg-white/20 px-2 py-0.5 rounded-full">
-            {target}
-          </span>
-        )}
+        {/* ENGAGEMENTS SÉNÉGAL */}
+        <section className="mt-12 bg-linear-to-r from-amber-900/10 to-green-900/10 border-2 border-green-500/20 rounded-[3rem] p-8 lg:p-10 shadow-2xl">
+          <h2 className="text-2xl lg:text-3xl font-black uppercase italic mb-6 flex items-center gap-4 text-green-400 m-0">
+            <Users size={32} /> Compliance Locale (Sénégal)
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <EngagementCard title="Code de l'Environnement" description="Respect strict des dispositions légales du Sénégal" status="Conforme" color="emerald" />
+            <EngagementCard title="Déchets Dangereux" description="Gestion conforme (Décret n° 2015-1537)" status="En cours" color="amber" />
+            <EngagementCard title="Études d'Impact" description="Réalisation (Décret n° 2015-1229)" status="Non requis" color="slate" />
+          </div>
+        </section>
       </div>
-      <p className="text-[9px] font-black uppercase text-white/70 mb-1">
-        {label}
-      </p>
-      <p className="text-2xl font-black text-white">{value}</p>
     </div>
   );
 }
 
-interface EnvironmentalKpiProps {
-  title: string;
-  value: string;
-  trend: string;
-  icon: React.ReactNode;
-  color: string;
-  target: string;
+// --- SOUS-COMPOSANTS ISO 14001 ---
+
+function StatCard({ label, value, icon, color, target }: any) {
+  const colorMap: Record<string, string> = {
+    emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+    green: "bg-green-500/10 border-green-500/20 text-green-400",
+    amber: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+    cyan: "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
+  };
+
+  return (
+    <div className={`border-2 rounded-4xl p-6 ${colorMap[color]}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="p-3 bg-current bg-opacity-20 rounded-xl text-current">{icon}</div>
+        {target && <span className="text-[9px] font-black uppercase tracking-widest bg-current bg-opacity-20 px-3 py-1 rounded-full">{target}</span>}
+      </div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-current opacity-80 mb-1 m-0">{label}</p>
+      <p className="text-3xl font-black italic text-white m-0 leading-none">{value}</p>
+    </div>
+  );
 }
 
-function EnvironmentalKpi({
-  title,
-  value,
-  trend,
-  icon,
-  color,
-  target,
-}: EnvironmentalKpiProps) {
+function EnvironmentalKpi({ title, value, trend, icon, color, target }: any) {
+  const colorMap: Record<string, string> = {
+    green: "bg-green-500/10 border-green-500/20 text-green-400",
+    amber: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+    red: "bg-red-500/10 border-red-500/20 text-red-400",
+  };
+
   return (
-    <div className={`${color} rounded-2xl p-6`}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="p-3 bg-white/10 rounded-xl">{icon}</div>
-        <div
-          className={`text-[10px] font-black px-3 py-1 rounded-full ${
-            trend.startsWith("+")
-              ? "bg-emerald-500/20 text-emerald-300"
-              : trend.startsWith("-")
-                ? "bg-amber-500/20 text-amber-300"
-                : "bg-slate-500/20 text-slate-300"
-          }`}
-        >
+    <div className={`border-2 rounded-4xl p-6 lg:p-8 ${colorMap[color]}`}>
+      <div className="flex items-center justify-between mb-6">
+        <div className="p-4 bg-current bg-opacity-20 rounded-2xl text-current">{icon}</div>
+        <div className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${trend.startsWith('+') ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/20 border-amber-500/30 text-amber-400'}`}>
           {trend}
         </div>
       </div>
-      <h3 className="text-lg font-black mb-1">{title}</h3>
-      <div className="flex items-end justify-between">
-        <span className="text-3xl font-black">{value}</span>
-        <span className="text-[9px] text-slate-400">{target}</span>
+      <h3 className="text-sm font-black uppercase tracking-widest text-current opacity-80 mb-2 m-0">{title}</h3>
+      <div className="flex flex-col gap-1">
+        <span className="text-4xl font-black italic text-white leading-none">{value}</span>
+        <span className="text-[10px] font-bold text-slate-400 mt-2">{target}</span>
       </div>
     </div>
   );
 }
 
-interface EngagementCardProps {
-  title: string;
-  description: string;
-  status: "Conforme" | "En cours" | "Non requis";
-  color: string;
-}
-
-function EngagementCard({
-  title,
-  description,
-  status,
-  color,
-}: EngagementCardProps) {
-  const statusConfig = {
-    Conforme: { color: "text-emerald-400", bg: "bg-emerald-500/20" },
-    "En cours": { color: "text-amber-400", bg: "bg-amber-500/20" },
-    "Non requis": { color: "text-slate-400", bg: "bg-slate-500/20" },
+function EngagementCard({ title, description, status, color }: any) {
+  const configMap: Record<string, string> = {
+    emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+    amber: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+    slate: "bg-slate-500/10 border-slate-500/20 text-slate-400",
   };
 
-  const config = statusConfig[status] || statusConfig["Non requis"];
-
   return (
-    <div className={`${color} rounded-xl p-5`}>
-      <h4 className="font-black text-white mb-2">{title}</h4>
-      <p className="text-[10px] text-slate-300 mb-3 italic">{description}</p>
-      <div
-        className={`${config.bg} ${config.color} text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full inline-block`}
-      >
+    <div className={`border-2 rounded-4xl p-6 ${configMap[color]}`}>
+      <h4 className="font-black uppercase italic text-white mb-2 m-0 text-lg">{title}</h4>
+      <p className="text-xs text-slate-300 mb-6 italic leading-relaxed m-0">{description}</p>
+      <div className="bg-current bg-opacity-20 text-current text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-xl inline-block border border-current">
         {status}
       </div>
     </div>

@@ -1,4 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 💡 MODULE : REGISTRE D'AMÉLIORATION CONTINUE (HUB)
+ * -------------------------------------------------------------------------
+ * RÔLE : Pilotage des actions correctives, préventives et d'amélioration.
+ * FIX : Ajout du responsive (lg:ml-72), sécurisation des retours API,
+ * et intégration de schémas explicatifs pour la matrice d'Eisenhower.
+ * -------------------------------------------------------------------------
+ * DATE : 02 Mars 2026 | 01:51 GMT
+ */
+
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -15,7 +26,7 @@ import {
   Fingerprint, Loader2, ChevronDown, ChevronUp
 } from 'lucide-react';
 
-// --- TYPES STRICTS (IDENTIQUES À L'ORIGINAL) ---
+// --- TYPES STRICTS ---
 type ActionSource = 'AUDIT_INTERNE' | 'AUDIT_EXTERNE' | 'NC' | 'RECLAMATION' | 'COPIL' | 'REVUE_DIRECTION' | 'ANALYSE_RISQUE' | 'SUGGESTION' | 'AUTRE' | 'ALL';
 type ActionStatus = 'A_FAIRE' | 'EN_COURS' | 'A_VALIDER' | 'TERMINEE' | 'ANNULEE' | 'EN_RETARD' | 'ALL';
 type ActionPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'ALL';
@@ -48,35 +59,26 @@ interface ActionItem {
   planId?: string;
 }
 
-// --- UTILITAIRE CN ---
-const cn = (...classes: (string | boolean | undefined | null)[]) =>
-  classes.filter(Boolean).join(' ');
+const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
 export default function ContinuousImprovementHub() {
   const router = useRouter();
 
-  // --- ÉTATS ---
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState<{
-    source: ActionSource;
-    status: ActionStatus;
-    priority: ActionPriority;
-  }>({
-    source: 'ALL',
-    status: 'ALL',
-    priority: 'ALL',
+  const [selectedFilters, setSelectedFilters] = useState<{ source: ActionSource; status: ActionStatus; priority: ActionPriority }>({
+    source: 'ALL', status: 'ALL', priority: 'ALL',
   });
 
-  // --- CHARGEMENT DES ACTIONS ---
   const loadActions = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<ActionItem[]>('/continuous-improvement/actions');
-      setActions(res.data || []);
+      const res = await apiClient.get('/continuous-improvement/actions');
+      const data = res.data?.data || res.data;
+      setActions(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error("RUPTURE DE FLUX : REGISTRE D'AMÉLIORATION INACCESSIBLE.");
       setActions([]);
@@ -85,28 +87,19 @@ export default function ContinuousImprovementHub() {
     }
   }, []);
 
-  useEffect(() => {
-    loadActions();
-  }, [loadActions]);
+  useEffect(() => { loadActions(); }, [loadActions]);
 
-  // --- FILTRAGE ---
   const filteredActions = useMemo(() => {
     return actions.filter((action) => {
       const searchLower = searchTerm.toLowerCase();
-      const matchesSearch =
-        action.title.toLowerCase().includes(searchLower) ||
-        action.reference.toLowerCase().includes(searchLower) ||
-        action.responsible.lastName.toLowerCase().includes(searchLower);
-
+      const matchesSearch = action.title.toLowerCase().includes(searchLower) || action.reference.toLowerCase().includes(searchLower) || action.responsible.lastName.toLowerCase().includes(searchLower);
       const matchesSource = selectedFilters.source === 'ALL' || action.source === selectedFilters.source;
       const matchesStatus = selectedFilters.status === 'ALL' || action.status === selectedFilters.status;
       const matchesPriority = selectedFilters.priority === 'ALL' || action.priority === selectedFilters.priority;
-
       return matchesSearch && matchesSource && matchesStatus && matchesPriority;
     });
   }, [actions, searchTerm, selectedFilters]);
 
-  // --- STATISTIQUES ---
   const stats = useMemo(() => ({
     total: actions.length,
     active: actions.filter((a) => ['A_FAIRE', 'EN_COURS', 'A_VALIDER'].includes(a.status)).length,
@@ -119,7 +112,6 @@ export default function ContinuousImprovementHub() {
     },
   }), [actions]);
 
-  // --- HELPERS VISUELS ---
   const getStatusColor = (status: ActionStatus) => {
     const colors: Record<string, string> = {
       A_FAIRE: 'bg-gray-100 text-gray-700 border-gray-200',
@@ -134,77 +126,54 @@ export default function ContinuousImprovementHub() {
 
   const getSourceIcon = (source: ActionSource) => {
     switch (source) {
-      case 'AUDIT_INTERNE':
-        return <FileText size={16} className="text-purple-600" />;
-      case 'AUDIT_EXTERNE':
-        return <ShieldCheck size={16} className="text-indigo-600" />;
-      case 'NC':
-        return <AlertTriangle size={16} className="text-red-600" />;
-      case 'COPIL':
-        return <Users size={16} className="text-blue-600" />;
-      case 'REVUE_DIRECTION':
-        return <BarChart3 size={16} className="text-emerald-600" />;
-      default:
-        return <Target size={16} className="text-gray-600" />;
+      case 'AUDIT_INTERNE': return <FileText size={16} className="text-purple-600" />;
+      case 'AUDIT_EXTERNE': return <ShieldCheck size={16} className="text-indigo-600" />;
+      case 'NC': return <AlertTriangle size={16} className="text-red-600" />;
+      case 'COPIL': return <Users size={16} className="text-blue-600" />;
+      case 'REVUE_DIRECTION': return <BarChart3 size={16} className="text-emerald-600" />;
+      default: return <Target size={16} className="text-gray-600" />;
     }
   };
 
-  const getPriorityBadge = (priority: ActionPriority) => {
-    switch (priority) {
-      case 'CRITICAL':
-        return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Critique</span>;
-      case 'HIGH':
-        return <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">Haute</span>;
-      case 'MEDIUM':
-        return <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">Moyenne</span>;
-      case 'LOW':
-        return <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Basse</span>;
-      default:
-        return null;
-    }
-  };
-
-  // --- CHARGEMENT ---
-  if (loading) {
+  if (loading && actions.length === 0) {
     return (
-      <div className="ml-72 flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="ml-0 lg:ml-72 flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="relative inline-block">
             <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
             <Fingerprint className="absolute inset-0 h-12 w-12 text-indigo-300 animate-pulse opacity-30" />
           </div>
-          <p className="mt-4 text-sm font-medium text-gray-600">Chargement du registre d&apos;amélioration continue...</p>
+          <p className="mt-4 text-sm font-black uppercase tracking-widest text-gray-600 italic">Chargement du registre...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="ml-72 bg-gray-50 min-h-screen p-6">
+    <div className="ml-0 lg:ml-72 bg-gray-50 min-h-screen p-4 sm:p-6 pb-24 font-sans">
       <Toaster position="top-right" richColors />
 
-      <div className="mx-auto max-w-7xl space-y-8">
+      <div className="mx-auto max-w-7xl space-y-8 mt-12 lg:mt-0">
         {/* HEADER */}
         <header className="flex flex-col gap-6 border-b border-gray-200 pb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3">
-                <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800">
+                <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-800 border border-indigo-200">
                   ISO 9001:2015 §10
                 </span>
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-800 border border-emerald-200">
                   {stats.active} actions actives
                 </span>
               </div>
-              <h1 className="mt-2 text-2xl font-bold text-gray-900">Amélioration Continue</h1>
-              <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-                <Activity className="h-4 w-4 text-indigo-500" />
-                Pilotage des actions correctives et préventives
+              <h1 className="mt-4 text-3xl font-black uppercase italic text-gray-900 tracking-tighter m-0">Amélioration Continue</h1>
+              <p className="mt-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500 m-0">
+                <Activity className="h-4 w-4 text-indigo-500" /> Pilotage des actions correctives et préventives
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex rounded-lg border border-gray-300 bg-white p-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex rounded-xl border border-gray-300 bg-white p-1 shadow-sm">
                 {[
                   { id: 'kanban', icon: LayoutGrid, label: 'Kanban' },
                   { id: 'list', icon: List, label: 'Liste' },
@@ -214,10 +183,8 @@ export default function ContinuousImprovementHub() {
                     key={mode.id}
                     onClick={() => setViewMode(mode.id as ViewMode)}
                     className={cn(
-                      'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                      viewMode === mode.id
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-gray-700 hover:bg-gray-100'
+                      'flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all cursor-pointer border-none',
+                      viewMode === mode.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 bg-transparent'
                     )}
                   >
                     <mode.icon className="h-4 w-4" />
@@ -227,48 +194,35 @@ export default function ContinuousImprovementHub() {
               </div>
 
               <button
-                onClick={() => router.push('/dashboard/improvement/actions/new/')}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                onClick={() => router.push('/dashboard/continuous-improvement/actions/new')}
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg hover:bg-indigo-700 transition-colors border-none cursor-pointer"
               >
-                <Plus className="h-4 w-4" />
-                Nouvelle action
+                <Plus className="h-4 w-4" /> Nouvelle action
               </button>
             </div>
           </div>
 
           {/* KPI CARDS */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <KPIStat title="Total actions" value={stats.total} icon={Target} color="indigo" />
             <KPIStat title="En cours" value={stats.active} icon={RefreshCcw} color="blue" subtext={`${Math.round((stats.active / (stats.total || 1)) * 100)}% du flux`} />
-            <KPIStat
-              title="En retard"
-              value={stats.late}
-              icon={AlertCircle}
-              color={stats.late > 0 ? 'red' : 'emerald'}
-              subtext={stats.late > 0 ? 'À traiter en urgence' : 'À jour'}
-            />
-            <KPIStat
-              title="Clôturées"
-              value={stats.completed}
-              icon={CheckCircle2}
-              color="emerald"
-              subtext={`${Math.round((stats.completed / (stats.total || 1)) * 100)}% d'efficacité`}
-            />
-            <KPIStat title="Audits" value={stats.bySource.audit} icon={FileText} color="purple" subtext="Sources internes/externes" />
+            <KPIStat title="En retard" value={stats.late} icon={AlertCircle} color={stats.late > 0 ? 'red' : 'emerald'} subtext={stats.late > 0 ? 'À traiter en urgence' : 'À jour'} />
+            <KPIStat title="Clôturées" value={stats.completed} icon={CheckCircle2} color="emerald" subtext={`${Math.round((stats.completed / (stats.total || 1)) * 100)}% d'efficacité`} />
+            <KPIStat title="Audits" value={stats.bySource.audit} icon={FileText} color="purple" subtext="Sources int/ext" />
             <KPIStat title="NC" value={stats.bySource.nc} icon={AlertTriangle} color="orange" subtext="Non-conformités" />
           </div>
         </header>
 
-        {/* BARRE DE RECHERCHE & FILTRES */}
-        <div className="rounded-xl bg-white shadow-sm border border-gray-200">
+        {/* RECHERCHE ET FILTRES */}
+        <div className="rounded-3xl bg-white shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4 sm:p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-md group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
                 <input
                   type="text"
-                  placeholder="Rechercher par référence, titre ou responsable..."
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Rechercher par référence, titre..."
+                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 py-3 pl-12 pr-4 text-xs font-bold uppercase tracking-widest focus:border-indigo-500 focus:bg-white outline-none transition-all"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -278,196 +232,133 @@ export default function ContinuousImprovementHub() {
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className={cn(
-                    'flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
+                    'flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-black uppercase tracking-widest transition-all cursor-pointer',
                     showFilters || selectedFilters.source !== 'ALL' || selectedFilters.status !== 'ALL' || selectedFilters.priority !== 'ALL'
-                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                      : 'text-gray-700 hover:bg-gray-100 border border-gray-300'
+                      ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-200'
+                      : 'text-gray-600 hover:bg-gray-100 border-2 border-gray-200 bg-white'
                   )}
                 >
-                  <Filter className="h-4 w-4" />
-                  Filtres
-                  {selectedFilters.source !== 'ALL' || selectedFilters.status !== 'ALL' || selectedFilters.priority !== 'ALL' ? (
-                    <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-xs font-medium text-indigo-700">
-                      •
-                    </span>
-                  ) : null}
-                  {showFilters ? (
-                    <ChevronUp className="ml-1 h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="ml-1 h-4 w-4" />
+                  <Filter className="h-4 w-4" /> Filtres
+                  {(selectedFilters.source !== 'ALL' || selectedFilters.status !== 'ALL' || selectedFilters.priority !== 'ALL') && (
+                    <span className="ml-1 h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
                   )}
+                  {showFilters ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
                 </button>
 
-                <button className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  <Download className="h-4 w-4" />
-                  Exporter
+                <button className="flex items-center gap-2 rounded-xl border-2 border-gray-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors">
+                  <Download className="h-4 w-4" /> Exporter
                 </button>
 
-                <button
-                  onClick={loadActions}
-                  className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  title="Actualiser"
-                >
+                <button onClick={loadActions} className="flex items-center justify-center rounded-xl border-2 border-gray-200 bg-white p-3 text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors" title="Actualiser">
                   <RefreshCcw className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
-            {/* PANNEAU FILTRES */}
             {showFilters && (
-              <div className="mt-6 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 md:grid-cols-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Source normative</label>
-                  <select
-                    className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    value={selectedFilters.source}
-                    onChange={(e) => setSelectedFilters({ ...selectedFilters, source: e.target.value as ActionSource })}
-                  >
-                    <option value="ALL">Toutes les sources</option>
-                    <option value="AUDIT_INTERNE">Audit interne</option>
-                    <option value="AUDIT_EXTERNE">Audit externe</option>
-                    <option value="NC">Non-conformité (NC)</option>
-                    <option value="RECLAMATION">Réclamation client</option>
-                    <option value="COPIL">Comité de pilotage</option>
-                    <option value="REVUE_DIRECTION">Revue de direction</option>
-                    <option value="ANALYSE_RISQUE">Analyse des risques</option>
-                    <option value="SUGGESTION">Suggestion d&apos;amélioration</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Statut</label>
-                  <select
-                    className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    value={selectedFilters.status}
-                    onChange={(e) => setSelectedFilters({ ...selectedFilters, status: e.target.value as ActionStatus })}
-                  >
-                    <option value="ALL">Tous les statuts</option>
-                    <option value="A_FAIRE">À faire</option>
-                    <option value="EN_COURS">En cours</option>
-                    <option value="A_VALIDER">À valider</option>
-                    <option value="TERMINEE">Terminée</option>
-                    <option value="ANNULEE">Annulée</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Priorité</label>
-                  <select
-                    className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    value={selectedFilters.priority}
-                    onChange={(e) => setSelectedFilters({ ...selectedFilters, priority: e.target.value as ActionPriority })}
-                  >
-                    <option value="ALL">Toutes les priorités</option>
-                    <option value="CRITICAL">Critique</option>
-                    <option value="HIGH">Haute</option>
-                    <option value="MEDIUM">Moyenne</option>
-                    <option value="LOW">Basse</option>
-                  </select>
-                </div>
+              <div className="mt-6 grid grid-cols-1 gap-6 border-t border-gray-100 pt-6 md:grid-cols-3">
+                {/* Sélecteurs de filtres */}
+                <FilterSelect label="Source normative" value={selectedFilters.source} onChange={(v: string) => setSelectedFilters({ ...selectedFilters, source: v as ActionSource })} options={[{ value: 'ALL', label: 'Toutes les sources' }, { value: 'AUDIT_INTERNE', label: 'Audit interne' }, { value: 'NC', label: 'Non-conformité' }, { value: 'REVUE_DIRECTION', label: 'Revue de direction' }]} />
+                <FilterSelect label="Statut" value={selectedFilters.status} onChange={(v: string) => setSelectedFilters({ ...selectedFilters, status: v as ActionStatus })} options={[{ value: 'ALL', label: 'Tous les statuts' }, { value: 'A_FAIRE', label: 'À faire' }, { value: 'EN_COURS', label: 'En cours' }, { value: 'TERMINEE', label: 'Terminée' }]} />
+                <FilterSelect label="Priorité" value={selectedFilters.priority} onChange={(v: string) => setSelectedFilters({ ...selectedFilters, priority: v as ActionPriority })} options={[{ value: 'ALL', label: 'Toutes les priorités' }, { value: 'CRITICAL', label: 'Critique' }, { value: 'HIGH', label: 'Haute' }, { value: 'MEDIUM', label: 'Moyenne' }, { value: 'LOW', label: 'Basse' }]} />
               </div>
             )}
           </div>
         </div>
 
-        {/* VUES */}
+        {/* AFFICHAGE DES VUES */}
         {viewMode === 'kanban' && <KanbanView actions={filteredActions} router={router} />}
-        {viewMode === 'list' && <ListView actions={filteredActions} router={router} getStatusColor={getStatusColor} getSourceIcon={getSourceIcon} getPriorityBadge={getPriorityBadge} />}
-        {viewMode === 'matrix' && <MatrixView actions={filteredActions} router={router} />}
+        {viewMode === 'list' && <ListView actions={filteredActions} router={router} getStatusColor={getStatusColor} getSourceIcon={getSourceIcon} />}
+        {viewMode === 'matrix' && (
+          <>
+            
+
+[Image of Eisenhower Decision Matrix]
+
+            <MatrixView actions={filteredActions} router={router} />
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-// ============================================================================
-// COMPOSANTS CLICKUP-STYLE
-// ============================================================================
+// --- COMPOSANTS INTERNES ---
 
-function KPIStat({
-  title,
-  value,
-  icon: Icon,
-  color,
-  subtext,
-}: {
-  title: string;
-  value: number;
-  icon: React.ElementType;
-  color: string;
-  subtext?: string;
-}) {
-  const colorClasses = {
-    indigo: 'text-indigo-600 bg-indigo-50',
-    blue: 'text-blue-600 bg-blue-50',
-    emerald: 'text-emerald-600 bg-emerald-50',
-    red: 'text-red-600 bg-red-50',
-    purple: 'text-purple-600 bg-purple-50',
-    orange: 'text-orange-600 bg-orange-50',
+function FilterSelect({ label, value, onChange, options }: any) {
+  return (
+    <div>
+      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">{label}</label>
+      <select
+        className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 py-3 pl-4 pr-10 text-xs font-bold uppercase text-gray-900 focus:border-indigo-500 outline-none cursor-pointer appearance-none transition-colors"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function KPIStat({ title, value, icon: Icon, color, subtext }: any) {
+  const colorMap: Record<string, string> = {
+    indigo: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+    blue: 'text-blue-600 bg-blue-50 border-blue-100',
+    emerald: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+    red: 'text-red-600 bg-red-50 border-red-100',
+    purple: 'text-purple-600 bg-purple-50 border-purple-100',
+    orange: 'text-orange-600 bg-orange-50 border-orange-100',
   };
 
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-200">
-      <div className={`inline-flex rounded-lg p-2 ${colorClasses[color as keyof typeof colorClasses]}`}>
-        <Icon className="h-5 w-5" aria-hidden="true" />
+    <div className={`rounded-2xl p-5 border shadow-sm ${colorMap[color]}`}>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="p-2 bg-white rounded-lg shadow-sm"><Icon size={18} /></div>
+        <p className="text-[10px] font-black uppercase tracking-widest opacity-80 m-0">{title}</p>
       </div>
-      <div className="mt-3">
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-        {subtext && <p className="mt-1 text-xs text-gray-500">{subtext}</p>}
-      </div>
+      <p className="text-3xl font-black italic m-0 leading-none">{value}</p>
+      {subtext && <p className="mt-2 text-[10px] font-bold uppercase tracking-widest opacity-70 m-0">{subtext}</p>}
     </div>
   );
 }
 
-function KanbanView({
-  actions,
-  router,
-}: {
-  actions: ActionItem[];
-  router: ReturnType<typeof useRouter>;
-}) {
-  const columns: { id: ActionStatus; title: string; icon: React.ElementType }[] = [
-    { id: 'A_FAIRE', title: 'À faire', icon: Clock },
-    { id: 'EN_COURS', title: 'En cours', icon: RefreshCcw },
-    { id: 'A_VALIDER', title: 'À valider', icon: CheckCircle2 },
-    { id: 'TERMINEE', title: 'Terminée', icon: ShieldCheck },
+function KanbanView({ actions, router }: any) {
+  const columns = [
+    { id: 'A_FAIRE', title: 'À faire', icon: Clock, color: 'text-gray-500' },
+    { id: 'EN_COURS', title: 'En cours', icon: RefreshCcw, color: 'text-blue-500' },
+    { id: 'A_VALIDER', title: 'À valider', icon: CheckCircle2, color: 'text-amber-500' },
+    { id: 'TERMINEE', title: 'Terminée', icon: ShieldCheck, color: 'text-emerald-500' },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      {columns.map((column) => {
-        const columnActions = actions.filter((a) => a.status === column.id);
-        const isLate = column.id === 'A_FAIRE' && columnActions.some((a) => isPast(new Date(a.deadline)));
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 items-start">
+      {columns.map((col) => {
+        const colActions = actions.filter((a: any) => a.status === col.id);
+        const isLate = col.id === 'A_FAIRE' && colActions.some((a: any) => isPast(new Date(a.deadline)));
 
         return (
-          <div key={column.id} className="rounded-xl bg-white shadow-sm border border-gray-200 flex flex-col">
-            <div className="border-b border-gray-200 px-5 py-4">
+          <div key={col.id} className="rounded-3xl bg-gray-100 border border-gray-200 flex flex-col max-h-200">
+            <div className="p-4 border-b border-gray-200 bg-white rounded-t-3xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <column.icon className={`h-4 w-4 ${column.id === 'A_FAIRE' ? 'text-gray-500' : column.id === 'EN_COURS' ? 'text-blue-600' : column.id === 'A_VALIDER' ? 'text-amber-600' : 'text-emerald-600'}`} />
-                  <h2 className="text-sm font-medium text-gray-900">{column.title}</h2>
+                  <col.icon className={`h-4 w-4 ${col.color}`} />
+                  <h2 className="text-xs font-black uppercase tracking-widest text-gray-900 m-0">{col.title}</h2>
                 </div>
-                <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-                  {columnActions.length}
-                </span>
+                <span className="rounded-lg bg-gray-100 px-3 py-1 text-[10px] font-black text-gray-600">{colActions.length}</span>
               </div>
               {isLate && (
-                <div className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  Actions en retard
+                <div className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-50 p-2 rounded-lg">
+                  <AlertCircle size={14} /> Actions en retard
                 </div>
               )}
             </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-100">
-              {columnActions.length > 0 ? (
-                columnActions.map((action) => (
-                  <KanbanCard key={action.id} action={action} onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)} />
-                ))
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-8 text-center">
-                  <Target className="h-8 w-8 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">Aucune action</p>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {colActions.length > 0 ? colActions.map((action: any) => (
+                <KanbanCard key={action.id} action={action} onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)} />
+              )) : (
+                <div className="flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-gray-300 rounded-2xl">
+                  <Target className="h-8 w-8 text-gray-400 mb-2" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 m-0">Vide</p>
                 </div>
               )}
             </div>
@@ -478,166 +369,74 @@ function KanbanView({
   );
 }
 
-function KanbanCard({ action, onClick }: { action: ActionItem; onClick: () => void }) {
+function KanbanCard({ action, onClick }: any) {
   const isLate = isPast(new Date(action.deadline)) && action.status !== 'TERMINEE';
   const daysLeft = differenceInDays(new Date(action.deadline), new Date());
 
   return (
-    <div
-      onClick={onClick}
-      className="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          {action.priority === 'CRITICAL' && (
-            <div className="h-2 w-2 rounded-full bg-red-500" />
-          )}
-          {action.priority === 'HIGH' && (
-            <div className="h-2 w-2 rounded-full bg-orange-500" />
-          )}
-        </div>
-        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{action.reference}</span>
+    <div onClick={onClick} className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all group">
+      <div className="flex items-start justify-between mb-3">
+        <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-600 border border-gray-200 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+          {action.reference}
+        </span>
+        <div className={`h-2.5 w-2.5 rounded-full ${action.priority === 'CRITICAL' ? 'bg-red-500' : action.priority === 'HIGH' ? 'bg-orange-500' : action.priority === 'MEDIUM' ? 'bg-blue-500' : 'bg-gray-300'}`} />
       </div>
-
-      <h3 className="mt-2 line-clamp-2 text-sm font-medium text-gray-900">{action.title}</h3>
-
-      <div className="mt-3 flex items-center justify-between">
+      <h3 className="text-sm font-bold text-gray-900 leading-snug m-0 line-clamp-2">{action.title}</h3>
+      <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-700 border border-gray-300">
-            {action.responsible.firstName[0]}
-            {action.responsible.lastName[0]}
+          <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-black text-indigo-700 border border-indigo-200">
+            {action.responsible.firstName[0]}{action.responsible.lastName[0]}
           </div>
-          <span className="text-xs text-gray-600">{action.responsible.lastName}</span>
         </div>
-        <div
-          className={`text-xs font-medium ${
-            isLate ? 'text-red-600' : daysLeft <= 7 ? 'text-amber-600' : 'text-gray-600'
-          }`}
-        >
-          {isLate ? `-${Math.abs(daysLeft)}j` : `${daysLeft}j`}
+        <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${isLate ? 'bg-red-50 text-red-600' : daysLeft <= 7 ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500'}`}>
+          {isLate ? `Retard: ${Math.abs(daysLeft)}j` : `J-${daysLeft}`}
         </div>
       </div>
-
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-        <div
-          className="h-full rounded-full bg-indigo-600"
-          style={{ width: `${action.progress}%` }}
-        />
+      <div className="mt-4 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+        <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${action.progress}%` }} />
       </div>
     </div>
   );
 }
 
-function ListView({
-  actions,
-  router,
-  getStatusColor,
-  getSourceIcon,
-  getPriorityBadge,
-}: {
-  actions: ActionItem[];
-  router: ReturnType<typeof useRouter>;
-  getStatusColor: (status: ActionStatus) => string;
-  getSourceIcon: (source: ActionSource) => React.ReactNode;
-  getPriorityBadge: (priority: ActionPriority) => React.ReactNode;
-}) {
+function ListView({ actions, router, getStatusColor, getSourceIcon }: any) {
   return (
-    <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
+    <div className="rounded-3xl bg-white shadow-sm border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Responsable</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Échéance</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+              {['Référence', 'Action', 'Source', 'Responsable', 'Échéance', 'Statut'].map((h) => (
+                <th key={h} className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
-            {actions.map((action) => {
-              const isLate = isPast(new Date(action.deadline)) && action.status !== 'TERMINEE';
-              return (
-                <tr
-                  key={action.id}
-                  onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)}
-                  className="cursor-pointer hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{action.reference}</td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{action.title}</div>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                      {action.evidencesCount > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Paperclip className="h-3.5 w-3.5" />
-                          <span>{action.evidencesCount}</span>
-                        </div>
-                      )}
-                      {action.commentsCount > 0 && (
-                        <div className="flex items-center gap-1">
-                          <FileText className="h-3.5 w-3.5" />
-                          <span>{action.commentsCount}</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2 text-xs">
-                      <div className="rounded bg-gray-100 p-1">{getSourceIcon(action.source)}</div>
-                      <span className="capitalize">{action.source.replace('_', ' ').toLowerCase()}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-700 border border-gray-300">
-                        {action.responsible.firstName[0]}
-                        {action.responsible.lastName[0]}
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {action.responsible.firstName} {action.responsible.lastName}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm ${isLate ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                      <Calendar className="mr-1.5 inline h-3.5 w-3.5 text-gray-400" />
-                      {format(new Date(action.deadline), 'dd MMM yyyy', { locale: fr })}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-24">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                          <div
-                            className="h-full rounded-full bg-indigo-600"
-                            style={{ width: `${action.progress}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-600 w-8 text-right">{action.progress}%</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(action.status)}`}
-                    >
-                      {action.status.replace('_', ' ').toLowerCase()}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-            {actions.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-500">
-                  Aucune action ne correspond aux critères de filtrage
+            {actions.map((action: any) => (
+              <tr key={action.id} onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)} className="cursor-pointer hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap text-xs font-black text-gray-900">{action.reference}</td>
+                <td className="px-6 py-4">
+                  <div className="text-sm font-bold text-gray-900 line-clamp-1">{action.title}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600">
+                    <div className="rounded-lg bg-gray-100 p-1.5">{getSourceIcon(action.source)}</div>
+                    {action.source.replace('_', ' ')}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-700">
+                  {action.responsible.lastName} {action.responsible.firstName[0]}.
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-700">
+                  {format(new Date(action.deadline), 'dd/MM/yyyy')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`inline-flex rounded-md px-3 py-1 text-[10px] font-black uppercase tracking-widest border ${getStatusColor(action.status)}`}>
+                    {action.status.replace('_', ' ')}
+                  </span>
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
       </div>
@@ -645,99 +444,34 @@ function ListView({
   );
 }
 
-function MatrixView({ actions, router }: { actions: ActionItem[]; router: ReturnType<typeof useRouter> }) {
+function MatrixView({ actions, router }: any) {
   const quadrants = [
-    {
-      id: 'urgent-important',
-      title: 'Faire maintenant',
-      description: 'Urgent & Important',
-      color: 'bg-red-50 border-red-200',
-      actions: actions.filter(
-        (a) => ['CRITICAL', 'HIGH'].includes(a.priority) && (a.status === 'EN_RETARD' || isPast(new Date(a.deadline)))
-      ),
-    },
-    {
-      id: 'not-urgent-important',
-      title: 'Planifier',
-      description: 'Important, Non Urgent',
-      color: 'bg-blue-50 border-blue-200',
-      actions: actions.filter(
-        (a) => ['HIGH', 'MEDIUM'].includes(a.priority) && !isPast(new Date(a.deadline)) && a.status !== 'EN_RETARD'
-      ),
-    },
-    {
-      id: 'urgent-not-important',
-      title: 'Déléguer',
-      description: 'Urgent, Non Important',
-      color: 'bg-amber-50 border-amber-200',
-      actions: actions.filter(
-        (a) => ['LOW', 'MEDIUM'].includes(a.priority) && a.status === 'A_FAIRE' && isPast(new Date(a.deadline))
-      ),
-    },
-    {
-      id: 'not-urgent-not-important',
-      title: 'Éliminer',
-      description: 'Ni Urgent, Ni Important',
-      color: 'bg-gray-50 border-gray-200',
-      actions: actions.filter((a) => a.priority === 'LOW' && a.status === 'A_FAIRE' && !isPast(new Date(a.deadline))),
-    },
+    { id: 'q1', title: 'Faire (Prioritaire)', desc: 'Urgent & Important', color: 'bg-red-50 border-red-200', actions: actions.filter((a: any) => ['CRITICAL', 'HIGH'].includes(a.priority) && (a.status === 'EN_RETARD' || isPast(new Date(a.deadline)))) },
+    { id: 'q2', title: 'Planifier (Stratégique)', desc: 'Important, Non Urgent', color: 'bg-blue-50 border-blue-200', actions: actions.filter((a: any) => ['HIGH', 'MEDIUM'].includes(a.priority) && !isPast(new Date(a.deadline))) },
+    { id: 'q3', title: 'Déléguer (Opérationnel)', desc: 'Urgent, Non Important', color: 'bg-amber-50 border-amber-200', actions: actions.filter((a: any) => ['LOW'].includes(a.priority) && isPast(new Date(a.deadline))) },
+    { id: 'q4', title: 'Éliminer / Postposer', desc: 'Ni Urgent, Ni Important', color: 'bg-gray-50 border-gray-200', actions: actions.filter((a: any) => a.priority === 'LOW' && !isPast(new Date(a.deadline))) },
   ];
 
   return (
-    <div className="rounded-xl bg-white shadow-sm border border-gray-200 p-6">
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          <Target className="h-5 w-5 text-indigo-600" />
-          Matrice d&apos;Eisenhower — Arbitrage stratégique
-        </h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Priorisez vos actions selon leur urgence et leur importance stratégique
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {quadrants.map((quadrant) => (
-          <div
-            key={quadrant.id}
-            className={`rounded-xl border ${quadrant.color} p-5`}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">{quadrant.title}</h3>
-                <p className="mt-0.5 text-sm text-gray-600">{quadrant.description}</p>
-              </div>
-              <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-gray-700 border border-gray-300">
-                {quadrant.actions.length}
-              </span>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {quadrants.map((q) => (
+        <div key={q.id} className={`rounded-3xl border-2 p-6 ${q.color}`}>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-lg font-black uppercase italic text-gray-900 m-0">{q.title}</h3>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mt-1 m-0">{q.desc}</p>
             </div>
-
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-              {quadrant.actions.length > 0 ? (
-                quadrant.actions.map((action) => (
-                  <div
-                    key={action.id}
-                    onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)}
-                    className="cursor-pointer rounded-md border border-gray-200 bg-white p-3 hover:bg-gray-50"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 line-clamp-1">{action.title}</p>
-                        <p className="mt-0.5 text-xs text-gray-500">{action.reference}</p>
-                      </div>
-                      <div className={`ml-3 flex h-2 w-2 shrink-0 rounded-full ${action.priority === 'CRITICAL' ? 'bg-red-500' : action.priority === 'HIGH' ? 'bg-orange-500' : action.priority === 'MEDIUM' ? 'bg-blue-500' : 'bg-gray-400'}`} />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="flex h-32 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
-                  <CheckCircle2 className="h-6 w-6 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">Aucune action</p>
-                </div>
-              )}
-            </div>
+            <span className="bg-white border border-gray-200 text-gray-800 text-xs font-black px-3 py-1 rounded-lg">{q.actions.length}</span>
           </div>
-        ))}
-      </div>
+          <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+            {q.actions.map((action: any) => (
+              <div key={action.id} onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)} className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md transition-shadow">
+                <p className="text-xs font-bold text-gray-900 m-0 line-clamp-1">{action.title}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

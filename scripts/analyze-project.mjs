@@ -291,7 +291,7 @@ function generateRecommendations() {
     { label: 'Tableau de Bord', path: '/dashboard', icon: '🏠' }
   ];
 
-  if (hasProcess) analysis.recommendations.navigation.push({ label: 'Processus', path: '/processes', icon: '⚙️' });
+  if (hasProcess) analysis.recommendations.navigation.push({ label: 'Processus', path: '/processus', icon: '⚙️' });
   if (hasNC) analysis.recommendations.navigation.push({ label: 'Non-Conformités', path: '/non-conformities', icon: '⚠️' });
   if (hasAudit) analysis.recommendations.navigation.push({ label: 'Audits', path: '/audits', icon: '🔍' });
   if (hasRisk) analysis.recommendations.navigation.push({ label: 'Risques', path: '/risks', icon: '🛡️' });
