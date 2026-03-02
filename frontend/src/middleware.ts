@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// 📂 Fichiers et routes qui ne nécessitent jamais de connexion
+/**
+ * 🛰️ MODULE : MIDDLEWARE SDE (SOVEREIGN DIGITAL ECOSYSTEM)
+ * -------------------------------------------------------------------------
+ * RÔLE : Tour de contrôle (Edge Routing). Sécurise les accès avant 
+ * même que React ne soit chargé. Gère l'aiguillage Multi-Tenant.
+ * FIX CRITIQUE : Implémentation du coupe-circuit Anti-Boucle Infinie.
+ * -------------------------------------------------------------------------
+ * DATE : 02 Mars 2026 | 00:15 GMT
+ */
+
+// 📂 Fichiers et routes purement statiques (Le login est retiré d'ici pour traitement spécifique)
 const PUBLIC_PATHS = [
-  '/auth/login',
   '/api/public',
   '/images',
   '/assets',
@@ -30,7 +39,8 @@ const getDomainContext = (host: string) => {
   }
 
   // 3. CAS TENANT (Espaces clients isolés ex: sagam.qualisoft.sn)
-  if (parts.length >= 3 && parts.includes('qualisoft')) {
+  // Plus robuste : vérifie juste qu'on est sur un sous-domaine
+  if (parts.length >= 2) {
     return { slug: parts[0], type: 'TENANT', isMaster: false };
   }
 
@@ -52,12 +62,11 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set('x-is-master', String(context.isMaster));
 
   // 3. 🟢 BYPASS N°1 : LA LANDING PAGE
-  // Si on est sur elite.qualisoft.sn, on laisse passer tout le trafic librement
   if (context.type === 'LANDING') {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  // 4. 🟢 BYPASS N°2 : LES ROUTES PUBLIQUES (Assets, API publiques, Login)
+  // 4. 🟢 BYPASS N°2 : LES ROUTES PUBLIQUES (Assets, API publiques)
   const isPublicPath = PUBLIC_PATHS.some(path => 
     pathname === path || pathname.startsWith(path) || pathname.startsWith('/_next')
   );
@@ -66,18 +75,33 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  // 5. 🔴 BARRIÈRE DE SÉCURITÉ (Cœur de l'architecture)
-  // À partir d'ici, on est soit sur "app", soit sur un client ("sagam").
+  // 5. 🔴 BARRIÈRE DE SÉCURITÉ & ANTI-BOUCLE (Cœur de l'architecture)
   const token = request.cookies.get('qualisoft_token')?.value;
+  const isLoginPage = pathname.startsWith('/auth/login');
 
-  // S'il n'y a pas de jeton, on verrouille l'accès et on force la connexion
+  // 🛡️ COUPE-CIRCUIT : Si l'utilisateur A UN TOKEN et tente d'aller sur le Login -> Retour Dashboard
+  if (isLoginPage && token) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // 🟢 Si l'utilisateur n'a PAS de token et va sur le Login -> On le laisse passer
+  if (isLoginPage && !token) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
+  // ⛔ Si l'utilisateur n'a PAS de token et va sur une route protégée -> Expulsion
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(loginUrl);
+    
+    const response = NextResponse.redirect(loginUrl);
+    // Optionnel mais puissant : On force le nettoyage du cookie corrompu côté navigateur
+    response.cookies.delete('qualisoft_token'); 
+    
+    return response;
   }
 
-  // 6. 🛡️ TRANSMISSION FINALE SÉCURISÉE
+  // 6. 🛡️ TRANSMISSION FINALE SÉCURISÉE (Requête valide)
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   
   response.headers.set('X-Frame-Options', 'DENY');

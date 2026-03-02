@@ -1,31 +1,46 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+//* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * 🛰️ MODULE : API CLIENT MATRIX (AXIOS)
  * -------------------------------------------------------------------------
  * RÔLE : Intercepteur souverain pour la communication avec le Noyau NestJS.
- * STRATÉGIE : Injection automatique du JWT scellé (qualisoft_token).
+ * STRATÉGIE : Injection JWT & Gestion stricte des sous-domaines (SDE).
+ * FIX CRITIQUE : Purge dynamique des cookies cross-domain pour stopper 
+ * les boucles de redirection 401 sur les tenants.
  * -------------------------------------------------------------------------
+ * DATE : 02 Mars 2026 | 00:05 GMT
  */
 
 import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
 
-// Configuration de base de l'instance Axios
+// --- UTILITAIRE SOUVERAIN : RÉSOLUTION DE DOMAINE ---
+// Permet de cibler ".qualisoft.sn" peu importe le sous-domaine actuel (app, sagam, etc.)
+const getRootDomain = () => {
+  if (typeof window === 'undefined') return '';
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return hostname;
+  // Extrait "qualisoft.sn" de "sagam.qualisoft.sn"
+  const parts = hostname.split('.');
+  return `.${parts.slice(-2).join('.')}`; 
+};
+
+// --- CONFIGURATION DU NOYAU AXIOS ---
 const apiClient = axios.create({
-  // Utilisation du préfixe défini dans le proxy Next.js ou l'URL directe
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
-  withCredentials: true, // 🛡️ Crucial : Permet de transmettre les cookies HTTP-Only
+  withCredentials: true, // 🛡️ Autorise la transmission des cookies cross-origin
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
 /**
- * 🛠️ INTERCEPTEUR DE REQUÊTE
- * Rôle : Récupérer le token et l'injecter dans le header Authorization.
+ * 🛠️ INTERCEPTEUR DE REQUÊTE (OUTGOING)
+ * Rôle : Assurer que chaque appel vers le backend possède son laissez-passer (JWT).
  */
 apiClient.interceptors.request.use(
   (config) => {
-    // 1. Priorité : Récupération du token depuis les cookies (plus fiable pour le Middleware)
+    // 1. Lecture prioritaire du cookie (si non-HttpOnly)
     let token = typeof document !== 'undefined' 
       ? document.cookie
           .split('; ')
@@ -33,55 +48,64 @@ apiClient.interceptors.request.use(
           ?.split('=')[1]
       : null;
 
-    // 2. Fallback : Si le cookie n'est pas lisible (JS), on tente le store Zustand
+    // 2. Fallback robuste : Lecture directe dans le store Zustand
     if (!token) {
-      token = useAuthStore.getState().token;
+      try {
+        token = useAuthStore.getState().token;
+      } catch (e) {
+        console.warn("API Client : Le store Auth n'est pas encore initialisé.");
+      }
     }
 
-    // 3. Injection dans les headers si le token existe
+    // 3. Scellage de l'en-tête
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 /**
- * 🛠️ INTERCEPTEUR DE RÉPONSE
- * Rôle : Gérer les erreurs de sécurité globales (401 / 403).
+ * 🛠️ INTERCEPTEUR DE RÉPONSE (INCOMING)
+ * Rôle : Gardien de sécurité. Intercepte les rejets du backend avant l'UI.
  */
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // 🔴 CAS : SESSION EXPIREE OU TOKEN INVALIDE (401)
+    // 🔴 CAS 1 : SESSION EXPIRÉE / TOKEN REJETÉ (401)
     if (error.response?.status === 401 && !originalRequest._retry) {
-      console.warn("⚠️ [SÉCURITÉ] Session Matrix expirée ou non autorisée.");
-      
-      // On évite les boucles infinies de redirection
-      originalRequest._retry = true;
+      originalRequest._retry = true; // Verrou anti-boucle infinie
 
-      // Nettoyage local et redirection forcée vers le login
       if (typeof window !== 'undefined') {
-        // Suppression du cookie corrompu
-        document.cookie = "qualisoft_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; Secure; SameSite=Lax";
-        
-        // Nettoyage du store Zustand
-        useAuthStore.getState().logout();
+        const currentPath = window.location.pathname;
 
-        // Expulsion vers la porte d'entrée avec paramètre de contexte
-        window.location.href = '/auth/login?session=expired';
+        // Si on n'est PAS déjà sur la page de login, on déclenche le protocole d'éjection
+        if (!currentPath.includes('/auth/login')) {
+          console.warn("⚠️ [SÉCURITÉ] Session Matrix altérée. Exécution du protocole de purge.");
+          
+          const rootDomain = getRootDomain();
+
+          // 🧹 Purge TOTALE du cookie sur TOUS les sous-domaines possibles
+          document.cookie = `qualisoft_token=; path=/; domain=${rootDomain}; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax`;
+          document.cookie = `qualisoft_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax`; // Par sécurité sur le domaine exact
+
+          // 🧹 Purge du store Zustand
+          useAuthStore.getState().logout();
+
+          // 🚀 Éjection (Rechargement dur pour vider la mémoire de l'app)
+          window.location.href = '/auth/login?session=expired';
+        }
       }
     }
 
-    // 🟠 CAS : DROITS INSUFFISANTS (403)
+    // 🟠 CAS 2 : DROITS INSUFFISANTS (403)
     if (error.response?.status === 403) {
-      console.error("🚫 [ACCÈS] Droits insuffisants pour cette opération Matrix.");
+      console.error("🚫 [ACCÈS SDE] Autorité insuffisante pour cette transaction sur ce Nœud.");
+      // Laisse le composant UI afficher le toast d'erreur via le Promise.reject
     }
 
     return Promise.reject(error);
