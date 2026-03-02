@@ -1,94 +1,67 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * CHEMIN ABSOLU : /src/app/(dashboard)/layout.tsx
- * PROJET : Qualisoft Elite RD 2030 (Frontend)
- * RÔLE : Layout sécurisé Server-Side via JWT (Zéro Next-Auth)
+ * 🛰️ MODULE : src/app/(dashboard)/layout.tsx
  * -------------------------------------------------------------------------
- * MODIFICATION : Alignement sur le cookie 'qualisoft_token' et bypass Master.
+ * CORRECTIF : Stabilisation de l'import Sidebar & Protection des routes.
+ * RÉVISION : 02 Mars 2026 | 18:21 GMT
+ * -------------------------------------------------------------------------
  */
 
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import * as jwt from "jsonwebtoken";
-import React from "react";
-import TrialBanner from '@/components/TrialBanner';
-import Sidebar from '../dashboard/sidebar'; 
+"use client";
 
-export default async function DashboardLayout({ 
-  children 
-}: { 
-  children: React.ReactNode 
-}) {
-  // 1. Récupération du Cookie Store (Next.js 15)
-  const cookieStore = await cookies();
-  
-  // 🚩 CORRECTION : On pointe vers le nom de cookie défini dans ton login souverain
-  const token = cookieStore.get("qualisoft_token")?.value;
+import React, { useEffect, useState, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
+import { Loader2 } from "lucide-react";
 
-  // 2. Redirection immédiate si le douanier ne voit pas de jeton
-  if (!token) {
-    redirect('/auth/login');
-  }
+// ✅ IMPORT CORRIGÉ : On cible précisément l'ossature de navigation
+import Sidebar from "@/app/dashboard/sidebar"; 
 
-  let user: any = null;
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore() as any;
+  const [hasMounted, setHasMounted] = useState(false);
 
-  // 👑 CAS PARTICULIER : BYPASS POUR LE TOKEN DE SECOURS MASTER
-  if (token === "MASTER_TOKEN_SOUVERAIN") {
-    user = {
-      U_Email: 'ab.thiongane@qualisoft.sn',
-      U_Role: 'SUPER_ADMIN',
-      tenantId: 'MATRIX_CORE',
-      U_FirstName: 'Abdoulaye',
-      U_LastName: 'Thiongane'
-    };
-  } else {
-    try {
-      /**
-       * 3. DÉCODAGE ET VALIDATION DU JETON
-       * On utilise le secret partagé avec le Backend NestJS (qualipass2026).
-       */
-      user = jwt.verify(token, process.env.JWT_SECRET || "qualipass2026");
-    } catch (error) {
-      // Si le token est expiré, corrompu ou que la signature ne match pas
-      console.error("[SÉCURITÉ] Jeton Dashboard invalide ou expiré.");
-      redirect('/auth/login');
+  // 🛡️ PROTOCOLE D'HYDRATATION
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  // 🚪 BARRIÈRE DE SÉCURITÉ KERNEL
+  useEffect(() => {
+    if (hasMounted && !isAuthenticated) {
+      router.replace("/auth/login");
     }
-  }
+  }, [hasMounted, isAuthenticated, router]);
 
-  // 4. EXTRACTION DES RADICAUX DE SÉCURITÉ MATRIX
-  // On gère les deux formats possibles de payload (U_Role ou role)
-  const isSuperAdmin = 
-    user.U_Role === 'SUPER_ADMIN' || 
-    user.role === 'SUPER_ADMIN' ||
-    user.U_Email === 'ab.thiongane@qualisoft.sn';
-  
-  // Détection du mode Essai/Trial pour l'affichage du Banner
-  const isTrial = user.tenantId === 'ESSAI' || user.T_Plan === 'TRIAL';
+  const isSuperAdmin = useMemo(() => {
+    return user?.U_Role?.toUpperCase() === "SUPER_ADMIN" || user?.U_Email === "ab.thiongane@qualisoft.sn";
+  }, [user]);
+
+  if (!hasMounted || !isAuthenticated || !user) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] italic">
+        <Loader2 className="animate-spin text-blue-600 mb-6" size={50} strokeWidth={3} />
+        <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.5em] animate-pulse m-0">
+          Initialisation Matrix OS...
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white italic font-sans selection:bg-blue-500/30">
+    <div className="h-screen bg-[#0B0F1A] flex italic font-sans overflow-hidden selection:bg-blue-600/30">
+      {/* 🧭 NAVIGATION RÉGALIENNE */}
+      <Sidebar user={user} isSuperAdmin={isSuperAdmin} />
       
-      {/* 🛠️ INJECTION DU CONTEXTE DANS LE BANNER DE TRIAL */}
-      <TrialBanner user={user} isSuperAdmin={isSuperAdmin} />
-      
-      {/* Décalage du contenu si le Banner est présent */}
-      <div className={isTrial ? 'pt-20' : ''}>
-        <div className="flex">
-          
-          {/* 🛠️ SIDEBAR : NAVIGATION SOUVERAINE */}
-          {/* On injecte l'objet user complet pour adapter les menus (Admin/User) */}
-          <Sidebar user={user} isSuperAdmin={isSuperAdmin} />
-          
-          {/* ZONE DE CONTENU PRINCIPALE */}
-          {/* ml-72 correspond à la largeur fixe de ta Sidebar (18rem) */}
-          <main className="flex-1 ml-72 min-h-screen relative overflow-hidden bg-slate-900/50 backdrop-blur-3xl border-l border-white/5">
+      <div className="flex-1 flex flex-col pl-80 min-w-0 relative">
+        <main className="flex-1 relative overflow-y-auto p-10 custom-scrollbar bg-[#0B0F1A]">
+          <div className="max-w-7xl mx-auto animate-in fade-in duration-700">
             {children}
-            
-            {/* Halo décoratif Matrix de fond */}
-            <div className="absolute top-0 right-0 w-125 h-125 bg-blue-600/5 rounded-full blur-[120px] pointer-events-none -z-10" />
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </div>
   );
