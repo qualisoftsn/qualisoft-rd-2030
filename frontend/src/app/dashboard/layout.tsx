@@ -2,8 +2,9 @@
  * 🛰️ MODULE : DashboardLayout.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Superstructure de l'interface Qualisoft Elite.
- * RÉPARATION : Éradication du blocage de synchronisation et des erreurs de State.
- * RÉVISION : 03 Mars 2026 | 18:10 GMT
+ * RÉPARATION : Éradication du blocage d'hydratation (Correction Cycle de Vie).
+ * SÉCURITÉ : Isolation Matrix (Zéro NextAuth) & Store Zustand.
+ * RÉVISION : 03 Mars 2026 | 18:25 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// ✅ RESTAURATION DES COMPOSANTS SCELLÉS
 import Sidebar from "./sidebar";
 import TrialBanner from "@/components/TrialBanner";
 import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
@@ -28,21 +30,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   
-  const { user, logout, isAuthenticated, isInitialized } = useAuthStore() as any;
-  const [mounted, setMounted] = useState(false);
+  // 🛡️ VERROU D'HYDRATATION : Clé du déblocage elite.qualisoft.sn
+  const [hasMounted, setHasMounted] = useState(false);
 
-  // 1. Montage client immédiat pour stabiliser l'hydratation
+  const { user, logout, isAuthenticated, isInitialized } = useAuthStore() as any;
+
+  /**
+   * 🛡️ PROTOCOLE DE MONTAGE
+   * On garantit que le client est prêt avant toute logique de redirection.
+   */
   useEffect(() => {
-    setMounted(true);
+    setHasMounted(true);
   }, []);
 
-  // 2. Gestion souveraine de la redirection
+  /**
+   * 🔒 SENTINELLE DE SÉCURITÉ
+   * Redirection vers login uniquement si le store est initialisé et l'auth confirmée absente.
+   */
   useEffect(() => {
-    if (mounted && isInitialized && isAuthenticated === false) {
+    if (hasMounted && isInitialized && isAuthenticated === false) {
       router.replace("/auth/login");
     }
-  }, [mounted, isInitialized, isAuthenticated, router]);
+  }, [hasMounted, isInitialized, isAuthenticated, router]);
 
+  /**
+   * 👑 MATRICE D'ACCRÉDITATION
+   */
   const isSuperAdmin = useMemo(() => {
     if (!user) return false;
     return user.U_Role === Role.SUPER_ADMIN || user.U_Email === "ab.thiongane@qualisoft.sn";
@@ -58,8 +71,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/auth/login");
   };
 
-  // ⏳ ÉCRAN DE SYNCHRONISATION KERNEL
-  if (!mounted || !isInitialized || (isAuthenticated && !user)) {
+  /**
+   * ⏳ ÉCRAN DE SYNCHRONISATION KERNEL
+   * Ne s'affiche que pendant la phase critique de réhydratation du store.
+   */
+  if (!hasMounted || !isInitialized || (isAuthenticated && !user)) {
     return (
       <div className="h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-8 italic font-sans overflow-hidden">
         <div className="relative">
@@ -70,25 +86,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <p className="text-[11px] font-black text-blue-500 uppercase tracking-[0.5em] animate-pulse m-0">
             SDE Matrix OS : Synchronisation...
           </p>
-          <p className="text-[8px] font-bold text-slate-700 uppercase tracking-[0.3em] mt-2 italic">
-            Initialisation des Sceaux de Sécurité
+          <p className="text-[8px] font-bold text-slate-700 uppercase tracking-[0.3em] mt-2">
+            Restauration du Contexte Souverain
           </p>
         </div>
       </div>
     );
   }
 
+  // 🏁 RESTAURATION DE L'INTERFACE COMPLÈTE (SLIM NAV + TOPBAR + SIDEBAR)
   return (
     <div className="h-screen bg-[#0B0F1A] flex italic font-sans overflow-hidden selection:bg-blue-600/30">
       
+      {/* 🎭 BANNIÈRE DE MASCARADE */}
       <ImpersonationBanner />
 
+      {/* 🧭 SIDEBAR SOUVERAINE (Gauche) */}
       <Sidebar isSuperAdmin={isSuperAdmin} />
 
+      {/* 🚀 CENTRE DE PILOTAGE */}
       <div className={`flex-1 flex flex-col pl-80 pr-20 min-w-0 relative transition-all duration-500 ${user?.isImpersonated ? "pt-10" : "pt-0"}`}>
         
         <TrialBanner isSuperAdmin={isSuperAdmin} />
 
+        {/* TOPBAR STRATÉGIQUE (Glassmorphism préservé) */}
         <header className="h-24 bg-[#0F172A]/40 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-12 sticky top-0 z-40 shrink-0">
           <div className="flex items-center gap-8 flex-1">
             <div className="relative w-full max-w-xl group">
@@ -125,23 +146,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
+        {/* MAIN VIEWPORT */}
         <main className="flex-1 relative overflow-y-auto p-12 custom-scrollbar">
           <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-20">
             {children}
           </div>
 
           <footer className="py-16 border-t border-white/5 flex justify-between items-center opacity-20 mt-24 shrink-0">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] m-0 leading-none">Qualisoft Elite Matrix RD-2026</p>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] m-0">Qualisoft Elite Matrix RD-2026</p>
             <div className="flex items-center gap-4">
               <ShieldCheck size={14} className={isSuperAdmin ? "text-amber-500" : "text-blue-500"} />
               <span className="text-[9px] font-black text-slate-400 uppercase italic tracking-widest leading-none">
-                {isSuperAdmin ? "Noyau Maître Scellé" : "Certifié ISO 9001:2015"}
+                Certifié ISO 9001:2015
               </span>
             </div>
           </footer>
         </main>
       </div>
 
+      {/* 🧭 NAV SLIM DROITE (Quick Access Hub) */}
       <nav className="w-20 h-screen bg-[#0F172A] border-l border-white/5 flex flex-col items-center py-10 gap-10 fixed right-0 top-0 z-50 shrink-0 shadow-4xl">
         <Link href="/dashboard/menu" className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group ${pathname === "/dashboard/menu" ? "bg-blue-600 text-white shadow-2xl shadow-blue-900/50" : "bg-white/5 text-slate-600 hover:text-white hover:bg-white/10"}`}>
           <LayoutGrid size={24} className="group-hover:scale-110 transition-transform" />
