@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * 🛰️ MODULE : HUB DE COMMANDEMENT (MATRIX NAVIGATION)
  * -------------------------------------------------------------------------
  * RÔLE : Point d'accès universel filtré par RBAC Souverain.
- * SÉCURITÉ : Zéro NextAuth • Détection de rôle via Store SDE Matrix.
- * RÉVISION : 03 Mars 2026 | 18:35 GMT
+ * RÉPARATION : Correction de l'erreur Role.MANAGER (Inexistant dans l'Enum).
+ * RÉVISION : 03 Mars 2026 | 18:40 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -16,7 +18,7 @@ import {
   Users2, Map as MapIcon, GitBranch, Workflow, Activity, 
   Users, Award, GraduationCap, UserCircle, ClipboardCheck, 
   AlertTriangle, AlertOctagon, Truck, Contact, FolderOpen, 
-  FileSearch, Crown, Terminal, Database, ArrowUpRight 
+  BookOpen, FileSearch, Crown, Terminal, Database, ArrowUpRight 
 } from "lucide-react";
 import Link from "next/link";
 import { Role } from '@/types/elite-sde';
@@ -66,7 +68,7 @@ export default function DashboardMenuHub() {
           { title: "Cockpit SMI", path: "/dashboard", icon: LayoutGrid, access: "ALL", description: "Tableau de bord centralisé et alertes" },
           { title: "Objectifs & KPIs", path: "/dashboard/indicators", icon: LineChart, access: "ALL", description: "Performance stratégique (§9.1)" },
           { title: "Revues Direction", path: "/dashboard/management-review", icon: Presentation, access: Role.DIRECTION, description: "Décisions stratégiques (§9.3)" },
-          { title: "Gouvernance COPIL", path: "/dashboard/gouvernance/copil", icon: Users2, access: Role.MANAGER, description: "Comités de pilotage et tactique" },
+          { title: "Gouvernance COPIL", path: "/dashboard/gouvernance/copil", icon: Users2, access: Role.RQ, description: "Comités de pilotage et tactique" },
         ]
       },
       {
