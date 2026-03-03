@@ -1,42 +1,32 @@
-import type { NextConfig } from "next";
-
 /**
  * 🛰️ QUALISOFT ELITE - CONFIGURATION NEXT.JS SOUVERAINE
  * -------------------------------------------------------------------------
- * RÔLE : Pilotage des en-têtes et du moteur de build.
+ * RÉPARATION : Suppression du bloc 'eslint' (conflit avec Flat Config mjs).
  * OPTIMISÉ POUR : OVH / Docker / ISO 27001
- * RÉPARATION : Correction de la syntaxe ESLint et libération connect-src.
- * RÉVISION : 03 Mars 2026 | 23:45 GMT
+ * RÉVISION : 04 Mars 2026 | 00:05 GMT
  * -------------------------------------------------------------------------
  */
 
+import type { NextConfig } from "next";
+
 const nextConfig: NextConfig = {
-  /* 🚀 1. OPTIMISATION DOCKER (VITAL POUR OVH & KUBERNETES) */
+  /* 🚀 1. OPTIMISATION DOCKER */
   output: "standalone",
 
   /* 🛡️ 2. PARAMÈTRES DE RIGUEUR TECHNIQUE */
   reactStrictMode: true,
-  poweredByHeader: false, // Sécurité : Éradication de la signature technologique
+  poweredByHeader: false, 
 
-  /* 🎨 3. SÉCURITÉ DES IMAGES (Multi-Tenant & Cross-Domain) */
+  /* 🎨 3. SÉCURITÉ DES IMAGES (Multi-Tenant) */
   images: {
     remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "localhost",
-      },
-      {
-        protocol: "https",
-        hostname: "elite.qualisoft.sn",
-      },
-      {
-        protocol: "https",
-        hostname: "*.qualisoft.sn",
-      }
+      { protocol: "http", hostname: "localhost" },
+      { protocol: "https", hostname: "elite.qualisoft.sn" },
+      { protocol: "https", hostname: "*.qualisoft.sn" }
     ],
   },
 
-  /* 🔒 4. HEADERS DE SÉCURITÉ ISO 27001 (Durcissement Matrix) */
+  /* 🔒 4. HEADERS DE SÉCURITÉ ISO 27001 (Matrix Hardened) */
   async headers() {
     return [
       {
@@ -70,20 +60,12 @@ const nextConfig: NextConfig = {
             key: "X-Content-Type-Options",
             value: "nosniff",
           },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
         ],
       },
     ];
   },
 
-  /* 🔀 5. ROUTAGE DE SÉCURITÉ (Aiguillage Souverain) */
+  /* 🔀 5. ROUTAGE DE SÉCURITÉ */
   async redirects() {
     return [
       {
@@ -94,15 +76,12 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  /* ⚙️ 6. CONFIGURATION DE COMPILATION (Standard Elite) */
+  /* ⚙️ 6. CONFIGURATION DE COMPILATION */
   typescript: {
-    // Rigueur absolue sur les types avant le déploiement
-    ignoreBuildErrors: false, 
-  },
-  eslint: {
-    // Blocage du build si le standard de codage Elite n'est pas respecté
-    ignoreDuringBuilds: false,
-  },
+    // On garde la rigueur sur le typage
+    ignoreBuildErrors: false,
+  }
+  // ✅ Note : Le bloc eslint est retiré car géré par eslint.config.mjs
 };
 
 export default nextConfig;
