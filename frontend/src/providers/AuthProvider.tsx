@@ -4,8 +4,9 @@
 /**
  * 🛡️ MODULE : AuthProvider.tsx
  * -------------------------------------------------------------------------
- * CORRECTIF : Libération des routes publiques et aiguillage multi-tenant.
- * RÉVISION : 03 Mars 2026 | 02:03 GMT
+ * RÔLE : Sentinelle de Session & Libération des Portes.
+ * FIX : Autorise l'affichage immédiat du Login et de la Landing Page.
+ * RÉVISION : 03 Mars 2026 | 02:15 GMT
  */
 
 "use client";
@@ -13,7 +14,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const TrialContext = createContext<any>(null);
 
@@ -25,36 +26,38 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => { setHasMounted(true); }, []);
 
-  // 📝 DÉFINITION DES ROUTES DE LIBRE PASSAGE
+  // 🌍 DÉFINITION DES ZONES DE LIBRE PASSAGE
   const isPublicRoute = useMemo(() => {
+    if (!pathname) return false;
     const publicPaths = ['/auth/login', '/auth/register', '/auth/expired', '/'];
-    return publicPaths.some(path => pathname === path || pathname?.startsWith('/auth/'));
+    // On laisse passer si c'est dans la liste ou si ça commence par /auth/
+    return publicPaths.includes(pathname) || pathname.startsWith('/auth/');
   }, [pathname]);
 
-  // 🔄 LOGIQUE D'AIGUILLAGE (Le "Routing Sentinel")
+  // 🔄 LOGIQUE D'AIGUILLAGE SOUVERAIN
   useEffect(() => {
     if (!hasMounted) return;
 
-    // Si l'utilisateur est déjà connecté et tente d'aller sur le Login
+    // Rediriger vers dashboard si déjà connecté sur une page publique
     if (isAuthenticated && isPublicRoute && pathname !== '/') {
       router.replace('/dashboard');
     }
     
-    // Si l'utilisateur n'est pas connecté et tente d'aller sur une page privée
+    // Bloquer et rediriger vers login si accès privé sans session
     if (!isAuthenticated && !isPublicRoute) {
       router.replace('/auth/login');
     }
   }, [hasMounted, isAuthenticated, isPublicRoute, pathname, router]);
 
-  // 🔱 CALCUL DE LICENCE (Trial)
+  // 🔱 CALCUL DE LICENCE
   const trialStatus = useMemo(() => {
     if (!user) return { isReadOnly: false, daysRemaining: 0 };
     const expiry = new Date(user.U_TenantExpiry);
-    const days = Math.ceil((expiry.getTime() - new Date().getTime()) / (1000 * 3000 * 24));
+    const days = Math.ceil((expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     return { isReadOnly: days <= 0, daysRemaining: days };
   }, [user]);
 
-  // 🛑 ÉCRAN DE CHARGEMENT : Uniquement pour les routes PRIVÉES en attente
+  // 🛑 ÉCRAN DE CHARGEMENT : Uniquement pour les pages PRIVÉES
   if (!hasMounted || (!isAuthenticated && !isPublicRoute)) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] italic">
@@ -66,7 +69,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     );
   }
 
-  // ✅ RENDU IMMÉDIAT pour les pages publiques ou les sessions validées
+  // ✅ LIBÉRATION : Rendu des pages publiques ou du Dashboard authentifié
   return (
     <TrialContext.Provider value={trialStatus}>
       {children}

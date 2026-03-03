@@ -1,30 +1,28 @@
 /**
- * 🛰️ MODULE : MIDDLEWARE SDE (SOVEREIGN DIGITAL ECOSYSTEM)
+ * 🛰️ MODULE : middleware.ts (SENTINELLE MATRIX)
  * -------------------------------------------------------------------------
- * RÔLE : Tour de contrôle Edge - Isolation Multi-Tenant & Session Matrix.
- * CORRECTIF : Séparation stricte Master/Tenant & Fix de la boucle de session.
- * -------------------------------------------------------------------------
- * RÉVISION : 02 Mars 2026 | 22:45 GMT
+ * RÔLE : Isolation des contextes (Landing vs Master vs Tenant).
+ * FIX : Libération de la racine '/' pour l'affichage de la Landing Page.
+ * RÉVISION : 03 Mars 2026 | 02:20 GMT
  */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// 📂 ROUTES PUBLIQUES & ASSETS
+// 📂 ZONES DE LIBRE PASSAGE (Public & Assets)
 const PUBLIC_PATHS = ['/api/public', '/images', '/assets', '/favicon.ico', '/robots.txt'];
 const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/expired'];
 
 /**
- * 🌍 MATRIX DOMAIN ANALYZER (V2)
- * Résout l'identité du portail avec une priorité Master/Landing.
+ * 🌍 MATRIX DOMAIN ANALYZER
+ * Détermine si nous sommes sur le Portail Elite, la Console Master ou un Client.
  */
 const getDomainContext = (host: string) => {
   const cleanHost = host.split(':')[0].toLowerCase();
   const parts = cleanHost.split('.');
 
-  // 1. DÉTECTION LANDING / PORTAIL ELITE (elite.qualisoft.sn)
-  // On s'assure que 'elite' ne soit pas traité comme un simple client 'Sagam'
-  if (parts[0] === 'elite' || cleanHost === 'qualisoft.sn') {
+  // 1. DÉTECTION PORTAIL ELITE / LANDING (Ex: elite.qualisoft.sn ou qualisoft.sn)
+  if (parts[0] === 'elite' || cleanHost === 'qualisoft.sn' || cleanHost === 'www.qualisoft.sn') {
     return { slug: 'elite', type: 'LANDING', isMaster: false };
   }
 
@@ -39,7 +37,7 @@ const getDomainContext = (host: string) => {
     return { slug: parts[0], type: 'TENANT', isMaster: false };
   }
 
-  // 4. FALLBACK LOCALHOST (Développement)
+  // 4. FALLBACK DEV (Localhost)
   return { slug: 'localhost', type: 'MASTER', isMaster: true };
 };
 
@@ -47,56 +45,66 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
   const context = getDomainContext(host);
+  const token = request.cookies.get('qualisoft_token')?.value;
 
-  // --- 1. INJECTION DES EN-TÊTES DE CONTEXTE ---
+  // --- 1. INJECTION DES EN-TÊTES (Pour le serveur de composants) ---
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-tenant-slug', context.slug);
   requestHeaders.set('x-tenant-type', context.type);
 
-  // --- 2. FILTRAGE DES ROUTES LIBRES ---
-  const isPublicPath = PUBLIC_PATHS.some(path => pathname.startsWith(path)) || pathname.startsWith('/_next');
-  if (isPublicPath) return NextResponse.next({ request: { headers: requestHeaders } });
+  // --- 2. FILTRAGE DES FLUX ASSETS (Libération totale) ---
+  const isPublicAsset = PUBLIC_PATHS.some(path => pathname.startsWith(path)) || pathname.startsWith('/_next');
+  if (isPublicAsset) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
 
-  // --- 3. LOGIQUE DE SESSION SOUVERAINE ---
-  const token = request.cookies.get('qualisoft_token')?.value;
+  // --- 3. LOGIQUE D'AIGUILLAGE SOUVERAINE ---
   const isAuthPage = AUTH_PATHS.some(path => pathname.startsWith(path));
+  const isLandingPage = pathname === '/';
 
-  // 🛡️ CAS A : L'utilisateur est connecté et tente d'aller sur /auth/login
+  // 🛡️ CAS A : L'utilisateur est sur la Landing Page (Toujours autoriser)
+  // On ne redirige plus la racine '/' si !token
+  if (isLandingPage && !token) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
+  // 🛡️ CAS B : Déjà connecté -> On évite le Login inutile
   if (isAuthPage && token && !pathname.includes('expired')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // 🛡️ CAS B : L'utilisateur n'est pas connecté sur une route protégée
-  if (!isAuthPage && !token) {
+  // 🛡️ CAS C : Accès privé sans badge (Uniquement pour Dashboard et Master Console)
+  const isProtectedRoute = pathname.startsWith('/dashboard') || (context.type === 'MASTER' && pathname !== '/');
+  
+  if (isProtectedRoute && !token) {
     const loginUrl = new URL('/auth/login', request.url);
     
-    // Si ce n'est pas la racine, on ajoute le callback
+    // On garde l'aiguillage si l'utilisateur venait d'une page profonde
     if (pathname !== '/') {
       loginUrl.searchParams.set('callbackUrl', pathname);
     }
     
-    // Ajout de session=expired seulement si on vient d'une page profonde (Dashboard)
+    // On signale l'expiration de session si c'était le cas
     if (pathname.startsWith('/dashboard')) {
       loginUrl.searchParams.set('session', 'expired');
     }
 
     const response = NextResponse.redirect(loginUrl);
-    // On nettoie le token au cas où il serait corrompu/expiré côté client
-    response.cookies.delete('qualisoft_token');
+    // Nettoyage radical des résidus NextAuth potentiels
+    response.cookies.delete('next-auth.session-token'); 
     return response;
   }
 
-  // --- 4. RÉPONSE SÉCURISÉE ---
+  // --- 4. RÉPONSE SÉCURISÉE SDE ---
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
 
-  // Sécurité Hardened Matrix
+  // Headers de durcissement (Hardened)
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-  // Empêcher le cache sur le dashboard pour éviter de voir les données Sagam sur Elite via le bouton "Précédent"
+  
+  // Anti-Leakage de données entre Tenants via le cache navigateur
   if (pathname.startsWith('/dashboard')) {
     response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
   }
@@ -105,5 +113,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // On capture tout sauf les fichiers statiques explicites
   matcher: ['/((?!api/public|_next/static|_next/image|images|assets|favicon.ico|robots.txt).*)'],
 };
