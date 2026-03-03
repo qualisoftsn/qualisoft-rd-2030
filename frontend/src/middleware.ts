@@ -1,7 +1,7 @@
 /**
  * 🛰️ MODULE : middleware.ts
- * RÉVISION : 03 Mars 2026 | 22:50 GMT
- * FIX : Libération totale de la racine '/' et des dossiers publics.
+ * RÉVISION : 03 Mars 2026 | 23:25 GMT
+ * CORRECTIF : Suppression du détournement forcé de la racine.
  */
 
 import { NextResponse } from 'next/server';
@@ -11,32 +11,20 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('qualisoft_token')?.value;
 
-  // 1. LIBÉRATION DES ASSETS & API PUBLIQUE
-  if (
-    pathname.startsWith('/_next') || 
-    pathname.startsWith('/api/public') ||
-    pathname.startsWith('/images') ||
-    pathname.startsWith('/favicon.ico')
-  ) {
-    return NextResponse.next();
-  }
-
-  // 2. LIBÉRATION DE LA RACINE (Landing Page Elite)
+  // 1. LAISSER PASSER LA RACINE (LANDING PAGE)
+  // C'est cette ligne qui empêche la redirection vers /auth/login
   if (pathname === '/') {
     return NextResponse.next();
   }
 
-  // 3. GESTION DES PAGES D'AUTH
-  if (pathname.startsWith('/auth')) {
-    if (token) return NextResponse.redirect(new URL('/dashboard', request.url));
+  // 2. LAISSER PASSER LES ASSETS
+  if (pathname.startsWith('/_next') || pathname.startsWith('/images') || pathname.startsWith('/api/public')) {
     return NextResponse.next();
   }
 
-  // 4. PROTECTION DU DASHBOARD
+  // 3. PROTÉGER LE DASHBOARD UNIQUEMENT
   if (pathname.startsWith('/dashboard') && !token) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
   return NextResponse.next();

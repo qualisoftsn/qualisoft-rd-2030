@@ -1,10 +1,11 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * 🛰️ MODULE : DashboardLayout.tsx
  * -------------------------------------------------------------------------
- * RÔLE : Superstructure de l'interface Qualisoft Elite.
- * RÉPARATION : Éradication du blocage d'hydratation (Correction Cycle de Vie).
- * SÉCURITÉ : Isolation Matrix (Zéro NextAuth) & Store Zustand.
- * RÉVISION : 03 Mars 2026 | 18:25 GMT
+ * RÔLE : Structure maîtresse de l'application après authentification.
+ * SÉCURITÉ : Isolation Matrix, Détection Mascarade, Zéro NextAuth.
+ * RÉVISION : 03 Mars 2026 | 23:40 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -20,7 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// ✅ RESTAURATION DES COMPOSANTS SCELLÉS
+// ✅ COMPOSANTS SCELLÉS
 import Sidebar from "./sidebar";
 import TrialBanner from "@/components/TrialBanner";
 import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
@@ -29,23 +30,18 @@ import NotificationBell from "@/components/dashboard/notification-bell";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  
-  // 🛡️ VERROU D'HYDRATATION : Clé du déblocage elite.qualisoft.sn
   const [hasMounted, setHasMounted] = useState(false);
 
+  // Extraction typée du store Matrix
   const { user, logout, isAuthenticated, isInitialized } = useAuthStore() as any;
 
-  /**
-   * 🛡️ PROTOCOLE DE MONTAGE
-   * On garantit que le client est prêt avant toute logique de redirection.
-   */
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
   /**
    * 🔒 SENTINELLE DE SÉCURITÉ
-   * Redirection vers login uniquement si le store est initialisé et l'auth confirmée absente.
+   * Ce verrou ne s'active que si l'utilisateur tente d'accéder au périmètre /dashboard.
    */
   useEffect(() => {
     if (hasMounted && isInitialized && isAuthenticated === false) {
@@ -53,9 +49,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [hasMounted, isInitialized, isAuthenticated, router]);
 
-  /**
-   * 👑 MATRICE D'ACCRÉDITATION
-   */
   const isSuperAdmin = useMemo(() => {
     if (!user) return false;
     return user.U_Role === Role.SUPER_ADMIN || user.U_Email === "ab.thiongane@qualisoft.sn";
@@ -71,10 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/auth/login");
   };
 
-  /**
-   * ⏳ ÉCRAN DE SYNCHRONISATION KERNEL
-   * Ne s'affiche que pendant la phase critique de réhydratation du store.
-   */
+  // ⏳ ÉCRAN DE SYNCHRONISATION KERNEL (Isolation au périmètre Dashboard)
   if (!hasMounted || !isInitialized || (isAuthenticated && !user)) {
     return (
       <div className="h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-8 italic font-sans overflow-hidden">
@@ -83,41 +73,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Fingerprint className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500/20" size={32} />
         </div>
         <div className="text-center">
-          <p className="text-[11px] font-black text-blue-500 uppercase tracking-[0.5em] animate-pulse m-0">
+          <p className="text-[11px] font-black text-blue-500 uppercase tracking-[0.5em] animate-pulse m-0 italic">
             SDE Matrix OS : Synchronisation...
-          </p>
-          <p className="text-[8px] font-bold text-slate-700 uppercase tracking-[0.3em] mt-2">
-            Restauration du Contexte Souverain
           </p>
         </div>
       </div>
     );
   }
 
-  // 🏁 RESTAURATION DE L'INTERFACE COMPLÈTE (SLIM NAV + TOPBAR + SIDEBAR)
   return (
     <div className="h-screen bg-[#0B0F1A] flex italic font-sans overflow-hidden selection:bg-blue-600/30">
       
-      {/* 🎭 BANNIÈRE DE MASCARADE */}
       <ImpersonationBanner />
-
-      {/* 🧭 SIDEBAR SOUVERAINE (Gauche) */}
       <Sidebar isSuperAdmin={isSuperAdmin} />
 
-      {/* 🚀 CENTRE DE PILOTAGE */}
       <div className={`flex-1 flex flex-col pl-80 pr-20 min-w-0 relative transition-all duration-500 ${user?.isImpersonated ? "pt-10" : "pt-0"}`}>
-        
         <TrialBanner isSuperAdmin={isSuperAdmin} />
 
-        {/* TOPBAR STRATÉGIQUE (Glassmorphism préservé) */}
         <header className="h-24 bg-[#0F172A]/40 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-12 sticky top-0 z-40 shrink-0">
           <div className="flex items-center gap-8 flex-1">
             <div className="relative w-full max-w-xl group">
-              <Search className={`absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 transition-colors ${isSuperAdmin ? "group-focus-within:text-amber-500" : "group-focus-within:text-blue-500"}`} size={20} />
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={20} />
               <input 
                 type="text" 
                 placeholder="RECHERCHE DANS LE NOYAU..." 
-                className={`w-full pl-14 pr-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black text-white outline-none transition-all placeholder:text-slate-800 uppercase italic tracking-widest ${isSuperAdmin ? "focus:border-amber-500/40 shadow-lg shadow-amber-900/10" : "focus:border-blue-500/40 shadow-lg shadow-blue-900/10"}`} 
+                className="w-full pl-14 pr-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black text-white outline-none focus:border-blue-500 transition-all placeholder:text-slate-800 uppercase italic tracking-widest" 
               />
             </div>
           </div>
@@ -129,14 +109,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Sovereign Mode</span>
               </div>
             )}
-
             <NotificationBell />
-
             <div className="flex items-center gap-6 border-l border-white/10 pl-10 shrink-0">
               <div className="text-right hidden xl:block text-white leading-tight">
                 <p className="text-sm font-black uppercase tracking-tight italic m-0">{user?.U_FirstName} {user?.U_LastName}</p>
                 <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-1 m-0 ${isSuperAdmin ? "text-amber-500" : "text-blue-600"}`}>
-                  {isSuperAdmin ? "Architecte Master" : user?.U_Role}
+                  {isSuperAdmin ? "Master Architect" : user?.U_Role}
                 </p>
               </div>
               <div className={`w-12 h-12 rounded-[1.2rem] flex items-center justify-center border border-white/10 text-white font-black shadow-2xl ${isSuperAdmin ? "bg-amber-600 shadow-amber-900/30" : "bg-blue-600 shadow-blue-900/30"}`}>
@@ -146,25 +124,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* MAIN VIEWPORT */}
         <main className="flex-1 relative overflow-y-auto p-12 custom-scrollbar">
           <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-20">
             {children}
           </div>
-
           <footer className="py-16 border-t border-white/5 flex justify-between items-center opacity-20 mt-24 shrink-0">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] m-0">Qualisoft Elite Matrix RD-2026</p>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] m-0 leading-none">Qualisoft Elite Matrix RD-2026</p>
             <div className="flex items-center gap-4">
               <ShieldCheck size={14} className={isSuperAdmin ? "text-amber-500" : "text-blue-500"} />
-              <span className="text-[9px] font-black text-slate-400 uppercase italic tracking-widest leading-none">
-                Certifié ISO 9001:2015
-              </span>
+              <span className="text-[9px] font-black text-slate-400 uppercase italic tracking-widest leading-none">Certifié ISO 9001:2015</span>
             </div>
           </footer>
         </main>
       </div>
 
-      {/* 🧭 NAV SLIM DROITE (Quick Access Hub) */}
       <nav className="w-20 h-screen bg-[#0F172A] border-l border-white/5 flex flex-col items-center py-10 gap-10 fixed right-0 top-0 z-50 shrink-0 shadow-4xl">
         <Link href="/dashboard/menu" className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group ${pathname === "/dashboard/menu" ? "bg-blue-600 text-white shadow-2xl shadow-blue-900/50" : "bg-white/5 text-slate-600 hover:text-white hover:bg-white/10"}`}>
           <LayoutGrid size={24} className="group-hover:scale-110 transition-transform" />
@@ -177,16 +150,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         <div className="flex-1" />
         <div className="flex flex-col gap-8 mb-4">
-          <button className="w-12 h-12 rounded-2xl bg-white/5 text-slate-700 flex items-center justify-center hover:text-blue-400 transition-all cursor-pointer border-none shadow-inner"><Info size={22} /></button>
+          <button className="w-12 h-12 rounded-2xl bg-white/5 text-slate-700 flex items-center justify-center hover:text-blue-400 transition-all border-none cursor-pointer"><Info size={22} /></button>
           <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-red-600/10 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all cursor-pointer border-none shadow-lg shadow-red-900/10"><LogOut size={22} /></button>
         </div>
       </nav>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(37, 99, 235, 0.1); border-radius: 10px; }
-      `}</style>
     </div>
   );
 }

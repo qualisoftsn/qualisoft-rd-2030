@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * 🛰️ MODULE : Sidebar.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Navigation Stratégique & Contrôle Régalien Matrix OS.
  * SÉCURITÉ : Filtrage de rôles atomique (Zéro NextAuth).
- * RÉVISION : 03 Mars 2026 | 18:22 GMT
+ * RÉVISION : 04 Mars 2026 | 00:35 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -20,13 +21,12 @@ import {
   LogOut, Network, Scale, Settings2, ShieldAlert, 
   ShieldCheck, Target, Terminal, Users, 
   LucideIcon, BookOpen, Fingerprint, Microscope,
-  CreditCard, Layout, FileSearch,
-  Zap
+  CreditCard, Layout, FileSearch, Zap
 } from "lucide-react";
 import { useAuthStore } from '@/store/authStore';
 import { Role } from '@/types/elite-sde';
 
-// --- 🔱 TYPES DES CONTRATS ---
+// --- 🔱 TYPES DES CONTRATS DE NAVIGATION ---
 interface MenuItem {
   title: string;
   path: string;
@@ -46,25 +46,27 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   
-  // Utilisation du store souverain (casté pour éviter les erreurs de propriétés dynamiques)
+  // Extraction sécurisée du store souverain
   const { user, logout } = useAuthStore() as any;
   
-  // État des groupes (Pilotage, Audit et Master ouverts par défaut pour l'ergonomie)
+  // Groupes ouverts par défaut : Pilotage, Audit et Master (Ergonomie Elite)
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["pilotage", "audit", "master"]);
   
   const isImpersonated = useMemo(() => !!user?.isImpersonated, [user]);
 
   /**
-   * 🛡️ PROCÉDURE DE DÉCONNEXION SOUVERAINE
-   * Nettoyage des cookies de domaine et reset du store.
+   * 🛡️ PROCÉDURE DE DÉCONNEXION ATOMIQUE
+   * Purge des cookies de domaine et réinitialisation du store.
    */
   const handleLogout = () => {
-    const hostname = window.location.hostname;
-    const baseDomain = hostname.includes('.') ? `.${hostname.split('.').slice(-2).join('.')}` : hostname;
-    
-    document.cookie = `qualisoft_token=; path=/; domain=${baseDomain}; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax; Secure`;
-    logout();
-    router.push("/auth/login");
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const baseDomain = hostname.includes('.') ? `.${hostname.split('.').slice(-2).join('.')}` : hostname;
+      
+      document.cookie = `qualisoft_token=; path=/; domain=${baseDomain}; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax; Secure`;
+      logout();
+      router.push("/auth/login");
+    }
   };
 
   /**
@@ -147,17 +149,14 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   ], []);
 
   /**
-   * 🛡️ FILTRAGE DES DROITS D'ACCÈS (Hardened)
+   * 🛡️ FILTRAGE DES DROITS D'ACCÈS (Hardened RBAC)
    */
   const filteredNav = useMemo(() => {
     return navigation.map(group => ({
       ...group,
       items: group.items.filter(item => {
-        // 1. Le Super Admin a une visibilité totale
         if (isSuperAdmin) return true;
-        // 2. Le groupe Master est strictement réservé au Master Architect
         if (group.id === "master") return false;
-        // 3. Accès "ALL" ou correspondance de rôle Prisma
         if (item.access.includes("ALL")) return true;
         return item.access.includes(user?.U_Role as Role);
       })
@@ -174,10 +173,10 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     <aside className={`w-80 h-screen fixed left-0 top-0 z-100 flex flex-col border-r-2 transition-all duration-500 font-sans italic shadow-4xl 
       ${isImpersonated ? "bg-[#1A1212] border-amber-600/30" : "bg-[#0B0F1A] border-white/5"}`}>
       
-      {/* 🔱 LOGO & BRANDING */}
+      {/* 🔱 LOGO & BRANDING MATRIX */}
       <div className={`p-8 border-b-2 border-white/5 flex items-center gap-5 shrink-0 ${isImpersonated ? "bg-[#110D0D]" : "bg-[#151A2D]"}`}>
         <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center border-4 border-white/10 shadow-2xl shrink-0">
-          <Image src="/images/qslogo.png" alt="Qualisoft" width={32} height={32} />
+          <Image src="/images/qslogo.png" alt="Qualisoft" width={32} height={32} priority />
         </div>
         <div className="min-w-0 text-left">
           <h1 className="text-2xl font-black uppercase tracking-tighter text-white m-0 leading-none">QUALI<span className="text-blue-600">SOFT</span></h1>
@@ -187,7 +186,7 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         </div>
       </div>
 
-      {/* 🧭 NAVIGATION SCROLLABLE */}
+      {/* 🧭 NAVIGATION SCROLLABLE (Flux ISO) */}
       <nav className="flex-1 overflow-y-auto px-6 py-10 space-y-8 custom-scrollbar">
         {filteredNav.map((group) => {
           const isExpanded = expandedGroups.includes(group.id);
@@ -196,7 +195,7 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             <div key={group.id} className="space-y-3 text-left">
               <button 
                 onClick={() => toggleGroup(group.id)}
-                className="w-full flex items-center justify-between py-2 px-2 rounded-xl hover:bg-white/5 transition-all group cursor-pointer border-none bg-transparent"
+                className="w-full flex items-center justify-between py-2 px-2 rounded-xl hover:bg-white/5 transition-all group cursor-pointer border-none bg-transparent outline-none"
               >
                 <div className="flex items-center gap-4">
                   <div className={`p-2 rounded-lg transition-colors ${isExpanded ? "bg-blue-600/20 text-blue-500" : "bg-white/5 text-slate-600"}`}>
@@ -242,7 +241,7 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         })}
       </nav>
 
-      {/* 👤 PROFIL & DÉCONNEXION */}
+      {/* 👤 PROFIL & DÉCONNEXION ATOMIQUE */}
       <div className={`p-8 border-t-2 border-white/5 shrink-0 ${isImpersonated ? "bg-[#110D0D]" : "bg-[#151A2D]"}`}>
         <div className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-3xl shadow-inner group">
           <div className="flex items-center gap-4 overflow-hidden">
@@ -264,7 +263,7 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
           </div>
           <button 
             onClick={handleLogout}
-            className="p-3 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border-none bg-transparent cursor-pointer"
+            className="p-3 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border-none bg-transparent cursor-pointer outline-none"
             title="DÉCONNEXION"
           >
             <LogOut size={20} strokeWidth={2.5} />
@@ -276,6 +275,7 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(37, 99, 235, 0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2563eb; }
       `}</style>
     </aside>
   );

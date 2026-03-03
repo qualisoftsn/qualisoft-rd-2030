@@ -5,7 +5,7 @@
  * -------------------------------------------------------------------------
  * RÔLE : Portail d'entrée souverain pour elite.qualisoft.sn.
  * DESIGN : Elite Industrial Dark • Glassmorphism • SDE Logic.
- * RÉVISION : 03 Mars 2026 | 23:10 GMT
+ * RÉVISION : 04 Mars 2026 | 00:15 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -17,12 +17,12 @@ import Image from 'next/image';
 import { 
   ShieldCheck, 
   ChevronRight, ArrowRight, Fingerprint, 
-  Lock, Network, Cpu
-} from 'lucide-react';
+  Lock, Network, Cpu} from 'lucide-react';
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
 
+  // 🛡️ PROTOCOLE DE MONTAGE : Évite les erreurs d'hydratation (SSR vs Client)
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -32,11 +32,11 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0B0F1A] text-white font-sans italic selection:bg-blue-600/30 overflow-x-hidden">
       
-      {/* 🔮 CORE MATRIX EFFECTS */}
-      <div className="absolute top-0 right-0 w-250 h-250 bg-blue-600/5 blur-[180px] rounded-full pointer-events-none animate-pulse" />
-      <div className="absolute bottom-0 left-0 w-200 h-200 bg-indigo-600/5 blur-[150px] rounded-full pointer-events-none" />
+      {/* 🔮 CORE MATRIX EFFECTS (Atmosphère Elite) */}
+      <div className="absolute top-0 right-0 w-200 h-200 bg-blue-600/5 blur-[180px] rounded-full pointer-events-none animate-pulse" />
+      <div className="absolute bottom-0 left-0 w-150 h-150 bg-indigo-600/5 blur-[150px] rounded-full pointer-events-none" />
 
-      {/* 🔝 NAVIGATION SOUVERAINE */}
+      {/* 🔝 NAVIGATION SOUVERAINE (Libre de redirection) */}
       <nav className="h-24 border-b border-white/5 flex items-center justify-between px-8 lg:px-20 sticky top-0 bg-[#0B0F1A]/80 backdrop-blur-2xl z-100">
         <div className="flex items-center gap-5">
           <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-transform hover:scale-105">
@@ -59,7 +59,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* 🚀 HERO PROTOCOL */}
+      {/* 🚀 HERO PROTOCOL (RD-2026 Focus) */}
       <section className="relative pt-36 pb-24 px-8 lg:px-20 max-w-7xl mx-auto">
         <div className="flex flex-col items-start gap-10 animate-in fade-in slide-in-from-bottom-12 duration-1000">
           <div className="inline-flex items-center gap-4 px-5 py-2 bg-blue-600/10 border border-blue-500/20 rounded-full">
@@ -73,19 +73,19 @@ export default function LandingPage() {
             QUALITÉ.
           </h2>
 
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-12 mt-10">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-12 mt-10 text-left">
             <p className="text-xl text-slate-400 font-bold max-w-xl leading-tight uppercase italic border-l-4 border-blue-600 pl-8">
               La plateforme de management intégré (§ISO) conçue pour l&apos;excellence industrielle et la résilience multi-tenant.
             </p>
             <div className="flex items-center gap-6">
               <div className="flex -space-x-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-12 h-12 rounded-full border-4 border-[#0B0F1A] bg-slate-800 flex items-center justify-center">
+                  <div key={i} className="w-12 h-12 rounded-full border-4 border-[#0B0F1A] bg-slate-800 flex items-center justify-center shadow-lg">
                     <ShieldCheck size={18} className="text-blue-500" />
                   </div>
                 ))}
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col text-left">
                 <span className="text-sm font-black text-white italic">+250 Sceaux</span>
                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Certifiés ISO 9001</span>
               </div>
@@ -100,7 +100,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 🛠️ SOLUTIONS GRID (SDE MATRIX) */}
+      {/* 🛠️ SOLUTIONS GRID (SDE MATRIX Logic) */}
       <section id="solutions" className="py-40 px-8 lg:px-20 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <FeatureCard 
@@ -139,7 +139,7 @@ export default function LandingPage() {
              ))}
           </div>
           <div className="mt-20 text-[9px] font-bold text-slate-700 uppercase tracking-widest italic">
-            &copy; {new Date().getFullYear()} Qualisoft International. Tous droits de souveraineté réservés.
+            &copy; {new Date().getFullYear()} Qualisoft International. Tous droits réservés.
           </div>
         </div>
       </footer>
