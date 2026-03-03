@@ -1,7 +1,8 @@
 /**
- * 🛰️ MODULE : middleware.ts
- * RÉVISION : 03 Mars 2026 | 18:55 GMT
- * CORRECTIF : Libération de la Landing Page racine.
+ * 🛰️ MODULE : middleware.ts (SENTINELLE MATRIX)
+ * -------------------------------------------------------------------------
+ * RÉPARATION : Libération de la racine pour la Landing Page.
+ * RÉVISION : 03 Mars 2026 | 19:15 GMT
  */
 
 import { NextResponse } from 'next/server';
@@ -14,27 +15,26 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('qualisoft_token')?.value;
 
-  // 1. Autoriser les assets publics
+  // 1. Autoriser les assets publics (Images, Styles, JS)
   if (PUBLIC_PATHS.some(path => pathname.startsWith(path)) || pathname.startsWith('/_next')) {
     return NextResponse.next();
   }
 
-  // 🛡️ LOGIQUE SOUVERAINE
   const isAuthPage = AUTH_PATHS.some(path => pathname.startsWith(path));
   const isLandingPage = pathname === '/';
   const isDashboardRoute = pathname.startsWith('/dashboard');
 
-  // CAS 1 : Autoriser toujours la Landing Page (Racine)
+  // ✅ CAS 1 : La Landing Page (/) est TOUJOURS accessible
   if (isLandingPage) {
     return NextResponse.next();
   }
 
-  // CAS 2 : Déjà connecté sur une page Auth -> Vers Dashboard
+  // ✅ CAS 2 : Déjà connecté sur une page Auth -> Vers le Dashboard
   if (isAuthPage && token) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // CAS 3 : Accès au Dashboard sans Token -> Login
+  // ✅ CAS 3 : Accès au Dashboard sans Token -> Login
   if (isDashboardRoute && !token) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
