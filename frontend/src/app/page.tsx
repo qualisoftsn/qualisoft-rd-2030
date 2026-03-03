@@ -5,7 +5,7 @@
  * -------------------------------------------------------------------------
  * RÔLE : Portail d'entrée souverain pour elite.qualisoft.sn.
  * DESIGN : Elite Industrial Dark • Glassmorphism • SDE Logic.
- * RÉVISION : 04 Mars 2026 | 00:15 GMT
+ * RÉVISION : 04 Mars 2026 | 00:10 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -17,12 +17,11 @@ import Image from 'next/image';
 import { 
   ShieldCheck, 
   ChevronRight, ArrowRight, Fingerprint, 
-  Lock, Network, Cpu} from 'lucide-react';
+  Lock, Network, Cpu, Activity} from 'lucide-react';
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
 
-  // 🛡️ PROTOCOLE DE MONTAGE : Évite les erreurs d'hydratation (SSR vs Client)
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -32,11 +31,11 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0B0F1A] text-white font-sans italic selection:bg-blue-600/30 overflow-x-hidden">
       
-      {/* 🔮 CORE MATRIX EFFECTS (Atmosphère Elite) */}
-      <div className="absolute top-0 right-0 w-200 h-200 bg-blue-600/5 blur-[180px] rounded-full pointer-events-none animate-pulse" />
-      <div className="absolute bottom-0 left-0 w-150 h-150 bg-indigo-600/5 blur-[150px] rounded-full pointer-events-none" />
+      {/* 🔮 CORE MATRIX ATMOSPHERE */}
+      <div className="absolute top-0 right-0 w-250 h-250 bg-blue-600/5 blur-[180px] rounded-full pointer-events-none animate-pulse" />
+      <div className="absolute bottom-0 left-0 w-200 h-200 bg-indigo-600/5 blur-[150px] rounded-full pointer-events-none" />
 
-      {/* 🔝 NAVIGATION SOUVERAINE (Libre de redirection) */}
+      {/* 🔝 NAVIGATION VITRINE */}
       <nav className="h-24 border-b border-white/5 flex items-center justify-between px-8 lg:px-20 sticky top-0 bg-[#0B0F1A]/80 backdrop-blur-2xl z-100">
         <div className="flex items-center gap-5">
           <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-transform hover:scale-105">
@@ -52,14 +51,14 @@ export default function LandingPage() {
 
         <div className="hidden lg:flex items-center gap-12">
           <Link href="#solutions" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-blue-500 transition-colors">Systèmes SDE</Link>
-          <Link href="#architecture" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-blue-500 transition-colors">Architecture</Link>
+          <Link href="#iso" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-blue-500 transition-colors">Conformité</Link>
           <Link href="/auth/login" className="group flex items-center gap-4 px-8 py-4 bg-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white hover:text-blue-600 transition-all shadow-2xl shadow-blue-900/40">
-            DÉPLOYER LE COCKPIT <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            ACCÉDER AU COCKPIT <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
       </nav>
 
-      {/* 🚀 HERO PROTOCOL (RD-2026 Focus) */}
+      {/* 🚀 HERO SECTION : SOUVERAINETÉ NUMÉRIQUE */}
       <section className="relative pt-36 pb-24 px-8 lg:px-20 max-w-7xl mx-auto">
         <div className="flex flex-col items-start gap-10 animate-in fade-in slide-in-from-bottom-12 duration-1000">
           <div className="inline-flex items-center gap-4 px-5 py-2 bg-blue-600/10 border border-blue-500/20 rounded-full">
@@ -67,15 +66,15 @@ export default function LandingPage() {
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500">Kernel v3.0 Scellé • RD-2026</span>
           </div>
 
-          <h2 className="text-7xl lg:text-[10rem] font-black uppercase tracking-[calc(-0.05em)] leading-[0.85] m-0 italic drop-shadow-2xl">
-            L&apos;ÉRE DE LA <br />
+          <h2 className="text-7xl lg:text-[10rem] font-black uppercase tracking-[calc(-0.05em)] leading-[0.85] m-0 italic drop-shadow-2xl text-left">
+            PILOTEZ VOTRE <br />
             <span className="text-blue-600">SOUVERAINETÉ</span> <br />
             QUALITÉ.
           </h2>
 
           <div className="flex flex-col md:flex-row items-start md:items-center gap-12 mt-10 text-left">
             <p className="text-xl text-slate-400 font-bold max-w-xl leading-tight uppercase italic border-l-4 border-blue-600 pl-8">
-              La plateforme de management intégré (§ISO) conçue pour l&apos;excellence industrielle et la résilience multi-tenant.
+              L&apos;architecture SDE Matrix redéfinit le Management Intégré. Isolation multi-tenant, traçabilité absolue et conformité ISO native.
             </p>
             <div className="flex items-center gap-6">
               <div className="flex -space-x-4">
@@ -85,9 +84,9 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <div className="flex flex-col text-left">
+              <div className="flex flex-col">
                 <span className="text-sm font-black text-white italic">+250 Sceaux</span>
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Certifiés ISO 9001</span>
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Actifs sur le Réseau</span>
               </div>
             </div>
           </div>
@@ -100,7 +99,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 🛠️ SOLUTIONS GRID (SDE MATRIX Logic) */}
+      {/* 🛠️ SOLUTIONS GRID : ÉCOSYSTÈME ISO */}
       <section id="solutions" className="py-40 px-8 lg:px-20 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <FeatureCard 
@@ -126,11 +125,47 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 📊 ANALYTICS PREVIEW SECTION */}
+      <section className="py-20 px-8 lg:px-20 max-w-7xl mx-auto">
+        <div className="bg-white/5 border border-white/5 rounded-[4rem] p-12 lg:p-20 flex flex-col lg:flex-row items-center gap-16 overflow-hidden relative">
+          <div className="text-left space-y-8 flex-1">
+             <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Activity className="text-white" size={24} />
+             </div>
+             <h3 className="text-4xl lg:text-6xl font-black uppercase italic leading-none tracking-tighter">
+                TÉLÉMÉTRIE <br /> EN TEMPS RÉEL.
+             </h3>
+             <p className="text-slate-400 font-bold uppercase tracking-widest text-xs leading-relaxed max-w-md">
+                Visualisez l&apos;état de santé de votre SMI à travers tous vos sites. Détection proactive des non-conformités et pilotage des plans d&apos;actions CAPA.
+             </p>
+             <ul className="space-y-4 m-0 p-0 list-none">
+                <li className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-blue-500">
+                   <ShieldCheck size={14} /> Intelligence ISO 9001:2015
+                </li>
+                <li className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-emerald-500">
+                   <ShieldCheck size={14} /> Management Environnemental 14001
+                </li>
+             </ul>
+          </div>
+          <div className="flex-1 relative w-full aspect-video bg-black/40 rounded-3xl border border-white/10 shadow-4xl overflow-hidden group">
+             <Image 
+                src="/images/dashboard-preview.png" 
+                alt="Dashboard Preview" 
+                fill 
+                className="object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000"
+             />
+             <div className="absolute inset-0 bg-linear-to-t from-[#0B0F1A] via-transparent to-transparent" />
+          </div>
+        </div>
+      </section>
+
       {/* 🏁 FOOTER PROTOCOL */}
       <footer className="py-24 border-t border-white/5 bg-[#080B14]">
         <div className="max-w-7xl mx-auto px-8 flex flex-col items-center">
-          <Image src="/images/qslogo.png" alt="Qualisoft" width={40} height={40} className="opacity-20 mb-10" />
-          <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.8em] mb-8 m-0 italic">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-10 shadow-2xl">
+            <Image src="/images/qslogo.png" alt="Qualisoft" width={32} height={32} />
+          </div>
+          <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.8em] mb-8 m-0 italic text-center">
             Qualisoft Elite Matrix • RD-2026 Sovereign OS
           </p>
           <div className="flex flex-wrap justify-center gap-12 opacity-30">
@@ -139,7 +174,7 @@ export default function LandingPage() {
              ))}
           </div>
           <div className="mt-20 text-[9px] font-bold text-slate-700 uppercase tracking-widest italic">
-            &copy; {new Date().getFullYear()} Qualisoft International. Tous droits réservés.
+            &copy; {new Date().getFullYear()} Qualisoft International. Tous droits de souveraineté réservés.
           </div>
         </div>
       </footer>
