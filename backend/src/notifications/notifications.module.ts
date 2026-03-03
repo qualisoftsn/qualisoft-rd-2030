@@ -1,12 +1,27 @@
-import { Module } from '@nestjs/common';
+/**
+ * 🛰️ MODULE : notifications.module.ts
+ * -------------------------------------------------------------------------
+ * RÉVISION : 03 Mars 2026 | 23:20 GMT
+ */
+
+import { Module, Global } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
-import { PrismaModule } from '../prisma/prisma.module'; // 👈 INDISPENSABLE
+import { NotificationsGateway } from './notifications.gateway';
+import { SurveillanceScheduler } from './surveillance.scheduler';
+import { PrismaModule } from '../prisma/prisma.module';
+import { JwtModule } from '@nestjs/jwt';
 
+@Global()
 @Module({
-  imports: [PrismaModule], // ✅ Permet d'injecter PrismaService dans NotificationsService
+  imports: [
+    PrismaModule,
+    JwtModule.register({ 
+      secret: process.env.JWT_SECRET || 'QUALISOFT_SDE_2026' 
+    }),
+  ],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
-  exports: [NotificationsService], // ✅ Permet aux modules (Action, NC, Audit) d'envoyer des alertes
+  providers: [NotificationsService, NotificationsGateway, SurveillanceScheduler],
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}
