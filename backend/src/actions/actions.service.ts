@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+/**
+ * 🛰️ MODULE : ActionsService
+ * -------------------------------------------------------------------------
+ * RÔLE : Logique métier des actions CAPA et gestion des PAQ liés.
+ * RÉVISION : 03 Mars 2026 | 05:55 GMT
+ */
+
+import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { Action, ActionStatus, ActionOrigin, ActionType, Priority } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateActionDto } from './dto/create-action.dto';
@@ -8,41 +15,47 @@ import { UpdateActionDto } from './dto/update-action.dto';
 export class ActionsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * ✅ CRÉATION D'ACTION AVEC AUTO-PROVISIONING DE PAQ
+   */
   async create(dto: CreateActionDto, T_Id: string, U_Id: string): Promise<Action> {
-    // 1. Chercher le PAQ lié au processus
-    let paq = await this.prisma.pAQ.findFirst({
-      where: { PAQ_ProcessusId: dto.PAQ_ProcessusId, tenantId: T_Id }
-    });
+    try {
+      // 1. Recherche ou Création d'un Plan d'Actions (PAQ) pour le processus
+      let paq = await this.prisma.pAQ.findFirst({
+        where: { PAQ_ProcessusId: dto.PAQ_ProcessusId, tenantId: T_Id, PAQ_IsActive: true }
+      });
 
-    // 2. Correction TS2322 : Ajout des champs obligatoires PAQ_Title et PAQ_QualityManagerId
-    if (!paq) {
-      paq = await this.prisma.pAQ.create({
+      if (!paq) {
+        paq = await this.prisma.pAQ.create({
+          data: {
+            PAQ_Year: new Date().getFullYear(),
+            PAQ_Title: `PLAN D'ACTIONS AUTO-GÉNÉRÉ ${new Date().getFullYear()}`,
+            PAQ_QualityManagerId: U_Id,
+            PAQ_ProcessusId: dto.PAQ_ProcessusId,
+            tenantId: T_Id,
+          }
+        });
+      }
+
+      // 2. Création de l'action scellée
+      return await this.prisma.action.create({
         data: {
-          PAQ_Year: new Date().getFullYear(),
-          PAQ_Title: `PLAN D'ACTION GÉNÉRÉ - ${new Date().getFullYear()}`, // ✅ Requis
-          PAQ_QualityManagerId: U_Id, // ✅ Requis (On affecte au créateur par défaut)
-          PAQ_ProcessusId: dto.PAQ_ProcessusId,
+          ACT_Title: dto.ACT_Title.toUpperCase(),
+          ACT_Description: dto.ACT_Description || "",
+          ACT_Origin: dto.ACT_Origin || ActionOrigin.AUTRE,
+          ACT_Type: dto.ACT_Type || ActionType.CORRECTIVE,
+          ACT_Status: dto.ACT_Status || ActionStatus.A_FAIRE,
+          ACT_Priority: dto.ACT_Priority || Priority.MEDIUM,
+          ACT_Deadline: new Date(dto.ACT_Deadline),
           tenantId: T_Id,
+          ACT_CreatorId: U_Id,
+          ACT_ResponsableId: dto.ACT_ResponsableId,
+          ACT_PAQId: paq.PAQ_Id,
         }
       });
+    } catch (error) {
+      throw new InternalServerErrorException("Erreur lors de la création de l'action Matrix.");
     }
-
-    // 3. Création de l'action
-    return this.prisma.action.create({
-      data: {
-        ACT_Title: dto.ACT_Title.toUpperCase(),
-        ACT_Description: dto.ACT_Description || "",
-        ACT_Origin: dto.ACT_Origin || ActionOrigin.AUTRE,
-        ACT_Type: dto.ACT_Type || ActionType.CORRECTIVE,
-        ACT_Status: dto.ACT_Status || ActionStatus.A_FAIRE,
-        ACT_Priority: dto.ACT_Priority || Priority.MEDIUM,
-        ACT_Deadline: new Date(dto.ACT_Deadline),
-        tenantId: T_Id,
-        ACT_CreatorId: U_Id,
-        ACT_ResponsableId: dto.ACT_ResponsableId,
-        ACT_PAQId: paq.PAQ_Id,
-      }
-    });
   }
 
   async findAll(T_Id: string) {
@@ -50,7 +63,8 @@ export class ActionsService {
       where: { tenantId: T_Id, ACT_IsActive: true },
       include: {
         ACT_Responsable: { select: { U_FirstName: true, U_LastName: true } },
-        ACT_PAQ: { include: { PAQ_Processus: true } }
+        ACT_PAQ: { include: { PAQ_Processus: true } },
+        ACT_Preuves: true
       },
       orderBy: { ACT_CreatedAt: 'desc' }
     });
@@ -74,7 +88,8 @@ export class ActionsService {
         tenantId: T_Id,
         ACT_Deadline: { lt: new Date() },
         ACT_Status: { notIn: [ActionStatus.TERMINEE, ActionStatus.ANNULEE] }
-      }
+      },
+      include: { ACT_Responsable: true }
     });
   }
 
@@ -106,10 +121,10 @@ export class ActionsService {
   }
 
   async createFromReclamation(REC_Id: string, T_Id: string, U_Id: string) {
-    const rec = await this.prisma.reclamation.findUnique({ where: { REC_Id } });
+    const rec = await this.prisma.reclamation.findUnique({ where: { REC_Id, tenantId: T_Id } });
     if (!rec) throw new NotFoundException("Réclamation introuvable");
 
-    let paq = await this.prisma.pAQ.findFirst({ where: { tenantId: T_Id } });
+    let paq = await this.prisma.pAQ.findFirst({ where: { tenantId: T_Id, PAQ_IsActive: true } });
 
     return this.prisma.action.create({
       data: {

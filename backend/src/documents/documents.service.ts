@@ -1,3 +1,10 @@
+/**
+ * 🛰️ MODULE : DocumentsService
+ * -------------------------------------------------------------------------
+ * RÔLE : Kernel de gestion documentaire et workflow d'approbation.
+ * RÉVISION : 03 Mars 2026 | 21:30 GMT
+ */
+
 import { Injectable, NotFoundException, BadRequestException, Logger, StreamableFile } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
@@ -10,14 +17,19 @@ import { existsSync, createReadStream } from 'fs';
 import { join } from 'path';
 import { Response } from 'express';
 
+// Chargement sécurisé de l'archiveur pour les téléchargements groupés
 let archiver: any;
 try { archiver = require('archiver'); } catch (e) { archiver = null; }
 
 @Injectable()
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
+
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * 📊 TÉLÉMÉTRIE GED
+   */
   async getStats(tenantId: string) {
     const now = new Date();
     const [total, approved, pending, overdue] = await Promise.all([
@@ -29,6 +41,9 @@ export class DocumentsService {
     return { total, approved, pending, overdue };
   }
 
+  /**
+   * 🗺️ MAPPING ISO 9001 (Vue Spécifique)
+   */
   async findAllIso(tenantId: string, filters: QueryDocumentsDto) {
     const docs = await this.findAll(tenantId, filters);
     return docs.map(doc => ({
@@ -39,15 +54,15 @@ export class DocumentsService {
         reference: doc.DOC_Reference || 'SANS RÉF',
         title: doc.DOC_Title,
         category: doc.DOC_Category,
-        processus: doc.DOC_Processus?.PR_Libelle || 'NON RATTACHÉ',
-        retentionPeriod: Math.round(doc.DOC_ReviewFrequencyMonths / 12),
+        processus: doc.DOC_Processus?.PR_Libelle || 'TRANSVERSE',
+        reviewCycle: `${doc.DOC_ReviewFrequencyMonths} mois`,
         author: doc.DOC_Owner ? `${doc.DOC_Owner.U_FirstName} ${doc.DOC_Owner.U_LastName}` : 'SYSTÈME',
-        version: doc.DOC_CurrentVersion,
-        modificationDate: doc.DOC_UpdatedAt
+        version: `v${doc.DOC_CurrentVersion}`,
+        updatedAt: doc.DOC_UpdatedAt
       },
       currentVersion: doc.DOC_Versions[0] ? {
         fileName: doc.DOC_Versions[0].DV_FileName,
-        size: doc.DOC_Versions[0].DV_FileSize,
+        size: `${(doc.DOC_Versions[0].DV_FileSize / 1024).toFixed(2)} KB`,
         fileUrl: doc.DOC_Versions[0].DV_FileUrl
       } : null
     }));
@@ -71,28 +86,45 @@ export class DocumentsService {
   async findOne(id: string, tenantId: string) {
     const doc = await this.prisma.document.findFirst({
       where: { DOC_Id: id, tenantId, DOC_IsActive: true },
-      include: { DOC_Versions: { orderBy: { DV_VersionNumber: 'desc' }, include: { DV_CreatedBy: true } }, DOC_Processus: true, DOC_Owner: true }
+      include: { 
+        DOC_Versions: { orderBy: { DV_VersionNumber: 'desc' }, include: { DV_CreatedBy: true, DV_ApprovedBy: true } }, 
+        DOC_Processus: true, 
+        DOC_Owner: true 
+      }
     });
-    if (!doc) throw new NotFoundException("Document introuvable.");
+    if (!doc) throw new NotFoundException("Document introuvable dans le nœud.");
     return doc;
   }
 
+  /**
+   * 🏗️ INITIALISATION DOCUMENTAIRE (Version 1)
+   */
   async create(data: CreateDocumentDto, file: Express.Multer.File, tenantId: string, userId: string) {
-    const reference = data.DOC_Category || await this.generateReference(data.DOC_Category || DocCategory.PROCEDURE, tenantId);
+    const reference = await this.generateReference(data.DOC_Category || DocCategory.PROCEDURE, tenantId);
     const months = data.DOC_ReviewFrequencyMonths || 12;
     const nextReview = new Date();
     nextReview.setMonth(nextReview.getMonth() + months);
 
     return this.prisma.document.create({
       data: {
-        DOC_Title: data.DOC_Title, DOC_Reference: reference, DOC_Description: data.DOC_Description,
-        DOC_Category: data.DOC_Category || DocCategory.PROCEDURE, DOC_Status: DocStatus.EN_REVUE,
-        DOC_ReviewFrequencyMonths: months, DOC_NextReviewDate: nextReview, DOC_OwnerId: userId, tenantId,
+        DOC_Title: data.DOC_Title, 
+        DOC_Reference: reference, 
+        DOC_Description: data.DOC_Description,
+        DOC_Category: data.DOC_Category || DocCategory.PROCEDURE, 
+        DOC_Status: DocStatus.EN_REVUE,
+        DOC_ReviewFrequencyMonths: months, 
+        DOC_NextReviewDate: nextReview, 
+        DOC_OwnerId: userId, 
+        tenantId,
         DOC_Versions: {
           create: {
-            DV_VersionNumber: 1, DV_FileUrl: file.path, DV_FileName: file.originalname,
-            DV_FileSize: file.size, DV_FileType: file.originalname.split('.').pop(),
-            DV_CreatedById: userId, DV_Status: DocStatus.EN_REVUE
+            DV_VersionNumber: 1, 
+            DV_FileUrl: file.path, 
+            DV_FileName: file.originalname,
+            DV_FileSize: file.size, 
+            DV_FileType: file.originalname.split('.').pop() || 'bin',
+            DV_CreatedById: userId, 
+            DV_Status: DocStatus.EN_REVUE
           }
         }
       }
@@ -103,6 +135,9 @@ export class DocumentsService {
     return this.prisma.document.update({ where: { DOC_Id: id, tenantId }, data: dto });
   }
 
+  /**
+   * 🔄 WORKFLOW DE RÉVISION
+   */
   async createNewVersion(id: string, dto: CreateRevisionDto, file: Express.Multer.File, tenantId: string, userId: string) {
     const doc = await this.findOne(id, tenantId);
     const nextVersion = doc.DOC_CurrentVersion + 1;
@@ -110,71 +145,124 @@ export class DocumentsService {
     return this.prisma.$transaction(async (tx) => {
       const version = await tx.documentVersion.create({
         data: {
-          DV_DocumentId: id, DV_VersionNumber: nextVersion, DV_FileUrl: file.path,
-          DV_FileName: file.originalname, DV_FileSize: file.size, DV_CreatedById: userId,
-          DV_ChangeDescription: dto.changeDescription, DV_Status: DocStatus.EN_REVUE
+          DV_DocumentId: id, 
+          DV_VersionNumber: nextVersion, 
+          DV_FileUrl: file.path,
+          DV_FileName: file.originalname, 
+          DV_FileSize: file.size, 
+          DV_CreatedById: userId,
+          DV_ChangeDescription: dto.changeDescription, 
+          DV_Status: DocStatus.EN_REVUE
         }
       });
-      await tx.document.update({ where: { DOC_Id: id }, data: { DOC_CurrentVersion: nextVersion, DOC_Status: DocStatus.EN_REVUE } });
+      await tx.document.update({ 
+        where: { DOC_Id: id }, 
+        data: { DOC_CurrentVersion: nextVersion, DOC_Status: DocStatus.EN_REVUE } 
+      });
       return version;
     });
   }
 
+  /**
+   * ✅ VALIDATION SOUVERAINE
+   */
   async approveVersion(id: string, versionId: string, approvalDto: ApprovalDto, tenantId: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
       const version = await tx.documentVersion.update({
         where: { DV_Id: versionId },
         data: { 
           DV_Status: approvalDto.approved ? DocStatus.APPROUVE : DocStatus.REJETE,
-          DV_ApprovedById: userId, DV_ApprovedAt: new Date(), DV_RejectionComment: approvalDto.comment
+          DV_ApprovedById: userId, 
+          DV_ApprovedAt: new Date(), 
+          DV_RejectionComment: approvalDto.comment
         }
       });
+
       if (approvalDto.approved) {
         await tx.document.update({ where: { DOC_Id: id }, data: { DOC_Status: DocStatus.APPROUVE } });
-        await tx.documentVersion.updateMany({ where: { DV_DocumentId: id, DV_Id: { not: versionId }, DV_Status: DocStatus.APPROUVE }, data: { DV_Status: DocStatus.OBSOLETE } });
+        // On rend les versions précédentes obsolètes
+        await tx.documentVersion.updateMany({ 
+          where: { DV_DocumentId: id, DV_Id: { not: versionId }, DV_Status: DocStatus.APPROUVE }, 
+          data: { DV_Status: DocStatus.OBSOLETE } 
+        });
       }
       return version;
     });
   }
 
-  async getFileForPreview(id: string, tenantId: string, res: Response) {
+  async getFileForPreview(id: string, tenantId: string) {
     const doc = await this.findOne(id, tenantId);
     const version = doc.DOC_Versions[0];
     const path = join(process.cwd(), version.DV_FileUrl);
-    if (!existsSync(path)) throw new NotFoundException("Fichier manquant.");
-    res.setHeader('Content-Type', 'application/pdf');
-    return new StreamableFile(createReadStream(path));
+    if (!existsSync(path)) throw new NotFoundException("Flux physique introuvable.");
+    return { stream: new StreamableFile(createReadStream(path)), fileName: version.DV_FileName };
   }
 
   async downloadVersion(id: string, versionId: string, tenantId: string) {
-    const version = await this.prisma.documentVersion.findFirst({ where: { DV_Id: versionId, DV_Document: { tenantId } } });
-    if (!version) throw new NotFoundException();
+    const version = await this.prisma.documentVersion.findFirst({ 
+      where: { DV_Id: versionId, DV_Document: { tenantId } } 
+    });
+    if (!version) throw new NotFoundException("Fichier orphelin.");
+    const path = join(process.cwd(), version.DV_FileUrl);
     return {
-      stream: new StreamableFile(createReadStream(join(process.cwd(), version.DV_FileUrl))),
-      fileName: version.DV_FileName, fileSize: version.DV_FileSize, contentType: 'application/octet-stream'
+      stream: new StreamableFile(createReadStream(path)),
+      fileName: version.DV_FileName, 
+      fileSize: version.DV_FileSize, 
+      contentType: 'application/octet-stream'
     };
   }
 
+  /**
+   * 📦 EXPORTATION GROUPÉE (Archive ZIP)
+   */
   async bulkDownload(ids: string[], tenantId: string, res: Response) {
-    if (!archiver) throw new BadRequestException("Archiver non installé.");
-    const archive = archiver('zip');
+    if (!archiver) throw new BadRequestException("Lib 'archiver' non raccordée au Kernel.");
+    
+    const archive = archiver('zip', { zlib: { level: 9 } });
     res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="DOCS_MATRIX_${Date.now()}.zip"`);
+    
     archive.pipe(res);
-    const docs = await this.prisma.document.findMany({ where: { DOC_Id: { in: ids }, tenantId }, include: { DOC_Versions: { take: 1, orderBy: { DV_VersionNumber: 'desc' } } } });
+    
+    const docs = await this.prisma.document.findMany({ 
+      where: { DOC_Id: { in: ids }, tenantId }, 
+      include: { DOC_Versions: { take: 1, orderBy: { DV_VersionNumber: 'desc' } } } 
+    });
+
     for (const doc of docs) {
       const v = doc.DOC_Versions[0];
-      if (v && existsSync(v.DV_FileUrl)) archive.file(v.DV_FileUrl, { name: v.DV_FileName });
+      const fullPath = join(process.cwd(), v.DV_FileUrl);
+      if (v && existsSync(fullPath)) {
+        archive.file(fullPath, { name: `${doc.DOC_Reference}_${v.DV_FileName}` });
+      }
     }
     return archive.finalize();
   }
 
   async archive(id: string, tenantId: string, userId: string) {
-    return this.prisma.document.update({ where: { DOC_Id: id, tenantId }, data: { DOC_IsArchived: true, DOC_Status: DocStatus.ARCHIVE, DOC_ArchivedById: userId, DOC_ArchivedAt: new Date() } });
+    return this.prisma.document.update({ 
+      where: { DOC_Id: id, tenantId }, 
+      data: { 
+        DOC_IsArchived: true, 
+        DOC_Status: DocStatus.ARCHIVE, 
+        DOC_ArchivedById: userId, 
+        DOC_ArchivedAt: new Date() 
+      } 
+    });
   }
 
+  /**
+   * 🖋️ GÉNÉRATEUR DE RÉFÉRENCES ISO
+   */
   private async generateReference(category: DocCategory, tenantId: string): Promise<string> {
-    const prefixes = { [DocCategory.PROCEDURE]: 'PR', [DocCategory.MANUEL]: 'MA', [DocCategory.ENREGISTREMENT]: 'RE' };
+    const prefixes = { 
+      [DocCategory.PROCEDURE]: 'PR', 
+      [DocCategory.MANUEL]: 'MA', 
+      [DocCategory.ENREGISTREMENT]: 'RE',
+      [DocCategory.CONSIGNE]: 'IN'
+    };
     const count = await this.prisma.document.count({ where: { tenantId, DOC_Category: category } });
-    return `${prefixes[category] || 'DO'}-${(count + 1).toString().padStart(3, '0')}-A`;
+    const sequence = (count + 1).toString().padStart(3, '0');
+    return `${prefixes[category] || 'DO'}-${sequence}-A`;
   }
 }

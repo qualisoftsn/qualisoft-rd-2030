@@ -67,6 +67,11 @@ async function bootstrap() {
       index: false,
     });
 
+    app.useStaticAssets(join(process.cwd(), 'uploads'), {
+      prefix: '/uploads/',
+    });
+
+
     // 🌐 CONFIGURATION CORS SOUVERAINE (Isolation Multi-Tenant)
     app.enableCors({
       origin: (origin, callback) => {

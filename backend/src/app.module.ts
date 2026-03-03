@@ -89,6 +89,7 @@ import { ContactService } from './auth/contact.service';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { SubscriptionGuard } from './auth/guards/subscription.guard';
+import { FilesModule } from './modules/files/files.module';
 
 @Module({
   imports: [
@@ -156,6 +157,7 @@ import { SubscriptionGuard } from './auth/guards/subscription.guard';
     IncidentsModule,
     CauseriesModule,
     SenegalLegalModule,
+    FilesModule,
 
     // 👥 COUCHE RESSOURCES (L'humain et le matériel)
     CompetencesModule,

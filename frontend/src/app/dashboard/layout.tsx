@@ -1,12 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * 🛰️ MODULE : DashboardLayout.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Superstructure de l'interface Qualisoft Elite.
  * SÉCURITÉ : Isolation Matrix (Zéro NextAuth) & Store Zustand.
- * RÉVISION : 03 Mars 2026 | 10:45 GMT
+ * RÉVISION : 03 Mars 2026 | 15:45 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -15,43 +14,44 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { Role, User } from "@/types/elite-sde";
+import { Role } from "@/types/elite-sde";
 import { 
-  Bell, Crown, Home, Info, LayoutGrid, Loader2, 
+  Crown, Home, Info, LayoutGrid, Loader2, 
   LogOut, Search, Settings, ShieldCheck, Zap, Fingerprint
 } from "lucide-react";
 import Link from "next/link";
 
-// ✅ IMPORTS DES COMPOSANTS SCELLÉS
+// ✅ IMPORTATION DES COMPOSANTS SCELLÉS (Zéro Erreur)
 import Sidebar from "./sidebar";
 import TrialBanner from "@/components/TrialBanner";
+import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
+import NotificationBell from "@/components/dashboard/notification-bell";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [hasMounted, setHasMounted] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   /**
    * 🧠 EXTRACTION DU NOYAU AUTH
-   * On récupère tout ce dont on a besoin pour le pilotage du Layout.
+   * On utilise le typage strict pour éviter les dérives.
    */
   const { user, logout, isAuthenticated } = useAuthStore() as any;
 
-  // 🛠️ PROTOCOLE D'HYDRATATION : Évite le flash de contenu non-authentifié
+  /**
+   * 🛡️ PROTOCOLE DE STABILISATION (Anti-Flicker)
+   * Le contenu ne s'affiche que si l'auth est confirmée et le client monté.
+   */
   useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
-  // 🔒 SENTINELLE : Barrière de sécurité en cas de rupture de session
-  useEffect(() => {
-    if (hasMounted && !isAuthenticated) {
+    if (isAuthenticated === false) {
       router.replace("/auth/login");
+    } else if (isAuthenticated === true && user) {
+      setIsReady(true);
     }
-  }, [hasMounted, isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
 
   /**
    * 👑 MATRICE D'ACCRÉDITATION
-   * Détermination du mode Souverain (Master Architect).
    */
   const isSuperAdmin = useMemo(() => {
     if (!user) return false;
@@ -64,8 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user]);
 
   /**
-   * 🚪 PROTOCOLE DE DÉCONNEXION ATOMIQUE
-   * Purge simultanée du Store et des Cookies de sécurité.
+   * 🚪 DÉCONNEXION ATOMIQUE
    */
   const handleLogout = () => {
     document.cookie = "qualisoft_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; Secure; SameSite=Lax";
@@ -73,12 +72,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/auth/login");
   };
 
-  // ⏳ ÉCRAN DE SYNCHRONISATION KERNEL
-  if (!hasMounted || !isAuthenticated || !user) {
+  // ⏳ ÉCRAN DE SYNCHRONISATION KERNEL (Chargement Premium)
+  if (!isReady || !user) {
     return (
-      <div className="h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-8 italic font-sans">
+      <div className="h-screen bg-[#0B0F1A] flex flex-col items-center justify-center gap-8 italic font-sans overflow-hidden">
         <div className="relative">
-          <Loader2 className="w-20 h-20 text-blue-600 animate-spin" strokeWidth={3} />
+          <Loader2 className="w-20 h-20 text-blue-600 animate-spin" strokeWidth={2} />
           <Fingerprint className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500/20" size={32} />
         </div>
         <div className="text-center">
@@ -94,18 +93,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="h-screen bg-[#0B0F1A] flex italic font-sans overflow-hidden selection:bg-blue-600/30">
       
-      {/* 🧭 SIDEBAR SOUVERAINE (320px) */}
-      {/* 🛡️ CORRECTIF BUILD : On ne passe plus 'user', Sidebar est désormais autonome */}
+      {/* 🎭 BANNIÈRE DE MASCARADE (Positionnée au sommet absolu) */}
+      <ImpersonationBanner />
+
+      {/* 🧭 SIDEBAR SOUVERAINE (Gauche - 320px) */}
       <Sidebar isSuperAdmin={isSuperAdmin} />
 
-      <div className="flex-1 flex flex-col pl-80 pr-20 min-w-0 relative">
+      {/* 🚀 CENTRE DE PILOTAGE */}
+      <div className={`flex-1 flex flex-col pl-80 pr-20 min-w-0 relative transition-all duration-500 ${user.isImpersonated ? "pt-10" : "pt-0"}`}>
         
         {/* ⏳ BANNIÈRE DE LICENCE */}
-        {/* 🛡️ CORRECTIF BUILD : Idem ici, TrialBanner récupère la session via le Store */}
         <TrialBanner isSuperAdmin={isSuperAdmin} />
 
-        {/* TOPBAR STRATÉGIQUE */}
-        <header className="h-24 bg-[#0F172A]/80 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-12 sticky top-0 z-40 shrink-0">
+        {/* TOPBAR STRATÉGIQUE (Sticky & Glassmorphism) */}
+        <header className="h-24 bg-[#0F172A]/40 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-12 sticky top-0 z-40 shrink-0">
           <div className="flex items-center gap-8 flex-1">
             <div className="relative w-full max-w-xl group">
               <Search className={`absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 transition-colors ${isSuperAdmin ? "group-focus-within:text-amber-500" : "group-focus-within:text-blue-500"}`} size={20} />
@@ -125,10 +126,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             )}
 
-            <button className="relative p-2.5 text-slate-500 hover:text-white transition-all group cursor-pointer bg-transparent border-none">
-              <Bell size={22} className="group-hover:rotate-12 transition-transform" />
-              <span className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full border-2 border-[#0F172A] ${isSuperAdmin ? "bg-amber-500" : "bg-blue-600"}`} />
-            </button>
+            {/* 🔔 COMPOSANT SCELLÉ : NotificationBell remplace l'icône Bell statique */}
+            <NotificationBell />
 
             <div className="flex items-center gap-6 border-l border-white/10 pl-10 shrink-0">
               <div className="text-right hidden xl:block text-white leading-tight">
@@ -145,8 +144,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* MAIN COCKPIT AREA */}
-        <main className="flex-1 relative overflow-y-auto p-12 custom-scrollbar bg-[#0B0F1A]">
-          <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-1000">
+        <main className="flex-1 relative overflow-y-auto p-12 custom-scrollbar">
+          <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-20">
             {children}
           </div>
 
@@ -163,7 +162,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
 
-      {/* NAV SLIM DROITE (Quick Access Hub) */}
+      {/* 🧭 NAV SLIM DROITE (Quick Access Hub - 80px) */}
       <nav className="w-20 h-screen bg-[#0F172A] border-l border-white/5 flex flex-col items-center py-10 gap-10 fixed right-0 top-0 z-50 shrink-0 shadow-4xl">
         <Link href="/dashboard/menu" className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group ${pathname === "/dashboard/menu" ? "bg-blue-600 text-white shadow-2xl shadow-blue-900/50" : "bg-white/5 text-slate-600 hover:text-white hover:bg-white/10"}`}>
           <LayoutGrid size={24} className="group-hover:scale-110 transition-transform" />
@@ -180,6 +179,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-red-600/10 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all cursor-pointer border-none shadow-lg shadow-red-900/10"><LogOut size={22} /></button>
         </div>
       </nav>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(37, 99, 235, 0.1); border-radius: 10px; }
+      `}</style>
     </div>
   );
 }

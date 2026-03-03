@@ -1,3 +1,10 @@
+/**
+ * 🛰️ MODULE : EvidenceService
+ * -------------------------------------------------------------------------
+ * RÔLE : Unification des preuves (Audit, NC, Actions, GED).
+ * RÉVISION : 03 Mars 2026 | 05:55 GMT
+ */
+
 import { Injectable, BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Preuve } from '@prisma/client';
@@ -12,7 +19,6 @@ export class EvidenceService {
    * ✅ CRÉATION UNIFIÉE (Absorbe Evidence & Preuves)
    */
   async create(tenantId: string, data: any): Promise<Preuve> {
-    // Support des deux formats d'entrée pour éviter les régressions front
     const fileUrl = data.PV_FileUrl || data.fileUrl;
     const fileName = data.PV_FileName || data.fileName;
 
@@ -27,22 +33,19 @@ export class EvidenceService {
           PV_FileName: fileName,
           PV_Commentaire: data.PV_Commentaire || data.commentaire || null,
           tenantId: tenantId,
-          // Relations de contexte (Liaisons polyvalentes)
+          // Liaisons polyvalentes (Nullables si non fournis)
           PV_NCId: data.PV_NCId || data.ncId || null,
           PV_ActionId: data.PV_ActionId || data.actionId || null,
           PV_AuditId: data.PV_AuditId || data.auditId || null,
           PV_DocumentId: data.PV_DocumentId || data.documentId || null,
         },
       });
-    } catch (error: any) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
-      throw new BadRequestException(`Échec de l'enregistrement de la preuve : ${message}`);
+    } catch (error) {
+      this.logger.error(`Erreur lors de l'indexation de la preuve: ${error.message}`);
+      throw new BadRequestException(`Échec de l'enregistrement de la preuve.`);
     }
   }
 
-  /**
-   * ✅ RÉCUPÉRATION PAR TENANT
-   */
   async findAllByTenant(tenantId: string): Promise<Preuve[]> {
     return this.prisma.preuve.findMany({
       where: { tenantId },
@@ -56,19 +59,18 @@ export class EvidenceService {
     });
   }
 
-  /**
-   * 🔍 FILTRE PAR AUDIT (Fonctionnalité récupérée de PreuvesService)
-   */
   async findByAudit(auditId: string, tenantId: string) {
     return this.prisma.preuve.findMany({
-      where: { PV_AuditId: auditId, tenantId: tenantId },
+      where: { PV_AuditId: auditId, tenantId },
       include: { PV_Document: true, PV_NonConformite: true },
       orderBy: { PV_CreatedAt: 'desc' }
     });
   }
 
   async findOne(tenantId: string, id: string): Promise<Preuve> {
-    const preuve = await this.prisma.preuve.findFirst({ where: { PV_Id: id, tenantId } });
+    const preuve = await this.prisma.preuve.findFirst({ 
+      where: { PV_Id: id, tenantId } 
+    });
     if (!preuve) throw new NotFoundException("Preuve introuvable.");
     return preuve;
   }
