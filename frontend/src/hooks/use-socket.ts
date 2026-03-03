@@ -3,8 +3,9 @@
 /**
  * 🛰️ MODULE : use-socket.ts
  * -------------------------------------------------------------------------
- * RÔLE : Liaison persistante avec le Kernel Socket.io.
- * RÉVISION : 03 Mars 2026 | 15:55 GMT
+ * RÔLE : Liaison bidirectionnelle avec le Kernel Socket.io.
+ * RÉVISION : 03 Mars 2026 | 16:25 GMT
+ * -------------------------------------------------------------------------
  */
 
 import { useEffect, useRef } from 'react';
@@ -16,23 +17,24 @@ export const useSocket = (namespace: string) => {
   const { token } = useAuthStore() as any;
 
   useEffect(() => {
-    // On ne tente la connexion que si le jeton souverain est présent
+    // 🛡️ SENTINELLE : Pas de token, pas de tunnel.
     if (!token) return;
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
 
-    // Initialisation du tunnel avec authentification par handshake
+    // Initialisation du tunnel souverain
     socketRef.current = io(`${API_URL}/${namespace}`, {
       auth: { token },
-      transports: ['websocket'], // Forçage WebSocket pour éviter le polling HTTP
+      transports: ['websocket'], // Forçage WebSocket pour la stabilité sur elite.qualisoft.sn
       reconnectionAttempts: 5,
-      reconnectionDelay: 3000,
+      reconnectionDelay: 2000,
     });
 
     socketRef.current.on('connect_error', (err) => {
-      console.error(`[SOCKET ERROR] ${namespace} :`, err.message);
+      console.error(`[MATRIX-SOCKET] Échec sur ${namespace}:`, err.message);
     });
 
+    // Nettoyage lors du démontage du composant
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
