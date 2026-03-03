@@ -10,7 +10,7 @@ import {
   UseGuards, BadRequestException 
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '../auth/guards/jwtauthguard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('files')
 @UseGuards(JwtAuthGuard)

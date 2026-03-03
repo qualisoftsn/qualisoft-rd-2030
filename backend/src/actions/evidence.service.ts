@@ -41,7 +41,7 @@ export class EvidenceService {
         },
       });
     } catch (error) {
-      this.logger.error(`Erreur lors de l'indexation de la preuve: ${error.message}`);
+      this.logger.error(`Erreur : ${error instanceof Error ? error.message : 'Erreur Inconnue'}`);
       throw new BadRequestException(`Échec de l'enregistrement de la preuve.`);
     }
   }

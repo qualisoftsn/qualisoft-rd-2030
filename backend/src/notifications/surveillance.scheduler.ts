@@ -35,7 +35,7 @@ export class SurveillanceScheduler {
 
       this.logger.log('✅ SCAN GLOBAL ACHEVÉ.');
     } catch (error) {
-      this.logger.error(`❌ ÉCHEC DU SCAN : ${error.message}`);
+       this.logger.error(`Erreur : ${error instanceof Error ? error.message : 'Erreur Inconnue'}`);
     }
   }
 }

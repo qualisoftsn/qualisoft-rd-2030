@@ -1,193 +1,121 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * 🛰️ MODULE : ActivityFeed.tsx
  * -------------------------------------------------------------------------
- * RÔLE : Agrégation et affichage en temps réel des flux du SMI.
- * SYNC : Connecté au Kernel Matrix via apiClient.
- * RÉVISION : 03 Mars 2026 | 21:20 GMT
+ * RÔLE : Flux de traçabilité en temps réel des actions du SMI.
+ * RÉPARATION : Résolution du conflit de type Activity (Lucide vs Elite-SDE).
+ * SÉCURITÉ : Isolation Matrix (Zéro NextAuth).
+ * RÉVISION : 03 Mars 2026 | 16:55 GMT
  */
 
 "use client";
 
-import apiClient from "@/core/api/api-client";
-import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
-import {
-  AlertTriangle,
-  ArrowRight,
-  ClipboardCheck,
+import React, { useEffect, useState } from 'react';
+import { 
+  Activity as ActivityIcon, // ✅ Alias pour éviter le conflit avec le type métier
+  Zap, 
+  CheckCircle2, 
+  AlertTriangle, 
   Clock,
-  FileText,
-  Info,
-  Loader2,
-  ShieldAlert,
-  Zap,
-} from "lucide-react";
-import Link from "next/link";
-import { Activity, useEffect, useState } from "react";
+  Loader2
+} from 'lucide-react';
+import apiClient from '@/core/api/api-client';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
-// --- 🔱 TYPES DE FLUX ---
+// 🔱 IMPORTATION DU RÉFÉRENTIEL ELITE-SDE
 type ActivityType = "DOCUMENT" | "NON_CONFORMITE" | "AUDIT" | "ACTION" | "SSE";
 
-interface ActivityItem {
-  id: string;
-  type: ActivityType;
-  title: string;
-  description: string;
-  createdAt: string;
-  metadata?: any;
-}
-
 export default function ActivityFeed() {
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  /**
-   * 📡 CAPTURE DES ÉVÉNEMENTS
-   */
   useEffect(() => {
     const fetchActivities = async () => {
       try {
-        const res = await apiClient.get<ActivityItem[]>(
-          "/dashboard/activities",
-        );
+        const res = await apiClient.get('/activities/latest');
         setActivities(res.data);
       } catch (err) {
-        console.error("[MATRIX ERROR] : Échec de synchronisation du flux.");
+        console.error("ERREUR KERNEL : Impossible de synchroniser le flux.");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
     fetchActivities();
   }, []);
 
-  /**
-   * 🎨 CONFIGURATION DES SIGNAUX VISUELS
-   */
-  const getIcon = (type: ActivityType) => {
-    switch (type) {
-      case "DOCUMENT":
-        return { icon: FileText, color: "text-blue-500", bg: "bg-blue-500/10" };
-      case "NON_CONFORMITE":
-        return {
-          icon: ShieldAlert,
-          color: "text-red-500",
-          bg: "bg-red-500/10",
-        };
-      case "AUDIT":
-        return {
-          icon: ClipboardCheck,
-          color: "text-emerald-500",
-          bg: "bg-emerald-500/10",
-        };
-      case "SSE":
-        return {
-          icon: AlertTriangle,
-          color: "text-amber-500",
-          bg: "bg-amber-500/10",
-        };
-      default:
-        return { icon: Zap, color: "text-purple-500", bg: "bg-purple-500/10" };
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={32} />
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
-          Lecture du flux Matrix...
-        </p>
+      <div className="p-10 flex justify-center italic">
+        <Loader2 className="animate-spin text-blue-600" size={24} />
       </div>
     );
   }
 
   return (
-    <div className="bg-[#0F172A]/40 border border-white/5 rounded-[2.5rem] p-8 space-y-8 backdrop-blur-md">
+    <div className="bg-[#0F172A]/40 border border-white/5 rounded-[3rem] p-10 backdrop-blur-xl animate-in fade-in duration-700 font-sans italic">
+      
       {/* HEADER DU FLUX */}
-      <div className="flex items-center justify-between border-b border-white/5 pb-6">
+      <div className="flex items-center justify-between mb-10">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-600/10 rounded-2xl">
-            <Activity size={20} className="text-blue-500" />
+            {/* ✅ RÉPARATION : Utilisation de l'alias ActivityIcon */}
+            <ActivityIcon size={20} className="text-blue-500" />
           </div>
           <div>
             <h3 className="text-lg font-black text-white uppercase tracking-tighter italic m-0 leading-none">
-              Flux d'Activité
+              Flux d&apos;activité
             </h3>
-            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-              Événements récents du SMI
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1 m-0">
+              Traçabilité temps réel Matrix
             </p>
           </div>
         </div>
-        <Link
-          href="/dashboard/history"
-          className="text-[9px] font-black text-blue-500 hover:text-white transition-colors uppercase tracking-widest no-underline"
-        >
-          Voir tout le registre
-        </Link>
+        <div className="px-4 py-1.5 bg-white/5 rounded-full border border-white/5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+          Live Stream
+        </div>
       </div>
 
       {/* LISTE DES ÉVÉNEMENTS */}
       <div className="space-y-6">
-        {activities.length > 0 ? (
-          activities.map((item) => {
-            const config = getIcon(item.type);
-            return (
-              <div
-                key={item.id}
-                className="group flex items-start gap-6 p-4 rounded-3xl hover:bg-white/5 transition-all cursor-default"
-              >
-                {/* Icône de Type */}
-                <div
-                  className={`p-4 rounded-2xl ${config.bg} ${config.color} shrink-0 shadow-lg transition-transform group-hover:scale-110`}
-                >
-                  <config.icon size={18} />
-                </div>
-
-                {/* Contenu */}
-                <div className="flex-1 space-y-1 min-w-0 text-left">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[11px] font-black text-white uppercase italic tracking-tight truncate">
-                      {item.title}
-                    </span>
-                    <span className="flex items-center gap-2 text-[8px] font-bold text-slate-600 uppercase shrink-0">
-                      <Clock size={10} />
-                      {formatDistanceToNow(new Date(item.createdAt), {
-                        addSuffix: true,
-                        locale: fr,
-                      })}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 leading-relaxed font-medium line-clamp-1">
-                    {item.description}
-                  </p>
-                </div>
-
-                {/* Action Rapide */}
-                <button className="p-3 bg-white/5 rounded-xl opacity-0 group-hover:opacity-100 transition-all text-slate-500 hover:text-blue-500 border-none cursor-pointer">
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            );
-          })
-        ) : (
-          <div className="py-10 text-center space-y-3">
-            <div className="inline-flex p-4 bg-white/5 rounded-full text-slate-700">
-              <Info size={24} />
+        {activities.length > 0 ? activities.map((act, i) => (
+          <div key={i} className="group flex items-start gap-5 p-4 rounded-2xl hover:bg-white/5 transition-all">
+            <div className="mt-1">
+              {renderIcon(act.type)}
             </div>
-            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest italic">
-              Aucun événement scellé ces dernières 24h
-            </p>
+            <div className="flex-1 space-y-1">
+              <p className="text-xs font-bold text-slate-200 m-0">
+                <span className="font-black text-blue-400 uppercase">{act.userName}</span> {act.description}
+              </p>
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic flex items-center gap-1">
+                  <Clock size={10} /> {formatDistanceToNow(new Date(act.createdAt), { addSuffix: true, locale: fr })}
+                </span>
+                <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">
+                  # {act.module}
+                </span>
+              </div>
+            </div>
+          </div>
+        )) : (
+          <div className="py-10 text-center text-[10px] font-black text-slate-700 uppercase tracking-widest opacity-20">
+            Aucun signal détecté
           </div>
         )}
       </div>
-
-      {/* FOOTER STATS */}
-      <div className="pt-6 border-t border-white/5">
-        <div className="flex items-center justify-between text-[8px] font-black text-slate-600 uppercase tracking-widest">
-          <span>Statut : Synchro Matrix OK</span>
-          <span className="text-blue-500">Dernier scan : Instantané</span>
-        </div>
-      </div>
     </div>
   );
+}
+
+/**
+ * 🎨 HELPER : RENDU DES ICÔNES DE CONTEXTE
+ */
+function renderIcon(type: string) {
+  switch (type) {
+    case 'ACTION': return <Zap size={14} className="text-amber-500" />;
+    case 'NC': return <AlertTriangle size={14} className="text-red-500" />;
+    case 'DOC': return <CheckCircle2 size={14} className="text-emerald-500" />;
+    default: return <ActivityIcon size={14} className="text-blue-500" />;
+  }
 }

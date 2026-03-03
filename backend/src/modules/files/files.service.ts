@@ -53,7 +53,7 @@ export class FilesService {
         this.logger.warn(`[ATTENTION] Tentative de suppression d'un fichier inexistant : ${filename}`);
       }
     } catch (error) {
-      this.logger.error(`[ERREUR CRITIQUE] Échec de suppression physique : ${error.message}`);
+      this.logger.error(`Erreur : ${error instanceof Error ? error.message : 'Erreur Inconnue'}`);
       throw new InternalServerErrorException("Rupture lors de l'épuration du stockage.");
     }
   }

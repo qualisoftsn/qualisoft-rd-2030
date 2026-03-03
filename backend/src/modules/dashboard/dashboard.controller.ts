@@ -9,7 +9,7 @@
 
 import { Controller, Get, UseGuards, Req, Logger } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
-import { JwtAuthGuard } from '../auth/guards/JwtAuthGuard'; // ✅ Correction du chemin/nom
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard)

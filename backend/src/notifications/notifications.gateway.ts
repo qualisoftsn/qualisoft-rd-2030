@@ -18,7 +18,8 @@ import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
   cors: { origin: '*', credentials: true },
 })
 export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  @WebSocketServer() server: Server;
+  @WebSocketServer()
+  server!: Server;
   private readonly logger = new Logger(NotificationsGateway.name);
 
   handleConnection(client: Socket) {

@@ -8,8 +8,9 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaModule } from '../../prisma/prisma.module';
 import { NCStatus, ActionStatus } from '@prisma/client';
+import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
 export class DashboardService {
@@ -98,7 +99,7 @@ export class DashboardService {
         .slice(0, 15);
 
     } catch (error) {
-      this.logger.error(`❌ ÉCHEC TÉLÉMÉTRIE [Tenant: ${tenantId}] : ${error.message}`);
+      this.logger.error(`Erreur : ${error instanceof Error ? error.message : 'Erreur Inconnue'}`);
       return [];
     }
   }

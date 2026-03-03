@@ -2,25 +2,25 @@ import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-vali
 
 export class ProvisioningDto {
   @IsString() @IsNotEmpty()
-  companyName: string;
+  companyName!: string;
 
   @IsString() @IsNotEmpty()
-  customSlug: string; // ex: "sagam"
+  customSlug!: string; // ex: "sagam"
 
   @IsString() @IsNotEmpty()
-  ceoName: string;
+  ceoName!: string;
 
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString() @MinLength(8)
-  adminPassword: string;
+  adminPassword!: string;
 
   @IsString() @IsNotEmpty()
-  adminFirstName: string;
+  adminFirstName!: string;
 
   @IsString() @IsNotEmpty()
-  adminLastName: string;
+  adminLastName!: string;
 
   @IsString() @IsOptional()
   phone?: string;

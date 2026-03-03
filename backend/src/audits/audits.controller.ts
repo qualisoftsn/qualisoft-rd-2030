@@ -69,7 +69,7 @@ export class AuditsController {
 
       return res.send(pdfBuffer);
     } catch (error) {
-      this.logger.error(`❌ [PDF-ERROR] Audit ${id} : ${error.message}`);
+      this.logger.error(`Erreur : ${error instanceof Error ? error.message : 'Erreur Inconnue'}`);
       throw new InternalServerErrorException("Échec de la génération du rapport souverain.");
     }
   }
