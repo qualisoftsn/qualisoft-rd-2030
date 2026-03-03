@@ -1,7 +1,8 @@
 /**
- * 🛰️ CONTROLEUR MATRIX - QUALISOFT ELITE RD 2030
- * RÔLE : Pilotage souverain des nœuds territoriaux et des identités.
- * VERSION : 3.1.0 (Intégration Update Souverain)
+ * 🛰️ MODULE : AdminMatrixController
+ * -------------------------------------------------------------------------
+ * RÔLE : Pilotage souverain des nœuds territoriaux.
+ * SÉCURITÉ : SUPER_ADMIN Only | JWT Guard.
  */
 
 import { 
@@ -13,7 +14,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
-import { AdminService } from './admin.service'; 
+import { AdminMatrixService } from './admin-matrix.service'; 
 import { MatrixProvisioningService } from './matrix-provisioning.service';
 import { ProvisioningDto } from './dto/provisioning.dto';
 
@@ -24,49 +25,35 @@ export class AdminMatrixController {
   private readonly logger = new Logger(AdminMatrixController.name);
 
   constructor(
-    private readonly adminService: AdminService,
+    private readonly adminService: AdminMatrixService,
     private readonly provisioningService: MatrixProvisioningService
   ) {}
 
-  @Get()
-  @HttpCode(HttpStatus.OK)
-  async getMatrixRoot() {
-    return await this.adminService.findAllTenants();
+  @Get('tenants')
+  async getAllTenants() {
+    return this.adminService.findAllTenants();
   }
 
-  @Get('details/:tenantId')
-  @HttpCode(HttpStatus.OK)
-  async getTenantDetails(@Param('tenantId') tenantId: string) {
-    return await this.adminService.getTenantFullDetails(tenantId);
+  @Get('tenants/:tenantId')
+  async getDetails(@Param('tenantId') tenantId: string) {
+    return this.adminService.getTenantFullDetails(tenantId);
   }
 
-  @Post('initialize')
+  @Post('provisioning/initialize')
   @HttpCode(HttpStatus.CREATED)
   async initialize(@Body() payload: ProvisioningDto) {
-    this.logger.log(`🚀 [MATRIX] Initialisation nœud : ${payload.companyName}`);
-    return await this.provisioningService.initializeNewTenant(payload);
+    this.logger.log(`🚀 [MATRIX] Initialisation de nœud demandée.`);
+    return this.provisioningService.initializeNewTenant(payload);
   }
 
-  @Post('impersonate/:tenantId')
-  @HttpCode(HttpStatus.OK)
+  @Post('tenants/:tenantId/impersonate')
   async impersonate(@Param('tenantId') tenantId: string) {
-    return await this.adminService.generateImpersonationToken(tenantId);
-  }
-
-  @Post('tenants/:tenantId/users')
-  @HttpCode(HttpStatus.CREATED)
-  async createCollaborator(@Param('tenantId') tenantId: string, @Body() userData: any) {
-    return await this.adminService.createExternalUser(tenantId, userData);
+    this.logger.log(`🎭 [SOUVERAINETÉ] Entrée dans le nœud : ${tenantId}`);
+    return this.adminService.generateImpersonationToken(tenantId);
   }
 
   @Patch('users/:userId')
-  @HttpCode(HttpStatus.OK)
-  async updateUserSovereign(
-    @Param('userId') userId: string, 
-    @Body() payload: any,
-    @Req() req: any
-  ) {
-    this.logger.log(`⚡ Modification souveraine sur l'utilisateur ${userId}`);
-    return await this.adminService.updateUserSovereign(userId, payload, req.user);
+  async updateSovereign(@Param('userId') userId: string, @Body() payload: any) {
+    return this.adminService.updateUserSovereign(userId, payload);
   }
 }

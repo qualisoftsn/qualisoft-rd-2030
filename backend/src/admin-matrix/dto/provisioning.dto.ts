@@ -1,41 +1,30 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class ProvisioningDto {
-  @IsNotEmpty({ message: "Le nom de l'entité est requis." })
-  @IsString()
-  companyName!: string;
+  @IsString() @IsNotEmpty()
+  companyName: string;
 
-  @IsNotEmpty({ message: "Le nom court (slug) est requis pour le sous-domaine." })
-  @IsString()
-  @Matches(/^[a-z0-9-]+$/, { message: "Le slug ne doit contenir que des minuscules, chiffres et tirets." })
-  customSlug!: string;
+  @IsString() @IsNotEmpty()
+  customSlug: string; // ex: "sagam"
 
-  @IsNotEmpty({ message: "Le leadership (CEO/DG) est requis." })
-  @IsString()
-  ceoName!: string;
+  @IsString() @IsNotEmpty()
+  ceoName: string;
 
-  @IsNotEmpty({ message: "L'email racine est obligatoire." })
-  @IsEmail({}, { message: "Format d'email invalide." })
-  email!: string;
+  @IsEmail()
+  email: string;
 
-  @IsNotEmpty({ message: "Le mot de passe de l'administrateur est requis." })
-  @IsString()
-  @MinLength(8, { message: "Le mot de passe doit contenir au moins 8 caractères." })
-  adminPassword!: string;
+  @IsString() @MinLength(8)
+  adminPassword: string;
 
-  @IsNotEmpty({ message: "Le prénom de l'administrateur est requis." })
-  @IsString()
-  adminFirstName!: string;
+  @IsString() @IsNotEmpty()
+  adminFirstName: string;
 
-  @IsNotEmpty({ message: "Le nom de l'administrateur est requis." })
-  @IsString()
-  adminLastName!: string;
+  @IsString() @IsNotEmpty()
+  adminLastName: string;
 
-  @IsNotEmpty({ message: "Le numéro de téléphone est requis." })
-  @IsString()
-  phone!: string;
+  @IsString() @IsOptional()
+  phone?: string;
 
-  @IsNotEmpty({ message: "L'adresse physique est requise." })
-  @IsString()
-  address!: string;
+  @IsString() @IsOptional()
+  address?: string;
 }

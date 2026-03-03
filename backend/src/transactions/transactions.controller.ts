@@ -1,42 +1,60 @@
-import { Controller, Post, Get, Body, UseGuards, Req, Logger } from '@nestjs/common';
+/**
+ * 🛰️ MODULE : TransactionsController
+ * -------------------------------------------------------------------------
+ * RÔLE : Gestion des flux financiers (Tenant & Master).
+ * RÉVISION : 03 Mars 2026 | 14:53 GMT
+ */
+
+import { Controller, Post, Get, Body, UseGuards, Req, Logger, Patch, Param } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
+import { DeclareTransactionDto, InitializeTransactionDto } from './dto/transaction.dto';
 
-@Controller('transactions')
-@UseGuards(JwtAuthGuard)
+@Controller('admin/transactions') // Harmonisation avec le préfixe admin du frontend
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TransactionsController {
   private readonly logger = new Logger(TransactionsController.name);
 
   constructor(private readonly transactionsService: TransactionsService) {}
 
   /**
-   * @route   POST /transactions/initialize
-   * @desc    Initialisation d'un flux de paiement automatique (Futur)
+   * 👑 [MASTER ONLY] : Récupération des flux en attente pour le CRM
    */
-  @Post('initialize')
-  async initialize(@Body() body: any, @Req() req) {
-    const tenantId = req.user.tenantId;
-    return this.transactionsService.initialize(body, tenantId);
+  @Get('pending')
+  @Roles(Role.SUPER_ADMIN)
+  async getPendingForCrm() {
+    this.logger.log(`[CRM] Accès au registre des transactions en attente.`);
+    return this.transactionsService.findPendingForAdmin();
   }
 
   /**
-   * @route   POST /transactions/declare
-   * @desc    Déclaration manuelle d'un paiement effectué avec preuve (Wave/Orange)
+   * 📱 [TENANT] : Déclaration manuelle d'un paiement (Wave/Orange)
    */
-  @Post('declare') // ✅ Route pour le closing manuel avec preuve
-  async declare(@Body() body: any, @Req() req) {
+  @Post('declare')
+  async declare(@Body() dto: DeclareTransactionDto, @Req() req) {
     const tenantId = req.user.tenantId;
-    this.logger.log(`Déclaration de paiement reçue pour le Tenant: ${tenantId}`);
-    return this.transactionsService.declare(body, tenantId);
+    this.logger.log(`[TENANT:${tenantId}] Déclaration de flux : ${dto.TX_Reference}`);
+    return this.transactionsService.declare(dto, tenantId);
   }
 
   /**
-   * @route   GET /transactions/my-history
-   * @desc    Récupérer l'historique des flux du client
+   * ⏲️ [TENANT] : Historique des flux du nœud
    */
   @Get('my-history')
-  async findAll(@Req() req) {
+  async findMyHistory(@Req() req) {
     const tenantId = req.user.tenantId;
     return this.transactionsService.findAll(tenantId);
+  }
+
+  /**
+   * ⚡ [TENANT] : Initialisation auto (Futur Payement Gateway)
+   */
+  @Post('initialize')
+  async initialize(@Body() dto: InitializeTransactionDto, @Req() req) {
+    const tenantId = req.user.tenantId;
+    return this.transactionsService.initialize(dto, tenantId);
   }
 }
