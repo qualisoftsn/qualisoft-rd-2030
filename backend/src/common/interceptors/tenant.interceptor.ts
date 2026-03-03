@@ -1,3 +1,10 @@
+/**
+ * 🛰️ MODULE : TenantInterceptor
+ * -------------------------------------------------------------------------
+ * RÔLE : Injection forcée du tenantId pour Prisma.
+ * RÉVISION : 03 Mars 2026 | 04:30 GMT
+ */
+
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 
@@ -5,23 +12,21 @@ import { Observable } from 'rxjs';
 export class TenantInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
-    const user = request.user; // Injecté par JwtStrategy
+    const user = request.user; 
 
-    // 🛡️ On utilise les clés U_Role et tenantId définies dans JwtStrategy
+    // 🛡️ On force l'isolation pour tout utilisateur non-Master
     if (user && user.U_Role !== 'SUPER_ADMIN') {
       const tid = user.tenantId;
 
-      // 1. On injecte dans les paramètres de requête (pour les GET)
+      // 1. Injection Query (GET)
       request.query.tenantId = tid;
+      request.query.T_Id = tid;
 
-      // 2. On injecte dans le corps (pour les POST/PUT/PATCH)
+      // 2. Injection Body (POST/PUT/PATCH)
       if (request.body) {
-        // Attention : Si tes DTOs attendent "tenantId" ou "tenantId", 
-        // il faudra veiller à ce que tes services fassent le lien.
-        request.body.tenantId = tid; 
+        request.body.tenantId = tid;
+        request.body.T_Id = tid;
       }
-      
-      console.log(`[TenantInterceptor] Isolation activée pour le Tenant: ${tid}`);
     }
 
     return next.handle();

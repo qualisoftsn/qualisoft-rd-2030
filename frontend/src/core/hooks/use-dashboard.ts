@@ -1,18 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
-
 /**
- * 🛰️ HOOK : useDashboard (TÉLÉMÉTRIE KERNEL)
+ * 🛰️ HOOK : useDashboard.ts
  * -------------------------------------------------------------------------
- * FONCTION : Récupération asynchrone des KPIs du Tenant courant.
- * RÔLE : Alimenter les graphiques et les StatCards avec des données scellées.
- * MÉCANISME : Utilise TanStack Query pour la mise en cache et le polling.
+ * RÔLE : Monitoring des KPIs scellés (§ISO 9001).
+ * RÉVISION : 03 Mars 2026 | 01:25 GMT
  */
+
+"use client";
 
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/core/api/api-client';
 
-// Structure typée pour garantir l'intégrité des données reçues
 export interface DashboardStats {
   totalSSE: number;
   openNC: number;
@@ -26,18 +24,12 @@ export function useDashboard() {
   return useQuery<DashboardStats>({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      /**
-       * 🔒 APPEL SCELLÉ
-       * Le endpoint '/analyses/dashboard' est filtré dynamiquement 
-       * par le middleware NestJS en fonction du JWT du Tenant.
-       */
+      // L'apiClient injecte automatiquement le X-Tenant-Id pour l'isolation
       const { data } = await apiClient.get('/analyses/dashboard');
       return data;
     },
-    // Rafraîchissement automatique toutes les 30 secondes pour un pilotage "live"
-    refetchInterval: 30000, 
-    // Maintien des données précédentes pendant le rechargement pour éviter les sauts d'UI
-    placeholderData: (previousData) => previousData, 
+    refetchInterval: 30000, // 📡 Polling toutes les 30s (Pilotage Live)
     staleTime: 10000,
+    retry: 2, // Limite les tentatives en cas de micro-coupure réseau
   });
 }

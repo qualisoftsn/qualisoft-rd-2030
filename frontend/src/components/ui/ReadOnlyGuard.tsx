@@ -1,51 +1,45 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-"use client";
 /**
- * 🔒 MODULE : READ ONLY GUARD (SENTINELLE DE LICENCE)
+ * 🔒 MODULE : ReadOnlyGuard.tsx
  * -------------------------------------------------------------------------
- * FONCTION : Verrouillage interactif des formulaires en cas d'expiration.
- * RÔLE : Protéger l'intégrité des données tout en permettant la consultation.
- * PHILOSOPHIE : "Compliance Continuity" - On peut voir l'histoire, mais plus l'écrire.
+ * RÔLE : Sentinelle de modification. Bloque l'écriture, autorise la vue.
+ * RÉVISION : 03 Mars 2026 | 02:30 GMT
  */
 
-import { useTrialStatus } from "@/hooks/useTrialStatus"; // Hook simulant la vérification de licence
-import { Lock } from "lucide-react";
+"use client";
+
 import React from "react";
+import { useTrial } from "@/providers/TrialProvider";
+import { Lock, ShieldAlert, ArrowUpRight } from "lucide-react";
 
-interface ReadOnlyGuardProps {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
-}
+export function ReadOnlyGuard({ children }: { children: React.ReactNode }) {
+  const { isReadOnly } = useTrial();
 
-export function ReadOnlyGuard({ children, fallback }: ReadOnlyGuardProps) {
-  const { isReadOnly } = useTrialStatus();
-
-  // 🛡️ ACTIVATION DU VERROU SOUVERAIN
   if (isReadOnly) {
     return (
-      <div className="relative group overflow-hidden rounded-4xl">
-        {/* Overlay d'interdiction (UI Elite) */}
-        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-40 flex items-center justify-center p-6 animate-in fade-in duration-500">
-          <div className="bg-white p-8 rounded-[2.5rem] shadow-4xl flex flex-col items-center gap-4 text-center border-b-4 border-red-600">
-            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 animate-pulse">
-              <Lock size={32} />
+      <div className="relative group rounded-[3rem] overflow-hidden italic font-sans">
+        
+        {/* 🛡️ OVERLAY D'INTERDICTION ÉLITE */}
+        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] z-50 flex items-center justify-center p-8 animate-in fade-in duration-500">
+          <div className="bg-white p-10 rounded-[3.5rem] shadow-4xl flex flex-col items-center text-center border-b-8 border-orange-500 max-w-sm transform group-hover:scale-105 transition-transform">
+            <div className="w-20 h-20 bg-orange-100 rounded-3xl flex items-center justify-center text-orange-600 mb-6 shadow-xl animate-pulse">
+              <Lock size={36} />
             </div>
-            <div>
-              <h4 className="font-black text-slate-950 uppercase italic tracking-tighter text-xl">
-                Instance Verrouillée
-              </h4>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">
-                notre période d&apos;essai Qualisoft a expiré
-              </p>
-            </div>
-            <button className="mt-4 px-8 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase italic tracking-[0.2em] shadow-lg shadow-red-900/20 active:scale-95 transition-all">
-              Régulariser ma licence
+            <h4 className="text-2xl font-black text-slate-950 uppercase italic tracking-tighter m-0 leading-none">
+              Mode Consultation <br/> <span className="text-orange-600">Uniquement</span>
+            </h4>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-4 leading-relaxed italic">
+              notre licence Qualisoft Elite a expiré. <br/> 
+              Modification et ajout de données suspendus (§ISO 27001).
+            </p>
+            <button className="mt-8 px-10 py-5 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase italic tracking-[0.2em] shadow-2xl hover:bg-blue-600 transition-all border-none cursor-pointer flex items-center gap-3">
+              Régulariser l&apos;instance <ArrowUpRight size={14} />
             </button>
           </div>
         </div>
 
-        {/* Contenu original désactivé mais visible pour audit */}
-        <div className="opacity-40 pointer-events-none select-none grayscale-[0.5]">
+        {/* CONTENU EN "GHOST MODE" (Consultable mais inerte) */}
+        <div className="opacity-40 pointer-events-none select-none grayscale-[0.6] blur-[0.5px]">
           {children}
         </div>
       </div>

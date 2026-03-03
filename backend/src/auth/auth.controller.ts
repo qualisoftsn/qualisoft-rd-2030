@@ -1,9 +1,15 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards, UnauthorizedException } from '@nestjs/common';
-import { Response } from 'express';
+/**
+ * 🛂 MODULE : AuthController
+ * -------------------------------------------------------------------------
+ * RÔLE : Endpoint Login/Refresh/Logout (Zéro NextAuth).
+ * RÉVISION : 03 Mars 2026 | 04:30 GMT
+ */
+
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Public } from './decorators/public.decorator';
-import { RefreshTokenGuard } from './guards/refresh-token.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -19,43 +25,26 @@ export class AuthController {
       loginDto.tenantId,
     );
 
+    // 🍪 Scellage du Refresh Token (HttpOnly pour sécurité maximale)
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      secure: true, 
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/api/auth',
+      path: '/api/auth/refresh',
     });
 
-    return {
-      accessToken,
-      user: {
-        U_Id: user.U_Id,
-        U_Email: user.U_Email,
-        U_Role: user.U_Role,
-        tenantId: user.tenantId,
-        tenantDomain: (user as any).tenant?.T_Domain || 'elite',
-      },
-    };
+    return { accessToken, user };
   }
 
   @Public()
-  @UseGuards(RefreshTokenGuard)
   @Post('refresh')
-  async refresh(@Req() req: any) {
-    const user = req.user;
+  async refresh(@Req() req: Request) {
+    const refreshToken = req.cookies['refresh_token'];
+    if (!refreshToken) throw new UnauthorizedException('Session expirée');
 
-    if (!user) {
-      throw new UnauthorizedException('Utilisateur non trouvé dans la requête');
-    }
-
-    const newAccessToken = this.authService.generateAccessToken({
-      U_Id: user.U_Id,
-      U_Email: user.U_Email,
-      U_Role: user.U_Role,
-      tenantId: user.tenantId,
-      U_TenantDomain: user.U_TenantDomain
-    });
+    const payload = await this.authService.verifyRefreshToken(refreshToken);
+    const newAccessToken = this.authService.generateAccessToken(payload);
 
     return { accessToken: newAccessToken };
   }
@@ -63,12 +52,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('refresh_token', { 
-      path: '/api/auth', 
-      httpOnly: true, 
-      secure: true, 
-      sameSite: 'strict' 
-    });
-    return res.send();
+    res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
+    return;
   }
 }

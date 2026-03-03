@@ -1,24 +1,39 @@
-// core/auth/migration.ts
-export function migrateFromLocalStorage() {
-  // ✅ NETTOYAGE SÉCURISÉ DES TOKENS EXISTANTS
-  const oldToken = localStorage.getItem('qualisoft-auth-token');
-  const oldStorage = localStorage.getItem('qualisoft-auth-storage');
+/**
+ * 🧹 MODULE : migration.ts
+ * -------------------------------------------------------------------------
+ * RÔLE : Élimination des résidus de session (NextAuth & Legacy Storage).
+ * RÉVISION : 03 Mars 2026 | 01:25 GMT
+ */
 
-  if (oldToken || oldStorage) {
-    console.warn('🧹 Migration sécurisée : nettoyage des tokens obsolètes de localStorage');
+export function migrateFromLocalStorage() {
+  if (typeof window === 'undefined') return;
+
+  // ✅ CIBLES : Anciens jetons et sessions corrompues
+  const legacyKeys = [
+    'qualisoft-auth-token', 
+    'qualisoft-auth-storage', 
+    'next-auth.session-token',
+    'next-auth.callback-url',
+    'user' // Ancien stockage brut
+  ];
+
+  const hasLegacyData = legacyKeys.some(key => localStorage.getItem(key));
+
+  if (hasLegacyData) {
+    console.warn('🧹 MATRIX MIGRATION : Purge des protocoles obsolètes.');
     
-    // 🔒 Suppression immédiate
-    localStorage.removeItem('qualisoft-auth-token');
-    localStorage.removeItem('qualisoft-auth-storage');
+    // 🔒 NETTOYAGE TOTAL
+    legacyKeys.forEach(key => localStorage.removeItem(key));
     
-    // 📢 Notification utilisateur discrète
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      sessionStorage.setItem('auth-migrated', 'true');
-    }
+    // 📢 Marquage de la session migrée
+    sessionStorage.setItem('auth-migrated', 'true');
+    
+    // Forcer un rechargement propre si nécessaire pour vider la mémoire
+    console.info('✅ SYSTÈME SCELLÉ : Passage au protocole HttpOnly + Zustand.');
   }
 }
 
-// Appel au démarrage de l'application
+// Auto-exécution au chargement du bundle
 if (typeof window !== 'undefined') {
   migrateFromLocalStorage();
 }

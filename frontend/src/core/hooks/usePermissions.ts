@@ -1,47 +1,39 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
-
 /**
- * 🛡️ HOOK : usePermissions (MATRICE D'ACCRÉDITATION)
+ * 👮 HOOK : usePermissions.ts
  * -------------------------------------------------------------------------
- * FONCTION : Calcul en temps réel des droits d'accès de l'utilisateur.
- * RÔLE : Verrouillage des fonctionnalités selon le Rôle (U_Role) et le Plan (T_Plan).
- * ISOLATION : Vérifie la cohérence entre l'utilisateur et son Tenant scellé.
+ * RÔLE : Calcul dynamique des droits (RBAC + Plan Compliance).
+ * FIX : Suppression du localStorage.getItem (non-réactif) pour useAuthStore.
+ * RÉVISION : 03 Mars 2026 | 01:25 GMT
  */
 
-import { useMemo, useEffect, useState } from 'react';
+"use client";
+
+import { useMemo } from 'react';
+import { useAuthStore } from '@/store/authStore';
 
 export const usePermissions = () => {
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    // Extraction sécurisée du profil Matrix depuis le stockage scellé
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (e) {
-        console.error("ERREUR CRITIQUE : Corruption de la session locale.");
-      }
-    }
-  }, []);
+  // ✅ FIX : On écoute le store Zustand pour être réactif aux déconnexions
+  const user = useAuthStore((state: any) => state.user);
 
   const permissions = useMemo(() => {
-    // Accès refusé par défaut (Zero Trust Policy)
-    if (!user) return { hasFullAccess: false, isOwner: false, isAdmin: false, isElite: false };
+    // Zero Trust Policy
+    if (!user) return { 
+      hasFullAccess: false, 
+      isOwner: false, 
+      isAdmin: false, 
+      isElite: false,
+      role: 'GUEST'
+    };
 
     /**
-     * 👮 ANALYSE DES PRIVILÈGES
-     * isAdmin : Pouvoir de modification sur le paramétrage du Tenant.
-     * isElite : Accès aux modules avancés (Business Intelligence, Multi-Sites).
-     * isOwner : Accès souverain (Support Qualisoft ou Direction Générale).
+     * ⚖️ ANALYSE DES PRIVILÈGES
+     * isAdmin : Rang Admin ou SuperAdmin Matrix.
+     * isElite : Accès aux fonctions Business Intelligence (Plan Elite/Entreprise).
+     * isOwner : Accès souverain Qualisoft (Support & Audit).
      */
-    const isAdmin = user.U_Role === 'ADMIN' || user.U_Role === 'SUPERADMIN';
-    const isElite = user.U_Tenant?.T_Plan === 'ENTREPRISE' || user.U_Tenant?.T_Plan === 'ELITE';
-    
-    // Identification des comptes à privilèges Qualisoft (Audit & Support)
+    const isAdmin = ['ADMIN', 'SUPERADMIN', 'ROOT'].includes(user.U_Role);
+    const isElite = ['ELITE', 'ENTREPRISE'].includes(user.U_TenantPlan);
     const isOwner = user.U_Email?.endsWith('@qualisoft.sn') || user.U_Role === 'SUPERADMIN';
 
     return {
@@ -49,13 +41,15 @@ export const usePermissions = () => {
       isAdmin,
       isElite,
       isOwner,
+      role: user.U_Role,
       /**
        * ⚡ hasFullAccess
-       * Autorise l'accès aux configurations sensibles si l'utilisateur 
-       * possède le rang Admin sur un plan Entreprise, ou s'il est Owner.
+       * Verrouille les configurations sensibles (SMI Global, Sites, Users).
        */
       hasFullAccess: (isAdmin && isElite) || isOwner,
-      // Helper pour vérifier l'appartenance à un site spécifique
+      
+      // Helper pour les actions granulaires
+      canEdit: (authorId?: string) => isAdmin || user.U_Id === authorId,
       canAccessSite: (siteId: string) => user.U_SiteId === siteId || isAdmin,
     };
   }, [user]);

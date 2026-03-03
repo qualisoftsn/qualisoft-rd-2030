@@ -1,16 +1,18 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+/**
+ * 🔐 MODULE : AuthService
+ * -------------------------------------------------------------------------
+ * RÔLE : Orchestrateur de l'identité et du scellage JWT.
+ * LOGIQUE : Validation Multi-Tenant, Hash Bcrypt, Génération Dual-Token.
+ * RÉVISION : 03 Mars 2026 | 04:30 GMT
+ */
+
+import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { compare } from 'bcryptjs';
-import { Role } from '../types/elite-sde';
+import { Role } from '../types/elite-sde'; // Assure-toi que l'Enum est correct ici
 
-// ✅ Interface unique pour supprimer les erreurs de propriétés inconnues
 export interface AuthPayload {
   U_Id: string;
   U_Email: string;
@@ -30,36 +32,31 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async validateUser(
-    email: string,
-    password: string,
-    tenantId?: string,
-  ): Promise<{ accessToken: string; refreshToken: string; user: any }> {
+  async validateUser(email: string, password: string, tenantId?: string) {
     const user = await this.prisma.user.findFirst({
       where: {
         U_Email: email.toLowerCase().trim(),
         U_IsActive: true,
+        // Isolation forcée sauf pour les accès Matrix Master
         ...(tenantId && tenantId !== 'MATRIX' ? { tenantId } : {}),
       },
-      include: {
-        tenant: true,
-      },
+      include: { tenant: true },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Identifiants invalides');
+      throw new UnauthorizedException('Identifiants Matrix invalides');
     }
 
     const isValid = await compare(password, user.U_PasswordHash);
     if (!isValid) {
-      throw new UnauthorizedException('Identifiants invalides');
+      throw new UnauthorizedException('Identifiants Matrix invalides');
     }
 
+    // Sécurité Master : Un SUPER_ADMIN doit spécifier un tenantId pour l'impersonation
     if (user.U_Role === Role.SUPER_ADMIN && !tenantId) {
-      throw new BadRequestException('Le tenantId est requis pour les SUPER_ADMIN');
+      throw new BadRequestException('Le tenantId est requis pour le protocole SUPER_ADMIN');
     }
 
-    // Préparation du payload avec le domaine récupéré de la relation tenant
     const payload: AuthPayload = {
       U_Id: user.U_Id,
       U_Email: user.U_Email,
@@ -69,10 +66,17 @@ export class AuthService {
       assignedProcessId: user.U_AssignedProcessId || null
     };
 
-    const accessToken = this.generateAccessToken(payload);
-    const refreshToken = await this.generateRefreshToken(payload);
-
-    return { accessToken, refreshToken, user };
+    return {
+      accessToken: this.generateAccessToken(payload),
+      refreshToken: await this.generateRefreshToken(payload),
+      user: {
+        U_Id: user.U_Id,
+        U_Email: user.U_Email,
+        U_Role: user.U_Role,
+        tenantId: user.tenantId,
+        U_TenantDomain: (user as any).tenant?.T_Domain || 'elite',
+      },
+    };
   }
 
   generateAccessToken(payload: AuthPayload): string {
@@ -95,7 +99,7 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       }) as AuthPayload;
     } catch (e) {
-      throw new UnauthorizedException('Session expirée');
+      throw new UnauthorizedException('Session Matrix expirée');
     }
   }
 }
