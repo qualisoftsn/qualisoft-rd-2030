@@ -1,11 +1,12 @@
 /**
- * 🛰️ MODULE : AdminMatrixService
+ * 🛰️ MODULE : AdminMatrixService (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Supervision souveraine des tenants et protocole d'Impersonation.
- * RÉVISION : 03 Mars 2026 | 17:15 GMT
+ * RÉVISION : 04 Mars 2026 | 18:00 GMT
+ * -------------------------------------------------------------------------
  */
 
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';

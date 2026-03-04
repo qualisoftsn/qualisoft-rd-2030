@@ -1,8 +1,9 @@
 /**
- * 🛰️ MODULE : MatrixProvisioningService
+ * 🛰️ MODULE : MatrixProvisioningService (elite-sde)
  * -------------------------------------------------------------------------
- * RÔLE : Orchestration atomique du déploiement de nouveaux nœuds.
- * RÉVISION : 03 Mars 2026 | 17:15 GMT
+ * RÔLE : Orchestration atomique du déploiement de nouveaux nœuds (Big Bang).
+ * RÉVISION : 04 Mars 2026 | 18:00 GMT
+ * -------------------------------------------------------------------------
  */
 
 import { Injectable, ConflictException, InternalServerErrorException, Logger } from '@nestjs/common';

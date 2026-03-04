@@ -1,13 +1,15 @@
 /**
- * 🛰️ MODULE : AdminMatrixController
+ * 🛰️ MODULE : AdminMatrixController (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Pilotage souverain des nœuds territoriaux.
- * SÉCURITÉ : SUPER_ADMIN Only | JWT Guard.
+ * SÉCURITÉ : SUPER_ADMIN Only | JWT Guard (Zéro NextAuth).
+ * RÉVISION : 04 Mars 2026 | 18:00 GMT
+ * -------------------------------------------------------------------------
  */
 
 import { 
   Controller, Get, Post, Patch, Param, Body, UseGuards, 
-  HttpStatus, HttpCode, Logger, Req 
+  HttpStatus, HttpCode, Logger 
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard'; 
