@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * 🛰️ MODULE : Normes ISO & Diagnostic Matrix
- * RÉVISION : 04 Mars 2026 | 05:00 GMT
+ * RÉVISION : 04 Mars 2026 | 06:00 GMT
  * FEATURES : Information Publique + Infographie PDCA + Quiz Protégé
  */
 
@@ -11,10 +11,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { 
   ChevronLeft, ShieldCheck, Zap, Lock, RefreshCcw, BarChart, 
-  ExternalLink, User, Building, Phone, X, ArrowRight, CheckCircle2 
+  ExternalLink, User, Building, Phone, X, CheckCircle2 
 } from 'lucide-react';
 
 const NORMS_DATA = {
@@ -101,84 +100,88 @@ export default function NormDetailPage({ params }: { params: { slug: string } })
   const isFormValid = userInfo.name && userInfo.email && userInfo.company && userInfo.phone;
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white font-sans italic selection:bg-blue-600/30 overflow-x-hidden text-[11px]">
+    <div className="min-h-screen bg-[#0B0F1A] text-white font-sans italic selection:bg-blue-600/30 overflow-x-hidden text-[12px]">
       
-      <nav className="h-16 border-b border-white/5 flex items-center justify-between px-8 lg:px-20 sticky top-0 bg-[#0B0F1A]/90 backdrop-blur-2xl z-50">
-        <Link href="/" className="flex items-center gap-2 text-slate-500 no-underline hover:text-white transition-all">
-          <ChevronLeft size={16} /><span className="font-black uppercase tracking-widest text-[9px]">Retour Portail</span>
+      <nav className="h-20 border-b border-white/5 flex items-center justify-between px-8 lg:px-20 sticky top-0 bg-[#0B0F1A]/90 backdrop-blur-2xl z-50">
+        <Link href="/" className="flex items-center gap-3 text-slate-500 no-underline hover:text-white transition-all">
+          <ChevronLeft size={20} /><span className="font-black uppercase tracking-widest text-[10px]">Retour Portail</span>
         </Link>
-        <button onClick={() => setMode(mode === 'info' ? 'quiz' : 'info')} className="flex items-center gap-3 px-5 py-2 bg-blue-600 rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-white hover:text-blue-600 transition-all shadow-lg border-none cursor-pointer">
+        <button onClick={() => setMode(mode === 'info' ? 'quiz' : 'info')} className="flex items-center gap-3 px-6 py-3 bg-blue-600 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-white hover:text-blue-600 transition-all shadow-lg border-none cursor-pointer">
           {mode === 'info' ? <><Zap size={14} /> Quiz Conformité</> : 'Fermer Quiz'}
         </button>
       </nav>
 
-      <main className="max-w-4xl mx-auto py-20 px-8 text-left">
+      <main className="max-w-4xl mx-auto py-24 px-8 text-left">
         {mode === 'info' ? (
           <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-16">
             <div className="space-y-4 text-left">
-              <h1 className="text-6xl font-black uppercase italic tracking-tighter m-0 leading-none">{norm.id}</h1>
-              <p className={`text-xl font-black uppercase italic ${norm.color}`}>{norm.label}</p>
+              <h1 className="text-7xl lg:text-8xl font-black uppercase italic tracking-tighter m-0 leading-none">{norm.id}</h1>
+              <p className={`text-2xl font-black uppercase italic ${norm.color}`}>{norm.label}</p>
             </div>
 
-            <div className="p-10 bg-white/5 border border-white/10 rounded-[3rem] text-lg font-bold leading-relaxed text-slate-300 italic">
+            <div className="p-12 bg-white/5 border border-white/10 rounded-[3rem] text-xl font-bold leading-relaxed text-slate-300 italic shadow-2xl">
               {norm.content}
             </div>
 
             {norm.showPDCA && (
-              <div className="py-12 space-y-10">
-                <div className="flex items-center gap-4">
-                   <RefreshCcw className="text-blue-500" size={24} />
-                   <h3 className="text-2xl font-black uppercase italic">Le Cycle PDCA - Amélioration Continue</h3>
+              <div className="py-16 space-y-12">
+                <div className="flex items-center gap-4 border-b border-white/10 pb-6">
+                   <RefreshCcw className="text-blue-500 animate-spin-slow" size={32} />
+                   <h3 className="text-3xl font-black uppercase italic m-0">Le Cycle PDCA</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <PDCACard step="P" title="PLAN (Planifier)" desc="Établir les objectifs et les processus (§6.0)." color="border-blue-500/30" />
-                  <PDCACard step="D" title="DO (Faire)" desc="Mettre en œuvre ce qui a été planifié (§7.0 & §8.0)." color="border-emerald-500/30" />
-                  <PDCACard step="C" title="CHECK (Vérifier)" desc="Surveiller et mesurer les processus (§9.0)." color="border-amber-500/30" />
-                  <PDCACard step="A" title="ACT (Agir)" desc="Entreprendre des actions pour améliorer (§10.0)." color="border-red-500/30" />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <PDCACard step="P" title="PLAN (Planifier)" desc="Établir les objectifs et les processus (§6.0)." color="border-blue-500/50" bg="bg-blue-900/10" />
+                  <PDCACard step="D" title="DO (Faire)" desc="Mettre en œuvre ce qui a été planifié (§7.0 & §8.0)." color="border-emerald-500/50" bg="bg-emerald-900/10" />
+                  <PDCACard step="C" title="CHECK (Vérifier)" desc="Surveiller et mesurer les processus (§9.0)." color="border-amber-500/50" bg="bg-amber-900/10" />
+                  <PDCACard step="A" title="ACT (Agir)" desc="Entreprendre des actions pour améliorer (§10.0)." color="border-red-500/50" bg="bg-red-900/10" />
                 </div>
               </div>
             )}
             
-            <a href={norm.official} target="_blank" className="inline-flex items-center gap-3 text-blue-500 uppercase font-black tracking-widest no-underline border-b border-blue-500/20 pb-1">
-                Référence Officielle ISO.ORG <ExternalLink size={14} />
+            <a href={norm.official} target="_blank" className="inline-flex items-center justify-center gap-4 w-full py-6 bg-[#0F172A] text-blue-500 uppercase font-black tracking-widest rounded-2xl border border-blue-500/30 hover:bg-blue-600 hover:text-white transition-all no-underline shadow-xl">
+                Référence Officielle ISO.ORG <ExternalLink size={18} />
             </a>
           </div>
         ) : (
           <div className="animate-in zoom-in-95 duration-500">
             {!isUnlocked ? (
               <div className="max-w-2xl mx-auto space-y-10 text-center">
-                <Lock className="text-blue-600 mx-auto" size={40} />
-                <h2 className="text-3xl font-black uppercase italic">Identification Diagnostic</h2>
-                <form onSubmit={(e) => { e.preventDefault(); setIsUnlocked(true); }} className="bg-white/5 border border-white/5 p-8 rounded-[3rem] grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                  <input required placeholder="NOM & PRÉNOM" className="bg-white/5 border border-white/10 p-4 rounded-xl font-black text-white outline-none focus:border-blue-600" onChange={e => setUserInfo({...userInfo, name: e.target.value})} />
-                  <input required placeholder="ENTREPRISE" className="bg-white/5 border border-white/10 p-4 rounded-xl font-black text-white outline-none focus:border-blue-600" onChange={e => setUserInfo({...userInfo, company: e.target.value})} />
-                  <input required type="email" placeholder="EMAIL PROFESSIONNEL" className="bg-white/5 border border-white/10 p-4 rounded-xl font-black text-white outline-none focus:border-blue-600" onChange={e => setUserInfo({...userInfo, email: e.target.value})} />
-                  <input required placeholder="MOBILE" className="bg-white/5 border border-white/10 p-4 rounded-xl font-black text-white outline-none focus:border-blue-600" onChange={e => setUserInfo({...userInfo, phone: e.target.value})} />
-                  <button disabled={!isFormValid} className={`md:col-span-2 py-5 rounded-2xl font-black uppercase tracking-widest transition-all border-none cursor-pointer ${isFormValid ? 'bg-blue-600 text-white shadow-xl' : 'bg-white/5 text-slate-700 cursor-not-allowed'}`}>DÉGRISER LE QUIZ</button>
+                <Lock className="text-blue-600 mx-auto" size={48} />
+                <h2 className="text-4xl font-black uppercase italic">Identification Diagnostic</h2>
+                <p className="text-slate-400 font-bold tracking-widest uppercase text-xs">Aiguillage sécurisé vers ab.thiongane@qualisoft.sn</p>
+                <form onSubmit={(e) => { e.preventDefault(); setIsUnlocked(true); }} className="bg-[#0F172A] border border-blue-600/30 p-10 rounded-[3rem] grid grid-cols-1 md:grid-cols-2 gap-6 text-left shadow-[0_0_50px_rgba(37,99,235,0.1)]">
+                  <input required placeholder="NOM & PRÉNOM" className="bg-[#0B0F1A] border border-white/10 p-5 rounded-xl font-black text-white outline-none focus:border-blue-600 transition-colors" onChange={e => setUserInfo({...userInfo, name: e.target.value})} />
+                  <input required placeholder="ENTREPRISE" className="bg-[#0B0F1A] border border-white/10 p-5 rounded-xl font-black text-white outline-none focus:border-blue-600 transition-colors" onChange={e => setUserInfo({...userInfo, company: e.target.value})} />
+                  <input required type="email" placeholder="EMAIL PROFESSIONNEL" className="bg-[#0B0F1A] border border-white/10 p-5 rounded-xl font-black text-white outline-none focus:border-blue-600 transition-colors" onChange={e => setUserInfo({...userInfo, email: e.target.value})} />
+                  <input required placeholder="MOBILE" className="bg-[#0B0F1A] border border-white/10 p-5 rounded-xl font-black text-white outline-none focus:border-blue-600 transition-colors" onChange={e => setUserInfo({...userInfo, phone: e.target.value})} />
+                  <button disabled={!isFormValid} className={`md:col-span-2 py-6 rounded-2xl font-black uppercase tracking-widest transition-all border-none cursor-pointer ${isFormValid ? 'bg-blue-600 text-white shadow-2xl hover:bg-blue-500' : 'bg-white/5 text-slate-700 cursor-not-allowed'}`}>DÉGRISER LE QUIZ</button>
                 </form>
               </div>
             ) : (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center mb-10">
-                  <h2 className="text-2xl font-black uppercase italic m-0">Diagnostic QS Elite</h2>
-                  <button onClick={() => setAnswers({})} className="text-slate-600 hover:text-blue-500 bg-transparent border-none cursor-pointer"><RefreshCcw size={16} /></button>
+              <div className="space-y-8">
+                <div className="flex justify-between items-center mb-12 border-b border-white/10 pb-6">
+                  <h2 className="text-3xl font-black uppercase italic m-0">Diagnostic Matrix SDE</h2>
+                  <button onClick={() => setAnswers({})} className="text-slate-500 hover:text-blue-500 bg-transparent border-none cursor-pointer flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"><RefreshCcw size={16} /> Réinitialiser</button>
                 </div>
                 {shuffledQuestions.map((q, idx) => (
-                  <div key={idx} className="p-6 bg-white/5 border border-white/5 rounded-3xl flex flex-col gap-6 text-left">
-                    <span className="text-sm font-black uppercase italic">{q.q}</span>
-                    <div className="flex gap-2">
+                  <div key={idx} className="p-8 bg-[#0F172A] border border-white/5 rounded-3xl flex flex-col gap-6 text-left shadow-lg hover:border-blue-600/30 transition-colors">
+                    <span className="text-base font-black uppercase italic text-slate-200">{q.q}</span>
+                    <div className="flex gap-3">
                       <QuizBtn active={answers[idx] === 'OUI'} label="OUI" color="bg-blue-600" onClick={() => setAnswers({...answers, [idx]: 'OUI'})} />
                       <QuizBtn active={answers[idx] === 'UN PEU'} label="UN PEU" color="bg-amber-600" onClick={() => setAnswers({...answers, [idx]: 'UN PEU'})} />
                       <QuizBtn active={answers[idx] === 'NON'} label="NON" color="bg-red-600" onClick={() => setAnswers({...answers, [idx]: 'NON'})} />
                     </div>
                   </div>
                 ))}
-                <button onClick={calculateResult} disabled={Object.keys(answers).length < 19} className={`w-full py-8 rounded-[2.5rem] font-black uppercase tracking-widest text-sm transition-all border-none shadow-2xl ${Object.keys(answers).length === 19 ? 'bg-white text-blue-900 cursor-pointer' : 'bg-white/5 text-slate-800'}`}>VOIR MON RÉSULTAT</button>
+                <div className="pt-10">
+                   <button onClick={calculateResult} disabled={Object.keys(answers).length < 19} className={`w-full py-8 rounded-[2.5rem] font-black uppercase tracking-[0.4em] text-lg transition-all border-none shadow-2xl ${Object.keys(answers).length === 19 ? 'bg-blue-600 text-white cursor-pointer hover:bg-blue-500' : 'bg-[#0F172A] text-slate-600 cursor-not-allowed border border-white/5'}`}>VOIR MON RÉSULTAT FINAL</button>
+                </div>
                 {score !== null && (
-                  <div className="mt-12 p-12 bg-blue-600 rounded-[4rem] text-center shadow-4xl animate-in slide-in-from-top-10">
-                    <h3 className="text-xl font-black uppercase mb-4 italic">Score de Maturité QSHE</h3>
-                    <div className="text-8xl font-black italic mb-6">{score}%</div>
-                    <Link href="/#trial" className="px-10 py-4 bg-[#0B0F1A] rounded-xl font-black uppercase tracking-widest text-white no-underline inline-block">OPTIMISER AVEC ELITE</Link>
+                  <div className="mt-16 p-16 bg-linear-to-br from-blue-600 to-indigo-900 rounded-[4rem] text-center shadow-[0_0_100px_rgba(37,99,235,0.4)] animate-in slide-in-from-bottom-10">
+                    <h3 className="text-2xl font-black uppercase mb-6 italic tracking-widest text-blue-100">Score de Maturité Matrix</h3>
+                    <div className="text-[10rem] leading-none font-black italic mb-10 drop-shadow-2xl">{score}%</div>
+                    <Link href="/#trial" className="px-12 py-5 bg-white rounded-2xl font-black uppercase tracking-[0.3em] text-blue-900 no-underline inline-block hover:scale-105 transition-transform shadow-2xl">PASSER À L&apos;ACTION</Link>
                   </div>
                 )}
               </div>
@@ -187,20 +190,20 @@ export default function NormDetailPage({ params }: { params: { slug: string } })
         )}
       </main>
 
-      <footer className="py-12 border-t border-white/5 bg-[#080B14] text-center">
-        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest m-0 italic">Qualisoft Corporate • Villa 247, Lac Rose</p>
+      <footer className="py-16 border-t border-white/10 bg-[#05080F] text-center">
+        <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest m-0 italic leading-relaxed">Qualisoft International SDE <br/> Villa 247, Cité Cheikh Hann, Lac Rose</p>
       </footer>
     </div>
   );
 }
 
-function PDCACard({ step, title, desc, color }: any) {
+function PDCACard({ step, title, desc, color, bg }: any) {
   return (
-    <div className={`p-6 bg-white/5 border ${color} rounded-2xl flex items-start gap-4 hover:bg-white/10 transition-all text-left`}>
-      <span className="text-3xl font-black text-blue-600/50">{step}</span>
+    <div className={`p-8 ${bg} border ${color} rounded-4xl flex items-start gap-6 hover:scale-[1.02] transition-transform text-left`}>
+      <span className="text-4xl font-black opacity-40">{step}</span>
       <div>
-        <p className="font-black uppercase italic m-0 text-white mb-1">{title}</p>
-        <p className="text-[10px] font-bold text-slate-500 uppercase m-0 leading-tight">{desc}</p>
+        <p className="text-lg font-black uppercase italic m-0 text-white mb-2">{title}</p>
+        <p className="text-xs font-bold text-slate-400 uppercase m-0 leading-relaxed">{desc}</p>
       </div>
     </div>
   );
@@ -208,7 +211,7 @@ function PDCACard({ step, title, desc, color }: any) {
 
 function QuizBtn({ active, label, color, onClick }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase transition-all border-none cursor-pointer ${active ? `${color} text-white` : 'bg-white/5 text-slate-600 hover:bg-white/10'}`}>
+    <button onClick={onClick} className={`flex-1 py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all border-none cursor-pointer ${active ? `${color} text-white shadow-lg` : 'bg-[#0B0F1A] text-slate-500 hover:bg-white/10 border border-white/5'}`}>
       {label}
     </button>
   );
