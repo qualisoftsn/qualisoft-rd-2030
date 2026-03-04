@@ -128,7 +128,7 @@ export default function NormDetailPage({ params }: { params: { slug: string } })
               <div className="py-12 space-y-10">
                 <div className="flex items-center gap-4">
                    <RefreshCcw className="text-blue-500" size={24} />
-                   <h3 className="text-2xl font-black uppercase italic">Le Cycle PDCA §Amélioration Continue</h3>
+                   <h3 className="text-2xl font-black uppercase italic">Le Cycle PDCA - Amélioration Continue</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <PDCACard step="P" title="PLAN (Planifier)" desc="Établir les objectifs et les processus (§6.0)." color="border-blue-500/30" />
@@ -160,7 +160,7 @@ export default function NormDetailPage({ params }: { params: { slug: string } })
             ) : (
               <div className="space-y-6">
                 <div className="flex justify-between items-center mb-10">
-                  <h2 className="text-2xl font-black uppercase italic m-0">Diagnostic Matrix SDE</h2>
+                  <h2 className="text-2xl font-black uppercase italic m-0">Diagnostic QS Elite</h2>
                   <button onClick={() => setAnswers({})} className="text-slate-600 hover:text-blue-500 bg-transparent border-none cursor-pointer"><RefreshCcw size={16} /></button>
                 </div>
                 {shuffledQuestions.map((q, idx) => (
@@ -176,7 +176,7 @@ export default function NormDetailPage({ params }: { params: { slug: string } })
                 <button onClick={calculateResult} disabled={Object.keys(answers).length < 19} className={`w-full py-8 rounded-[2.5rem] font-black uppercase tracking-widest text-sm transition-all border-none shadow-2xl ${Object.keys(answers).length === 19 ? 'bg-white text-blue-900 cursor-pointer' : 'bg-white/5 text-slate-800'}`}>VOIR MON RÉSULTAT</button>
                 {score !== null && (
                   <div className="mt-12 p-12 bg-blue-600 rounded-[4rem] text-center shadow-4xl animate-in slide-in-from-top-10">
-                    <h3 className="text-xl font-black uppercase mb-4 italic">Score de Maturité Matrix</h3>
+                    <h3 className="text-xl font-black uppercase mb-4 italic">Score de Maturité QSHE</h3>
                     <div className="text-8xl font-black italic mb-6">{score}%</div>
                     <Link href="/#trial" className="px-10 py-4 bg-[#0B0F1A] rounded-xl font-black uppercase tracking-widest text-white no-underline inline-block">OPTIMISER AVEC ELITE</Link>
                   </div>
@@ -188,7 +188,7 @@ export default function NormDetailPage({ params }: { params: { slug: string } })
       </main>
 
       <footer className="py-12 border-t border-white/5 bg-[#080B14] text-center">
-        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest m-0 italic">Qualisoft International • Villa 247, Lac Rose</p>
+        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest m-0 italic">Qualisoft Corporate • Villa 247, Lac Rose</p>
       </footer>
     </div>
   );
