@@ -1,8 +1,10 @@
 /**
- * 🛰️ PROTOCOLE DE SCELLAGE MASTER - QUALISOFT ELITE RD 2030
- * VERSION : 8.5.0 (Souveraineté Totale & Harmonisation Matrix)
- * RÔLE : Reconstruction atomique des piliers de la Fédération Qualisoft.
+ * 🛰️ PROTOCOLE DE SCELLAGE MASTER - QUALISOFT ELITE RD-2026 (elite-sde)
+ * VERSION : 8.5.1 (Souveraineté Totale & Conservation des Données)
+ * RÔLE : Construction Idempotente de la Fédération Qualisoft (Upsert).
+ * FIX : Élimination des deleteMany(). Les données existantes ne sont plus écrasées.
  * CIBLE : PostgreSQL (Qualisoft_DB)
+ * RÉVISION : 04 Mars 2026 | 05:55 GMT
  */
 
 import { PrismaClient, Plan, SubscriptionStatus, Role, ProcessFamily } from '@prisma/client';
@@ -12,24 +14,10 @@ const prisma = new PrismaClient();
 
 async function seedMasterSystem(): Promise<void> {
   console.log('--------------------------------------------------------');
-  console.log('🧹 PURGE DU KERNEL : DÉCONSTRUCTION DES DÉPENDANCES...');
+  console.log('🌱 INITIALISATION DU KERNEL : MODE UPSERT (CONSERVATION)');
   console.log('--------------------------------------------------------');
 
   try {
-    /**
-     * ⚠️ ORDRE DE SUPPRESSION CRITIQUE (Respect des contraintes P2003)
-     * On démonte l'architecture de la périphérie vers le centre.
-     */
-    await prisma.processus.deleteMany();     // Niveau 4
-    await prisma.user.deleteMany();          // Niveau 3
-    await prisma.orgUnit.deleteMany();       // Niveau 2
-    await prisma.processType.deleteMany();   // Niveau 2
-    await prisma.orgUnitType.deleteMany();   // Niveau 2
-    await prisma.site.deleteMany();          // Niveau 1
-    await prisma.tenant.deleteMany();        // Racine (Niveau 0)
-
-    console.log('✨ BASE PURGÉE : PRÊTE POUR RECONSTRUCTION.');
-
     const SALT = 12;
 
     // --- REGISTRE DE LA FÉDÉRATION (Les 4 Piliers) ---
@@ -105,11 +93,13 @@ async function seedMasterSystem(): Promise<void> {
     ];
 
     for (const t of tenantsData) {
-      console.log(`📡 SCELLAGE DU NŒUD : ${t.domain}...`);
+      console.log(`📡 VÉRIFICATION/SCELLAGE DU NŒUD : ${t.domain}...`);
 
-      // 1. Création du Tenant (Racine)
-      const currentTenant = await prisma.tenant.create({
-        data: {
+      // 1. Création ou Maintien du Tenant (Upsert : update vide = ne rien écraser)
+      const currentTenant = await prisma.tenant.upsert({
+        where: { T_Id: t.id },
+        update: {}, // Garde les données modifiées par l'utilisateur en production
+        create: {
           T_Id: t.id,
           T_Name: t.name,
           T_Email: t.email,
@@ -124,9 +114,11 @@ async function seedMasterSystem(): Promise<void> {
         },
       });
 
-      // 2. Création du Site (Siège Social)
-      const currentSite = await prisma.site.create({
-        data: {
+      // 2. Création ou Maintien du Site (Siège Social)
+      const currentSite = await prisma.site.upsert({
+        where: { S_Id: `SITE_${t.id}` },
+        update: {},
+        create: {
           S_Id: `SITE_${t.id}`,
           S_Name: 'SIÈGE SOCIAL',
           S_Address: t.address,
@@ -136,17 +128,23 @@ async function seedMasterSystem(): Promise<void> {
       });
 
       // 3. Typologie des Unités Organisationnelles
-      const dirType = await prisma.orgUnitType.create({
-        data: { OUT_Id: `OUT_DIR_${t.id}`, OUT_Label: 'DIRECTION', tenantId: currentTenant.T_Id }
+      const dirType = await prisma.orgUnitType.upsert({
+        where: { OUT_Id: `OUT_DIR_${t.id}` },
+        update: {},
+        create: { OUT_Id: `OUT_DIR_${t.id}`, OUT_Label: 'DIRECTION', tenantId: currentTenant.T_Id }
       });
 
-      await prisma.orgUnitType.create({
-        data: { OUT_Id: `OUT_DEP_${t.id}`, OUT_Label: 'DÉPARTEMENT', tenantId: currentTenant.T_Id }
+      await prisma.orgUnitType.upsert({
+        where: { OUT_Id: `OUT_DEP_${t.id}` },
+        update: {},
+        create: { OUT_Id: `OUT_DEP_${t.id}`, OUT_Label: 'DÉPARTEMENT', tenantId: currentTenant.T_Id }
       });
 
       // 4. Création de l'Unité Racine (DG)
-      const rootUnit = await prisma.orgUnit.create({
-        data: {
+      const rootUnit = await prisma.orgUnit.upsert({
+        where: { OU_Id: `OU_DG_${t.id}` },
+        update: {},
+        create: {
           OU_Id: `OU_DG_${t.id}`,
           OU_Name: 'DIRECTION GÉNÉRALE',
           OU_TypeId: dirType.OUT_Id,
@@ -156,8 +154,10 @@ async function seedMasterSystem(): Promise<void> {
       });
 
       // 5. Architecture des Processus (Cartographie)
-      const pilotageType = await prisma.processType.create({
-        data: {
+      const pilotageType = await prisma.processType.upsert({
+        where: { PT_Id: `PT_PIL_${t.id}` },
+        update: {},
+        create: {
           PT_Id: `PT_PIL_${t.id}`,
           PT_Label: 'PILOTAGE',
           PT_Family: ProcessFamily.PILOTAGE,
@@ -166,8 +166,10 @@ async function seedMasterSystem(): Promise<void> {
         }
       });
 
-      const supportType = await prisma.processType.create({
-        data: {
+      const supportType = await prisma.processType.upsert({
+        where: { PT_Id: `PT_SUP_${t.id}` },
+        update: {},
+        create: {
           PT_Id: `PT_SUP_${t.id}`,
           PT_Label: 'SUPPORT',
           PT_Family: ProcessFamily.SUPPORT,
@@ -176,10 +178,12 @@ async function seedMasterSystem(): Promise<void> {
         }
       });
 
-      // 6. Création de l'Administrateur Souverain du Nœud
+      // 6. Création ou Maintien de l'Administrateur
       const hashedPassword = await bcrypt.hash(t.admin.password, SALT);
-      const adminUser = await prisma.user.create({
-        data: {
+      const adminUser = await prisma.user.upsert({
+        where: { U_Id: `USER_ADMIN_${t.id}` },
+        update: {}, // IMPORTANT: Ne remet pas le mot de passe par défaut si l'admin l'a changé !
+        create: {
           U_Id: `USER_ADMIN_${t.id}`,
           U_FirstName: t.admin.firstName,
           U_LastName: t.admin.lastName.toUpperCase(),
@@ -201,8 +205,10 @@ async function seedMasterSystem(): Promise<void> {
       ];
 
       for (const p of procs) {
-        await prisma.processus.create({
-          data: {
+        await prisma.processus.upsert({
+          where: { PR_Id: p.id },
+          update: {},
+          create: {
             PR_Id: p.id,
             PR_Code: p.code,
             PR_Libelle: p.libelle,
@@ -213,11 +219,11 @@ async function seedMasterSystem(): Promise<void> {
         });
       }
 
-      console.log(`✅ NŒUD SCELLÉ ET ISOLÉ : ${currentTenant.T_Domain}`);
+      console.log(`✅ NŒUD GARANTI SANS PERTE : ${currentTenant.T_Domain}`);
     }
 
     console.log('--------------------------------------------------------');
-    console.log('🏁 FÉDÉRATION INITIALISÉE AVEC SUCCÈS.');
+    console.log('🏁 FÉDÉRATION SÉCURISÉE AVEC SUCCÈS.');
     console.log('--------------------------------------------------------');
 
   } catch (error: any) {

@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # ==========================================================================
-# 🛰️ SCRIPT DE DÉPLOIEMENT HAUTE DISPONIBILITÉ - MATRIX ELITE RD 2030
+# 🛰️ SCRIPT DE DÉPLOIEMENT HAUTE DISPONIBILITÉ - MATRIX ELITE RD-2026 (elite-sde)
 # --------------------------------------------------------------------------
 # RÔLE : Mise à jour atomique, Nettoyage Disque & Synchronisation Prisma
+# FIX : Ajout du Seeding Idempotent pour garantir l'existence des Tenants.
+# RÉVISION : 04 Mars 2026 | 05:55 GMT
 # ==========================================================================
 
 # Arrête le script immédiatement si une commande échoue
@@ -41,11 +43,15 @@ echo -e "${BLUE}🏗️  Reconstruction des conteneurs (Build sans cache)...${NC
 docker compose build --pull --no-cache
 docker compose up -d
 
-# 4. SYNCHRONISATION BASE DE DONNÉES (PRISMA)
+# 4. SYNCHRONISATION BASE DE DONNÉES & SEEDING SÉCURISÉ
 echo -e "${BLUE}🗄️  Synchronisation sécurisée du schéma PostgreSQL...${NC}"
-# npx prisma db push synchronise le schéma sans effacer les données
+# npx prisma db push synchronise le schéma SANS effacer les données
 docker compose exec -T qualisoft-backend npx prisma db push
 docker compose exec -T qualisoft-backend npx prisma generate
+
+echo -e "${BLUE}🌱 Injection des données souveraines (Seed Idempotent)...${NC}"
+# Exécution du seed (crée les locataires manquants sans toucher aux données existantes)
+docker compose exec -T qualisoft-backend npx prisma db seed
 
 # 5. NETTOYAGE POST-DÉPLOIEMENT
 echo -e "${BLUE}🧹 Suppression des images orphelines (Build Stage)...${NC}"
