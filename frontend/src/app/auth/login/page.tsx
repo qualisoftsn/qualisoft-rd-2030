@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
+//* eslint-disable react-hooks/set-state-in-effect */
 /**
  * 🔑 MODULE : LoginPage.tsx (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Portail d'accès Multi-Tenant & Console Master.
- * FIX : Restauration de l'affichage clair de l'Organisation (Verrouillage UX).
+ * FIX : Remplacement du champ texte vide par une liste déroulante dynamique (Select)
+ * alimentée par l'API pour les connexions depuis le domaine racine.
  * SÉCURITÉ : Zéro NextAuth. API SDE validée. Bypass Master conservé.
- * RÉVISION : 04 Mars 2026 | 05:25 GMT
+ * RÉVISION : 04 Mars 2026 | 05:40 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -18,7 +19,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Loader2, Mail, Lock, Eye, EyeOff, 
   ShieldCheck, Building2, ChevronLeft,
-  Fingerprint, Crown
+  Fingerprint, Crown, ChevronDown
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import apiClient from '@/core/api/api-client';
@@ -36,10 +37,25 @@ function LoginFormContent() {
   const [loginType, setLoginType] = useState<'MASTER' | 'TENANT'>('TENANT');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // GESTION DU MULTI-TENANT
   const [detectedTenant, setDetectedTenant] = useState<any>(null);
+  const [tenantList, setTenantList] = useState<any[]>([]); // Liste des organisations
   
   // FORMULAIRE D'IDENTIFICATION
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
+
+  // 📡 CHARGEMENT DE LA LISTE DES ORGANISATIONS
+  const fetchTenantList = async () => {
+    try {
+      const res = await apiClient.get('/public/tenants');
+      // Adaptation selon la structure de votre réponse API (res.data ou res.data.data)
+      const tenants = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setTenantList(tenants);
+    } catch (err) {
+      console.error("Échec de récupération de la liste des organisations Matrix", err);
+    }
+  };
 
   // 🌐 DÉTECTION DU LOCATAIRE (API MATRIX)
   useEffect(() => {
@@ -64,12 +80,17 @@ function LoginFormContent() {
             setLoginType('TENANT');
             setMode('LOGIN_FORM');
           } else {
+            // Sous-domaine inconnu -> On propose le choix
+            await fetchTenantList();
             setMode('CHOICE');
           }
         } else {
+          // Domaine racine -> On propose le choix et on charge la liste
+          await fetchTenantList();
           setMode('CHOICE');
         }
       } catch (err) {
+        await fetchTenantList();
         setMode('CHOICE');
       }
     };
@@ -159,19 +180,37 @@ function LoginFormContent() {
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Organisation</label>
               <div className="relative group">
                 <Building2 className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${detectedTenant ? 'text-blue-500' : 'text-slate-500 group-focus-within:text-blue-500'}`} size={18} />
-                <input 
-                  type="text" 
-                  required
-                  placeholder="CODE ORGANISATION" 
-                  // Si l'API a détecté le tenant, on affiche son nom propre et on verrouille. 
-                  // Sinon, l'utilisateur tape manuellement l'identifiant.
-                  className={`w-full p-5 pl-14 rounded-2xl text-white outline-none uppercase text-xs font-black italic transition-colors ${detectedTenant ? 'bg-[#0B0F1A] border border-blue-500/30 text-blue-400 cursor-not-allowed opacity-90' : 'bg-white/5 border border-white/10 focus:border-blue-500'}`}
-                  value={detectedTenant ? detectedTenant.T_Name : form.tenantId}
-                  onChange={e => !detectedTenant && setForm({...form, tenantId: e.target.value})}
-                  readOnly={!!detectedTenant}
-                />
-                {detectedTenant && (
-                  <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
+                
+                {detectedTenant ? (
+                  /* CAS 1 : SOUS-DOMAINE DÉTECTÉ -> Champ verrouillé visuellement */
+                  <>
+                    <input 
+                      type="text" 
+                      required
+                      className="w-full p-5 pl-14 rounded-2xl outline-none uppercase text-xs font-black italic transition-colors bg-[#0B0F1A] border border-blue-500/30 text-blue-400 cursor-not-allowed opacity-90"
+                      value={detectedTenant.T_Name}
+                      readOnly
+                    />
+                    <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
+                  </>
+                ) : (
+                  /* CAS 2 : DOMAINE RACINE -> Liste déroulante des locataires */
+                  <>
+                    <select
+                      required
+                      className="w-full p-5 pl-14 pr-12 bg-[#0B0F1A] border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500 transition-colors uppercase text-xs font-black italic appearance-none cursor-pointer"
+                      value={form.tenantId}
+                      onChange={e => setForm({...form, tenantId: e.target.value})}
+                    >
+                      <option value="" disabled className="text-slate-500">-- SÉLECTIONNEZ VOTRE ORGANISATION --</option>
+                      {tenantList.map((t: any) => (
+                        <option key={t.T_Id} value={t.T_Id} className="bg-[#0F172A] text-white py-2">
+                          {t.T_Name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={18} />
+                  </>
                 )}
               </div>
             </div>
@@ -212,7 +251,7 @@ function LoginFormContent() {
             </div>
           </div>
 
-          <button type="submit" disabled={isLoading} className="w-full mt-4 py-6 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.3em] text-sm italic hover:bg-blue-500 shadow-xl shadow-blue-900/20 border-none cursor-pointer transition-all flex justify-center items-center gap-3">
+          <button type="submit" disabled={isLoading || !form.tenantId} className={`w-full mt-4 py-6 rounded-2xl font-black uppercase tracking-[0.3em] text-sm italic transition-all flex justify-center items-center gap-3 border-none shadow-xl shadow-blue-900/20 ${isLoading || !form.tenantId ? 'bg-white/5 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500 cursor-pointer'}`}>
             {isLoading ? <Loader2 className="animate-spin" size={20} /> : "ACTIVER LA SESSION"}
           </button>
 
