@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/set-state-in-effect */
 /**
- * 🔑 MODULE : LoginPage.tsx
+ * 🔑 MODULE : LoginPage.tsx (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Portail d'accès Multi-Tenant & Console Master.
- * FIX : Suppression des dépendances circulaires et stabilisation du SAS.
- * RÉVISION : 03 Mars 2026 | 22:50 GMT
+ * FIX : Restauration de l'affichage clair de l'Organisation (Verrouillage UX).
+ * SÉCURITÉ : Zéro NextAuth. API SDE validée. Bypass Master conservé.
+ * RÉVISION : 04 Mars 2026 | 05:25 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -16,7 +18,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Loader2, Mail, Lock, Eye, EyeOff, 
   ShieldCheck, Building2, ChevronLeft,
-  Fingerprint, Zap, Crown
+  Fingerprint, Crown
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import apiClient from '@/core/api/api-client';
@@ -29,20 +31,24 @@ function LoginFormContent() {
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const { setLogin } = useAuthStore() as any;
 
+  // 🛡️ ÉTATS SOUVERAINS
   const [mode, setMode] = useState<'LOADING' | 'CHOICE' | 'LOGIN_FORM'>('LOADING');
   const [loginType, setLoginType] = useState<'MASTER' | 'TENANT'>('TENANT');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [detectedTenant, setDetectedTenant] = useState<any>(null);
+  
+  // FORMULAIRE D'IDENTIFICATION
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
+  // 🌐 DÉTECTION DU LOCATAIRE (API MATRIX)
   useEffect(() => {
     const detectNode = async () => {
       try {
         const host = window.location.hostname.toLowerCase();
         const slug = host.split('.')[0];
         
-        // Liste des accès Master
+        // Liste des accès Master SDE
         const masterNodes = ['app', 'matrix', 'admin', 'master', 'localhost'];
         
         if (masterNodes.includes(slug)) {
@@ -50,11 +56,11 @@ function LoginFormContent() {
           setForm(p => ({ ...p, tenantId: 'MATRIX' }));
           setMode('LOGIN_FORM');
         } else if (!['elite', 'www', 'qualisoft'].includes(slug)) {
-          // Tentative de détection Tenant
+          // 📡 Interrogation de l'API pour valider l'existence du sous-domaine
           const res = await apiClient.get(`/public/tenants/by-slug/${slug}`);
           if (res.data) {
             setDetectedTenant(res.data);
-            setForm(p => ({ ...p, tenantId: res.data.T_Id }));
+            setForm(p => ({ ...p, tenantId: res.data.T_Id })); // Stockage de l'ID réel pour l'API
             setLoginType('TENANT');
             setMode('LOGIN_FORM');
           } else {
@@ -73,7 +79,7 @@ function LoginFormContent() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const tid = toast.loading('Scellage de session...');
+    const tid = toast.loading('Scellage de session en cours...');
 
     try {
       // 👑 BYPASS MASTER ARCHITECT (A. THIONGANE)
@@ -88,6 +94,7 @@ function LoginFormContent() {
         return;
       }
 
+      // 🔐 REQUÊTE D'AUTHENTIFICATION (ZÉRO NEXTAUTH)
       const res = await apiClient.post('/auth/login', { 
         email: form.email.toLowerCase().trim(), 
         password: form.password, 
@@ -98,33 +105,42 @@ function LoginFormContent() {
       toast.success(`Authentification réussie`, { id: tid });
       router.push(callbackUrl);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Identifiants invalides', { id: tid });
+      toast.error(err.response?.data?.message || 'Identifiants invalides ou accès refusé.', { id: tid });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 🌀 ÉCRAN DE CHARGEMENT INITIAL
   if (mode === 'LOADING') {
     return (
       <div className="flex flex-col items-center gap-4 italic animate-pulse">
         <Loader2 className="animate-spin text-blue-600" size={40} />
-        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Initialisation du SAS...</p>
+        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Initialisation du SAS Matrix...</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-lg bg-[#0F172A]/60 border border-white/5 rounded-[3rem] p-12 backdrop-blur-3xl shadow-4xl italic">
+    <div className="w-full max-w-lg bg-[#0F172A]/80 border border-blue-600/20 rounded-[3rem] p-10 lg:p-12 backdrop-blur-3xl shadow-[0_0_100px_rgba(37,99,235,0.15)] italic relative z-10">
+      
+      {/* 🛡️ EN-TÊTE DU FORMULAIRE */}
       <div className="text-center mb-10">
-        <Image src="/images/qslogo.png" alt="Logo" width={180} height={50} className="mx-auto mb-6" />
-        <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">
+        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl mx-auto mb-6">
+          <Image src="/images/qslogo.png" alt="Qualisoft Matrix" width={40} height={40} />
+        </div>
+        <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter m-0">
           {detectedTenant?.T_Name || (loginType === 'MASTER' ? 'Matrix Console' : 'Elite Matrix OS')}
         </h2>
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mt-2">
+          Portail d&apos;authentification
+        </p>
       </div>
 
+      {/* 🔀 SÉLECTION MANUELLE (Si domaine racine) */}
       {mode === 'CHOICE' ? (
-        <div className="space-y-6">
-          <button onClick={() => { setLoginType('TENANT'); setMode('LOGIN_FORM'); }} className="w-full p-8 bg-blue-600 rounded-3xl flex justify-between items-center text-white font-black italic hover:bg-blue-500 transition-all border-none cursor-pointer">
+        <div className="space-y-6 animate-in slide-in-from-bottom-4">
+          <button onClick={() => { setLoginType('TENANT'); setMode('LOGIN_FORM'); }} className="w-full p-8 bg-blue-600 rounded-3xl flex justify-between items-center text-white font-black italic hover:bg-blue-500 transition-all border-none cursor-pointer shadow-xl">
             <span>ACCÈS ELITE SDE</span>
             <Building2 size={24} />
           </button>
@@ -134,35 +150,74 @@ function LoginFormContent() {
           </button>
         </div>
       ) : (
-        <form onSubmit={handleAuth} className="space-y-6">
-          <div className="relative">
-            <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input 
-              type="email" 
-              placeholder="VOTRE EMAIL" 
-              className="w-full pl-16 py-5 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500 transition-all uppercase text-xs font-bold italic"
-              value={form.email}
-              onChange={e => setForm({...form, email: e.target.value})}
-            />
+        /* 📝 FORMULAIRE DE CONNEXION SCELLÉ */
+        <form onSubmit={handleAuth} className="space-y-5 animate-in slide-in-from-bottom-4">
+          
+          {/* 🏢 CHAMP ORGANISATION (Visible uniquement pour les Tenants) */}
+          {loginType === 'TENANT' && (
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Organisation</label>
+              <div className="relative group">
+                <Building2 className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${detectedTenant ? 'text-blue-500' : 'text-slate-500 group-focus-within:text-blue-500'}`} size={18} />
+                <input 
+                  type="text" 
+                  required
+                  placeholder="CODE ORGANISATION" 
+                  // Si l'API a détecté le tenant, on affiche son nom propre et on verrouille. 
+                  // Sinon, l'utilisateur tape manuellement l'identifiant.
+                  className={`w-full p-5 pl-14 rounded-2xl text-white outline-none uppercase text-xs font-black italic transition-colors ${detectedTenant ? 'bg-[#0B0F1A] border border-blue-500/30 text-blue-400 cursor-not-allowed opacity-90' : 'bg-white/5 border border-white/10 focus:border-blue-500'}`}
+                  value={detectedTenant ? detectedTenant.T_Name : form.tenantId}
+                  onChange={e => !detectedTenant && setForm({...form, tenantId: e.target.value})}
+                  readOnly={!!detectedTenant}
+                />
+                {detectedTenant && (
+                  <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 📧 CHAMP EMAIL */}
+          <div className="space-y-2">
+            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Identifiant</label>
+            <div className="relative group">
+              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+              <input 
+                type="email" 
+                required
+                placeholder="VOTRE EMAIL PROFESSIONNEL" 
+                className="w-full p-5 pl-14 bg-[#0B0F1A] border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500 transition-colors uppercase text-xs font-black italic"
+                value={form.email}
+                onChange={e => setForm({...form, email: e.target.value})}
+              />
+            </div>
           </div>
-          <div className="relative">
-            <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input 
-              type={showPassword ? "text" : "password"} 
-              placeholder="MOT DE PASSE" 
-              className="w-full pl-16 pr-16 py-5 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500 transition-all uppercase text-xs font-bold italic"
-              value={form.password}
-              onChange={e => setForm({...form, password: e.target.value})}
-            />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 border-none bg-transparent cursor-pointer">
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
+
+          {/* 🔒 CHAMP MOT DE PASSE */}
+          <div className="space-y-2">
+            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Mot de passe</label>
+            <div className="relative group">
+              <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+              <input 
+                type={showPassword ? "text" : "password"} 
+                required
+                placeholder="••••••••••••" 
+                className="w-full p-5 pl-14 pr-14 bg-[#0B0F1A] border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500 transition-colors font-black italic"
+                value={form.password}
+                onChange={e => setForm({...form, password: e.target.value})}
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white border-none bg-transparent cursor-pointer transition-colors">
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
-          <button type="submit" disabled={isLoading} className="w-full py-6 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest italic hover:bg-blue-500 shadow-xl shadow-blue-900/20 border-none cursor-pointer">
-            {isLoading ? "AUTHENTIFICATION..." : "OUVRIR LA SESSION"}
+
+          <button type="submit" disabled={isLoading} className="w-full mt-4 py-6 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.3em] text-sm italic hover:bg-blue-500 shadow-xl shadow-blue-900/20 border-none cursor-pointer transition-all flex justify-center items-center gap-3">
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : "ACTIVER LA SESSION"}
           </button>
-          <button type="button" onClick={() => setMode('CHOICE')} className="w-full text-[9px] font-black text-slate-600 uppercase tracking-widest border-none bg-transparent cursor-pointer hover:text-white transition-all">
-            <ChevronLeft size={10} className="inline mr-2" /> Retour à la sélection
+
+          <button type="button" onClick={() => setMode('CHOICE')} className="w-full pt-4 text-[9px] font-black text-slate-600 uppercase tracking-widest border-none bg-transparent cursor-pointer hover:text-white transition-all">
+            <ChevronLeft size={10} className="inline mr-1 -mt-0.5" /> Retour
           </button>
         </form>
       )}
@@ -172,12 +227,16 @@ function LoginFormContent() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-6 selection:bg-blue-600/30">
+    <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-6 selection:bg-blue-600/30 overflow-hidden relative">
       <Toaster position="top-right" richColors theme="dark" />
-      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-        <Fingerprint className="absolute -top-20 -left-20 text-blue-500" size={400} />
+      
+      {/* 🔮 CORE MATRIX EFFECTS */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+        <Fingerprint className="absolute -top-10 -left-10 text-blue-600/10" size={500} />
+        <div className="absolute -bottom-[30%] -right-[10%] w-200 h-200 bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />
       </div>
-      <Suspense fallback={<Loader2 className="animate-spin text-blue-600" />}>
+
+      <Suspense fallback={<Loader2 className="animate-spin text-blue-600 relative z-10" size={48} />}>
         <LoginFormContent />
       </Suspense>
     </div>
