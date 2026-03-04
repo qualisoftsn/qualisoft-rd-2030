@@ -2,7 +2,9 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
-  NotFoundException
+  NotFoundException,
+  UnauthorizedException,
+  ConflictException
 } from '@nestjs/common';
 import {
   Site,
@@ -10,17 +12,23 @@ import {
   Tenant,
   Ticket,
   TicketStatus,
-  TransactionStatus
+  TransactionStatus,
+  Role,
+  User
 } from '@prisma/client';
 import { addMonths } from 'date-fns';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
+
 import { EmailService } from '../common/email.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateTenantDto } from './dto/update-tenant.dto';
-import { BackupTaskService } from './tasks/backup-task.service';
 
-import { getInvoiceEmailTemplate } from './templates/invoice-email.template';
-import { generateInvoicePDF } from './utils/pdf-invoice.util';
-import { generateProformaPDF } from './utils/pdf-proforma.util';
+// ✅ FIX : Chemins relatifs corrigés (../admin/ au lieu de ./)
+import { BackupTaskService } from '../admin/tasks/backup-task.service';
+import { UpdateTenantDto } from '../admin/dto/update-tenant.dto';
+import { getInvoiceEmailTemplate } from '../admin/templates/invoice-email.template';
+import { generateInvoicePDF } from '../admin/utils/pdf-invoice.util';
+import { generateProformaPDF } from '../admin/utils/pdf-proforma.util';
 
 @Injectable()
 export class AdminService {
