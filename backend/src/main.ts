@@ -3,7 +3,9 @@
  * -------------------------------------------------------------------------
  * RÔLE : Initialisation du Kernel NestJS et des Sceaux de Sécurité.
  * SÉCURITÉ : Zéro NextAuth. Validation Strict-Whitelist. Multi-Tenancy CORS.
- * RÉVISION : 03 Mars 2026 | 16:45 GMT
+ * FIX : Résolution du blocage CORS sur les sous-domaines (Regex Wildcard).
+ * NETTOYAGE : Suppression de la redondance des Static Assets.
+ * RÉVISION : 04 Mars 2026 | 04:42 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -25,15 +27,15 @@ async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
     const configService = app.get(ConfigService);
 
-    // 🍪 PROTOCOLE DE SESSION (Élimination NextAuth)
-    // Extraction des JWT stockés dans les cookies pour l'auth Zustand/NestJS
+    // 🍪 PROTOCOLE DE SESSION (Élimination Définitive de NextAuth)
+    // Extraction des JWT stockés dans les cookies HttpOnly pour l'auth Zustand/NestJS
     app.use(cookieParser());
 
     // 🚩 ARCHITECTURE DES ROUTES
     app.setGlobalPrefix('api');
 
     // 🛡️ VALIDATION DES DONNÉES (PROTOCOLE STRICT-WHITELIST)
-    // Ce bloc garantit que les préfixes TX_, T_, U_ sont les seuls acceptés.
+    // Garantit que les préfixes TX_, T_, U_ sont les seuls acceptés.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,               // Rejette tout champ non présent dans le DTO
@@ -62,28 +64,26 @@ async function bootstrap() {
     );
 
     // 📂 GESTION DES ASSETS SCELLÉS (Preuves de paiement, Documents QSE)
+    // Correction : Une seule déclaration propre et suffisante pour le dossier uploads
     app.useStaticAssets(join(process.cwd(), 'uploads'), {
       prefix: '/uploads/',
       index: false,
     });
 
-    app.useStaticAssets(join(process.cwd(), 'uploads'), {
-      prefix: '/uploads/',
-    });
-
-
-    // 🌐 CONFIGURATION CORS SOUVERAINE (Isolation Multi-Tenant)
+    // 🌐 CONFIGURATION CORS SOUVERAINE (Isolation Multi-Tenant Parfaite)
     app.enableCors({
       origin: (origin, callback) => {
         const env = configService.get('NODE_ENV');
         const allowedUrls = configService.get<string>('FRONTEND_URL')?.split(',') || [];
         
-        // Autorisation dynamique : Domaines .qualisoft.sn & Localhost Dev
+        // Regex stricte pour autoriser qualisoft.sn ET tous ses sous-domaines (ex: sagam.qualisoft.sn)
+        const qualisoftRegex = /^https:\/\/([a-zA-Z0-9-]+\.)?qualisoft\.sn$/;
+        
+        // Autorisation dynamique SDE
         const isAllowed = 
-          !origin || 
-          origin.endsWith('.qualisoft.sn') || 
-          origin.includes('localhost') ||
-          origin === 'https://qualisoft.sn' ||
+          !origin || // Autorise les requêtes Postman/Serveur-à-Serveur
+          qualisoftRegex.test(origin) || // Validation Regex infaillible pour les locataires
+          origin.startsWith('http://localhost') || // Autorise le dev local
           allowedUrls.includes(origin) ||
           env === 'development';
 
@@ -100,7 +100,7 @@ async function bootstrap() {
         'Authorization', 
         'x-tenant-id', 
         'x-tenant-domain', 
-        'x-tenant-slug', // Support du nouveau middleware
+        'x-tenant-slug', // Support du middleware locataire (ex: sagam)
         'Cookie', 
         'Accept'
       ],
@@ -109,14 +109,14 @@ async function bootstrap() {
 
     // 🚀 DÉPLOIEMENT DU NŒUD SDE
     const port = configService.get<number>('PORT') || 9000;
-    const host = '0.0.0.0'; // Exposition pour Docker/Cluster
+    const host = '0.0.0.0'; // Exposition totale pour Docker/Cluster/OVH
     
     await app.listen(port, host);
     
     logger.log(`--------------------------------------------------------`);
     logger.log(`🚀 NOYAU QUALISOFT ELITE RD-2026 : OPÉRATIONNEL`);
     logger.log(`📡 PORT : ${port} | HOST : ${host}`);
-    logger.log(`🛡️ SÉCURITÉ : SCELLÉE (Zéro NextAuth)`);
+    logger.log(`🛡️ SÉCURITÉ : SCELLÉE (Zéro NextAuth | CORS Multi-Tenant)`);
     logger.log(`🔗 REGISTRE : ${configService.get('DATABASE_URL')?.split('@')[1]}`);
     logger.log(`--------------------------------------------------------`);
 
