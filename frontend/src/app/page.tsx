@@ -52,16 +52,16 @@ export default function LandingPage() {
           <Image src="/images/qslogo.png" alt="QS" width={28} height={28} />
           <span className="font-black uppercase tracking-widest text-slate-400">Qualisoft</span>
         </Link>
-        <div className="absolute left-1/2 -translate-x-1/2 animate-pulse text-blue-500">
-           <span className="text-lg font-black uppercase tracking-[0.3em]">Lancement : 15 Mars 2026</span>
+        <div className="absolute left-1/2 -translate-x-1/2 animate-pulse text-blue-600">
+           <span className="text-lg font-black uppercase tracking-[0.4em]">Lancement : 15 Mars 2026</span>
         </div>
         <div />
       </nav>
 
       {/* 🚀 HERO : Titre Réduit & Actions */}
-      <section className="pt-20 pb-12 px-8 lg:px-12 max-w-7xl mx-auto text-left">
+      <section className="pt-15 pb-12 px-8 lg:px-12 max-w-5xl mx-auto text-left">
         <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-none mb-6 italic">
-          MAÎTRISEZ VOTRE <span className="text-blue-600">SOUVERAINETÉ.</span>
+          MAÎTRISEZ VOTRE <span className="text-blue-600">CONFORMITE</span>
         </h2>
         <div className="flex gap-4">
            <Link href="#trial" className="px-6 py-3 bg-blue-600 rounded-xl font-black uppercase hover:scale-105 transition-all shadow-xl">J&apos;ESSAYE QS ELITE</Link>
@@ -98,7 +98,7 @@ export default function LandingPage() {
       {/* 📧 FORMULAIRE D&apos;ESSAI */}
       <section id="trial" className="py-20 px-8">
         <div className="max-w-3xl mx-auto bg-[#0F172A]/60 border border-white/5 rounded-[2.5rem] p-10 backdrop-blur-3xl shadow-4xl text-left">
-           <h4 className="text-xl font-black uppercase italic mb-2">J&apos;ESSAYE <span className="text-blue-600">QS ELITE</span></h4>
+           <h4 className="text-xl font-black uppercase italic mb-2">J&apos;ESSAYE <span className="text-blue-600">Qualisoft ELITE</span></h4>
            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-8">Réponse sous 48H</p>
            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input required value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} placeholder="ENTREPRISE" className="bg-white/5 border border-white/10 p-4 rounded-xl uppercase font-black text-white" />
@@ -107,7 +107,7 @@ export default function LandingPage() {
               <input required value={formData.function} onChange={e => setFormData({...formData, function: e.target.value})} placeholder="FONCTION" className="bg-white/5 border border-white/10 p-4 rounded-xl uppercase font-black text-white" />
               <input required value={formData.landline} onChange={e => setFormData({...formData, landline: e.target.value})} placeholder="TÉL FIXE" className="bg-white/5 border border-white/10 p-4 rounded-xl uppercase font-black text-white" />
               <input required value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} placeholder="MOBILE" className="bg-white/5 border border-white/10 p-4 rounded-xl uppercase font-black text-white" />
-              <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="EMAIL VÉRIFIABLE" className="md:col-span-2 bg-white/5 border border-white/10 p-4 rounded-xl uppercase font-black text-white" />
+              <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="EMAIL" className="md:col-span-2 bg-white/5 border border-white/10 p-4 rounded-xl lowcase font-black text-white" />
               <button disabled={!isFormValid || isSubmitting} className={`md:col-span-2 py-5 rounded-2xl font-black uppercase tracking-widest transition-all ${isFormValid ? 'bg-blue-600 hover:bg-blue-500' : 'bg-white/5 text-slate-700'}`}>
                 {isSubmitting ? "TRANSMISSION..." : "ACTIVER MON ESSAI 14 JOURS"}
               </button>
@@ -131,7 +131,7 @@ export default function LandingPage() {
               <div className="space-y-4 text-slate-300 font-bold uppercase text-[9px] leading-relaxed italic">
                 <p>Réponse sous 48h pour vos accès Elite.</p>
                 <p>Abonnement via <span className="text-blue-500">Wave</span> ou <span className="text-orange-500">Orange Money</span>.</p>
-                <p className="text-white border-l border-blue-600 pl-4">Villa 247, Lac Rose • 77 631 00 91</p>
+                <p className="text-white border-l border-blue-600 pl-4">Villa 247, Lac Rose • 77 631 00 91 * 77 441 09 02</p>
               </div>
               <button onClick={() => setShowAutoResponse(false)} className="mt-8 w-full py-4 bg-blue-600 rounded-xl font-black uppercase">COMPRIS</button>
            </div>
