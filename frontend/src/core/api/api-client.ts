@@ -1,10 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 🛰️ MODULE : api-client.ts
+ * 🛰️ MODULE : api-client.ts (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Intercepteur souverain Matrix OS.
- * FONCTION : Injection JWT + X-Tenant-Id + Gestion des ruptures 401/403.
- * RÉVISION : 02 Mars 2026 | 23:30 GMT
+ * FONCTION : Injection X-Tenant-Id + Gestion des ruptures 401/403.
+ * FIX : Suppression de la lecture document.cookie (Incompatible HttpOnly).
+ * Le navigateur gère désormais le jeton automatiquement grâce à withCredentials.
+ * RÉVISION : 04 Mars 2026 | 22:20 GMT
+ * -------------------------------------------------------------------------
  */
 
 import axios from 'axios';
@@ -20,22 +24,25 @@ const getDomainContext = () => {
 };
 
 const apiClient = axios.create({
+  // ⚠️ ASSUREZ-VOUS QUE NEXT_PUBLIC_API_URL POINTE BIEN VERS https://api.qualisoft.sn/api EN PROD
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
-  withCredentials: true,
+  
+  // 🛡️ VITAL : C'est cette ligne qui force le navigateur à envoyer le cookie HttpOnly !
+  withCredentials: true, 
+  
   headers: { 'Content-Type': 'application/json' },
 });
 
 apiClient.interceptors.request.use((config) => {
   const { slug } = getDomainContext();
-  let token = typeof document !== 'undefined' 
-    ? document.cookie.split('; ').find(row => row.startsWith('qualisoft_token='))?.split('=')[1]
-    : null;
+  
+  // 🛡️ On récupère le token en mémoire (Zustand) comme filet de sécurité
+  let token = null;
+  try { token = (useAuthStore.getState() as any).token; } catch (e) { /* Store non-initié */ }
 
-  if (!token) {
-    try { token = useAuthStore.getState().token; } catch (e) { /* Store non-initié */ }
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-
-  if (token) config.headers.Authorization = `Bearer ${token}`;
   
   // 🛡️ ISOLATION TENANT : On informe le backend du slug actuel (sagam, sde, etc.)
   config.headers['X-Tenant-Id'] = slug;
@@ -47,16 +54,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    
+    // Si l'API renvoie un 401 (Non Autorisé), le cookie est invalide ou expiré
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       if (typeof window !== 'undefined') {
         const path = window.location.pathname;
         if (!path.includes('/auth/login')) {
-          const { root } = getDomainContext();
-          // 🧹 PURGE TOTALE
-          document.cookie = `qualisoft_token=; path=/; domain=${root}; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax`;
-          document.cookie = `qualisoft_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax`;
-          useAuthStore.getState().logout();
+          
+          // 🧹 Purge uniquement de l'état Frontend (Zustand)
+          try { (useAuthStore.getState() as any).logout(); } catch (e) {}
+          
           window.location.href = '/auth/login?session=expired';
         }
       }
