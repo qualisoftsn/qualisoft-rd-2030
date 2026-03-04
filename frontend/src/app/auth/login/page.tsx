@@ -5,10 +5,9 @@
  * 🔑 MODULE : LoginPage.tsx (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Portail d'accès Multi-Tenant & Console Master.
- * FIX : Remplacement du champ texte vide par une liste déroulante dynamique (Select)
- * alimentée par l'API pour les connexions depuis le domaine racine.
+ * FIX : Maintien de la Liste Déroulante et connexion robuste.
  * SÉCURITÉ : Zéro NextAuth. API SDE validée. Bypass Master conservé.
- * RÉVISION : 04 Mars 2026 | 05:40 GMT
+ * RÉVISION : 04 Mars 2026 | 18:46 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -40,7 +39,7 @@ function LoginFormContent() {
   
   // GESTION DU MULTI-TENANT
   const [detectedTenant, setDetectedTenant] = useState<any>(null);
-  const [tenantList, setTenantList] = useState<any[]>([]); // Liste des organisations
+  const [tenantList, setTenantList] = useState<any[]>([]); 
   
   // FORMULAIRE D'IDENTIFICATION
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
@@ -49,7 +48,6 @@ function LoginFormContent() {
   const fetchTenantList = async () => {
     try {
       const res = await apiClient.get('/public/tenants');
-      // Adaptation selon la structure de votre réponse API (res.data ou res.data.data)
       const tenants = Array.isArray(res.data) ? res.data : (res.data?.data || []);
       setTenantList(tenants);
     } catch (err) {
@@ -64,7 +62,6 @@ function LoginFormContent() {
         const host = window.location.hostname.toLowerCase();
         const slug = host.split('.')[0];
         
-        // Liste des accès Master SDE
         const masterNodes = ['app', 'matrix', 'admin', 'master', 'localhost'];
         
         if (masterNodes.includes(slug)) {
@@ -72,20 +69,17 @@ function LoginFormContent() {
           setForm(p => ({ ...p, tenantId: 'MATRIX' }));
           setMode('LOGIN_FORM');
         } else if (!['elite', 'www', 'qualisoft'].includes(slug)) {
-          // 📡 Interrogation de l'API pour valider l'existence du sous-domaine
           const res = await apiClient.get(`/public/tenants/by-slug/${slug}`);
           if (res.data) {
             setDetectedTenant(res.data);
-            setForm(p => ({ ...p, tenantId: res.data.T_Id })); // Stockage de l'ID réel pour l'API
+            setForm(p => ({ ...p, tenantId: res.data.T_Id })); 
             setLoginType('TENANT');
             setMode('LOGIN_FORM');
           } else {
-            // Sous-domaine inconnu -> On propose le choix
             await fetchTenantList();
             setMode('CHOICE');
           }
         } else {
-          // Domaine racine -> On propose le choix et on charge la liste
           await fetchTenantList();
           setMode('CHOICE');
         }
@@ -103,7 +97,7 @@ function LoginFormContent() {
     const tid = toast.loading('Scellage de session en cours...');
 
     try {
-      // 👑 BYPASS MASTER ARCHITECT (A. THIONGANE)
+      // 👑 BYPASS MASTER ARCHITECT
       if (form.email === 'ab.thiongane@qualisoft.sn' && form.password === 'Qualisoft@2026') {
         const masterData = { 
           token: "MASTER_PROTOCOL_2026", 
@@ -115,7 +109,7 @@ function LoginFormContent() {
         return;
       }
 
-      // 🔐 REQUÊTE D'AUTHENTIFICATION (ZÉRO NEXTAUTH)
+      // 🔐 REQUÊTE D'AUTHENTIFICATION API SDE
       const res = await apiClient.post('/auth/login', { 
         email: form.email.toLowerCase().trim(), 
         password: form.password, 
@@ -132,7 +126,6 @@ function LoginFormContent() {
     }
   };
 
-  // 🌀 ÉCRAN DE CHARGEMENT INITIAL
   if (mode === 'LOADING') {
     return (
       <div className="flex flex-col items-center gap-4 italic animate-pulse">
@@ -158,7 +151,6 @@ function LoginFormContent() {
         </p>
       </div>
 
-      {/* 🔀 SÉLECTION MANUELLE (Si domaine racine) */}
       {mode === 'CHOICE' ? (
         <div className="space-y-6 animate-in slide-in-from-bottom-4">
           <button onClick={() => { setLoginType('TENANT'); setMode('LOGIN_FORM'); }} className="w-full p-8 bg-blue-600 rounded-3xl flex justify-between items-center text-white font-black italic hover:bg-blue-500 transition-all border-none cursor-pointer shadow-xl">
@@ -171,10 +163,8 @@ function LoginFormContent() {
           </button>
         </div>
       ) : (
-        /* 📝 FORMULAIRE DE CONNEXION SCELLÉ */
         <form onSubmit={handleAuth} className="space-y-5 animate-in slide-in-from-bottom-4">
           
-          {/* 🏢 CHAMP ORGANISATION (Visible uniquement pour les Tenants) */}
           {loginType === 'TENANT' && (
             <div className="space-y-2">
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Organisation</label>
@@ -182,7 +172,6 @@ function LoginFormContent() {
                 <Building2 className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${detectedTenant ? 'text-blue-500' : 'text-slate-500 group-focus-within:text-blue-500'}`} size={18} />
                 
                 {detectedTenant ? (
-                  /* CAS 1 : SOUS-DOMAINE DÉTECTÉ -> Champ verrouillé visuellement */
                   <>
                     <input 
                       type="text" 
@@ -194,7 +183,6 @@ function LoginFormContent() {
                     <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
                   </>
                 ) : (
-                  /* CAS 2 : DOMAINE RACINE -> Liste déroulante des locataires */
                   <>
                     <select
                       required
@@ -216,7 +204,6 @@ function LoginFormContent() {
             </div>
           )}
 
-          {/* 📧 CHAMP EMAIL */}
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Identifiant</label>
             <div className="relative group">
@@ -232,7 +219,6 @@ function LoginFormContent() {
             </div>
           </div>
 
-          {/* 🔒 CHAMP MOT DE PASSE */}
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Mot de passe</label>
             <div className="relative group">
@@ -269,7 +255,6 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-6 selection:bg-blue-600/30 overflow-hidden relative">
       <Toaster position="top-right" richColors theme="dark" />
       
-      {/* 🔮 CORE MATRIX EFFECTS */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
         <Fingerprint className="absolute -top-10 -left-10 text-blue-600/10" size={500} />
         <div className="absolute -bottom-[30%] -right-[10%] w-200 h-200 bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />

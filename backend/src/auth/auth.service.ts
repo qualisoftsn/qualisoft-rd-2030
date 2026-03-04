@@ -1,9 +1,10 @@
 /**
- * 🔐 MODULE : AuthService
+ * 🔐 MODULE : AuthService (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Orchestrateur de l'identité et du scellage JWT.
  * LOGIQUE : Validation Multi-Tenant, Hash Bcrypt, Génération Dual-Token.
- * RÉVISION : 03 Mars 2026 | 04:30 GMT
+ * RÉVISION : 04 Mars 2026 | 18:46 GMT
+ * -------------------------------------------------------------------------
  */
 
 import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
@@ -11,7 +12,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { compare } from 'bcryptjs';
-import { Role } from '../types/elite-sde'; // Assure-toi que l'Enum est correct ici
+import { Role } from '../types/elite-sde'; 
 
 export interface AuthPayload {
   U_Id: string;
@@ -52,7 +53,6 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants Matrix invalides');
     }
 
-    // Sécurité Master : Un SUPER_ADMIN doit spécifier un tenantId pour l'impersonation
     if (user.U_Role === Role.SUPER_ADMIN && !tenantId) {
       throw new BadRequestException('Le tenantId est requis pour le protocole SUPER_ADMIN');
     }

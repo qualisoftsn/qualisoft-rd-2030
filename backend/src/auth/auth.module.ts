@@ -1,9 +1,9 @@
 /**
- * 🛡️ MODULE : AuthModule.ts
+ * 🛡️ MODULE : AuthModule.ts (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Centralisation des protocoles d'authentification Matrix.
- * CORRECTIF : Casting de type pour 'expiresIn' (Fix String/Number Mismatch).
- * RÉVISION : 03 Mars 2026 | 07:15 GMT
+ * RÉVISION : 04 Mars 2026 | 18:46 GMT
+ * -------------------------------------------------------------------------
  */
 
 import { Module } from '@nestjs/common';
@@ -33,11 +33,6 @@ import { PrismaModule } from '../prisma/prisma.module';
         return {
           secret: secret,
           signOptions: {
-            /**
-             * 🔱 FIX : L'interface NestJS attend parfois un type union complexe.
-             * On force l'interprétation en tant que 'any' ou 'string' pour 
-             * autoriser les formats '15m' ou '24h' définis dans le .env.
-             */
             expiresIn: (config.get<string>('JWT_EXPIRES_IN') || '15m') as any,
           },
         };
