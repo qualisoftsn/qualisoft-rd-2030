@@ -1,18 +1,26 @@
 /**
- * 🏛️ APP MODULE : NOYAU CENTRAL QUALISOFT ELITE RD 2030
+ * 🏛️ APP MODULE : NOYAU CENTRAL QUALISOFT ELITE RD-2026 (elite-sde)
  * --------------------------------------------------------------------------
- * RÔLE : Orchestrateur Suprême du Système.
+ * RÔLE : Orchestrateur Suprême du Système Matrix.
  * FONCTION : Centralisation de l'Infrastructure, Sécurité Multi-Tenant,
  * et Pilotage des Modules Métiers (SMI & HSE).
+ * SÉCURITÉ : Verrouillage Global Zéro NextAuth (Auth par Cookies JWT).
+ * RÉVISION : 04 Mars 2026 | 05:05 GMT
+ * --------------------------------------------------------------------------
  */
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { TenantGuard } from './common/guards/tenant.guard';
 import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
+
+// --- 🛡️ GARDES DE SÉCURITÉ (GUARDS SOUVERAINS elite-sde) ---
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { TenantGuard } from './common/guards/tenant.guard';
+import { SubscriptionGuard } from './auth/guards/subscription.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
 
 // --- 1. INFRASTRUCTURE & NOYAU TECHNIQUE ---
 import { PrismaModule } from './prisma/prisma.module';
@@ -22,6 +30,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { ArchivesModule } from './archives/archives.module'; 
 import { GenericCrudModule } from './common/generic-crud.module';
+import { FilesModule } from './modules/files/files.module';
 
 // --- 2. IAM : IDENTITÉ & SOUVERAINETÉ ---
 import { AuthModule } from './auth/auth.module';
@@ -38,7 +47,7 @@ import { GouvernanceModule } from './gouvernance/gouvernance.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TransactionsModule } from './transactions/transactions.module';
 
-// --- 4. SMI CORE : ISO 9001 (Le Cycle Qualité) ---
+// --- 4. SMI CORE : ISO 9001 (Le Cycle Qualité PDCA) ---
 import { SmiModule } from './smi/smi.module';
 import { ProcessusModule } from './processus/processus.module';
 import { ProcessusTypeModule } from './processus-type/processus-type.module';
@@ -85,15 +94,9 @@ import { UploadController } from './common/upload.controller';
 import { SettingsController } from './settings/settings.controller';
 import { ContactService } from './auth/contact.service';
 
-// --- 🛡️ GARDES DE SÉCURITÉ (GUARDS) ---
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { RolesGuard } from './auth/guards/roles.guard';
-import { SubscriptionGuard } from './auth/guards/subscription.guard';
-import { FilesModule } from './modules/files/files.module';
-
 @Module({
   imports: [
-    // 🌍 CONFIGURATION ET TÂCHES DE FOND
+    // 🌍 CONFIGURATION ET TÂCHES DE FOND (Cron Jobs)
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: join(process.cwd(), '.env'),
@@ -109,15 +112,16 @@ import { FilesModule } from './modules/files/files.module';
     MulterModule.register({
       dest: './uploads', 
     }),
+    FilesModule,
 
-    // 🔑 COUCHE IAM & MULTI-TENANCY (Le rempart)
+    // 🔑 COUCHE IAM & MULTI-TENANCY (Le rempart d'identité)
     AuthModule,
     UsersModule,
     TenantsModule,
-    AdminMatrixModule, // Gestion Super-Admin (Impersonation)
+    AdminMatrixModule, // Gestion Super-Admin (Impersonation SDE)
     MatrixModule,      // Accès Publics (Login Selectors)
 
-    // 🏢 COUCHE ADMINISTRATIVE
+    // 🏢 COUCHE ADMINISTRATIVE & FACTURATION
     SitesModule,
     OrgUnitsModule,
     OrgUnitTypesModule,
@@ -157,7 +161,6 @@ import { FilesModule } from './modules/files/files.module';
     IncidentsModule,
     CauseriesModule,
     SenegalLegalModule,
-    FilesModule,
 
     // 👥 COUCHE RESSOURCES (L'humain et le matériel)
     CompetencesModule,
@@ -178,24 +181,29 @@ import { FilesModule } from './modules/files/files.module';
     ContactService,
 
     /**
-     * 🛡️ BOUCLIER DE SÉCURITÉ GLOBAL
-     * Mise à jour de l'ordre pour inclure l'isolation des données (Multi-tenancy)
+     * 🛡️ BOUCLIER DE SÉCURITÉ GLOBAL (SÉQUENCE STRICTE)
+     * L'ordre d'injection ici est vital. NestJS exécutera ces Guards
+     * séquentiellement pour chaque requête entrante sur l'API.
      */
     {
+      // 1. IDENTITÉ (Zéro NextAuth) : Décode le cookie HttpOnly et valide le JWT.
       provide: APP_GUARD,
-      useClass: JwtAuthGuard, // 1. Identité : "Qui es-tu ?" (Injecte l'user dans la requête)
+      useClass: JwtAuthGuard, 
     },
     {
+      // 2. ISOLATION : S'assure que l'utilisateur appartient bien au Tenant demandé (sous-domaine).
       provide: APP_GUARD,
-      useClass: TenantGuard, // 2. Isolation : "Es-tu bien chez toi ?" (Vérifie le sous-domaine/Header)
+      useClass: TenantGuard, 
     },
     {
+      // 3. LICENCE : Bloque l'accès si l'abonnement du Tenant est expiré ou inactif.
       provide: APP_GUARD,
-      useClass: SubscriptionGuard, // 3. Licence : "Ton client a-t-il payé ce module ?"
+      useClass: SubscriptionGuard, 
     },
     {
+      // 4. PERMISSIONS : Vérifie les habilitations RBAC (Role-Based Access Control) de l'utilisateur.
       provide: APP_GUARD,
-      useClass: RolesGuard, // 4. Permissions : "Toi, as-tu le rôle pour cette action ?"
+      useClass: RolesGuard, 
     },
   ],
 })

@@ -1,11 +1,11 @@
 /**
- * 🛰️ NOYAU SOUVERAIN - QUALISOFT ELITE RD-2026
+ * 🛰️ NOYAU SOUVERAIN - QUALISOFT ELITE RD-2026 (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Initialisation du Kernel NestJS et des Sceaux de Sécurité.
  * SÉCURITÉ : Zéro NextAuth. Validation Strict-Whitelist. Multi-Tenancy CORS.
- * FIX : Résolution du blocage CORS sur les sous-domaines (Regex Wildcard).
+ * FIX : Résolution définitive du crash 502 (Bad Gateway) sur requêtes OPTIONS.
  * NETTOYAGE : Suppression de la redondance des Static Assets.
- * RÉVISION : 04 Mars 2026 | 04:42 GMT
+ * RÉVISION : 04 Mars 2026 | 04:57 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -64,13 +64,13 @@ async function bootstrap() {
     );
 
     // 📂 GESTION DES ASSETS SCELLÉS (Preuves de paiement, Documents QSE)
-    // Correction : Une seule déclaration propre et suffisante pour le dossier uploads
+    // Une seule déclaration propre et suffisante pour le dossier uploads
     app.useStaticAssets(join(process.cwd(), 'uploads'), {
       prefix: '/uploads/',
       index: false,
     });
 
-    // 🌐 CONFIGURATION CORS SOUVERAINE (Isolation Multi-Tenant Parfaite)
+    // 🌐 CONFIGURATION CORS SOUVERAINE (Isolation Multi-Tenant Parfaite elite-sde)
     app.enableCors({
       origin: (origin, callback) => {
         const env = configService.get('NODE_ENV');
@@ -90,8 +90,10 @@ async function bootstrap() {
         if (isAllowed) {
           callback(null, true);
         } else {
-          logger.error(`🛑 PROTOCOLE CORS : Tentative d'accès non autorisée depuis ${origin}`);
-          callback(new Error('Accès refusé par la Sentinelle Matrix'));
+          logger.warn(`🛑 PROTOCOLE CORS : Origine bloquée proprement -> ${origin}`);
+          // ✅ FIX VITAL : On retourne false au lieu de throw new Error() 
+          // Cela évite le crash silencieux du socket et l'erreur 502 Bad Gateway sur Nginx
+          callback(null, false);
         }
       },
       credentials: true, // Crucial pour l'échange des cookies JWT avec Zustand
