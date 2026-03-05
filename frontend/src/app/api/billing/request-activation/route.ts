@@ -1,3 +1,12 @@
+//* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * 🛰️ MODULE API : BILLING ACTIVATION (elite-sde)
+ * -------------------------------------------------------------------------
+ * RÔLE : Traitement des demandes d'activation et envoi des notifications SMTP.
+ * RÉVISION : 04 Mars 2026 | 23:37 GMT
+ * -------------------------------------------------------------------------
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
@@ -15,17 +24,17 @@ export async function POST(request: NextRequest) {
     const { tenantId, userEmail, userName, currentPlan, daysLeft } = await request.json();
 
     if (!tenantId || !userEmail) {
-      return NextResponse.json({ error: 'Données manquantes' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Données matricielles manquantes' }, { status: 400 });
     }
 
-    // Email à l'admin (ab.qualisoft.sn)
+    // Email à l'Architecte Master (Admin)
     await transporter.sendMail({
-      from: '"Qualisoft - Admin" <ab.thiongane@qualisoft.sn>',
+      from: '"Qualisoft - Matrix" <ab.thiongane@qualisoft.sn>',
       to: 'ab.thiongane@qualisoft.sn',
       subject: `🔔 DEMANDE D'ACTIVATION - Prospect: ${userName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px;">
-          <h2 style="color: #2563eb;">Nouvelle demande d'activation</h2>
+          <h2 style="color: #2563eb;">Nouvelle demande d'activation de Nœud</h2>
           <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
             <tr style="background: #f3f4f6;">
               <td style="padding: 10px; border: 1px solid #ddd;"><strong>Entreprise</strong></td>
@@ -51,11 +60,11 @@ export async function POST(request: NextRequest) {
             </tr>
           </table>
           <p style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b;">
-            ⚡ Action requise : Contacter le prospect sous 24h pour finaliser l'activation.
+            ⚡ Action requise : Séquençage commercial sous 24h.
           </p>
           <a href="https://admin.qualisoft.sn/tenants/${tenantId}" 
              style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px;">
-            Voir la fiche client
+            Accéder à la console Master
           </a>
         </div>
       `,
@@ -63,29 +72,29 @@ export async function POST(request: NextRequest) {
 
     // Email de confirmation au prospect
     await transporter.sendMail({
-      from: '"Qualisoft" <ab.thiongane@qualisoft.sn>',
+      from: '"Qualisoft Elite" <ab.thiongane@qualisoft.sn>',
       to: userEmail,
-      subject: 'Qualisoft - notre demande d\'activation a été transmise',
+      subject: 'Qualisoft - Votre demande d\'activation est en cours de traitement',
       html: `
         <div style="font-family: Arial, sans-serif;">
-          <h2 style="color: #059669;">Demande reçue avec succès ! ✅</h2>
+          <h2 style="color: #059669;">Protocole d'activation initié ✅</h2>
           <p>Bonjour ${userName},</p>
-          <p>notre demande d'activation a été transmise à notre équipe commerciale.</p>
+          <p>Votre demande de scellage a été transmise avec succès à notre Architecte Master.</p>
           <p><strong>Prochaines étapes :</strong></p>
           <ol>
-            <li>Notre équipe vous contactera sous 24h ouvrées</li>
-            <li>Présentation des formules adaptées à vos besoins</li>
-            <li>Activation immédiate après validation</li>
+            <li>Notre équipe vous contactera sous 24h ouvrées.</li>
+            <li>Ajustement des paramètres de votre cluster (Émergence, Croissance, etc.).</li>
+            <li>Scellage définitif et activation continue.</li>
           </ol>
-          <p style="margin-top: 30px; color: #666;">L'équipe Qualisoft reste à notre disposition.</p>
+          <p style="margin-top: 30px; color: #666;">L'équipe Qualisoft Matrix reste à votre disposition.</p>
         </div>
       `,
     });
 
-    return NextResponse.json({ success: true, message: 'Demande envoyée' });
+    return NextResponse.json({ success: true, message: 'Protocole transmis' });
 
   } catch (error) {
-    console.error('Erreur demande activation:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    console.error('[ACTIVATION_REQUEST_ERROR]:', error);
+    return NextResponse.json({ success: false, error: 'Échec de transmission SMTP' }, { status: 500 });
   }
 }

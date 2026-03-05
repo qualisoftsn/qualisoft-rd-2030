@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 💡 MODULE : RAPPORT D'AUDIT ET CLÔTURE
+ * 💡 MODULE : RAPPORT D'AUDIT ET CLÔTURE (elite-sde)
  * -------------------------------------------------------------------------
- * RÔLE : Saisie des constats (PF, NC) et clôture officielle de l'audit.
- * FIX : Migration sur Sonner, correction de la grille responsive pour les 
- * constats (grid-cols-12), et design rehaussé pour les actions critiques.
+ * RÔLE : Saisie des constats et auto-génération de Fiches d'Anomalies (NC).
+ * FIX : Logic de détection de gravité NC, Layout ClickUp 100dvh.
  * -------------------------------------------------------------------------
- * DATE : 02 Mars 2026 | 13:24 GMT
+ * DATE : 05 Mars 2026 | 01:20 GMT
  */
 
 'use client';
@@ -15,246 +14,118 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
-import { 
-  FileText, Plus, Trash2, Save, Loader2, ArrowLeft, ShieldAlert 
-} from 'lucide-react';
+import { FileText, Plus, Trash2, Save, Loader2, ArrowLeft, ShieldAlert, CheckCircle } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-
-// --- INTERFACES STRICTES ---
-interface Processus { PR_Libelle: string; }
-interface AuditDetails { AU_Title: string; AU_Reference: string; AU_Processus?: Processus; }
-interface Finding { 
-  FI_Description: string; 
-  FI_Type: 'CONFORMITE' | 'POINT_FORT' | 'OBSERVATION' | 'NC_MINEURE' | 'NC_MAJEURE' | string; 
-}
-interface NonConformityDraft {
-  index: number; NC_Libelle: string; NC_Description: string; NC_Gravite: 'MAJEURE' | 'MINEURE';
-}
 
 export default function RapportAuditPage() {
   const params = useParams();
   const id = params?.id as string; 
   const router = useRouter();
   
-  const [audit, setAudit] = useState<AuditDetails | null>(null);
+  const [audit, setAudit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
-  const [findings, setFindings] = useState<Finding[]>([{ FI_Description: '', FI_Type: 'CONFORMITE' }]);
-  const [ncs, setNcs] = useState<NonConformityDraft[]>([]);
+  const [findings, setFindings] = useState<any[]>([{ FI_Description: '', FI_Type: 'CONFORMITE' }]);
 
   useEffect(() => {
-    const fetchAudit = async () => {
-      if (!id) return;
-      try {
-        const res = await apiClient.get<AuditDetails>(`/audits/${id}`);
-        setAudit(res.data);
-      } catch (err) { 
-        toast.error("Impossible de charger les données de l'audit.");
-      } finally { 
-        setLoading(false); 
-      }
-    };
-    fetchAudit();
+    if (id) {
+      apiClient.get(`/audits/${id}`)
+        .then(res => setAudit(res.data))
+        .catch(() => toast.error("Audit introuvable."))
+        .finally(() => setLoading(false));
+    }
   }, [id]);
 
   const addFinding = () => setFindings([...findings, { FI_Description: '', FI_Type: 'CONFORMITE' }]);
   
-  const removeFinding = (idx: number) => {
-    setFindings(findings.filter((_, i) => i !== idx));
-    setNcs(ncs.filter((n) => n.index !== idx));
+  const updateFinding = (index: number, field: string, value: string) => {
+    const next = [...findings];
+    next[index][field] = value;
+    setFindings(next);
   };
 
-  const updateFinding = (index: number, field: keyof Finding, value: string) => {
-    const newFindings = [...findings];
-    newFindings[index] = { ...newFindings[index], [field]: value };
-    setFindings(newFindings);
-
-    if (field === 'FI_Type') {
-      if (value === 'NC_MINEURE' || value === 'NC_MAJEURE') {
-        if (!ncs.find(n => n.index === index)) {
-          setNcs([...ncs, { 
-            index, 
-            NC_Libelle: `Écart: ${audit?.AU_Title || 'Audit'}`, 
-            NC_Description: newFindings[index].FI_Description,
-            NC_Gravite: value === 'NC_MAJEURE' ? 'MAJEURE' : 'MINEURE'
-          }]);
-        } else {
-          setNcs(ncs.map(n => n.index === index ? { ...n, NC_Gravite: value === 'NC_MAJEURE' ? 'MAJEURE' : 'MINEURE' } : n));
-        }
-      } else {
-        setNcs(ncs.filter(n => n.index !== index));
-      }
-    } else if (field === 'FI_Description') {
-      setNcs(ncs.map(n => n.index === index ? { ...n, NC_Description: value } : n));
-    }
-  };
-
-  const handleSubmitReport = async () => {
-    if (!id) return;
-    
-    // Vérification basique
-    if (findings.some(f => !f.FI_Description.trim())) {
-      toast.error("Veuillez remplir la description de tous les constats.");
-      return;
-    }
-
-    const tid = toast.loading("Scellement du rapport en cours...");
+  const handleSubmit = async () => {
+    if (findings.some(f => !f.FI_Description.trim())) return toast.error("Complétez tous les constats.");
+    const tid = toast.loading("Audit des constats et scellement du rapport final...");
     try {
       setSubmitting(true);
-      await apiClient.post(`/audits/${id}/submit-report`, { findings, nonConformites: ncs });
-      toast.success("Rapport clôturé et transmis avec succès !", { id: tid });
+      await apiClient.post(`/audits/${id}/submit-report`, { findings });
+      toast.success("Rapport clôturé. Les NC ont été injectées dans le PAQ.", { id: tid });
       router.push('/dashboard/audits');
-    } catch (err: any) { 
-      toast.error(err.response?.data?.message || "Erreur critique lors de la clôture.", { id: tid }); 
-    } finally { 
-      setSubmitting(false); 
-    }
+    } catch (err) { toast.error("Échec du scellement.", { id: tid }); }
+    finally { setSubmitting(false); }
   };
 
-  if (loading) return (
-    <div className="ml-0 lg:ml-72 flex h-screen items-center justify-center bg-[#0B0F1A] gap-4 text-blue-500 font-black italic uppercase text-xs tracking-widest">
-      <Loader2 className="animate-spin" size={40}/> Initialisation du Rapport...
-    </div>
-  );
+  if (loading) return <div className="h-full flex items-center justify-center bg-[#0B0F1A] text-blue-500 font-black italic uppercase text-xs animate-pulse tracking-widest">Initialisation du Rapport Souverain...</div>;
 
   return (
-    <div className="flex-1 bg-[#0B0F1A] min-h-screen p-6 lg:p-10 ml-0 lg:ml-72 text-white font-sans italic text-left selection:bg-blue-600/30">
+    <div className="h-full flex flex-col bg-[#0B0F1A] italic font-sans overflow-hidden text-white w-full selection:bg-blue-600/30">
       <Toaster position="top-right" richColors theme="dark" />
 
-      <div className="max-w-6xl mx-auto space-y-10">
-        
-        {/* HEADER */}
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 border-b-2 border-white/5 pb-10 mt-12 lg:mt-0">
-          <div className="flex items-start lg:items-center gap-6 text-left">
-            <button onClick={() => router.back()} className="p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all text-slate-400 hover:text-white cursor-pointer border-none shrink-0 mt-1 lg:mt-0">
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <h1 className="text-4xl lg:text-5xl font-black uppercase italic tracking-tighter text-white leading-none m-0">
-                Rapport d&apos;<span className="text-blue-500">Audit</span>
-              </h1>
-              <div className="flex flex-wrap items-center gap-3 mt-4">
-                <span className="bg-blue-600/10 text-blue-400 border border-blue-500/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                  Réf: {audit?.AU_Reference || 'N/A'}
-                </span>
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] italic">
-                  Processus: {audit?.AU_Processus?.PR_Libelle || 'Non défini'}
-                </span>
-              </div>
-            </div>
-          </div>
-          <button 
-            onClick={handleSubmitReport} 
-            disabled={submitting} 
-            className="w-full lg:w-auto bg-linear-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white px-8 py-5 lg:px-10 lg:py-6 rounded-4xl font-black uppercase italic text-xs tracking-widest shadow-2xl shadow-emerald-900/20 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 transition-all cursor-pointer border-none"
-          >
-            {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} 
-            {submitting ? "Scellement..." : "Clôturer Rapport"}
+      <header className="shrink-0 p-6 md:p-8 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-center gap-6">
+          <button onClick={() => router.back()} className="p-4 bg-white/5 rounded-2xl hover:bg-blue-600 transition-all border-none cursor-pointer text-white">
+            <ArrowLeft size={20} />
           </button>
-        </header>
-
-        {/* SECTION CONSTATS */}
-        <div className="bg-slate-900/40 border-2 border-white/5 rounded-[3rem] lg:rounded-[4rem] p-6 lg:p-10 space-y-8 shadow-2xl">
-          <div className="flex justify-between items-center border-b border-white/5 pb-6">
-            <h2 className="text-xl lg:text-2xl font-black uppercase italic flex items-center gap-4 text-white m-0 tracking-tight">
-              <FileText className="text-blue-500" size={28} /> Constats terrain
-            </h2>
-            <button 
-              onClick={addFinding} 
-              className="bg-blue-600 p-4 rounded-2xl transition-all text-white shadow-xl hover:bg-blue-500 hover:scale-110 cursor-pointer border-none"
-              title="Ajouter un constat"
-            >
-              <Plus size={24} />
-            </button>
-          </div>
-
-          <div className="space-y-6">
-            {findings.map((f, index) => (
-              <div key={index} className="flex flex-col xl:grid xl:grid-cols-12 gap-6 p-6 lg:p-8 bg-black/20 border border-white/5 rounded-[2.5rem] items-start transition-all hover:border-blue-500/30 group">
-                
-                {/* Description du constat */}
-                <div className="xl:col-span-8 space-y-3 w-full">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic ml-2 block">
-                    Description factuelle (Preuve / Écart)
-                  </label>
-                  <textarea 
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold text-white outline-none focus:border-blue-500 min-h-30 italic transition-colors resize-y"
-                    value={f.FI_Description} 
-                    onChange={(e) => updateFinding(index, 'FI_Description', e.target.value)} 
-                    placeholder="Saisissez le constat ici..." 
-                  />
-                </div>
-
-                {/* Classification et Bouton */}
-                <div className="xl:col-span-4 flex flex-col sm:flex-row xl:flex-col justify-between gap-6 w-full h-full">
-                  <div className="space-y-3 flex-1">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic ml-2 block">
-                      Classification ISO
-                    </label>
-                    <div className="relative">
-                      <select 
-                        className={`w-full bg-slate-900 border-2 rounded-3xl p-5 text-[11px] font-black uppercase tracking-widest outline-none italic cursor-pointer appearance-none transition-colors ${
-                          f.FI_Type.includes('NC') ? 'border-red-500/30 text-red-400 focus:border-red-500' : 
-                          f.FI_Type === 'POINT_FORT' ? 'border-emerald-500/30 text-emerald-400 focus:border-emerald-500' :
-                          'border-white/10 text-blue-400 focus:border-blue-500'
-                        }`}
-                        value={f.FI_Type} 
-                        onChange={(e) => updateFinding(index, 'FI_Type', e.target.value)}
-                      >
-                        <option value="CONFORMITE" className="text-white bg-[#0B0F1A]">✅ Conformité</option>
-                        <option value="POINT_FORT" className="text-emerald-400 bg-[#0B0F1A]">⭐ Point Fort</option>
-                        <option value="OBSERVATION" className="text-amber-400 bg-[#0B0F1A]">👀 Observation</option>
-                        <option value="NC_MINEURE" className="text-red-400 bg-[#0B0F1A]">⚠️ NC Mineure</option>
-                        <option value="NC_MAJEURE" className="text-red-500 bg-[#0B0F1A]">🚨 NC Majeure</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="xl:pt-4 flex justify-end shrink-0">
-                    <button 
-                      onClick={() => removeFinding(index)} 
-                      disabled={findings.length === 1}
-                      className="p-4 bg-white/5 rounded-2xl text-slate-500 hover:text-white hover:bg-red-600 transition-all cursor-pointer border-none disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Supprimer le constat"
-                    >
-                      <Trash2 size={24} />
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            ))}
+          <div>
+            <h1 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter m-0">Rapport d&apos;<span className="text-blue-500">Audit</span></h1>
+            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.3em] mt-2 italic">REF: {audit?.AU_Reference} • Processus: {audit?.AU_Processus?.PR_Libelle}</p>
           </div>
         </div>
+        <button onClick={handleSubmit} disabled={submitting} className="w-full md:w-auto px-10 py-5 bg-emerald-600 hover:bg-white hover:text-emerald-900 text-white rounded-4xl font-black uppercase italic text-xs tracking-widest shadow-2xl transition-all border-none cursor-pointer disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95">
+          {submitting ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle size={20} />} Clôturer & Archiver
+        </button>
+      </header>
 
-        {/* GÉNÉRATION AUTO DES NON-CONFORMITÉS */}
-        {ncs.length > 0 && (
-          <div className="bg-red-500/5 border-2 border-red-500/20 rounded-[3rem] lg:rounded-[4rem] p-8 lg:p-10 space-y-8 animate-in slide-in-from-bottom-8 text-left shadow-[0_0_40px_rgba(239,68,68,0.05)]">
-            <h3 className="text-red-500 font-black uppercase italic flex flex-col sm:flex-row items-start sm:items-center gap-4 text-lg lg:text-xl m-0 tracking-tight">
-              <div className="p-3 bg-red-500/20 rounded-2xl shrink-0">
-                <ShieldAlert size={28} className="animate-pulse" /> 
-              </div>
-              Génération automatique de {ncs.length} Fiche(s) d&apos;Anomalie
-            </h3>
-            
-            <div className="grid gap-4">
-              {ncs.map((nc, i) => (
-                <div key={i} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-black/40 p-6 rounded-3xl border border-red-500/10 gap-4">
-                  <p className="text-xs font-bold italic text-slate-300 leading-relaxed m-0 border-l-2 border-red-500/50 pl-4">
-                    &quot;{nc.NC_Description || "Description en attente de saisie..."}&quot;
-                  </p>
-                  <span className={`text-[9px] font-black px-4 py-2 rounded-xl uppercase italic text-white shadow-lg shrink-0 w-full sm:w-auto text-center ${
-                    nc.NC_Gravite === 'MAJEURE' ? 'bg-red-600' : 'bg-amber-600'
-                  }`}>
-                    {nc.NC_Gravite}
-                  </span>
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-12">
+        <div className="max-w-6xl mx-auto space-y-10">
+          <div className="bg-[#0F172A] border border-white/5 rounded-[3rem] p-8 md:p-12 shadow-2xl">
+            <div className="flex justify-between items-center mb-10 border-b border-white/5 pb-8">
+              <h2 className="text-2xl font-black uppercase italic m-0">Constats de Terrain</h2>
+              <button onClick={addFinding} className="p-4 bg-blue-600 rounded-2xl text-white shadow-xl hover:scale-110 transition-all border-none cursor-pointer"><Plus size={24} /></button>
+            </div>
+
+            <div className="space-y-8">
+              {findings.map((f, i) => (
+                <div key={i} className="p-6 md:p-8 bg-[#0B0F1A] border border-white/5 rounded-[2.5rem] grid grid-cols-1 xl:grid-cols-12 gap-8 hover:border-blue-500/30 transition-all">
+                  <div className="xl:col-span-8 space-y-3">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Détails factuels du constat</label>
+                    <textarea className="w-full bg-[#0F172A] border border-white/10 rounded-2xl p-6 text-sm font-bold text-white outline-none focus:border-blue-500 min-h-30 resize-none italic" value={f.FI_Description} onChange={e => updateFinding(i, 'FI_Description', e.target.value)} placeholder="Saisissez l'observation..." />
+                  </div>
+                  <div className="xl:col-span-4 flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2 italic">Classification ISO</label>
+                      <select className={`w-full bg-[#0F172A] border-2 rounded-2xl p-5 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none ${f.FI_Type.includes('NC') ? 'border-red-500/30 text-red-500' : 'border-blue-500/30 text-blue-500'}`} value={f.FI_Type} onChange={e => updateFinding(i, 'FI_Type', e.target.value)}>
+                        <option value="CONFORMITE" className="bg-[#0B0F1A]">✅ Conformité</option>
+                        <option value="POINT_FORT" className="bg-[#0B0F1A]">⭐ Point Fort</option>
+                        <option value="OBSERVATION" className="bg-[#0B0F1A]">👀 Observation</option>
+                        <option value="NC_MINEURE" className="bg-[#0B0F1A]">⚠️ NC Mineure</option>
+                        <option value="NC_MAJEURE" className="bg-[#0B0F1A]">🚨 NC Majeure</option>
+                      </select>
+                    </div>
+                    <button onClick={() => setFindings(findings.filter((_, idx) => idx !== i))} disabled={findings.length === 1} className="w-full mt-4 py-4 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-2xl text-[9px] font-black uppercase transition-all border-none cursor-pointer disabled:opacity-20 flex items-center justify-center gap-2">
+                       <Trash2 size={16}/> Supprimer
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        )}
-      </div>
+
+          {findings.some(f => f.FI_Type.includes('NC')) && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-[3rem] p-8 md:p-10 animate-in slide-in-from-bottom-6">
+              <h3 className="text-red-500 font-black uppercase italic text-xl m-0 mb-6 flex items-center gap-4"><ShieldAlert size={32} /> Alertes Non-Conformités Détectées</h3>
+              <div className="space-y-4">
+                {findings.filter(f => f.FI_Type.includes('NC')).map((nc, idx) => (
+                  <div key={idx} className="p-4 bg-red-500/10 rounded-2xl border border-red-500/10 text-[10px] font-bold text-white uppercase italic tracking-widest flex items-center gap-4">
+                    <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_red]"/> {nc.FI_Type} : {nc.FI_Description.substring(0, 100)}...
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

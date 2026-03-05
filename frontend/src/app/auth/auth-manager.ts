@@ -1,10 +1,11 @@
 /**
- * 🛰️ MODULE : SOUVERAIN DE SESSION (AUTH MANAGER)
+ * 🛰️ MODULE : SOUVERAIN DE SESSION (AUTH MANAGER) (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Gestion de la logique de domaine et cycle de vie des jetons.
  * SÉCURITÉ : Zéro persistance locale (In-Memory Only) / Anti-XSS.
+ * FIX : Câblage strict sur les endpoints /api/auth API SDE.
  * -------------------------------------------------------------------------
- * DATE : 01 Mars 2026 | 15:10 GMT
+ * DATE : 04 Mars 2026 | 23:45 GMT
  */
 
 class AuthManager {
@@ -25,10 +26,8 @@ class AuthManager {
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
     
-    // Cas local ou matrix.qualisoft.sn
     if (parts[0] === 'matrix' || parts[0] === 'localhost') return 'matrix';
     
-    // Cas sous-domaine client : [tenant].qualisoft.sn
     if (parts.length >= 3 && parts[1] === 'qualisoft') {
       return parts[0];
     }
@@ -38,9 +37,6 @@ class AuthManager {
 
   /**
    * 🔑 SCÉLLAGE DU TOKEN EN MÉMOIRE
-   * @param token JWT
-   * @param expiresIn Durée de validité en secondes
-   * @param isMaster Indique si c'est une session d'Architecte
    */
   setToken(token: string, expiresIn: number, isMaster: boolean = false) {
     this.accessToken = token;
@@ -67,19 +63,22 @@ class AuthManager {
 
   /**
    * 🔄 REFRESH SILENCIEUX (PROTOCOLE ARRIÈRE-PLAN)
-   * Évite la déconnexion brutale de l'utilisateur.
    */
   silentRefresh(): void {
     if (this.refreshPromise) return;
 
     this.refreshPromise = fetch('/api/auth/refresh', {
       method: 'POST',
-      credentials: 'include', // Important pour envoyer le Refresh Cookie
+      credentials: 'include', // Indispensable pour que Next.js reçoive le HttpOnly refresh_token
     })
       .then(async (res) => {
         if (!res.ok) throw new Error('Refresh Interrompu');
         const data = await res.json();
-        this.setToken(data.accessToken, data.expiresIn, data.isMaster);
+        if (data.success && data.accessToken) {
+            this.setToken(data.accessToken, data.expiresIn, this.isMasterSession);
+        } else {
+            throw new Error('Payload invalide');
+        }
       })
       .catch((error) => {
         console.warn('⚠️ Session Matrix expirée :', error);
@@ -114,15 +113,15 @@ class AuthManager {
         credentials: 'include',
       });
 
-      if (!res.ok) throw new Error('Autorité Matrix Refusée');
-
       const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Autorité Matrix Refusée');
+
       this.setToken(data.accessToken, data.expiresIn, true);
       
-      // Redirection vers la console souveraine
-      window.location.href = 'https://matrix.qualisoft.sn/admin/matrix';
+      // Redirection vers le cockpit souverain (mis à jour selon nos précédentes refactorisations)
+      window.location.href = '/admin/super-dashboard';
     } catch (err) {
-      console.error('Master Access Error:', err);
+      console.error('[MASTER_ACCESS_ERROR]:', err);
       throw err;
     }
   }
@@ -139,7 +138,6 @@ class AuthManager {
     } finally {
       this.clear();
       const slug = this.getCurrentTenantSlug();
-      // Redirection propre selon le domaine
       const baseUrl = slug === 'matrix' ? '' : `https://${slug}.qualisoft.sn`;
       window.location.href = `${baseUrl}/auth/login?session=logout`;
     }
@@ -147,7 +145,6 @@ class AuthManager {
 
   /**
    * 📡 SYSTÈME D'ÉCOUTE
-   * Permet aux autres modules (comme apiClient) de réagir au changement de token.
    */
   onTokenChange(callback: (token: string | null) => void) {
     this.onTokenChangeCallbacks.push(callback);
@@ -166,8 +163,8 @@ class AuthManager {
 export const authManager = new AuthManager();
 
 /**
- * 🧹 MIGRATION & SÉCURITÉ : NETTOYAGE DES VESTIGES
- * Supprime les anciens tokens stockés par erreur dans le localStorage.
+ * 🧹 SÉCURITÉ : PURGE DES VESTIGES LOCAUX
+ * Assure qu'aucun ancien token n'est resté bloqué en clair dans le navigateur.
  */
 if (typeof window !== 'undefined') {
   const securityCheck = () => {
@@ -175,7 +172,7 @@ if (typeof window !== 'undefined') {
     keys.forEach(key => {
       if (localStorage.getItem(key)) {
         localStorage.removeItem(key);
-        console.warn(`🛡️ Sécurité Matrix : Purge de ${key} détecté dans le stockage non-sécurisé.`);
+        console.warn(`🛡️ Sécurité Matrix : Purge de ${key} détectée dans le stockage local.`);
       }
     });
   };

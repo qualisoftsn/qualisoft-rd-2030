@@ -1,13 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { prisma } from "@/core/lib/prisma";
 import { cookies } from "next/headers";
-import * as jwt from "jsonwebtoken"; // Assure-toi que jsonwebtoken est installé (npm install jsonwebtoken)
+import * as jwt from "jsonwebtoken";
+import { Role } from "@/types/elite-sde";
 
 /**
- * 🔐 FONCTION INTERNE DE VÉRIFICATION DE SESSION
+ * 🛰️ MODULE API : GESTION VITRINE (elite-sde)
+ * -------------------------------------------------------------------------
+ * RÔLE : CRUD sécurisé pour le contenu de la vitrine publique.
+ * SÉCURITÉ : Lecture directe du Cookie HttpOnly + Vérification JWT.
+ * RÉVISION : 04 Mars 2026 | 23:25 GMT
+ * -------------------------------------------------------------------------
  */
+
 async function getSession() {
   const cookieStore = await cookies();
+  // 🚩 Lecture du sceau injecté par le login
   const token = cookieStore.get("access_token")?.value;
 
   if (!token) return null;
@@ -23,26 +32,28 @@ export async function GET() {
   try {
     const session = await getSession();
     
-    // Vérification du rôle via ton typage Elite
-    if (!session || session.U_Role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: "Accès Matrix Refusé" }, { status: 403 });
+    // 🛡️ Vérification d'autorité stricte
+    if (!session || session.U_Role !== Role.SUPER_ADMIN) {
+      return NextResponse.json({ success: false, error: "Accès Matrix Refusé : Autorité insuffisante." }, { status: 403 });
     }
 
     const contents = await prisma.vitrineContent.findMany({
       orderBy: { createdAt: 'desc' }
     });
 
-    return NextResponse.json(contents);
+    return NextResponse.json({ success: true, data: contents }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: "Erreur Serveur Matrix" }, { status: 500 });
+    console.error("[VITRINE_GET_ERROR]:", error);
+    return NextResponse.json({ success: false, error: "Erreur Critique du Serveur Matrix" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    if (!session || session.U_Role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: "Action Non Autorisée" }, { status: 403 });
+    
+    if (!session || session.U_Role !== Role.SUPER_ADMIN) {
+      return NextResponse.json({ success: false, error: "Action Non Autorisée" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -54,8 +65,9 @@ export async function POST(req: Request) {
       create: { title, slug, type, content, catch: catchPhrase, features, published },
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, data: result }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: "Échec de synchronisation Matrix" }, { status: 500 });
+    console.error("[VITRINE_POST_ERROR]:", error);
+    return NextResponse.json({ success: false, error: "Échec de scellage Matrix" }, { status: 500 });
   }
 }

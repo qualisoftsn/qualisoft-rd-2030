@@ -2,11 +2,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 🛰️ MODULE : DashboardLayout.tsx
+ * 🛰️ MODULE : DashboardLayout.tsx (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Superstructure du Cockpit - Orchestration Sidebar & ActionHub.
- * FONCTION : Protection des routes, injection d'identité et isolation Multi-Tenant.
- * RÉVISION : 03 Mars 2026 | 02:55 GMT
+ * FONCTION : Protection des routes via Zustand, Isolation Multi-Tenant.
+ * UX/UI : Design 100dvh "ClickUp Style", Zéro Scroll Global, PWA Ready.
+ * RÉVISION : 04 Mars 2026 | 22:46 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -19,7 +20,7 @@ import { Loader2, ShieldCheck } from "lucide-react";
 
 // ✅ IMPORTS DES MODULES SCELLÉS
 import Sidebar from "@/app/dashboard/sidebar"; 
-import ActionHub from "@/components/layout/ActionHub"; // Ton Hub d'actions (ex-TrialBanner)
+import ActionHub from "@/components/layout/ActionHub"; 
 import TopUserNav from "@/components/dashboard/TopUserNav";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -37,7 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   /**
    * 🚪 BARRIÈRE DE SÉCURITÉ KERNEL
-   * Redirection immédiate si le jeton Matrix est absent ou corrompu.
+   * Redirection immédiate si le jeton Matrix est absent (Zéro NextAuth).
    */
   useEffect(() => {
     if (hasMounted && !isAuthenticated) {
@@ -58,10 +59,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }, [user]);
 
-  // ⏳ ÉCRAN DE DÉMARRAGE DU NOYAU
+  // ⏳ ÉCRAN DE DÉMARRAGE DU NOYAU (Plein écran strict)
   if (!hasMounted || !isAuthenticated || !user) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] italic font-sans">
+      <div className="h-dvh w-full flex flex-col items-center justify-center bg-[#0B0F1A] italic font-sans overflow-hidden">
         <div className="relative">
           <Loader2 className="animate-spin text-blue-600 mb-8" size={60} strokeWidth={3} />
           <ShieldCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500/20" size={32} />
@@ -79,56 +80,70 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="h-screen bg-[#0B0F1A] flex italic font-sans overflow-hidden selection:bg-blue-600/30">
+    // CONTENEUR RACINE : Fixe, sans scroll, 100% de la hauteur PWA
+    <div className="h-dvh w-full bg-[#0B0F1A] flex italic font-sans overflow-hidden selection:bg-blue-600/30">
       
-      {/* 🧭 NAVIGATION RÉGALIENNE (Sidebar fixe à gauche) */}
-      <Sidebar isSuperAdmin={isSuperAdmin} />
+      {/* 🧭 NAVIGATION RÉGALIENNE (Sidebar fixe à gauche, rétractable sur mobile) */}
+      <div className="hidden lg:block z-40">
+        <Sidebar isSuperAdmin={isSuperAdmin} />
+      </div>
       
-      {/* 🏗️ ZONE DE TRAVAIL ÉLITE */}
-      <div className="flex-1 flex flex-col pl-80 min-w-0 relative">
+      {/* 🏗️ ZONE DE TRAVAIL ÉLITE (Prend l'espace restant, gère son propre scroll) */}
+      <div className="flex-1 flex flex-col min-w-0 relative lg:pl-80 h-dvh">
         
-        {/* ⚡ ACTION HUB (La barre de commande supérieure) */}
-        <ActionHub />
+        {/* ⚡ ACTION HUB (La barre de commande supérieure, fixée en haut) */}
+        <div className="sticky top-0 z-30 w-full shrink-0">
+          <ActionHub />
+        </div>
         
-        {/* 👤 TOP USER NAV (Positionnée en flottant pour le design RD-2026) */}
-        <div className="absolute top-8 right-12 z-50">
+        {/* 👤 TOP USER NAV (Responsive : adaptée mobile et desktop) */}
+        <div className="absolute top-4 right-4 md:top-8 md:right-12 z-50">
           <TopUserNav />
         </div>
 
-        {/* 📄 CONTENU DYNAMIQUE DES PROCESSUS */}
-        <main className="flex-1 relative overflow-y-auto p-12 custom-scrollbar bg-[#0B0F1A]">
-          <div className="max-w-7xl mx-auto pt-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        {/* 📄 CONTENU DYNAMIQUE DES PROCESSUS (Scroll interne fluide) */}
+        <main className="flex-1 relative overflow-y-auto overflow-x-hidden p-4 md:p-8 lg:p-12 custom-scrollbar bg-[#0B0F1A]">
+          <div className="max-w-7xl mx-auto pt-16 md:pt-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 min-h-full pb-20">
             
-            {/* 🚩 EN-TÊTE DE CONTEXTE (Optionnel) */}
-            <div className="mb-10 flex items-center gap-4 opacity-40 grayscale hover:grayscale-0 transition-all">
-               <ShieldCheck size={14} className="text-blue-500" />
-               <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white m-0">
-                 {user.U_TenantName} • Périmètre de Sécurité Actif
+            {/* 🚩 EN-TÊTE DE CONTEXTE */}
+            <div className="mb-8 md:mb-10 flex items-center gap-3 opacity-40 grayscale hover:grayscale-0 transition-all">
+               <ShieldCheck size={14} className="text-blue-500 shrink-0" />
+               <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white m-0 truncate">
+                 {user.U_TenantDomain?.toUpperCase() || 'ELITE'} • Périmètre Sécurisé
                </p>
             </div>
 
-            {children}
+            {/* CONTENU DE LA PAGE */}
+            <div className="relative z-10">
+              {children}
+            </div>
             
           </div>
         </main>
 
         {/* 📡 FOOTER DE TÉLÉMÉTRIE (Subliminal) */}
-        <footer className="absolute bottom-6 right-12 opacity-20 pointer-events-none">
-          <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">
+        <footer className="absolute bottom-4 right-4 md:bottom-6 md:right-12 opacity-20 pointer-events-none z-0 hidden sm:block">
+          <p className="text-[7px] md:text-[8px] font-black uppercase text-slate-500 tracking-widest m-0">
             Sovereign OS v2026.1 • Qualisoft Elite
           </p>
         </footer>
       </div>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        /* Barre de défilement d'élite intra-conteneur */
+        .custom-scrollbar::-webkit-scrollbar { 
+          width: 5px; 
+          height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track { 
+          background: transparent; 
+        }
         .custom-scrollbar::-webkit-scrollbar-thumb { 
-          background: rgba(37, 99, 235, 0.2); 
-          border-radius: 20px; 
+          background: rgba(37, 99, 235, 0.15); 
+          border-radius: 10px; 
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { 
-          background: rgba(37, 99, 235, 0.5); 
+          background: rgba(37, 99, 235, 0.4); 
         }
       `}</style>
     </div>

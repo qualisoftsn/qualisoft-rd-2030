@@ -1,21 +1,28 @@
+/**
+ * 🛰️ MODULE API : PUBLIC CONTENT (elite-sde)
+ * -------------------------------------------------------------------------
+ * RÔLE : Accès en lecture seule (non authentifié) au contenu de la vitrine.
+ * RÉVISION : 04 Mars 2026 | 23:37 GMT
+ * -------------------------------------------------------------------------
+ */
+
 import { NextResponse } from "next/server";
-import { prisma } from "@/core/lib/prisma";
+import { prisma } from "@/core/lib/prisma"; // Alignement avec l'architecture SDE
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const type = searchParams.get("type");
-  const slug = searchParams.get("slug");
-
   try {
-    // Si on cherche un article précis par son slug
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get("type");
+    const slug = searchParams.get("slug");
+
     if (slug) {
       const item = await prisma.vitrineContent.findUnique({
         where: { slug, published: true }
       });
-      return NextResponse.json(item);
+      if (!item) return NextResponse.json({ success: false, error: "Contenu introuvable" }, { status: 404 });
+      return NextResponse.json({ success: true, data: item });
     }
 
-    // Sinon on récupère tout par type (ex: toutes les formations)
     const contents = await prisma.vitrineContent.findMany({
       where: { 
         ...(type ? { type } : {}),
@@ -24,8 +31,9 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
-    return NextResponse.json(contents);
+    return NextResponse.json({ success: true, data: contents });
   } catch (error) {
-    return NextResponse.json({ error: "Contenu indisponible" }, { status: 500 });
+    console.error('[PUBLIC_CONTENT_ERROR]:', error);
+    return NextResponse.json({ success: false, error: "Rupture de liaison base de données" }, { status: 500 });
   }
 }

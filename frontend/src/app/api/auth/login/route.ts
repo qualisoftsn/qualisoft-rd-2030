@@ -1,9 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// app/api/auth/login/route.ts
 import { PrismaClient } from '@prisma/client';
 import { compare } from 'bcryptjs';
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+
+/**
+ * 🛰️ MODULE API : LOGIN STANDARD (elite-sde)
+ * -------------------------------------------------------------------------
+ * RÔLE : Authentification des collaborateurs des nœuds territoriaux.
+ * SÉCURITÉ : Double Scellage (Access Cookie pour SSR + Refresh Cookie).
+ * RÉVISION : 04 Mars 2026 | 23:25 GMT
+ * -------------------------------------------------------------------------
+ */
 
 const prisma = new PrismaClient();
 
@@ -12,36 +19,30 @@ export async function POST(request: Request) {
     const { email, password, tenantId } = await request.json();
 
     if (!email || !password || !tenantId) {
-      return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Identifiants ou Nœud manquants' }, { status: 400 });
     }
 
-    // 🔑 AUTHENTIFICATION SÉCURISÉE AVEC PRISMA + TENANT ISOLATION
+    // 🔑 RECHERCHE SÉCURISÉE AVEC TENANT ISOLATION
     const user = await prisma.user.findFirst({
       where: {
         U_Email: email.toLowerCase().trim(),
         U_IsActive: true,
         tenantId: tenantId !== 'MATRIX' ? tenantId : undefined,
       },
-      include: {
-        tenant: true,
-      },
+      include: { tenant: true },
     });
 
     if (!user || !user.U_PasswordHash) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Identifiants rejetés par le Noyau' }, { status: 401 });
     }
 
     const isValid = await compare(password, user.U_PasswordHash);
     if (!isValid) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Identifiants rejetés par le Noyau' }, { status: 401 });
     }
 
     // ✅ GÉNÉRATION DU TOKEN JWT (15 minutes)
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET not configured');
-    }
-
+    const jwtSecret = process.env.JWT_SECRET || "qualipass2026";
     const payload = {
       U_Id: user.U_Id,
       U_Email: user.U_Email,
@@ -51,20 +52,10 @@ export async function POST(request: Request) {
       exp: Math.floor(Date.now() / 1000) + 900,
     };
 
-    const accessToken = await new Promise<string>((resolve) => {
-      import('jsonwebtoken').then(jwt => {
-        jwt.default.sign(payload, jwtSecret, (err, token) => {
-          resolve(token || '');
-        });
-      });
-    });
+    const accessToken = jwt.sign(payload, jwtSecret);
 
-    // ✅ GÉNÉRATION DU REFRESH TOKEN (7 jours) - Cookie HttpOnly
-    const refreshSecret = process.env.JWT_REFRESH_SECRET;
-    if (!refreshSecret) {
-      throw new Error('JWT_REFRESH_SECRET not configured');
-    }
-
+    // ✅ GÉNÉRATION DU REFRESH TOKEN (7 jours)
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || "qualirefresh2026";
     const refreshPayload = {
       U_Id: user.U_Id,
       tenantId: user.tenantId,
@@ -72,16 +63,11 @@ export async function POST(request: Request) {
       exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
     };
 
-    const refreshToken = await new Promise<string>((resolve) => {
-      import('jsonwebtoken').then(jwt => {
-        jwt.default.sign(refreshPayload, refreshSecret, (err, token) => {
-          resolve(token || '');
-        });
-      });
-    });
+    const refreshToken = jwt.sign(refreshPayload, refreshSecret);
 
-    // ✅ RÉPONSE AVEC COOKIE HTTPONLY (DOMAIN CROSS-SUBDOMAIN POUR OVH)
+    // ✅ PRÉPARATION DE LA RÉPONSE
     const response = NextResponse.json({
+      success: true,
       accessToken,
       expiresIn: 900,
       user: {
@@ -96,20 +82,35 @@ export async function POST(request: Request) {
       isMaster: false,
     });
 
-    // 🔒 COOKIE SÉCURISÉ POUR L'INFRASTRUCTURE OVH (CROSS-SUBDOMAIN)
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieDomain = isProd ? '.qualisoft.sn' : undefined;
+
+    // 🔒 SCELLAGE 1 : ACCESS TOKEN (Pour les layouts SSR Next.js)
+    // Path '/' essentiel pour que admin/layout.tsx puisse le lire
+    response.cookies.set('access_token', accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 900, // 15 minutes
+      path: '/',
+      domain: cookieDomain,
+    });
+
+    // 🔒 SCELLAGE 2 : REFRESH TOKEN (Pour la rotation sécurisée)
+    // Path '/api/auth' limite l'envoi de ce cookie uniquement aux routes d'authentification
     response.cookies.set('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 jours
       path: '/api/auth',
-      domain: process.env.NODE_ENV === 'production' ? '.qualisoft.sn' : undefined, // ✅ CRITIQUE POUR OVH
+      domain: cookieDomain,
     });
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
+    console.error('[LOGIN_ERROR]:', error);
+    return NextResponse.json({ success: false, error: 'Échec de la séquence d\'authentification' }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }

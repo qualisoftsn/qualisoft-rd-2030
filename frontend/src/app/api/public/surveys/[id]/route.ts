@@ -1,18 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* NOM COMPLET : src/app/api/public/surveys/[id]/route.ts
-   CORRECTIF : Compatibilité Next.js 15+ (Params as Promise)
-*/
+/**
+ * 🛰️ MODULE API : PUBLIC SURVEYS DYNAMIC ROUTE (elite-sde)
+ * -------------------------------------------------------------------------
+ * FIX : Next.js 15+ "Params as Promise" parfaitement scellé.
+ * RÉVISION : 04 Mars 2026 | 23:37 GMT
+ * -------------------------------------------------------------------------
+ */
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/core/lib/prisma';
 
-// 1. GET : Récupérer les détails de l'enquête
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // 👈 TYPAGE CORRIGÉ
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 👈 DÉBALLAGE DE LA PROMESSE (OBLIGATOIRE EN NEXT.JS 15+)
+    // Déballage asynchrone des paramètres (Obligation Next.js 15)
     const { id } = await params; 
 
     const campaign = await prisma.surveyCampaign.findUnique({
@@ -27,32 +30,28 @@ export async function GET(
     });
 
     if (!campaign) {
-      return NextResponse.json({ error: "Enquête introuvable ou archivée" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "Nœud d'enquête introuvable." }, { status: 404 });
     }
 
     if (campaign.SC_Status !== 'OPEN') {
-      return NextResponse.json({ error: "Cette enquête est actuellement fermée." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "Le registre de cette enquête est verrouillé." }, { status: 403 });
     }
 
-    return NextResponse.json(campaign);
+    return NextResponse.json({ success: true, data: campaign });
 
   } catch (error) {
-    console.error("Erreur Public Survey GET:", error);
-    return NextResponse.json({ error: "Erreur système" }, { status: 500 });
+    console.error("[PUBLIC_SURVEY_GET_ERROR]:", error);
+    return NextResponse.json({ success: false, error: "Erreur noyau Matrix" }, { status: 500 });
   }
 }
 
-// 2. POST : Enregistrer les réponses
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // 👈 TYPAGE CORRIGÉ
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 👈 DÉBALLAGE DE LA PROMESSE
     const { id } = await params;
-    
-    const body = await req.json();
-    const { respondent, responses, comment } = body; 
+    const { respondent, responses, comment } = await req.json(); 
 
     let totalScore = 0;
     let countScore = 0;
@@ -79,10 +78,10 @@ export async function POST(
       }
     });
 
-    return NextResponse.json({ success: true, id: result.RES_Id }, { status: 201 });
+    return NextResponse.json({ success: true, data: { id: result.RES_Id } }, { status: 201 });
 
   } catch (error) {
-    console.error("Erreur Public Survey POST:", error);
-    return NextResponse.json({ error: "Échec de l'enregistrement" }, { status: 500 });
+    console.error("[PUBLIC_SURVEY_POST_ERROR]:", error);
+    return NextResponse.json({ success: false, error: "Échec du scellage des réponses" }, { status: 500 });
   }
 }
