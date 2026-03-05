@@ -1,331 +1,155 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🛠️ MODULE : SESSION INTERACTIVE DE REVUE
+ * 🛠️ MODULE : SESSION INTERACTIVE DE REVUE (WORKFLOW)
  * -------------------------------------------------------------------------
- * RÔLE : Interface de saisie des analyses. Workflow de double signature.
- * ARCHITECTURE : Zéro NextAuth, Typage strict du formulaire SDE.
- * DATE : 02 Mars 2026 | 13:01 GMT
+ * RÔLE : Interface de saisie des analyses et workflow de signature.
+ * DESIGN : Elite High-Density, Fixed Toolbar, Split-View Matrix.
  * -------------------------------------------------------------------------
+ * DATE : 05 Mars 2026 | 18:15 GMT
  */
 
 "use client";
 
-import apiClient from "@/core/api/api-client";
-import {
-  AlertCircle,
-  ArrowLeft,
-  CheckCircle2,
-  ClipboardList,
-  Cpu,
-  ExternalLink,
-  Info,
-  Loader2,
-  PenTool,
-  Printer,
-  Save,
-  ShieldAlert,
-  ShieldCheck,
-  Target,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import apiClient from "@/core/api/api-client";
+import { 
+  ArrowLeft, CheckCircle2, ClipboardList, Cpu, 
+  Info, Loader2, PenTool, Printer, Save, ShieldAlert, 
+  Target, RefreshCw 
+} from "lucide-react";
 import { toast, Toaster } from "sonner";
 
-export default function RevueSessionPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const router = useRouter();
-  const resolvedParams = use(params);
-  const id = resolvedParams.id;
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
+export default function RevueSessionPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
+  const { id } = use(params);
   const [review, setReview] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Le modèle INTÉGRAL restauré (4 champs d'analyse + décisions)
-  const [formData, setFormData] = useState({
-    performance: "",
-    audit: "",
-    risk: "",
-    resources: "",
-    decisions: "",
+  const [form, setForm] = useState({
+    performance: "", audit: "", risk: "", resources: "", decisions: ""
   });
-
-  const months = [
-    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-  ];
 
   const loadData = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await apiClient.get(`/process-reviews/${id}`);
-      const data = res.data?.data || res.data;
-      setReview(data);
-      setFormData({
-        performance: data.PRV_PerformanceAnalysis || "",
-        audit: data.PRV_AuditAnalysis || "",
-        risk: data.PRV_RiskAnalysis || "",
-        resources: data.PRV_ResourcesAnalysis || "",
-        decisions: data.PRV_Decisions || "",
+      const d = res.data?.data || res.data;
+      setReview(d);
+      setForm({
+        performance: d.PRV_PerformanceAnalysis || "",
+        audit: d.PRV_AuditAnalysis || "",
+        risk: d.PRV_RiskAnalysis || "",
+        resources: d.PRV_ResourcesAnalysis || "",
+        decisions: d.PRV_Decisions || ""
       });
-    } catch (err) {
-      toast.error("Échec de connexion à la session SDE.");
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error("ÉCHEC DE CONNEXION SDE SESSION"); }
+    finally { setLoading(false); }
   }, [id]);
 
-  useEffect(() => {
-    if (id) loadData();
-  }, [id, loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleSave = async () => {
     setSaving(true);
-    const tid = toast.loading("Scellage du brouillon dans le noyau...");
     try {
       await apiClient.put(`/process-reviews/${id}`, {
-        PRV_PerformanceAnalysis: formData.performance,
-        PRV_AuditAnalysis: formData.audit,
-        PRV_RiskAnalysis: formData.risk,
-        PRV_ResourcesAnalysis: formData.resources,
-        PRV_Decisions: formData.decisions,
+        PRV_PerformanceAnalysis: form.performance,
+        PRV_AuditAnalysis: form.audit,
+        PRV_RiskAnalysis: form.risk,
+        PRV_ResourcesAnalysis: form.resources,
+        PRV_Decisions: form.decisions
       });
-      toast.success("Brouillon scellé dans le SMI", { id: tid });
-    } catch (e) {
-      toast.error("Erreur critique de persistance de la Matrix", { id: tid });
-    } finally {
-      setSaving(false);
-    }
+      toast.success("BROUILLON SCELLÉ DANS LE SMI");
+    } catch { toast.error("ERREUR DE PERSISTANCE MATRIX"); }
+    finally { setSaving(false); }
   };
 
   const handleSign = async () => {
-    if (review.PRV_Status === "VALIDEE") return;
-
-    const isDirectionSigning = review.PRV_PiloteSigned;
-    const msg = isDirectionSigning
-      ? "SCELLAGE FINAL : Voulez-vous clôturer cette revue et déclencher les actions PAQ ?"
-      : "VISA PILOTE : Voulez-vous valider notre analyse de performance ?";
-
-    if (!confirm(msg)) return;
-
-    const tid = toast.loading("Authentification et Signature en cours...");
+    if (!confirm("Voulez-vous sceller cette revue ? Cette action est irréversible.")) return;
     try {
-      const res = await apiClient.post(`/process-reviews/${id}/sign`);
-      const updatedData = res.data?.data || res.data;
-      setReview(updatedData);
-      
-      if (updatedData.PRV_Status === "VALIDEE") {
-        toast.success("REVUE CLÔTURÉE : Décisions injectées dans le PAQ.", { id: tid });
-      } else {
-        toast.success("VISA ENREGISTRÉ : En attente de la signature Direction.", { id: tid });
-      }
-    } catch (e) {
-      toast.error("Échec de l'authentification de signature.", { id: tid });
-    }
+      await apiClient.post(`/process-reviews/${id}/sign`);
+      toast.success("SESSION SCELLÉE & ACTIONS INJECTÉES");
+      loadData();
+    } catch { toast.error("ÉCHEC D'AUTHENTIFICATION DE SIGNATURE"); }
   };
 
-  if (loading || !review)
-    return (
-      <div className="ml-0 lg:ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] text-white italic font-black animate-pulse uppercase tracking-[0.3em] lg:tracking-[0.5em] gap-6 text-center px-6">
-        <Loader2 size={50} className="lg:w-16 lg:h-16 animate-spin text-blue-600" />
-        Sécurisation de la séance interactive...
-      </div>
-    );
+  if (loading) return <LoadingScreen label="Sécurisation de la séance interactive..." />;
 
   return (
-    <div className="ml-0 lg:ml-72 p-6 lg:p-12 bg-[#0B0F1A] min-h-screen text-white italic pb-64 lg:pb-64 font-sans selection:bg-blue-600/30 text-left overflow-x-hidden relative">
+    <div className="h-screen bg-[#0B0F1A] text-white italic font-black uppercase flex flex-col overflow-hidden w-full lg:pl-72 selection:bg-blue-600/30 relative">
       <Toaster position="top-right" richColors theme="dark" />
 
-      {/* 🔝 HEADER & STATUT DES VISAS */}
-      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-16 lg:mb-24 border-b-2 lg:border-b-4 border-white/5 pb-10 lg:pb-16 w-full max-w-7xl mx-auto animate-in fade-in duration-700 gap-10">
-        <div className="space-y-6 lg:space-y-8 w-full xl:w-auto">
-          <button
-            onClick={() => router.push("/dashboard/process-review")}
-            className="text-slate-500 flex items-center gap-3 lg:gap-4 uppercase font-black text-[10px] lg:text-[11px] hover:text-white transition-all border-none bg-transparent cursor-pointer italic tracking-[0.2em] lg:tracking-widest m-0"
-          >
-            <ArrowLeft size={16} className="lg:w-4.5 lg:h-4.5" /> Retour Registre Central
+      {/* 🔝 FIXED HEADER */}
+      <header className="shrink-0 p-8 border-b border-white/5 flex flex-col xl:flex-row justify-between items-center bg-[#0B0F1A]/95 backdrop-blur-xl z-50 gap-8 mt-12 lg:mt-0">
+        <div className="text-left space-y-3">
+          <button onClick={() => router.back()} className="flex items-center gap-3 text-[10px] text-slate-500 hover:text-white transition-all bg-transparent border-none cursor-pointer italic uppercase">
+            <ArrowLeft size={16} /> Retour Registre Central
           </button>
-          <div className="space-y-4">
-            <h1 className="text-4xl lg:text-7xl font-black uppercase tracking-tighter italic leading-none m-0">
-              Revue <span className="text-blue-600">Mensuelle</span>
-            </h1>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-8 mt-4 lg:mt-6">
-              <span className="bg-blue-600 px-6 py-2.5 lg:px-8 lg:py-3 rounded-xl lg:rounded-2xl text-[12px] lg:text-[14px] font-black uppercase tracking-[0.2em] lg:tracking-[0.3em] italic shadow-[0_10px_30px_rgba(37,99,235,0.3)] w-max">
-                {months[review.PRV_Month - 1] || review.PRV_Month} {review.PRV_Year}
-              </span>
-              <span className="text-slate-400 font-black uppercase text-[10px] lg:text-[12px] tracking-[0.2em] lg:tracking-[0.4em] flex items-center gap-3 lg:gap-4 italic leading-tight m-0">
-                <Target size={16} className="text-blue-500 shrink-0 lg:w-4.5 lg:h-4.5" /> 
-                Processus : {review.PRV_Processus?.PR_Libelle || 'NON SPÉCIFIÉ'}
-              </span>
-            </div>
-          </div>
+          <h1 className="text-4xl lg:text-5xl tracking-tighter leading-none m-0 italic">Revue <span className="text-blue-600">Processus</span></h1>
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 lg:gap-8 w-full xl:w-auto">
-          <div className={`flex-1 p-6 lg:p-10 rounded-4xl lg:rounded-[3rem] border-2 transition-all duration-700 relative overflow-hidden ${review.PRV_PiloteSigned ? "bg-emerald-500/10 border-emerald-500/30 shadow-2xl" : "bg-slate-900/50 border-white/5 opacity-50"}`}>
-            <p className="text-[9px] lg:text-[11px] font-black text-slate-500 uppercase mb-3 lg:mb-4 italic tracking-[0.2em] lg:tracking-[0.3em] text-left leading-none m-0">
-              Visa Pilote Rapporteur
-            </p>
-            <div className="flex items-center gap-3 lg:gap-4 text-left">
-              <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center shrink-0 ${review.PRV_PiloteSigned ? "bg-emerald-500 text-slate-950 shadow-lg" : "bg-slate-800"}`}>
-                {review.PRV_PiloteSigned ? <CheckCircle2 size={20} className="lg:w-6 lg:h-6" /> : <AlertCircle size={20} className="lg:w-6 lg:h-6" />}
-              </div>
-              <span className={`text-[11px] lg:text-[13px] font-black uppercase italic m-0 leading-tight ${review.PRV_PiloteSigned ? "text-emerald-500" : "text-slate-500"}`}>
-                {review.PRV_PiloteSigned ? "Approuvé" : "En attente"}
-              </span>
-            </div>
-          </div>
-
-          <div className={`flex-1 p-6 lg:p-10 rounded-4xl lg:rounded-[3rem] border-2 transition-all duration-700 relative overflow-hidden ${review.PRV_RQSigned ? "bg-emerald-500/10 border-emerald-500/30 shadow-2xl" : "bg-slate-900/50 border-white/5 opacity-50"}`}>
-            <p className="text-[9px] lg:text-[11px] font-black text-slate-500 uppercase mb-3 lg:mb-4 italic tracking-[0.2em] lg:tracking-[0.3em] text-left leading-none m-0">
-              Visa Direction / RQ
-            </p>
-            <div className="flex items-center gap-3 lg:gap-4 text-left">
-              <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center shrink-0 ${review.PRV_RQSigned ? "bg-emerald-500 text-slate-950 shadow-lg" : "bg-slate-800"}`}>
-                {review.PRV_RQSigned ? <CheckCircle2 size={20} className="lg:w-6 lg:h-6" /> : <ShieldCheck size={20} className="lg:w-6 lg:h-6" />}
-              </div>
-              <span className={`text-[11px] lg:text-[13px] font-black uppercase italic m-0 leading-tight ${review.PRV_RQSigned ? "text-emerald-500" : "text-slate-500"}`}>
-                {review.PRV_RQSigned ? "Validé" : "En attente"}
-              </span>
-            </div>
-          </div>
+        <div className="flex gap-4">
+           <SignStatus label="Visa Pilote" active={review.PRV_PiloteSigned} />
+           <SignStatus label="Visa Direction" active={review.PRV_RQSigned} />
         </div>
       </header>
 
-      {/* ✍️ ZONE DE TRAVAIL INTÉGRALE (4 CHAMPS D'ANALYSE + DÉCISIONS) */}
-      <div className="w-full max-w-7xl mx-auto space-y-8 lg:space-y-12 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          
-          <section className="bg-[#151A2D] p-8 lg:p-16 rounded-[3rem] lg:rounded-[4.5rem] border lg:border-2 border-white/5 space-y-6 lg:space-y-10 shadow-2xl flex flex-col">
-            <h2 className="text-[10px] lg:text-[12px] font-black text-blue-500 uppercase flex items-center gap-3 lg:gap-5 italic tracking-[0.2em] lg:tracking-[0.3em] leading-tight m-0">
-              <Info size={24} className="lg:w-7 lg:h-7 shrink-0" /> 1. Analyse de Performance (KPI)
-            </h2>
-            <textarea
-              className="flex-1 w-full bg-slate-950/60 border lg:border-2 border-white/10 rounded-4xl lg:rounded-[3rem] p-6 lg:p-12 min-h-50 lg:min-h-62.5 text-slate-200 font-bold text-sm lg:text-lg focus:border-blue-600 transition-all outline-none leading-relaxed resize-none shadow-inner italic m-0"
-              value={formData.performance}
-              onChange={(e) => setFormData({ ...formData, performance: e.target.value })}
-              placeholder="Saisissez l'analyse quantitative des résultats..."
-              disabled={review.PRV_Status === "VALIDEE"}
-            />
-          </section>
-
-          <section className="bg-[#151A2D] p-8 lg:p-16 rounded-[3rem] lg:rounded-[4.5rem] border lg:border-2 border-white/5 space-y-6 lg:space-y-10 shadow-2xl flex flex-col">
-            <h2 className="text-[10px] lg:text-[12px] font-black text-red-500 uppercase flex items-center gap-3 lg:gap-5 italic tracking-[0.2em] lg:tracking-[0.3em] leading-tight m-0">
-              <ClipboardList size={24} className="lg:w-7 lg:h-7 shrink-0" /> 2. Revues des Audits & Non-Conformités
-            </h2>
-            <textarea
-              className="flex-1 w-full bg-slate-950/60 border lg:border-2 border-white/10 rounded-4xl lg:rounded-[3rem] p-6 lg:p-12 min-h-50 lg:min-h-62.5 text-slate-200 font-bold text-sm lg:text-lg focus:border-red-600 transition-all outline-none leading-relaxed resize-none shadow-inner italic m-0"
-              value={formData.audit}
-              onChange={(e) => setFormData({ ...formData, audit: e.target.value })}
-              placeholder="Saisissez l'analyse des écarts constatés..."
-              disabled={review.PRV_Status === "VALIDEE"}
-            />
-          </section>
-
-          <section className="bg-[#151A2D] p-8 lg:p-16 rounded-[3rem] lg:rounded-[4.5rem] border lg:border-2 border-white/5 space-y-6 lg:space-y-10 shadow-2xl flex flex-col">
-            <h2 className="text-[10px] lg:text-[12px] font-black text-amber-500 uppercase flex items-center gap-3 lg:gap-5 italic tracking-[0.2em] lg:tracking-[0.3em] leading-tight m-0">
-              <ShieldAlert size={24} className="lg:w-7 lg:h-7 shrink-0" /> 3. Évolution des Risques & Opportunités
-            </h2>
-            <textarea
-              className="flex-1 w-full bg-slate-950/60 border lg:border-2 border-white/10 rounded-4xl lg:rounded-[3rem] p-6 lg:p-12 min-h-50 lg:min-h-62.5 text-slate-200 font-bold text-sm lg:text-lg focus:border-amber-600 transition-all outline-none leading-relaxed resize-none shadow-inner italic m-0"
-              value={formData.risk}
-              onChange={(e) => setFormData({ ...formData, risk: e.target.value })}
-              placeholder="Saisissez l'évolution de la cartographie des risques..."
-              disabled={review.PRV_Status === "VALIDEE"}
-            />
-          </section>
-
-          <section className="bg-[#151A2D] p-8 lg:p-16 rounded-[3rem] lg:rounded-[4.5rem] border lg:border-2 border-white/5 space-y-6 lg:space-y-10 shadow-2xl flex flex-col">
-            <h2 className="text-[10px] lg:text-[12px] font-black text-purple-500 uppercase flex items-center gap-3 lg:gap-5 italic tracking-[0.2em] lg:tracking-[0.3em] leading-tight m-0">
-              <Cpu size={24} className="lg:w-7 lg:h-7 shrink-0" /> 4. Besoins en Ressources (RH, Infra, SI)
-            </h2>
-            <textarea
-              className="flex-1 w-full bg-slate-950/60 border lg:border-2 border-white/10 rounded-4xl lg:rounded-[3rem] p-6 lg:p-12 min-h-50 lg:min-h-62.5 text-slate-200 font-bold text-sm lg:text-lg focus:border-purple-600 transition-all outline-none leading-relaxed resize-none shadow-inner italic m-0"
-              value={formData.resources}
-              onChange={(e) => setFormData({ ...formData, resources: e.target.value })}
-              placeholder="Définir les besoins matériels, humains ou financiers..."
-              disabled={review.PRV_Status === "VALIDEE"}
-            />
-          </section>
+      {/* 📝 SPLIT WORKZONE */}
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-40">
+        <div className="max-w-400 mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <AnalysisField label="1. Analyse Performance (KPI)" val={form.performance} setVal={(v: any) => setForm({...form, performance: v})} icon={Info} color="blue" disabled={review.PRV_Status === 'VALIDEE'} />
+          <AnalysisField label="2. Revues Audits & NC" val={form.audit} setVal={(v: any) => setForm({...form, audit: v})} icon={ClipboardList} color="red" disabled={review.PRV_Status === 'VALIDEE'} />
+          <AnalysisField label="3. Risques & Opportunités" val={form.risk} setVal={(v: any) => setForm({...form, risk: v})} icon={ShieldAlert} color="amber" disabled={review.PRV_Status === 'VALIDEE'} />
+          <AnalysisField label="4. Besoins en Ressources" val={form.resources} setVal={(v: any) => setForm({...form, resources: v})} icon={Cpu} color="purple" disabled={review.PRV_Status === 'VALIDEE'} />
+          <div className="lg:col-span-2">
+             <AnalysisField label="5. Décisions Stratégiques & Mutations (PAQ)" val={form.decisions} setVal={(v: any) => setForm({...form, decisions: v})} icon={Target} color="emerald" full disabled={review.PRV_Status === 'VALIDEE'} large />
+          </div>
         </div>
+      </main>
 
-        <section className="bg-linear-to-br from-blue-600/10 to-emerald-600/10 p-8 lg:p-16 rounded-[3rem] lg:rounded-[5.5rem] border-2 lg:border-4 border-white/5 space-y-8 lg:space-y-12 shadow-2xl flex flex-col">
-          <h2 className="text-2xl lg:text-4xl font-black text-emerald-500 uppercase flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-8 italic leading-tight lg:leading-none tracking-tighter m-0">
-            <Target size={40} className="lg:w-12 lg:h-12 shrink-0" /> 5. Décisions Stratégiques & Mutations (PAQ)
-          </h2>
-          <textarea
-            className="flex-1 w-full bg-slate-950/80 border lg:border-2 border-emerald-500/20 rounded-4xl lg:rounded-[4rem] p-8 lg:p-16 min-h-62.5 lg:min-h-87.5 text-white font-black text-xl lg:text-3xl focus:border-emerald-500 transition-all outline-none shadow-2xl italic leading-tight placeholder:text-slate-800 m-0"
-            value={formData.decisions}
-            onChange={(e) => setFormData({ ...formData, decisions: e.target.value })}
-            placeholder="ENTREZ VOS DÉCISIONS ICI (1 PAR LIGNE)..."
-            disabled={review.PRV_Status === "VALIDEE"}
-          />
-
-          {review.PRV_Status === "VALIDEE" && (
-            <div className="bg-emerald-500/10 border lg:border-2 border-emerald-500/20 rounded-[2.5rem] lg:rounded-[3.5rem] p-8 lg:p-12 mt-8 lg:mt-12 animate-in slide-in-from-bottom-6 duration-700">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 lg:mb-10">
-                <h4 className="text-emerald-500 font-black uppercase text-[10px] lg:text-[12px] tracking-[0.2em] lg:tracking-[0.4em] flex items-center gap-3 lg:gap-4 italic m-0 leading-snug">
-                  <CheckCircle2 size={20} className="lg:w-6 lg:h-6 shrink-0" /> Actions injectées au Plan Qualité
-                </h4>
-                <button
-                  onClick={() => router.push("/dashboard/paq")}
-                  className="text-[10px] lg:text-[12px] font-black uppercase text-slate-400 hover:text-white flex items-center gap-2 lg:gap-4 transition-all border-none bg-transparent cursor-pointer italic leading-none m-0 w-max"
-                >
-                  Ouvrir le PAQ <ExternalLink size={16} className="lg:w-4.5 lg:h-4.5" />
-                </button>
-              </div>
-              <div className="space-y-4 lg:space-y-6 opacity-90 italic text-base lg:text-xl font-bold">
-                {(formData.decisions || "")
-                  .split("\n")
-                  .filter((l) => l.trim() !== "")
-                  .map((line, idx) => (
-                    <div
-                      key={idx}
-                      className="flex gap-4 lg:gap-6 text-slate-300 border-b border-white/5 pb-4 lg:pb-6 last:border-0 leading-tight"
-                    >
-                      <span className="text-emerald-500 font-black text-xl lg:text-2xl leading-none shrink-0">
-                        »
-                      </span>
-                      {line}
-                    </div>
-                  ))}
-                {(!formData.decisions || formData.decisions.trim() === "") && (
-                  <div className="text-slate-500 text-sm">Aucune décision renseignée.</div>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* 🚀 BARRE D'ACTIONS SOUVERAINE FIXE (RÉPONSIVE) */}
-      <div className="fixed bottom-6 left-4 right-4 lg:left-[calc(50%+144px)] lg:right-auto lg:-translate-x-1/2 z-50 flex flex-col sm:flex-row gap-4 lg:gap-8 bg-[#0F172A]/95 backdrop-blur-3xl p-4 lg:p-8 rounded-4xl lg:rounded-[4rem] border lg:border-2 border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-10 duration-700 lg:w-max">
-        <button
-          onClick={() => router.push(`/dashboard/process-review/report/${id}`)}
-          className="flex flex-1 justify-center sm:flex-none items-center gap-3 lg:gap-5 px-6 py-4 lg:px-12 lg:py-8 bg-white/5 hover:bg-white/10 text-white rounded-3xl lg:rounded-[3rem] font-black uppercase text-[10px] lg:text-[11px] tracking-[0.2em] lg:tracking-[0.4em] transition-all border-none cursor-pointer italic m-0"
-        >
-          <Printer size={18} className="lg:w-6 lg:h-6" /> <span className="hidden sm:inline">Générer</span> PV PDF
+      {/* 🚀 FLOATING ACTION BAR */}
+      <div className="fixed bottom-10 left-4 lg:left-1/2 lg:-translate-x-1/2 right-4 lg:right-auto z-50 bg-[#0F172A]/95 backdrop-blur-3xl p-6 rounded-[3.5rem] border-2 border-white/10 shadow-4xl flex gap-6 items-center">
+        <button onClick={() => router.push(`/dashboard/process-review/report/${id}`)} className="p-6 bg-white/5 hover:bg-white/10 rounded-3xl border border-white/5 transition-all cursor-pointer text-slate-400"><Printer size={24}/></button>
+        <button onClick={handleSave} disabled={saving || review.PRV_Status === 'VALIDEE'} className="flex-1 lg:flex-none px-12 py-6 bg-white/5 hover:bg-white/10 rounded-[2.5rem] text-[11px] font-black italic border-none cursor-pointer uppercase transition-all tracking-widest text-white disabled:opacity-20 flex items-center gap-3">
+          {saving ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>} Sauvegarder
         </button>
-        <button
-          onClick={handleSave}
-          disabled={saving || review.PRV_Status === "VALIDEE"}
-          className="flex flex-1 justify-center sm:flex-none items-center gap-3 lg:gap-5 px-6 py-4 lg:px-14 lg:py-8 bg-white/5 hover:bg-white/10 text-white rounded-3xl lg:rounded-[3rem] font-black uppercase text-[10px] lg:text-[11px] tracking-[0.2em] lg:tracking-[0.4em] transition-all disabled:opacity-30 border-none cursor-pointer italic m-0"
-        >
-          {saving ? <Loader2 className="animate-spin lg:w-6 lg:h-6" size={18} /> : <Save size={18} className="lg:w-6 lg:h-6" />} 
-          Sauvegarder
-        </button>
-        <button
-          onClick={handleSign}
-          disabled={review.PRV_Status === "VALIDEE"}
-          className={`flex flex-1 justify-center sm:flex-none items-center gap-3 lg:gap-5 px-6 py-4 lg:px-16 lg:py-8 rounded-3xl lg:rounded-[3rem] font-black uppercase text-[10px] lg:text-[11px] tracking-[0.2em] lg:tracking-[0.5em] shadow-xl lg:shadow-3xl transition-all border-none cursor-pointer italic text-white m-0 ${review.PRV_Status === "VALIDEE" ? "bg-emerald-600 shadow-emerald-900/40 cursor-default" : "bg-blue-600 hover:bg-blue-500 active:scale-95 shadow-blue-900/40"}`}
-        >
-          {review.PRV_Status === "VALIDEE" ? <CheckCircle2 size={18} className="lg:w-6 lg:h-6" /> : <PenTool size={18} className="lg:w-6 lg:h-6" />}
-          {review.PRV_Status === "VALIDEE" ? "SCELLÉ DANS LE SMI" : "Signer & Clôturer"}
+        <button onClick={handleSign} disabled={review.PRV_Status === 'VALIDEE'} className={cn("flex-1 lg:flex-none px-16 py-6 rounded-[2.5rem] text-[11px] font-black italic border-none cursor-pointer uppercase transition-all tracking-widest text-white shadow-4xl flex items-center gap-3", review.PRV_Status === 'VALIDEE' ? "bg-emerald-600" : "bg-blue-600 hover:scale-105")}>
+          {review.PRV_Status === 'VALIDEE' ? <CheckCircle2 size={20}/> : <PenTool size={20}/>} 
+          {review.PRV_Status === 'VALIDEE' ? "Session Scellée" : "Signer & Clôturer"}
         </button>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 0px; }` }} />
+    </div>
+  );
+}
+
+function AnalysisField({ label, val, setVal, icon: Icon, color, disabled, large }: any) {
+  const c: any = { blue: "text-blue-500 border-blue-500/10", red: "text-red-500 border-red-500/10", amber: "text-amber-500 border-amber-500/10", purple: "text-purple-500 border-purple-500/10", emerald: "text-emerald-500 border-emerald-500/10" };
+  return (
+    <div className={cn("bg-[#151B2B] p-10 lg:p-14 rounded-[3.5rem] border-2 shadow-4xl flex flex-col gap-8 h-full transition-all", c[color])}>
+       <h3 className="text-[11px] font-black tracking-[0.4em] m-0 italic flex items-center gap-4"><Icon size={20}/> {label}</h3>
+       <textarea disabled={disabled} value={val} onChange={(e) => setVal(e.target.value)} className={cn("w-full flex-1 bg-black/40 border-2 border-white/5 rounded-[2.5rem] p-8 text-sm font-bold text-slate-300 outline-none focus:border-white/20 italic shadow-inner resize-none uppercase", large ? "text-xl font-black text-white lg:min-h-96" : "min-h-48")} placeholder="Saisissez votre analyse..." />
+    </div>
+  );
+}
+
+function SignStatus({ label, active }: any) {
+  return (
+    <div className={cn("px-8 py-4 rounded-3xl border-2 flex items-center gap-4 transition-all duration-700 shadow-2xl", active ? "bg-emerald-600/10 border-emerald-500/30 text-emerald-500" : "bg-white/5 border-white/10 text-slate-600")}>
+       <div className={cn("w-3 h-3 rounded-full", active ? "bg-emerald-500 shadow-[0_0_10px_emerald]" : "bg-slate-700")} />
+       <span className="text-[10px] font-black tracking-widest italic">{label}</span>
+    </div>
+  );
+}
+
+function LoadingScreen({ label }: { label: string }) {
+  return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-8 lg:pl-72 text-indigo-500 italic font-black uppercase tracking-[0.5em]">
+      <RefreshCw className="animate-spin" size={70} strokeWidth={1} />
+      <span className="text-[10px] animate-pulse text-center px-10 leading-relaxed uppercase">{label}</span>
     </div>
   );
 }

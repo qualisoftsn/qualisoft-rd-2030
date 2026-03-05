@@ -1,50 +1,41 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 🛰️ MODULE : page.tsx (Détail & Résolution NC)
+ * 🛰️ MODULE : RÉSOLUTION NC §10.2 (ELITE-SDE)
  * -------------------------------------------------------------------------
- * CHEMIN : src/app/dashboard/non-conformites/[id]/page.tsx
- * RÔLE : Visualisation, diagnostic et clôture d'un écart (§10.2).
- * RÉVISION : 03 Mars 2026 | 16:30 GMT
+ * RÔLE : Diagnostic, plan d'action et scellage de clôture d'un écart.
+ * DESIGN : Cockpit 100dvh, Layout Multi-Panneaux, ClickUp Density.
  * -------------------------------------------------------------------------
+ * DATE : 05 Mars 2026 | 17:15 GMT
  */
 
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
-import { useAuthStore } from '@/store/authStore';
 import {
-  AlertOctagon, ArrowLeft, CheckCircle2, Clock,
-  FileText, Loader2, Search, Wrench, ShieldCheck, Lock, 
-  Activity, ShieldAlert, Zap
+  AlertOctagon, ArrowLeft, CheckCircle2, 
+  FileText, Search, Wrench, ShieldCheck, 
+  Activity, ShieldAlert, RefreshCcw, Save
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
-// 🔱 RÉFÉRENTIEL ELITE-SDE
-import {
-  NonConformite,
-  NCStatus,
-  NCStatus as NCStatusEnum,
-  NCGravity as NCGravityEnum
-} from '@/types/elite-sde';
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 const WORKFLOW_STEPS = [
-  { id: NCStatusEnum.DETECTION, label: 'DÉTECTION', icon: AlertOctagon },
-  { id: NCStatusEnum.ANALYSE, label: 'DIAGNOSTIC', icon: Search },
-  { id: NCStatusEnum.ACTION_EN_COURS, label: 'PLAN D\'ACTION', icon: Wrench },
-  { id: NCStatusEnum.VERIFICATION, label: 'VÉRIFICATION', icon: ShieldCheck },
-  { id: NCStatusEnum.CLOTURE, label: 'CLÔTURE', icon: CheckCircle2 },
+  { id: 'DETECTION', label: 'DÉTECTION', icon: AlertOctagon },
+  { id: 'ANALYSE', label: 'DIAGNOSTIC', icon: Search },
+  { id: 'ACTION_EN_COURS', label: 'PLAN ACTION', icon: Wrench },
+  { id: 'VERIFICATION', label: 'VÉRIFICATION', icon: ShieldCheck },
+  { id: 'CLOTURE', label: 'CLÔTURE', icon: CheckCircle2 },
 ];
 
 export default function NonConformiteDetailPage() {
   const router = useRouter();
   const params = useParams();
   const ncId = params.id as string;
-  const { user } = useAuthStore() as any;
 
-  const [nc, setNc] = useState<NonConformite | null>(null);
+  const [nc, setNc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [diagnostic, setDiagnostic] = useState('');
@@ -52,132 +43,121 @@ export default function NonConformiteDetailPage() {
   const fetchNC = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<NonConformite>(`/non-conformites/${ncId}`);
-      setNc(res.data);
-      setDiagnostic(res.data.NC_Diagnostic || '');
-    } catch (err) {
-      toast.error('ÉCHEC DE LOCALISATION DE L\'ÉCART');
+      const res = await apiClient.get(`/non-conformites/${ncId}`);
+      const data = res.data?.data || res.data;
+      setNc(data);
+      setDiagnostic(data.NC_Diagnostic || '');
+    } catch {
+      toast.error('RUPTURE LIAISON : ÉCART INTROUVABLE');
       router.push('/dashboard/non-conformites');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [ncId, router]);
 
   useEffect(() => { fetchNC(); }, [fetchNC]);
 
-  const handleUpdatePhase = async (nextStatus: NCStatus, payload: Partial<NonConformite> = {}) => {
+  const handleUpdatePhase = async (nextStatus: string, payload: any = {}) => {
     setSaving(true);
-    const tid = toast.loading(`SCELLAGE : PASSAGE EN ${nextStatus}...`);
+    const tid = toast.loading(`SCELLAGE KERNEL : PASSAGE EN ${nextStatus}...`);
     try {
-      await apiClient.patch(`/non-conformites/${ncId}`, {
-        NC_Statut: nextStatus,
-        ...payload
-      });
-      toast.success(`PHASE SCELLÉE : ${nextStatus}`, { id: tid });
+      await apiClient.patch(`/non-conformites/${ncId}`, { NC_Statut: nextStatus, ...payload });
+      toast.success(`PHASE SCELLÉE : ${nextStatus} (§10.2)`, { id: tid });
       fetchNC();
-    } catch (error) {
-      toast.error('ERREUR DE COMMUNICATION KERNEL');
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error('ERREUR DE COMMUNICATION KERNEL'); }
+    finally { setSaving(false); }
   };
 
-  if (loading || !nc) return (
-    <div className="flex h-[80vh] items-center justify-center italic text-blue-500 font-black uppercase tracking-[0.4em]">
-      <Loader2 className="h-10 w-10 animate-spin mr-6" /> Synchronisation du dossier...
-    </div>
-  );
+  if (loading) return <LoadingScreen label="Ouverture du Dossier NC §10.2..." />;
 
-  const currentStepIndex = WORKFLOW_STEPS.findIndex(s => s.id === nc.NC_Statut);
-  const isClosed = nc.NC_Statut === NCStatusEnum.CLOTURE;
+  const currentStepIndex = WORKFLOW_STEPS.findIndex(s => s.id === nc?.NC_Statut);
+  const isClosed = nc?.NC_Statut === 'CLOTURE';
 
   return (
-    <div className="bg-[#0B0F1A] min-h-screen p-6 lg:p-10 text-white font-sans italic selection:bg-blue-600/30 animate-in fade-in duration-500">
+    <div className="h-screen bg-[#0B0F1A] text-white italic font-black uppercase flex flex-col overflow-hidden w-full lg:pl-72 selection:bg-red-600/30">
       <Toaster position="top-right" richColors theme="dark" />
 
       {/* 🔝 HEADER */}
-      <header className="mb-12 border-b border-white/5 pb-8">
-        <button 
-          onClick={() => router.push('/dashboard/non-conformites')} 
-          className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-500 tracking-widest hover:text-white transition-all mb-8 bg-transparent border-none cursor-pointer"
-        >
-          <ArrowLeft size={14} /> Registre des Non-Conformités
+      <header className="shrink-0 p-8 border-b border-white/5 flex flex-col xl:flex-row justify-between items-center bg-[#0B0F1A]/95 backdrop-blur-xl z-50 gap-8 mt-12 lg:mt-0">
+        <button onClick={() => router.push('/dashboard/non-conformites')} className="flex items-center gap-3 text-[10px] text-slate-500 hover:text-white transition-all bg-transparent border-none cursor-pointer italic tracking-widest">
+          <ArrowLeft size={16} /> Retour au registre
         </button>
-
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <span className="rounded-xl bg-red-600/10 border border-red-500/20 px-4 py-1.5 text-[9px] font-black text-red-500 uppercase tracking-widest">
-                REF: {nc.NC_Id.slice(0, 8).toUpperCase()}
-              </span>
-              <span className={`rounded-xl px-4 py-1.5 text-[9px] font-black uppercase tracking-widest border ${
-                nc.NC_Gravite === NCGravityEnum.CRITIQUE ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'
-              }`}>
-                {nc.NC_Gravite}
-              </span>
-            </div>
-            <h1 className="text-4xl font-black uppercase tracking-tighter m-0">{nc.NC_Libelle}</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-400 font-black text-[10px] uppercase tracking-widest">
-              <Activity size={16} className={isClosed ? "text-emerald-500" : "text-amber-500 animate-pulse"} /> 
-              {nc.NC_Statut}
-            </div>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-400 text-[10px] tracking-[0.2em] shadow-inner">
+            <Activity size={18} className={isClosed ? "text-emerald-500" : "text-amber-500 animate-pulse"} /> {nc.NC_Statut}
           </div>
         </div>
       </header>
 
-      {/* 🔄 STEPPER */}
-      <div className="mb-16 relative">
-        <div className="absolute top-1/2 left-0 w-full h-1 bg-white/5 -translate-y-1/2 rounded-full z-0" />
-        <div className="absolute top-1/2 left-0 h-1 bg-blue-600 -translate-y-1/2 rounded-full z-0 transition-all duration-700" style={{ width: `${(currentStepIndex / (WORKFLOW_STEPS.length - 1)) * 100}%` }} />
-        <div className="relative z-10 flex justify-between">
+      {/* 🔄 STEPPER MATRIX */}
+      <div className="shrink-0 p-10 pb-0 flex flex-col items-center">
+        <div className="w-full max-w-5xl relative flex justify-between px-10">
+          <div className="absolute top-1/2 left-20 right-20 h-1 bg-white/5 -translate-y-1/2 z-0 rounded-full" />
+          <div className="absolute top-1/2 left-20 h-1 bg-red-600 -translate-y-1/2 z-0 transition-all duration-1000 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.5)]" style={{ width: `${(currentStepIndex / (WORKFLOW_STEPS.length - 1)) * 100 * 0.8}%` }} />
           {WORKFLOW_STEPS.map((step, index) => (
-            <div key={step.id} className="flex flex-col items-center gap-3">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 transition-all ${index <= currentStepIndex ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-600/20' : 'bg-[#0B0F1A] border-white/10 text-slate-600'}`}>
-                <step.icon size={18} />
+            <div key={step.id} className="flex flex-col items-center gap-4 relative z-10">
+              <div className={cn("w-14 h-14 rounded-3xl flex items-center justify-center border-2 transition-all duration-500 shadow-2xl", index <= currentStepIndex ? 'bg-red-600 border-red-400 text-white' : 'bg-[#0B0F1A] border-white/10 text-slate-700')}>
+                <step.icon size={24} />
               </div>
-              <span className={`text-[8px] font-black uppercase tracking-widest ${index === currentStepIndex ? 'text-white' : 'text-slate-600'}`}>{step.label}</span>
+              <span className={cn("text-[8px] tracking-[0.3em]", index === currentStepIndex ? 'text-white' : 'text-slate-700')}>{step.label}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 🛠️ CONTENU PRINCIPAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-[#0F172A] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl">
-            <h2 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em] mb-6 flex items-center gap-3">
-              <FileText size={16} className="text-blue-500" /> Constat
-            </h2>
-            <p className="text-sm text-slate-300 leading-relaxed font-bold uppercase">{nc.NC_Description}</p>
-          </div>
-        </div>
+      {/* 📋 WORKZONE */}
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-10 lg:p-14">
+        <div className="max-w-7xl mx-auto grid grid-cols-12 gap-12 text-left">
+          
+          <div className="col-span-12 lg:col-span-4 space-y-10">
+            <div className="bg-[#151B2B] border-2 border-white/5 rounded-[4rem] p-12 shadow-4xl relative overflow-hidden">
+               <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none rotate-12"><ShieldAlert size={200} /></div>
+               <span className="text-[10px] text-red-500 tracking-[0.5em] mb-4 block">IDENTITÉ ÉCART</span>
+               <h1 className="text-4xl font-black m-0 leading-none tracking-tighter uppercase italic">{nc.NC_Libelle}</h1>
+               <div className="mt-10 pt-10 border-t border-white/5 space-y-6">
+                  <div className="flex justify-between items-center"><span className="text-[9px] text-slate-500">GRAVITÉ</span><span className="text-sm font-black text-red-500 italic">{nc.NC_Gravite}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-[9px] text-slate-500">SOURCE</span><span className="text-sm font-black text-blue-500 italic">{nc.NC_Source}</span></div>
+               </div>
+            </div>
 
-        <div className="lg:col-span-8 space-y-8">
-          <div className={`bg-[#0F172A] border rounded-[2.5rem] p-10 shadow-2xl transition-all ${currentStepIndex >= 1 ? 'border-blue-500/20' : 'opacity-40 grayscale'}`}>
-            <h2 className="text-sm font-black uppercase text-white tracking-[0.2em] mb-6 flex items-center gap-4">
-              <Search size={20} className="text-blue-500" /> Analyse & Diagnostic (§10.2)
-            </h2>
-            <textarea 
-              value={diagnostic} 
-              onChange={e => setDiagnostic(e.target.value)} 
-              disabled={currentStepIndex > 1 || isClosed}
-              className="w-full bg-black/40 border border-white/10 rounded-3xl p-6 text-sm font-bold italic text-slate-300 outline-none focus:border-blue-500 transition-all uppercase resize-none h-40" 
-              placeholder="Saisir l'analyse des causes racines..." 
-            />
-            {currentStepIndex <= 1 && !isClosed && (
-              <button 
-                onClick={() => handleUpdatePhase(NCStatusEnum.ACTION_EN_COURS, { NC_Diagnostic: diagnostic })} 
-                disabled={saving || !diagnostic.trim()} 
-                className="mt-6 w-full py-4 rounded-2xl bg-blue-600 hover:bg-white hover:text-blue-600 text-white font-black uppercase text-[10px] tracking-widest shadow-xl border-none cursor-pointer transition-all"
-              >
-                Valider le diagnostic
-              </button>
-            )}
+            <div className="bg-black/40 border-2 border-white/5 rounded-[4rem] p-10 shadow-inner">
+               <h4 className="text-[10px] text-slate-600 tracking-[0.4em] mb-6 m-0 uppercase flex items-center gap-3"><FileText size={14} /> Description Constat</h4>
+               <p className="text-sm text-slate-300 font-bold leading-relaxed m-0 italic uppercase">{nc.NC_Description}</p>
+            </div>
           </div>
+
+          <div className="col-span-12 lg:col-span-8 space-y-10">
+            <div className={cn("bg-[#151B2B] border-2 rounded-[4rem] p-12 shadow-4xl transition-all", currentStepIndex >= 1 ? 'border-red-600/20' : 'opacity-20 grayscale')}>
+              <h2 className="text-2xl font-black mb-10 m-0 flex items-center gap-6"><Search className="text-red-500" size={32} /> Analyse des Causes Racines (§10.2)</h2>
+              <textarea 
+                value={diagnostic} 
+                onChange={e => setDiagnostic(e.target.value)} 
+                disabled={currentStepIndex > 1 || isClosed}
+                className="w-full bg-black/40 border-2 border-white/5 rounded-[3rem] p-10 text-lg font-bold italic text-slate-300 outline-none focus:border-red-600 transition-all uppercase resize-none h-64 shadow-inner leading-relaxed" 
+                placeholder="DÉTAILLER L'ANALYSE DES CAUSES (5 POURQUOI / ISHIKAWA)..." 
+              />
+              {currentStepIndex <= 1 && !isClosed && (
+                <button 
+                  onClick={() => handleUpdatePhase('ACTION_EN_COURS', { NC_Diagnostic: diagnostic })} 
+                  disabled={saving || !diagnostic.trim()} 
+                  className="mt-10 w-full py-6 rounded-[2.5rem] bg-red-600 hover:bg-white hover:text-red-600 text-white font-black text-[12px] tracking-[0.4em] shadow-4xl border-none cursor-pointer transition-all active:scale-95"
+                >
+                  {saving ? <RefreshCcw className="animate-spin" /> : <Save size={18} className="inline mr-4" />} Valider & Sceller l&apos;Analyse
+                </button>
+              )}
+            </div>
+          </div>
+          
         </div>
-      </div>
+      </main>
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 3px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(220,38,38,0.1); border-radius: 10px; }` }} />
+    </div>
+  );
+}
+
+function LoadingScreen({ label }: { label: string }) {
+  return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-8 lg:pl-72 text-red-600 italic font-black uppercase tracking-[0.5em]">
+      <RefreshCcw className="animate-spin" size={70} strokeWidth={1} />
+      <span className="text-[10px] animate-pulse text-center">{label}</span>
     </div>
   );
 }

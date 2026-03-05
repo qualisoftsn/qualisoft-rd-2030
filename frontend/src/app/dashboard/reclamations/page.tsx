@@ -1,151 +1,146 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 📋 MODULE : ReclamationsPage.tsx
+ * 🛰️ MODULE : RECLAMATIONS REGISTRY (ELITE SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Pilotage du registre des réclamations tiers (§8.2.1 ISO 9001).
- * FIX : Stabilisation du typage de réponse API (Array vs Object Wrapper).
- * RÉVISION : 02 Mars 2026 | 19:15 GMT
+ * DESIGN : High-Density, ClickUp Cockpit, 100dvh.
+ * ARCHITECTURE : Zéro NextAuth (100% apiClient JWT).
+ * -------------------------------------------------------------------------
+ * DATE : 06 Mars 2026 | 10:15 GMT
  */
 
 "use client";
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { toast } from 'sonner';
-import { Plus, RefreshCcw, FileText, Filter, Search } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { toast, Toaster } from 'sonner';
+import { Plus, RefreshCcw, FileText, Search, Filter, ShieldAlert, ChevronRight, Activity, RefreshCw } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
-import ReclamationList from '@/components/reclamations/ReclamationList';
-import ReclamationForm from '@/components/reclamations/ReclamationForm';
-import Modal from '@/components/shared/Modal';
-
-// 🔱 INTERFACE SCELLÉE
-interface Reclamation {
-  REC_Id: string;
-  REC_Reference: string;
-  REC_Object: string;
-  REC_Status: string;
-  REC_DateReceipt: string;
-  REC_Tier?: { TR_Name: string };
-}
+import { useRouter } from 'next/navigation';
+import { cn } from '@/core/utils/cn';
 
 export default function ReclamationsPage() {
-  const [reclamations, setReclamations] = useState<Reclamation[]>([]);
+  const router = useRouter();
+  const [reclamations, setReclamations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  /**
-   * 📡 SYNCHRONISATION KERNEL
-   * On accepte Reclamation[] ou { data: Reclamation[] } pour parer toute variation du backend.
-   */
   const fetchReclamations = useCallback(async () => {
-    setLoading(true);
     try {
-      // ✅ FIX TYPE ERROR : On utilise 'any' sur la réponse brute pour le filtrage dynamique
+      setLoading(true);
       const res = await apiClient.get<any>('/reclamations');
-      
-      // Logique de déballage sécurisée
-      const rawData = res.data;
-      const finalData = Array.isArray(rawData) 
-        ? rawData 
-        : (Array.isArray(rawData?.data) ? rawData.data : []);
-
-      setReclamations(finalData);
-    } catch (err) {
-      toast.error('ÉCHEC KERNEL : Impossible de synchroniser le registre ISO 10002');
-      setReclamations([]);
-    } finally {
-      setLoading(false);
-    }
+      const data = res.data?.data || res.data || [];
+      setReclamations(Array.isArray(data) ? data : []);
+    } catch {
+      toast.error('ÉCHEC KERNEL : Synchronisation registre ISO 10002 interrompue.');
+    } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    fetchReclamations();
-  }, [fetchReclamations]);
+  useEffect(() => { fetchReclamations(); }, [fetchReclamations]);
+
+  const filtered = useMemo(() => {
+    const t = searchTerm.toLowerCase();
+    return reclamations.filter(r => 
+      r.REC_Reference?.toLowerCase().includes(t) || 
+      r.REC_Object?.toLowerCase().includes(t) ||
+      r.Tier?.TR_Name?.toLowerCase().includes(t)
+    );
+  }, [searchTerm, reclamations]);
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700 italic font-sans text-left">
-      
-      {/* 🚀 HEADER DE PILOTAGE */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter m-0 italic">
-            Registre <span className="text-blue-500 underline decoration-white/10">Réclamations</span>
-          </h1>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mt-4 m-0">
-            Monitoring des signaux tiers • ISO 9001:2015
-          </p>
+    <div className="h-screen bg-[#0B0F1A] text-white italic font-black uppercase flex flex-col overflow-hidden w-full lg:pl-72 selection:bg-blue-600/30">
+      <Toaster position="top-right" richColors theme="dark" />
+
+      {/* 🔝 HEADER TACTIQUE */}
+      <header className="shrink-0 p-8 border-b border-white/5 flex flex-col xl:flex-row justify-between items-center bg-[#0B0F1A]/95 backdrop-blur-xl z-50 gap-6 mt-12 lg:mt-0">
+        <div className="text-left space-y-3">
+          <div className="flex items-center gap-4">
+            <span className="bg-blue-600/10 border border-blue-500/20 px-4 py-1 rounded-xl text-[9px] text-blue-500 tracking-widest italic shadow-inner">ISO 9001 §8.2.1 Compliance</span>
+            <span className="text-slate-500 text-[9px] tracking-widest uppercase">{reclamations.length} DOSSIER(S) ACTIFS</span>
+          </div>
+          <h1 className="text-4xl lg:text-5xl tracking-tighter leading-none m-0 italic">Registre <span className="text-blue-500 underline decoration-white/10">Réclamations</span></h1>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => fetchReclamations()}
-            className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-slate-400 hover:text-blue-500 transition-all cursor-pointer"
-          >
-            <RefreshCcw size={20} className={loading ? 'animate-spin' : ''} />
+        <div className="flex gap-4 w-full xl:w-auto">
+          <button onClick={() => router.push('/dashboard/quality/reclamations/nouveau')} className="flex-1 xl:flex-none bg-blue-600 hover:bg-white hover:text-blue-600 px-10 py-5 rounded-3xl text-[10px] shadow-4xl border-none cursor-pointer text-white italic transition-all active:scale-95 flex items-center justify-center gap-3 tracking-widest uppercase">
+            <Plus size={18} strokeWidth={3} /> Nouvel Écart
           </button>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="px-8 py-4 bg-blue-600 hover:bg-white hover:text-blue-600 text-white rounded-2xl text-[10px] font-black uppercase italic tracking-widest transition-all shadow-3xl shadow-blue-900/20 flex items-center gap-3 border-none cursor-pointer"
-          >
-            <Plus size={16} strokeWidth={3} /> Nouvel Ecart
+          <button onClick={fetchReclamations} className="p-5 bg-white/5 rounded-3xl hover:bg-white/10 hover:text-blue-500 border border-white/10 transition-all cursor-pointer shadow-sm">
+            <RefreshCcw size={24} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
       </header>
 
-      {/* 🔍 BARRE DE RECHERCHE MATRIX */}
-      <div className="relative group">
-        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={20} />
-        <input 
-          type="text"
-          placeholder="Filtrer par référence, client ou objet..."
-          className="w-full bg-white/5 border border-white/10 rounded-4xl p-6 pl-16 text-sm font-bold text-white outline-none focus:border-blue-600 focus:bg-white/10 transition-all italic shadow-inner"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      {/* 🔍 MATRIX FILTRAGE */}
+      <nav className="shrink-0 p-6 bg-[#0B1222]/50 border-b border-white/5 flex flex-col md:flex-row gap-6">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-blue-500 transition-all" size={20} />
+          <input 
+            value={searchTerm} 
+            onChange={e => setSearchTerm(e.target.value)} 
+            placeholder="FILTRER PAR RÉFÉRENCE, TIERS OU OBJET..." 
+            className="w-full bg-black/40 border-2 border-white/5 rounded-[2.5rem] py-5 pl-16 pr-8 text-[11px] font-black italic text-white outline-none focus:border-blue-600 shadow-inner uppercase" 
+          />
+        </div>
+        <div className="flex gap-4">
+          <button className="px-8 py-5 bg-slate-900 border-2 border-white/5 rounded-3xl text-[10px] font-black text-slate-500 italic flex items-center gap-3 hover:text-white transition-all"><Filter size={16}/> Filtres Avancés</button>
+        </div>
+      </nav>
 
-      {/* 📋 LISTE DES DOSSIERS SCELLÉS */}
-      <div className="relative">
-        {loading && (
-          <div className="absolute inset-0 bg-[#0B0F1A]/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-[3rem]">
-            <div className="flex flex-col items-center gap-4">
-               <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-               <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest italic">Chargement du flux...</p>
+      {/* 📊 DATA STREAM */}
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-8">
+        <div className="max-w-375 mx-auto space-y-4 pb-32">
+          {loading ? (
+            <div className="h-96 flex flex-col items-center justify-center gap-6 opacity-30">
+              <RefreshCw className="animate-spin text-blue-500" size={60} />
+              <p className="text-[12px] tracking-[0.4em]">Synchronisation SDE...</p>
             </div>
-          </div>
-        )}
-        <ReclamationList 
-          reclamations={reclamations.filter(r => 
-            r.REC_Reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            r.REC_Object?.toLowerCase().includes(searchTerm.toLowerCase())
-          )} 
-        />
-      </div>
+          ) : filtered.length > 0 ? (
+            filtered.map((rec) => (
+              <div key={rec.REC_Id} onClick={() => router.push(`/dashboard/quality/reclamations/${rec.REC_Id}`)} className="p-8 bg-[#151B2B] border-2 border-white/5 rounded-[2.5rem] flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 group hover:border-blue-500/30 hover:shadow-4xl transition-all cursor-pointer text-left">
+                <div className="flex items-center gap-8 flex-1">
+                  <div className="w-16 h-16 rounded-2xl bg-black/40 border-2 border-white/5 flex items-center justify-center text-blue-500 shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                    <FileText size={28} />
+                  </div>
+                  <div className="space-y-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-4">
+                      <span className="text-[10px] font-black text-slate-500 tracking-widest italic">{rec.REC_Reference} • {new Date(rec.REC_DateReceipt).toLocaleDateString()}</span>
+                      <span className={cn("text-[9px] px-3 py-1 rounded-lg border font-black uppercase tracking-widest", rec.REC_Status === 'RESOLU' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-blue-600/10 border-blue-500/20 text-blue-400')}>
+                        {rec.REC_Status?.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-black italic m-0 uppercase text-white truncate group-hover:text-blue-400 transition-colors">{rec.REC_Object}</h3>
+                    <p className="text-[10px] text-slate-500 flex items-center gap-2 m-0 font-bold uppercase tracking-widest">
+                      <ShieldAlert size={12} className="text-slate-700"/> Tiers : <span className="text-slate-300">{rec.Tier?.TR_Name || "ANONYME"}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 flex items-center gap-6">
+                  <div className="text-right hidden xl:block">
+                    <p className="text-[8px] text-slate-700 font-black uppercase tracking-widest m-0">Imputation</p>
+                    <p className="text-[10px] text-slate-400 font-black italic m-0">{rec.Processus?.PR_Libelle || "QUALITÉ GLOBALE"}</p>
+                  </div>
+                  <ChevronRight size={24} className="text-slate-800 group-hover:text-blue-500 group-hover:translate-x-2 transition-all" />
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="h-96 flex flex-col items-center justify-center opacity-10 gap-8 italic grayscale">
+              <FileText size={100} strokeWidth={1} />
+              <p className="text-2xl tracking-[0.3em] font-black">Aucun signal détecté</p>
+            </div>
+          )}
+        </div>
+      </main>
 
-      {/* 📦 MODAL D'INDEXATION */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        title="Déclarer une Réclamation"
-      >
-        <ReclamationForm 
-          onSuccess={() => {
-            setIsModalOpen(false);
-            fetchReclamations();
-          }} 
-          processus={[]} // À injecter via un fetch parallèle si besoin
-          tiers={[]}     // À injecter via un fetch parallèle si besoin
-        />
-      </Modal>
-
-      {/* FOOTER DE CONFORMITÉ */}
-      <footer className="pt-10 flex items-center gap-4 border-t border-white/5">
-        <FileText size={16} className="text-slate-700" />
-        <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest m-0">
-          Système de management de la satisfaction client • Scellé au Tenant Matrix RD-2026
+      {/* ℹ️ FOOTER CONFORMITÉ */}
+      <footer className="shrink-0 p-6 border-t border-white/5 bg-black/40 flex items-center justify-between">
+        <p className="text-[9px] font-black text-slate-700 tracking-widest m-0 flex items-center gap-3 uppercase italic">
+          <ShieldAlert size={14} /> Système de Management de la Satisfaction Client • ISO 10002 • MATRIX RD-2026
         </p>
       </footer>
+
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 0px; }` }} />
     </div>
   );
 }

@@ -1,78 +1,35 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🛰️ MODULE : Sidebar.tsx
- * -------------------------------------------------------------------------
- * RÔLE : Navigation Stratégique & Contrôle Régalien Matrix OS.
- * SÉCURITÉ : Filtrage de rôles atomique (Zéro NextAuth).
- * RÉVISION : 04 Mars 2026 | 00:35 GMT
- * -------------------------------------------------------------------------
+ * 🔱 MODULE : NAVIGATION STRATÉGIQUE (ELITE SDE)
+ * ---------------------------------------------------------------------------
+ * RÔLE : Navigation ClickUp-Style / RBAC Matrix.
+ * RÉVISION : 06 Mars 2026 | 00:05 GMT
  */
 
 "use client";
 
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { 
   Activity, AlertTriangle, Archive, BarChart3, ChevronDown, 
   ClipboardCheck, Database, FileCheck2, FileText, 
   FolderLock, GitBranch, HardHat, LayoutDashboard, Leaf, 
   LogOut, Network, Scale, Settings2, ShieldAlert, 
   ShieldCheck, Target, Terminal, Users, 
-  LucideIcon, BookOpen, Fingerprint, Microscope,
-  CreditCard, Layout, FileSearch, Zap
-} from "lucide-react";
+  BookOpen, Fingerprint, Microscope,
+  CreditCard, Layout, FileSearch, Zap} from "lucide-react";
 import { useAuthStore } from '@/store/authStore';
 import { Role } from '@/types/elite-sde';
-
-// --- 🔱 TYPES DES CONTRATS DE NAVIGATION ---
-interface MenuItem {
-  title: string;
-  path: string;
-  icon: LucideIcon;
-  access: (Role | "ALL")[];
-  badge?: string;
-}
-
-interface MenuGroup {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  items: MenuItem[];
-}
+import { cn } from "@/core/utils/cn";
 
 export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const pathname = usePathname();
-  const router = useRouter();
-  
-  // Extraction sécurisée du store souverain
   const { user, logout } = useAuthStore() as any;
-  
-  // Groupes ouverts par défaut : Pilotage, Audit et Master (Ergonomie Elite)
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(["pilotage", "audit", "master"]);
-  
-  const isImpersonated = useMemo(() => !!user?.isImpersonated, [user]);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(["pilotage", "master"]);
 
-  /**
-   * 🛡️ PROCÉDURE DE DÉCONNEXION ATOMIQUE
-   * Purge des cookies de domaine et réinitialisation du store.
-   */
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      const baseDomain = hostname.includes('.') ? `.${hostname.split('.').slice(-2).join('.')}` : hostname;
-      
-      document.cookie = `qualisoft_token=; path=/; domain=${baseDomain}; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax; Secure`;
-      logout();
-      router.push("/auth/login");
-    }
-  };
-
-  /**
-   * 🗺️ CARTOGRAPHIE CONSOLIDÉE DES PROCESSUS (ISO 9001/14001/45001)
-   */
-  const navigation: MenuGroup[] = useMemo(() => [
+  const navigation = useMemo(() => [
     {
       id: "pilotage",
       label: "I. Stratégie & Pilotage",
@@ -89,15 +46,15 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       label: "II. Maîtrise Documentaire",
       icon: FolderLock,
       items: [
-        { title: "GED (Bibliothèque)", path: "/dashboard/ged", icon: FileText, access: ["ALL"] },
-        { title: "Workflow d'Approbation", path: "/dashboard/workflows", icon: GitBranch, access: [Role.ADMIN, Role.RQ], badge: "3" },
-        { title: "Archives Légales", path: "/dashboard/archives", icon: Archive, access: [Role.ADMIN, Role.RQ] },
+        { title: "GED Bibliothèque", path: "/dashboard/ged", icon: FileText, access: ["ALL"] },
+        { title: "Approbations Flux", path: "/dashboard/workflows", icon: GitBranch, access: [Role.ADMIN, Role.RQ], badge: "3" },
+        { title: "Archives SMI", path: "/dashboard/archives", icon: Archive, access: [Role.ADMIN, Role.RQ] },
         { title: "Veille Réglementaire", path: "/dashboard/veilles", icon: Scale, access: ["ALL"] },
       ]
     },
     {
       id: "processus",
-      label: "III. Performance Processus",
+      label: "III. Performance",
       icon: GitBranch,
       items: [
         { title: "Cartographie Master", path: "/dashboard/processus", icon: Network, access: [Role.ADMIN, Role.RQ] },
@@ -107,24 +64,23 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     },
     {
       id: "audit",
-      label: "IV. Audit & Amélioration",
+      label: "IV. Audit & CAPA",
       icon: ClipboardCheck,
       items: [
         { title: "Centre d'Audit", path: "/dashboard/audit-center", icon: FileCheck2, access: ["ALL"] },
-        { title: "Télémétrie Audit", path: "/dashboard/audits/telemetry", icon: BarChart3, access: [Role.ADMIN, Role.RQ] },
         { title: "Non-Conformités", path: "/dashboard/non-conformites", icon: ShieldAlert, access: ["ALL"], badge: "NEW" },
-        { title: "Registre des Preuves", path: "/dashboard/evidences", icon: Microscope, access: [Role.ADMIN, Role.RQ] },
-        { title: "Actions (CAPA)", path: "/dashboard/actions", icon: Zap, access: ["ALL"] },
+        { title: "Registre Preuves", path: "/dashboard/evidences", icon: Microscope, access: [Role.ADMIN, Role.RQ] },
+        { title: "Plan d'Actions", path: "/dashboard/actions", icon: Zap, access: ["ALL"] },
       ]
     },
     {
       id: "hseq",
-      label: "V. Santé, Sécurité & Env.",
+      label: "V. Santé & Sécurité",
       icon: HardHat,
       items: [
         { title: "Hub HSE Global", path: "/dashboard/sse", icon: ShieldCheck, access: ["ALL"] },
         { title: "Incidents & AT/MP", path: "/dashboard/incidents", icon: AlertTriangle, access: ["ALL"] },
-        { title: "Gestion des Déchets", path: "/dashboard/waste", icon: Leaf, access: ["ALL"] },
+        { title: "Gestion Déchets", path: "/dashboard/waste", icon: Leaf, access: ["ALL"] },
       ]
     },
     {
@@ -132,25 +88,23 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       label: "VI. Configuration",
       icon: Settings2,
       items: [
-        { title: "Organisation & Sites", path: "/dashboard/organization", icon: Database, access: [Role.ADMIN] },
-        { title: "Annuaire Utilisateurs", path: "/dashboard/users", icon: Users, access: [Role.ADMIN] },
+        { title: "Organisation Sites", path: "/dashboard/organization", icon: Database, access: [Role.ADMIN] },
+        { title: "Annuaire Agents", path: "/dashboard/users", icon: Users, access: [Role.ADMIN] },
+        { title: "Registre Tiers", path: "/dashboard/tiers", icon: Users, access: [Role.ADMIN] },
       ]
     },
     {
       id: "master",
-      label: "VII. Matrix Administration",
+      label: "VII. Administration",
       icon: Fingerprint,
       items: [
-        { title: "Matrix Cockpit", path: "/dashboard/matrix", icon: Layout, access: [] },
-        { title: "Flux Monétaire", path: "/admin/payments", icon: CreditCard, access: [] },
-        { title: "Logs du Kernel", path: "/dashboard/matrix/logs", icon: Terminal, access: [] },
+        { title: "Matrix Control", path: "/dashboard/matrix", icon: Layout, access: [] },
+        { title: "Flux Financiers", path: "/admin/payments", icon: CreditCard, access: [] },
+        { title: "Sécurité & Logs", path: "/dashboard/matrix/logs", icon: Terminal, access: [] },
       ]
     }
   ], []);
 
-  /**
-   * 🛡️ FILTRAGE DES DROITS D'ACCÈS (Hardened RBAC)
-   */
   const filteredNav = useMemo(() => {
     return navigation.map(group => ({
       ...group,
@@ -163,74 +117,51 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     })).filter(g => g.items.length > 0);
   }, [navigation, user, isSuperAdmin]);
 
-  const toggleGroup = (groupId: string) => {
-    setExpandedGroups(prev => 
-      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
-    );
-  };
+  const toggleGroup = (id: string) => setExpandedGroups(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   return (
-    <aside className={`w-80 h-screen fixed left-0 top-0 z-100 flex flex-col border-r-2 transition-all duration-500 font-sans italic shadow-4xl 
-      ${isImpersonated ? "bg-[#1A1212] border-amber-600/30" : "bg-[#0B0F1A] border-white/5"}`}>
+    <aside className={cn("w-[320px] h-screen fixed left-0 top-0 z-60 flex flex-col border-r-2 border-white/5 transition-all font-black uppercase italic bg-[#0B0F1A] shadow-4xl")}>
       
-      {/* 🔱 LOGO & BRANDING MATRIX */}
-      <div className={`p-8 border-b-2 border-white/5 flex items-center gap-5 shrink-0 ${isImpersonated ? "bg-[#110D0D]" : "bg-[#151A2D]"}`}>
-        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center border-4 border-white/10 shadow-2xl shrink-0">
-          <Image src="/images/qslogo.png" alt="Qualisoft" width={32} height={32} priority />
+      {/* 🔱 BRANDING */}
+      <div className="p-10 border-b-2 border-white/5 flex items-center gap-6 bg-[#151A2D] shrink-0">
+        <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center border-4 border-white/10 shadow-2xl shrink-0">
+          <Image src="/images/qslogo.png" alt="QS" width={38} height={38} priority />
         </div>
-        <div className="min-w-0 text-left">
-          <h1 className="text-2xl font-black uppercase tracking-tighter text-white m-0 leading-none">QUALI<span className="text-blue-600">SOFT</span></h1>
-          <p className={`text-[9px] font-black uppercase tracking-[0.4em] mt-2 leading-none ${isImpersonated ? "text-amber-500" : "text-slate-500"}`}>
-            {isSuperAdmin ? "Matrix Master Node" : "Elite Sovereign OS"}
-          </p>
+        <div className="text-left leading-none">
+          <h1 className="text-2xl font-black tracking-tighter text-white m-0 uppercase">QUALI<span className="text-blue-600">SOFT</span></h1>
+          <p className="text-[10px] text-slate-500 tracking-[0.4em] mt-3 m-0">ELITE MATRIX OS</p>
         </div>
       </div>
 
-      {/* 🧭 NAVIGATION SCROLLABLE (Flux ISO) */}
-      <nav className="flex-1 overflow-y-auto px-6 py-10 space-y-8 custom-scrollbar">
+      {/* 🧭 NAVIGATION (Internal Scroll Only) */}
+      <nav className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-10">
         {filteredNav.map((group) => {
-          const isExpanded = expandedGroups.includes(group.id);
+          const isExp = expandedGroups.includes(group.id);
           const GroupIcon = group.icon;
           return (
-            <div key={group.id} className="space-y-3 text-left">
-              <button 
-                onClick={() => toggleGroup(group.id)}
-                className="w-full flex items-center justify-between py-2 px-2 rounded-xl hover:bg-white/5 transition-all group cursor-pointer border-none bg-transparent outline-none"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-lg transition-colors ${isExpanded ? "bg-blue-600/20 text-blue-500" : "bg-white/5 text-slate-600"}`}>
-                    <GroupIcon size={16} strokeWidth={2.5} />
+            <div key={group.id} className="space-y-4 text-left">
+              <button onClick={() => toggleGroup(group.id)} className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group">
+                <div className="flex items-center gap-5">
+                  <div className={cn("p-2.5 rounded-lg transition-colors", isExp ? "bg-blue-600/20 text-blue-500" : "bg-white/5 text-slate-600")}>
+                    <GroupIcon size={18} strokeWidth={3} />
                   </div>
-                  <span className={`text-[11px] font-black uppercase tracking-widest transition-colors ${isExpanded ? "text-white" : "text-slate-600"}`}>
-                    {group.label}
-                  </span>
+                  <span className={cn("text-[11px] tracking-widest transition-colors", isExp ? "text-white" : "text-slate-600 group-hover:text-slate-300")}>{group.label}</span>
                 </div>
-                <ChevronDown size={14} className={`text-slate-700 transition-transform duration-300 ${isExpanded ? "rotate-180 text-blue-500" : ""}`} />
+                <ChevronDown size={14} className={cn("text-slate-700 transition-transform", isExp && "rotate-180 text-blue-500")} />
               </button>
 
-              {isExpanded && (
-                <div className="pl-6 ml-4 border-l-2 border-white/5 space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+              {isExp && (
+                <div className="pl-6 ml-4 border-l-2 border-white/5 space-y-2 animate-in slide-in-from-top-2">
                   {group.items.map((item, idx) => {
                     const isActive = pathname === item.path;
                     const ItemIcon = item.icon;
                     return (
-                      <Link 
-                        key={idx} 
-                        href={item.path} 
-                        className={`flex items-center justify-between py-3.5 px-5 rounded-2xl transition-all group/link relative
-                          ${isActive ? (isSuperAdmin ? "bg-amber-600 text-white shadow-xl shadow-amber-900/20 translate-x-1" : "bg-blue-600 text-white shadow-xl shadow-blue-900/20 translate-x-1") : "text-slate-500 hover:text-white hover:bg-white/5"}`}
-                      >
-                        <div className="flex items-center gap-4 min-w-0">
-                          <ItemIcon size={14} className={`${isActive ? "text-white" : "text-slate-600 group-hover/link:text-blue-500"} transition-colors`} />
-                          <span className={`text-[10px] uppercase tracking-widest truncate ${isActive ? "font-black" : "font-bold"}`}>
-                            {item.title}
-                          </span>
+                      <Link key={idx} href={item.path} className={cn("flex items-center justify-between p-4 rounded-2xl transition-all group/link", isActive ? "bg-blue-600 text-white shadow-xl shadow-blue-900/30 translate-x-1" : "text-slate-500 hover:text-white hover:bg-white/5")}>
+                        <div className="flex items-center gap-5">
+                          <ItemIcon size={16} className={cn(isActive ? "text-white" : "text-slate-700 group-hover/link:text-blue-500")} />
+                          <span className="text-[10px] tracking-widest">{item.title}</span>
                         </div>
-                        {item.badge && (
-                          <span className="bg-amber-500 text-slate-950 text-[7px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
-                            {item.badge}
-                          </span>
-                        )}
+                        {item.badge && <span className="bg-amber-500 text-black text-[7px] font-black px-2 py-0.5 rounded-md animate-pulse">{item.badge}</span>}
                       </Link>
                     );
                   })}
@@ -241,42 +172,22 @@ export default function Sidebar({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         })}
       </nav>
 
-      {/* 👤 PROFIL & DÉCONNEXION ATOMIQUE */}
-      <div className={`p-8 border-t-2 border-white/5 shrink-0 ${isImpersonated ? "bg-[#110D0D]" : "bg-[#151A2D]"}`}>
-        <div className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-3xl shadow-inner group">
-          <div className="flex items-center gap-4 overflow-hidden">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black border-2 border-white/10 shrink-0 shadow-lg
-              ${isSuperAdmin ? "bg-amber-600 text-white shadow-amber-900/20" : "bg-blue-600 text-white shadow-blue-900/30"}`}>
-              {user?.U_FirstName?.[0] || "A"}
+      {/* 👤 ATOMIC PROFIL BOX */}
+      <div className="p-10 bg-[#151A2D] border-t-2 border-white/5 shrink-0">
+         <div className="p-6 bg-black/40 border border-white/5 rounded-[2.5rem] flex items-center justify-between group shadow-inner">
+            <div className="flex items-center gap-5 min-w-0">
+               <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black border-2 border-white/10 shrink-0 shadow-lg", isSuperAdmin ? "bg-amber-600" : "bg-blue-600")}>
+                 {user?.U_FirstName?.[0]}
+               </div>
+               <div className="text-left min-w-0">
+                  <p className="text-[12px] font-black text-white m-0 truncate leading-none mb-2">{user?.U_FirstName} {user?.U_LastName}</p>
+                  <p className="text-[9px] text-slate-600 tracking-widest m-0 truncate italic uppercase leading-none">{isSuperAdmin ? "MASTER" : user?.U_Role}</p>
+               </div>
             </div>
-            <div className="min-w-0 text-left">
-              <p className="text-[12px] font-black text-white uppercase italic leading-none truncate mb-2 group-hover:text-blue-500 transition-colors">
-                {user?.U_FirstName} {user?.U_LastName}
-              </p>
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={10} className={isSuperAdmin ? "text-amber-500" : "text-blue-500"} />
-                <p className="text-[9px] font-black uppercase text-slate-600 tracking-widest leading-none truncate m-0 italic">
-                  {isSuperAdmin ? "Master Architect" : user?.U_Role}
-                </p>
-              </div>
-            </div>
-          </div>
-          <button 
-            onClick={handleLogout}
-            className="p-3 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border-none bg-transparent cursor-pointer outline-none"
-            title="DÉCONNEXION"
-          >
-            <LogOut size={20} strokeWidth={2.5} />
-          </button>
-        </div>
+            <button onClick={() => { logout(); }} className="text-slate-700 hover:text-rose-500 transition-colors border-none bg-transparent cursor-pointer"><LogOut size={20}/></button>
+         </div>
       </div>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(37, 99, 235, 0.1); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2563eb; }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 0px; }` }} />
     </aside>
   );
 }

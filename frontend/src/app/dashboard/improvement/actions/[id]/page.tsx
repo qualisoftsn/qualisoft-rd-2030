@@ -1,26 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 🔍 MODULE : DOSSIER D'AUDIT (ACTION DETAIL)
- * Rôle : Archivage des preuves §7.5.3 • Cycle PDCA Transverse.
- * Logic : Philosophie Anti-NextAuth (Session Kernel-Managed).
+ * 🔍 MODULE : DOSSIER PDCA (ACTION DETAIL) §10.2
  * -------------------------------------------------------------------------
- * DATE : 02 Mars 2026 | 02:46 GMT
+ * RÔLE : Archivage des preuves et suivi des jalons de conformité.
+ * DESIGN : Cockpit 100dvh, Layout Multi-Panneaux, Matrix Kernel.
+ * -------------------------------------------------------------------------
+ * DATE : 05 Mars 2026 | 15:45 GMT
  */
 
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
 import { 
-  ArrowLeft, Clock, User, Calendar, Paperclip, CheckCircle2, 
-  MessageSquare, Edit3, Save, Trash2, ExternalLink, FileText,
-  Target, Loader2, X, ArrowRight, ShieldCheck, AlertCircle,
-  Plus
+  ArrowLeft, Save, ExternalLink, FileText, 
+  ShieldCheck, CheckCircle2, Plus, RefreshCcw 
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-import { cn } from '@/core/utils/cn';
+
+const cn = (...classes: any[]) => classes.filter(Boolean).join(" ");
 
 export default function ActionDetailPage() {
   const params = useParams();
@@ -32,8 +31,6 @@ export default function ActionDetailPage() {
   const [evidences, setEvidences] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'details' | 'tasks' | 'evidence'>('details');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<any>({});
 
   const loadDossier = useCallback(async () => {
     if (!id) return;
@@ -44,137 +41,106 @@ export default function ActionDetailPage() {
         apiClient.get(`/actions/${id}/tasks`),
         apiClient.get(`/actions/${id}/evidences`)
       ]);
-      setAction(actionRes.data);
-      setEditData(actionRes.data);
-      setTasks(tasksRes.data || []);
-      setEvidences(evidRes.data || []);
-    } catch (err) {
-      toast.error("RUPTURE DE LIAISON DOSSIER MATRIX");
-    } finally {
-      setLoading(false);
-    }
+      setAction(actionRes.data?.data || actionRes.data);
+      setTasks(tasksRes.data?.data || tasksRes.data || []);
+      setEvidences(evidRes.data?.data || evidRes.data || []);
+    } catch { toast.error("RUPTURE DE LIAISON DOSSIER MATRIX"); }
+    finally { setLoading(false); }
   }, [id]);
 
   useEffect(() => { loadDossier(); }, [loadDossier]);
 
-  const handleUpdate = async () => {
-    const tid = toast.loading("Scellage des modifications...");
-    try {
-      await apiClient.patch(`/actions/${id}`, editData);
-      setAction(editData);
-      setIsEditing(false);
-      toast.success("REGISTRE ACTUALISÉ §10.2", { id: tid });
-    } catch {
-      toast.error("ERREUR D'ÉCRITURE KERNEL", { id: tid });
-    }
-  };
-
-  if (loading) return (
-    <div className="ml-0 lg:ml-72 flex h-screen items-center justify-center bg-[#0B0F1A] text-blue-500 font-black uppercase italic tracking-[0.5em] animate-pulse">
-      <Loader2 className="animate-spin mr-4" /> Analyse Dossier...
-    </div>
-  );
+  if (loading) return <LoadingScreen label="Analyse du Dossier PDCA..." />;
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] text-white italic font-sans ml-0 lg:ml-72 flex flex-col selection:bg-blue-600/30">
+    <div className="h-screen bg-[#0B0F1A] text-white italic font-black uppercase flex flex-col overflow-hidden w-full lg:pl-72 selection:bg-blue-600/30">
       <Toaster position="top-right" richColors theme="dark" />
       
-      <header className="sticky top-0 z-40 bg-[#0B0F1A]/90 backdrop-blur-xl border-b border-white/5 px-10 py-6 mt-12 lg:mt-0">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest bg-transparent border-none cursor-pointer italic">
-            <ArrowLeft size={16} /> Retour au registre
+      <header className="shrink-0 p-8 border-b border-white/5 flex flex-col xl:flex-row justify-between items-center bg-[#0B0F1A]/95 backdrop-blur-3xl z-50 gap-6 mt-12 lg:mt-0">
+        <button onClick={() => router.back()} className="flex items-center gap-3 text-slate-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.2em] bg-transparent border-none cursor-pointer italic">
+          <ArrowLeft size={16} /> Retour au registre
+        </button>
+        <div className="flex gap-4">
+          <button className="bg-blue-600 px-10 py-4 rounded-2xl text-[10px] flex items-center gap-3 shadow-4xl border-none cursor-pointer text-white italic transition-all hover:bg-white hover:text-blue-600">
+            <Save size={16} /> Sceller les modifications
           </button>
-          
-          <div className="flex gap-4">
-            {!isEditing ? (
-              <button onClick={() => setIsEditing(true)} className="bg-white/5 hover:bg-white/10 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 border-none transition-all cursor-pointer italic"><Edit3 size={14} /> Modifier</button>
-            ) : (
-              <button onClick={handleUpdate} className="bg-blue-600 hover:bg-white hover:text-blue-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all border-none shadow-3xl cursor-pointer italic"><Save size={14} /> Sceller</button>
-            )}
-          </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-10 flex-1 text-left">
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 text-left">
         <div className="grid grid-cols-12 gap-10">
-          <div className="col-span-12 lg:col-span-8 space-y-8">
-            <div className="animate-in fade-in slide-in-from-left-6 duration-700">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="bg-blue-600/20 text-blue-400 border border-blue-500/30 px-4 py-1.5 rounded-xl text-[9px] font-black uppercase italic tracking-widest">{action.ACT_Status}</span>
-                <span className="bg-slate-800 text-slate-500 px-4 py-1.5 rounded-xl text-[9px] font-black uppercase italic tracking-widest">ID #{id.slice(-6)}</span>
+          <div className="col-span-12 lg:col-span-8 space-y-10 animate-in slide-in-from-left-6 duration-700">
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <span className="bg-blue-600/10 text-blue-500 border border-blue-500/20 px-5 py-2 rounded-2xl text-[9px] tracking-[0.3em]">{action.ACT_Status}</span>
+                <span className="text-[9px] text-slate-600 tracking-widest italic">INDEX #ID-{id.slice(-6)}</span>
               </div>
-              
-              {isEditing ? (
-                <input value={editData.ACT_Title} onChange={e => setEditData({...editData, ACT_Title: e.target.value.toUpperCase()})} className="w-full bg-slate-950 border border-blue-600/30 rounded-3xl p-8 text-3xl font-black italic text-white outline-none mb-6" />
-              ) : (
-                <h1 className="text-5xl font-black uppercase italic tracking-tighter m-0 leading-none mb-8">{action.ACT_Title}</h1>
-              )}
-              
-              <div className="bg-slate-900/40 border border-white/5 rounded-[3rem] p-10 shadow-inner backdrop-blur-sm">
-                 <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em] mb-6 italic leading-none m-0">Analyse SMQ & Description</p>
-                 <p className="text-slate-300 font-bold italic leading-relaxed m-0 uppercase text-sm">{action.ACT_Description || "AUCUNE ANALYSE PRÉCISE INDEXÉE."}</p>
-              </div>
+              <h1 className="text-5xl font-black tracking-tighter m-0 leading-none italic uppercase">{action.ACT_Title}</h1>
             </div>
 
-            <nav className="flex gap-4 border-b border-white/5 mt-12 overflow-x-auto custom-scrollbar">
-              {['details', 'tasks', 'evidence'].map((t) => (
-                <button key={t} onClick={() => setActiveTab(t as any)} className={cn("px-8 py-4 text-[10px] font-black uppercase italic tracking-widest border-none bg-transparent cursor-pointer transition-all", activeTab === t ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-600')}>{t}</button>
-              ))}
-            </nav>
+            <div className="bg-[#151B2B] border-2 border-white/5 rounded-[4rem] p-12 shadow-4xl">
+              <h4 className="text-[10px] text-slate-500 tracking-[0.4em] mb-6 italic uppercase m-0 border-b border-white/5 pb-4">Analyse SMQ & Description (§10.2)</h4>
+              <p className="text-xl text-slate-300 font-bold leading-relaxed m-0 italic uppercase">{action.ACT_Description || "AUCUNE ANALYSE PRÉCISE INDEXÉE DANS LE NOYAU."}</p>
+            </div>
 
-            <div className="py-10">
-              {activeTab === 'tasks' && (
-                <div className="space-y-4 animate-in fade-in duration-500">
-                  {tasks.map((task: any) => (
-                    <div key={task.id} className="flex items-center justify-between p-6 bg-white/2 border border-white/5 rounded-3xl group hover:border-blue-500/30 transition-all">
-                      <div className="flex items-center gap-6">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 group-hover:text-emerald-500 transition-colors"><CheckCircle2 size={20} /></div>
-                        <span className="text-sm font-black uppercase italic text-white leading-none">{task.itemTitre}</span>
+            {/* TAB SYSTEM */}
+            <div className="space-y-8">
+              <nav className="flex gap-4 border-b border-white/5">
+                {['details', 'tasks', 'evidence'].map((t) => (
+                  <button key={t} onClick={() => setActiveTab(t as any)} className={cn("px-8 py-5 text-[10px] font-black tracking-widest border-none bg-transparent cursor-pointer transition-all", activeTab === t ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-600')}>{t}</button>
+                ))}
+              </nav>
+
+              <div className="min-h-75">
+                {activeTab === 'tasks' && (
+                  <div className="grid gap-4">
+                    {tasks.map((task: any) => (
+                      <div key={task.id} className="p-8 bg-black/20 border border-white/5 rounded-4xl flex items-center justify-between group hover:border-emerald-500/30 transition-all">
+                        <div className="flex items-center gap-6"><CheckCircle2 className="text-slate-700 group-hover:text-emerald-500 transition-colors" size={24} /><span className="text-lg font-black tracking-tight leading-none">{task.itemTitre}</span></div>
+                        <span className="text-[10px] text-slate-600 tracking-widest uppercase italic">RESP: {task.responsable?.U_FirstName}</span>
                       </div>
-                      <span className="text-[9px] font-black text-slate-600 uppercase italic tracking-widest">Responsable: {task.responsable?.U_FirstName}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
 
-              {activeTab === 'evidence' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-in zoom-in-95 duration-500">
-                  {evidences.map((ev: any) => (
-                    <div key={ev.id} className="p-6 bg-slate-950/40 border border-white/5 rounded-3xl flex items-center justify-between group">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-600/10 text-blue-500 rounded-2xl flex items-center justify-center"><FileText size={24} /></div>
-                        <div className="text-left"><p className="text-[11px] font-black uppercase italic text-white m-0 leading-none">{ev.PV_FileName}</p></div>
+                {activeTab === 'evidence' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {evidences.map((ev: any) => (
+                      <div key={ev.id} className="p-8 bg-black/40 border border-white/5 rounded-4xl flex items-center justify-between shadow-inner group">
+                        <div className="flex items-center gap-5"><FileText className="text-blue-500" size={28}/><p className="text-[11px] font-black italic m-0 truncate w-40">{ev.PV_FileName}</p></div>
+                        <a href={ev.PV_Url} target="_blank" className="p-3 bg-white/5 rounded-xl hover:text-blue-500 transition-all"><ExternalLink size={20}/></a>
                       </div>
-                      <a href={ev.PV_Url} target="_blank" className="text-slate-600 hover:text-white transition-colors"><ExternalLink size={18} /></a>
-                    </div>
-                  ))}
-                  <div className="col-span-full py-16 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4 opacity-40 hover:opacity-100 transition-opacity cursor-pointer"><Plus size={32} /><span className="text-[10px] font-black uppercase italic tracking-widest">Indexation Preuve §7.5.3</span></div>
-                </div>
-              )}
-
-              {activeTab === 'details' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 animate-in fade-in duration-500">
-                   <div className="bg-white/2 p-8 rounded-4xl border border-white/5"><p className="text-[9px] font-black text-slate-500 uppercase italic mb-3 leading-none tracking-widest">Responsable Dossier</p><p className="text-xl font-black italic m-0">{action.ACT_Responsable?.U_FirstName} {action.ACT_Responsable?.U_LastName}</p></div>
-                   <div className="bg-white/2 p-8 rounded-4xl border border-white/5"><p className="text-[9px] font-black text-slate-500 uppercase italic mb-3 leading-none tracking-widest">Échéance Critique</p><p className="text-xl font-black italic m-0 text-blue-500">{new Date(action.ACT_Deadline).toLocaleDateString()}</p></div>
-                </div>
-              )}
+                    ))}
+                    <div className="col-span-full py-16 border-2 border-dashed border-white/5 rounded-[3rem] flex flex-col items-center justify-center gap-4 opacity-40 hover:opacity-100 transition-all cursor-pointer"><Plus size={32}/><span className="text-[10px] font-black tracking-[0.5em]">Indexation Preuve §7.5.3</span></div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="col-span-12 lg:col-span-4">
-            <div className="bg-blue-600/5 border border-blue-500/10 rounded-[3rem] p-10 sticky top-32 text-left shadow-2xl backdrop-blur-md">
-              <h3 className="text-2xl font-black uppercase italic mb-8 border-b border-white/5 pb-6 tracking-tighter m-0">Indicateur <span className="text-blue-500">Maturité</span></h3>
-              <div className="space-y-8">
-                <div className="flex items-center gap-5">
-                   <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xl"><ShieldCheck size={32} /></div>
-                   <div><p className="text-[9px] font-black text-slate-500 uppercase m-0 italic tracking-widest">Score PDCA</p><p className="text-3xl font-black italic text-white m-0 tracking-tighter">88%</p></div>
-                </div>
-                <div className="pt-8 border-t border-white/5"><p className="text-[9px] text-slate-500 font-bold uppercase italic leading-relaxed tracking-widest m-0">Scellage numérique conforme aux exigences de l&apos;audit qualité.</p></div>
+            <div className="bg-blue-600/10 border-2 border-blue-500/20 p-12 rounded-[4rem] sticky top-32 shadow-4xl text-left backdrop-blur-md">
+              <h3 className="text-2xl font-black mb-10 m-0 tracking-tighter leading-none">Indicateur <span className="text-blue-500">Maturité</span></h3>
+              <div className="flex items-center gap-6 mb-10">
+                <div className="w-20 h-20 rounded-3xl bg-blue-600 flex items-center justify-center text-white shadow-3xl"><ShieldCheck size={40} /></div>
+                <div><p className="text-[10px] text-slate-500 uppercase m-0 italic tracking-widest">Score PDCA</p><p className="text-5xl font-black italic text-white m-0 tracking-tighter">88%</p></div>
               </div>
+              <div className="pt-8 border-t border-white/5"><p className="text-[9px] text-slate-500 font-bold uppercase italic leading-relaxed tracking-widest m-0">Scellage conforme aux exigences de l&apos;audit ISO §10.2.</p></div>
             </div>
           </div>
         </div>
       </main>
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 3px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.1); border-radius: 10px; }` }} />
+    </div>
+  );
+}
+
+function LoadingScreen({ label }: { label: string }) {
+  return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-6 lg:pl-72 text-blue-500">
+      <RefreshCcw className="animate-spin" size={60} strokeWidth={1} />
+      <span className="text-[10px] font-black uppercase tracking-[1em] animate-pulse italic">{label}</span>
     </div>
   );
 }

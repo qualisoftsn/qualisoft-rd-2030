@@ -1,32 +1,34 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 📅 CHRONOGRAMME MASTER (MATRIX CORE)
- * Rôle : Pilotage temporel §9.3 • Ordonnancement des instances.
- * Fix : Alignement ml-0 lg:ml-72, et normalisation des dates locales.
+ * 📅 MODULE : CHRONOGRAMME MASTER §9.3 (ELITE-SDE)
  * -------------------------------------------------------------------------
- * DATE : 02 Mars 2026 | 02:40 GMT
+ * RÔLE : Pilotage temporel des instances et jalons critiques.
+ * DESIGN : Timeline Matrix, 100dvh, PWA Optimisé.
+ * -------------------------------------------------------------------------
+ * DATE : 05 Mars 2026 | 15:05 GMT
  */
 
-"use client";
+'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import apiClient from '@/core/api/api-client';
-import { Calendar, Plus, CheckCircle2, AlertCircle, Trash2, Save, X, Loader2, Target, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, RefreshCcw } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
+import { cn } from '@/core/utils/cn';
 
 export default function PerformancePlanning() {
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({ GA_Title: '', GA_Type: 'REVUE_PROCESSUS', GA_DatePlanned: new Date().toISOString().split('T')[0], GA_Deadline: '', GA_Status: 'PLANNED', GA_Theme: '' });
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiClient.get('/gouvernance/planning');
       setActivities(res.data?.data || res.data || []);
-    } catch (e) { toast.error("RUPTURE LIAISON CHRONO"); }
+    /// eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) { toast.error("SYNCHRO CHRONO ÉCHOUÉE"); }
     finally { setLoading(false); }
   }, []);
 
@@ -34,122 +36,74 @@ export default function PerformancePlanning() {
 
   const stats = useMemo(() => {
     const total = activities.length;
-    if (total === 0) return { completion: 0, late: 0 };
     const done = activities.filter(a => a.GA_Status === 'DONE').length;
     const late = activities.filter(a => a.GA_Status !== 'DONE' && a.GA_Deadline && new Date(a.GA_Deadline) < new Date()).length;
-    return { completion: Math.round((done / total) * 100), late };
+    return { completion: total > 0 ? Math.round((done/total)*100) : 0, late, total };
   }, [activities]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const tid = toast.loading("Indexation temporelle...");
-    try {
-      await apiClient.post('/gouvernance/planning', form);
-      setIsModalOpen(false); fetchData();
-      toast.success("ACTIVITÉ MASTER PROGRAMMÉE", { id: tid });
-    } catch { toast.error("ÉCHEC DU SCELLAGE", { id: tid }); }
-  };
-
-  if (loading) return (
-    <div className="ml-0 lg:ml-72 h-screen flex flex-col items-center justify-center bg-[#0B0F1A] text-blue-500">
-      <Loader2 className="animate-spin mb-4" size={40} />
-      <span className="italic font-black uppercase tracking-[0.5em] text-[10px] animate-pulse m-0">Sync Master Chronos...</span>
-    </div>
-  );
+  if (loading) return <LoadingScreen label="Sync Master Chronos §9.3..." />;
 
   return (
-    <div className="ml-0 lg:ml-72 p-6 lg:p-10 bg-[#0B0F1A] min-h-screen text-white italic text-left selection:bg-blue-600/30">
+    <div className="h-screen bg-[#0B0F1A] text-white italic font-black uppercase flex flex-col overflow-hidden w-full lg:pl-72">
       <Toaster position="top-right" richColors theme="dark" />
-      <header className="mb-12 border-b border-white/5 pb-10 flex flex-col md:flex-row justify-between items-end gap-6 mt-12 lg:mt-0">
-        <div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter italic leading-none m-0">Chronogramme <span className="text-blue-500 text-6xl">Master</span></h1>
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-4 italic m-0 leading-none">Pilotage Temporel SMI • ISO 9001 §9.3</p>
+
+      <header className="shrink-0 p-8 border-b border-white/5 flex flex-col xl:flex-row justify-between items-center gap-6 mt-12 lg:mt-0 bg-[#0B0F1A]/95 backdrop-blur-xl z-40">
+        <div className="text-left space-y-2">
+          <h1 className="text-4xl lg:text-5xl tracking-tighter leading-none m-0">Chronogramme <span className="text-blue-500">Master</span></h1>
+          <p className="text-slate-500 text-[9px] tracking-[0.4em] m-0 italic">Ordonnancement Temporel SMI §9.3</p>
         </div>
-        <div className="flex gap-4">
-          <button onClick={fetchData} className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:text-blue-500 transition-all cursor-pointer text-white border-none"><RefreshCcw size={18}/></button>
-          <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-white hover:text-blue-600 px-10 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center gap-3 shadow-2xl border-none cursor-pointer transition-all italic text-white active:scale-95">
-            <Plus size={20} /> Nouvelle Activité
-          </button>
-        </div>
+        <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 px-10 py-4 rounded-2xl text-[10px] flex items-center gap-3 shadow-2xl hover:bg-white hover:text-blue-600 transition-all border-none italic text-white cursor-pointer">
+          <Plus size={20} strokeWidth={3} /> Nouvelle Activité
+        </button>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-10 mb-16">
-        <KpiCard title="Réalisation" value={`${stats.completion}%`} icon={CheckCircle2} color="text-emerald-500" />
-        <KpiCard title="Retards" value={stats.late} icon={AlertCircle} color="text-red-500" />
-        <KpiCard title="Instances" value={activities.length} icon={Target} color="text-blue-500" />
-      </div>
-
-      <div className="space-y-8">
-        {activities.length > 0 ? activities.map((act) => (
-          <div key={act.GA_Id} className="bg-slate-900/40 border border-white/5 p-8 lg:p-10 rounded-[3rem] lg:rounded-[4rem] flex flex-col sm:flex-row items-center justify-between group hover:border-blue-500/30 transition-all backdrop-blur-sm gap-8">
-            <div className="flex gap-10 items-center text-left">
-              <div className="w-24 h-24 rounded-4xl bg-blue-600/10 border border-blue-500/20 flex flex-col items-center justify-center text-blue-500 font-black uppercase italic shadow-2xl shrink-0">
-                <span className="text-[11px] tracking-widest leading-none mb-1">{new Date(act.GA_DatePlanned).toLocaleString('fr', {month: 'short'}).toUpperCase()}</span>
-                <span className="text-4xl leading-none m-0">{new Date(act.GA_DatePlanned).getDate()}</span>
-              </div>
-              <div>
-                <span className="text-[9px] font-black uppercase text-slate-500 border border-white/10 px-4 py-1.5 rounded-full italic tracking-widest">{act.GA_Type?.replace(/_/g, ' ')}</span>
-                <h4 className="text-2xl lg:text-3xl font-black uppercase italic tracking-tighter mt-4 group-hover:text-blue-400 transition-colors leading-none m-0">{act.GA_Title}</h4>
-              </div>
-            </div>
-            <div className="flex items-center gap-10">
-              <span className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase italic ${act.GA_Status === 'DONE' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-white/5 text-slate-400'}`}>
-                {act.GA_Status?.replace(/_/g, ' ')}
-              </span>
-              <button onClick={async () => { if(confirm("Supprimer l'instance?")) { await apiClient.delete(`/gouvernance/planning/${act.GA_Id}`); fetchData(); } }} className="p-4 bg-white/5 rounded-2xl hover:bg-red-600 transition-all border-none text-white cursor-pointer opacity-0 group-hover:opacity-100"><Trash2 size={18}/></button>
-            </div>
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 space-y-12">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
+          <div className="bg-[#151B2B] p-10 rounded-[3.5rem] border border-white/5 shadow-2xl">
+             <p className="text-[10px] text-slate-500 tracking-widest mb-4">Réalisation</p>
+             <span className="text-6xl font-black italic text-emerald-500 tracking-tighter leading-none">{stats.completion}%</span>
           </div>
-        )) : (
-          <div className="py-32 text-center border-2 border-dashed border-white/5 rounded-[4rem] group bg-white/2">
-              <Calendar className="mx-auto text-slate-800 mb-8 opacity-20 group-hover:scale-110 transition-all" size={80} />
-              <p className="text-slate-600 font-black uppercase italic tracking-[0.5em] text-sm m-0">Chronogramme Vierge : Noyau Master en attente.</p>
+          <div className="bg-[#151B2B] p-10 rounded-[3.5rem] border border-white/5 shadow-2xl">
+             <p className="text-[10px] text-slate-500 tracking-widest mb-4">Retards</p>
+             <span className="text-6xl font-black italic text-rose-500 tracking-tighter leading-none">{stats.late}</span>
           </div>
-        )}
-      </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-100 flex items-center justify-center p-6 animate-in zoom-in-95 duration-300">
-          <div className="bg-[#0F172A] border border-white/10 w-full max-w-2xl rounded-[4rem] p-12 lg:p-16 shadow-4xl text-left italic">
-             <div className="flex justify-between mb-12 items-center border-b border-white/5 pb-8">
-                <h2 className="text-3xl font-black uppercase italic tracking-tighter leading-none m-0 text-white">Planifier <span className="text-blue-600">SMI</span></h2>
-                <X size={36} className="cursor-pointer text-slate-500 hover:text-white" onClick={() => setIsModalOpen(false)} />
-             </div>
-             <form onSubmit={handleSave} className="space-y-10">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-6 tracking-widest italic leading-none">Objet Stratégique *</label>
-                  <input required placeholder="REVUE DE DIRECTION..." className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl font-black uppercase outline-none focus:border-blue-600 italic text-white" onChange={e => setForm({...form, GA_Title: e.target.value.toUpperCase()})} />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                   <div className="space-y-3 text-left">
-                     <label className="text-[10px] font-black uppercase text-slate-500 ml-6 tracking-widest italic leading-none">Typologie Instance</label>
-                     <select className="w-full bg-[#0F172A] border border-white/10 p-6 rounded-3xl font-black uppercase outline-none focus:border-blue-600 italic text-white appearance-none cursor-pointer" onChange={e => setForm({...form, GA_Type: e.target.value})}>
-                        <option value="REVUE_PROCESSUS">Revue Processus</option>
-                        <option value="REVUE_DIRECTION">Revue Direction</option>
-                        <option value="AUDIT_INTERNE">Audit Interne</option>
-                     </select>
-                   </div>
-                   <div className="space-y-3 text-left">
-                     <label className="text-[10px] font-black uppercase text-slate-500 ml-6 tracking-widest italic leading-none">Date Prévisionnelle</label>
-                     <input type="date" required className="w-full bg-white/5 border border-white/10 p-6 rounded-3xl font-black uppercase outline-none focus:border-blue-600 text-blue-500" onChange={e => setForm({...form, GA_DatePlanned: e.target.value})} />
-                   </div>
-                </div>
-                <button type="submit" className="w-full bg-blue-600 p-8 rounded-[2.5rem] font-black uppercase tracking-[0.4em] hover:bg-white hover:text-blue-600 transition-all shadow-3xl italic border-none text-white cursor-pointer active:scale-95">
-                  <ShieldCheck size={24} className="inline mr-3" /> Valider Chronogramme Matrix
-                </button>
-             </form>
+          <div className="bg-[#151B2B] p-10 rounded-[3.5rem] border border-white/5 shadow-2xl">
+             <p className="text-[10px] text-slate-500 tracking-widest mb-4">Instances</p>
+             <span className="text-6xl font-black italic text-blue-500 tracking-tighter leading-none">{stats.total}</span>
           </div>
         </div>
-      )}
+
+        <div className="space-y-6">
+          {activities.map(act => (
+            <div key={act.GA_Id} className="bg-[#151B2B] border border-white/5 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-8 group hover:border-blue-500/40 transition-all shadow-4xl">
+              <div className="flex items-center gap-10 flex-1">
+                <div className="w-20 h-20 bg-blue-600/10 border border-blue-500/20 rounded-4xl flex flex-col items-center justify-center text-blue-500 shrink-0">
+                   <span className="text-[9px] font-black uppercase mb-1">{new Date(act.GA_DatePlanned).toLocaleString('fr', {month: 'short'})}</span>
+                   <span className="text-3xl font-black leading-none">{new Date(act.GA_DatePlanned).getDate()}</span>
+                </div>
+                <div className="text-left">
+                  <span className="px-4 py-1.5 bg-black/40 rounded-full text-[8px] text-slate-500 border border-white/5 tracking-widest uppercase mb-4 inline-block">{act.GA_Type}</span>
+                  <h4 className="text-2xl font-black m-0 tracking-tighter group-hover:text-blue-500 transition-colors leading-none">{act.GA_Title}</h4>
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
+                <span className={cn("px-6 py-2 rounded-xl text-[9px] font-black border", act.GA_Status === 'DONE' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-white/5 text-slate-500 border-white/5")}>{act.GA_Status}</span>
+                <button className="p-4 bg-white/5 rounded-2xl hover:bg-rose-600 transition-all border-none text-white cursor-pointer opacity-0 group-hover:opacity-100"><Trash2 size={18}/></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 3px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.1); border-radius: 10px; }` }} />
     </div>
   );
 }
 
-function KpiCard({ title, value, icon: Icon, color }: any) {
+function LoadingScreen({ label }: { label: string }) {
   return (
-    <div className="bg-white/5 border border-white/10 p-10 rounded-[3.5rem] text-left relative overflow-hidden group shadow-2xl backdrop-blur-md">
-      <Icon className={`absolute -right-6 -bottom-6 opacity-5 transition-transform duration-1000 group-hover:scale-125 ${color}`} size={180} />
-      <p className="text-[11px] font-black uppercase text-slate-500 mb-4 italic tracking-widest leading-none m-0">{title}</p>
-      <span className={`text-6xl font-black italic tracking-tighter leading-none ${color}`}>{value}</span>
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-6 lg:pl-72 text-blue-500">
+      <RefreshCcw className="animate-spin" size={60} strokeWidth={1} />
+      <span className="text-[10px] font-black uppercase tracking-[1em] animate-pulse italic">{label}</span>
     </div>
   );
 }

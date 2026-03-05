@@ -1,35 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 🌍 MODULE : GESTION DES SITES & IMPLANTATIONS (VERSION ELITE SCELLÉE)
- * -------------------------------------------------------------------------
- * RÔLE : Point d'ancrage géographique du Système de Management Intégré (SMI).
- * ARCHITECTURE : Multi-Tenant Sovereign Data Environment (SDE). Responsive.
- * SÉCURITÉ : Zéro NextAuth. 100% apiClient.
- * DATE DE RÉVISION : 02 Mars 2026 | 14:40 GMT
- * -------------------------------------------------------------------------
+ * 🌍 MODULE : GESTION DES SITES & IMPLANTATIONS (ELITE SDE)
+ * ---------------------------------------------------------------------------
+ * RÔLE : Point d'ancrage géographique du SMI (§4.4 ISO 9001:2015).
+ * DESIGN : Elite High-Density / 100dvh / Zero-Scroll Global / ClickUp Style.
+ * ARCHITECTURE : Zéro NextAuth (Souveraineté JWT via apiClient).
+ * ---------------------------------------------------------------------------
+ * DATE DE RÉVISION : 05 Mars 2026 | 19:25 GMT
  */
 
 "use client";
 
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import apiClient from "@/core/api/api-client";
 import {
-  AlertCircle,
-  Building,
-  Globe,
-  Info,
-  Loader2,
-  MapPin,
-  Navigation,
-  Plus,
-  RefreshCcw,
-  ShieldCheck,
-  Trash2,
+  AlertCircle, Building, Globe, Info, Loader2, MapPin, 
+  Navigation, Plus, RefreshCw, ShieldCheck, Trash2, Search, Layers
 } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 
-// --- IMPORTATION DU RÉFÉRENTIEL SDE ---
+// --- 🏗️ INTERFACES SDE ---
 interface Site {
   S_Id: string;
   S_Name: string;
@@ -37,340 +28,232 @@ interface Site {
   S_City: string | null;
   S_Country: string | null;
   S_IsActive: boolean;
-  tenantId: string;
   S_CreatedAt: string | Date;
-  S_UpdatedAt: string | Date;
 }
 
-interface SiteFormData {
-  S_Name: string;
-  S_Address: string;
-  S_City: string;
-  S_Country: string;
-}
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 export default function SitesPage() {
-  // --- ÉTATS DE GESTION DU RÉFÉRENTIEL ---
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
-  const [formData, setFormData] = useState<SiteFormData>({
+  const [formData, setFormData] = useState({
     S_Name: "",
     S_Address: "",
     S_City: "",
-    S_Country: "Sénégal",
+    S_Country: "SÉNÉGAL",
   });
 
-  /**
-   * 📡 SYNCHRONISATION DU RÉFÉRENTIEL GÉOGRAPHIQUE
-   */
+  // --- 📡 SYNCHRONISATION KERNEL ---
   const fetchSites = useCallback(async () => {
     try {
       setLoading(true);
-      setErrorMessage(null);
-      const res = await apiClient.get("/sites");
+      const res = await apiClient.get<any>("/sites");
       const data = res.data?.data || res.data;
-
-      if (Array.isArray(data)) {
-        setSites(data);
-      } else {
-        setSites([]);
-      }
-    } catch (err: any) {
-      const msg = "Rupture de liaison avec le registre des sites. Vérifiez l'état du Kernel.";
-      setErrorMessage(msg);
-      toast.error(msg);
+      setSites(Array.isArray(data) ? data : []);
+    } catch {
+      toast.error("RUPTURE KERNEL : Registre géographique inaccessible.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchSites();
-  }, [fetchSites]);
+  useEffect(() => { fetchSites(); }, [fetchSites]);
 
-  /**
-   * 💾 PROTOCOLE D'INDEXATION (POST)
-   */
+  // --- 💾 PROTOCOLE D'INDEXATION ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.S_Name.trim()) {
-      toast.error("La désignation du site est obligatoire pour le scellage.");
-      return;
-    }
+    if (!formData.S_Name.trim()) return toast.warning("DÉSIGNATION OBLIGATOIRE");
 
     setSubmitting(true);
-    setErrorMessage(null);
-    const tid = toast.loading("Scellage de l'entité en cours...");
-
+    const tid = toast.loading("Scellage de l'implantation...");
     try {
       await apiClient.post("/sites", formData);
-      toast.success(`Entité "${formData.S_Name}" scellée avec succès dans le SDE.`, { id: tid });
-      setFormData({ S_Name: "", S_Address: "", S_City: "", S_Country: "Sénégal" });
+      toast.success(`Entité "${formData.S_Name}" scellée avec succès.`, { id: tid });
+      setFormData({ S_Name: "", S_Address: "", S_City: "", S_Country: "SÉNÉGAL" });
       fetchSites();
     } catch (err: any) {
-      let message = "Une anomalie technique empêche l'enregistrement souverain.";
-      if (err.response) {
-        const backendMsg = err.response.data?.message;
-        if (Array.isArray(backendMsg)) message = backendMsg.join(" • ");
-        else if (backendMsg) message = backendMsg;
-        else if (err.response.status === 403) message = "Privilèges insuffisants pour modifier le référentiel géographique.";
-      }
-      setErrorMessage(message);
-      toast.error(message, { id: tid });
+      toast.error(err.response?.data?.message || "Échec de mutation SDE.", { id: tid });
     } finally {
       setSubmitting(false);
     }
   };
 
-  /**
-   * 🗑️ RÉVOCATION D'IMPLANTATION (DELETE)
-   */
+  // --- 🗑️ RÉVOCATION ---
   const handleDelete = async (id: string, name: string) => {
-    const confirmDestruction = window.confirm(
-      `ALERTE SÉCURITÉ : Voulez-vous révoquer définitivement l'implantation "${name}" ? \nCette action est irréversible dans le SMI.`
-    );
-    if (!confirmDestruction) return;
-
-    const toastId = toast.loading("Révocation de l'entité en cours...");
+    if (!confirm(`ALERTE : Révoquer l'implantation "${name}" ?`)) return;
+    const tid = toast.loading("Révocation de l'entité...");
     try {
       await apiClient.delete(`/sites/${id}`);
-      toast.success(`Le site "${name}" a été purgé du référentiel.`, { id: toastId });
-      setSites((current) => current.filter((s) => s.S_Id !== id));
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Échec de l'opération de suppression.";
-      toast.error(Array.isArray(msg) ? msg[0] : msg, { id: toastId });
+      toast.success("Implantation purgée.", { id: tid });
+      setSites(prev => prev.filter(s => s.S_Id !== id));
+    } catch {
+      toast.error("Erreur de suppression.", { id: tid });
     }
   };
 
-  if (loading && sites.length === 0) return (
-    <div className="flex min-h-screen ml-0 lg:ml-72 flex-col items-center justify-center bg-slate-50 gap-4">
-      <div className="relative">
-        <Loader2 className="animate-spin text-blue-600" size={60} strokeWidth={1.5} />
-        <ShieldCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-600/30" size={20} />
-      </div>
-      <div className="text-center space-y-2">
-        <p className="text-[11px] font-black uppercase tracking-[0.5em] text-blue-600 italic animate-pulse">
-          Initialisation du référentiel géographique...
-        </p>
-        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-          Sovereign Data Environment 2030
-        </p>
-      </div>
-    </div>
-  );
+  const filteredSites = useMemo(() => 
+    sites.filter(s => s.S_Name.toLowerCase().includes(search.toLowerCase()) || s.S_City?.toLowerCase().includes(search.toLowerCase())),
+  [sites, search]);
+
+  if (loading && sites.length === 0) return <LoadingScreen label="Scanning Infrastructure Géographique..." />;
 
   return (
-    <div className="p-4 lg:p-8 space-y-6 lg:space-y-8 bg-slate-50 min-h-screen italic font-sans selection:bg-blue-600/30 ml-0 lg:ml-72 overflow-x-hidden">
+    <div className="h-screen bg-[#F9FAFB] text-slate-900 italic font-black uppercase flex flex-col overflow-hidden w-full lg:pl-72 selection:bg-blue-600/30">
       <Toaster position="top-right" richColors theme="light" />
       
-      {/* 🏛️ EN-TÊTE SOUVERAIN */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in slide-in-from-top-4 duration-500">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-slate-900 flex items-center gap-4 italic m-0">
-            <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-600/20 shrink-0">
-              <MapPin size={24} strokeWidth={2.5} />
+      {/* 🔝 HEADER TACTIQUE */}
+      <header className="shrink-0 p-8 border-b border-slate-200 bg-white flex flex-col xl:flex-row justify-between items-center gap-6 mt-12 lg:mt-0">
+        <div className="text-left space-y-3">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-600/20">
+              <MapPin size={28} strokeWidth={2.5} />
             </div>
-            Sites & Implantations
-          </h1>
-          <p className="text-slate-500 font-bold text-[9px] lg:text-[10px] uppercase tracking-[0.3em] lg:tracking-[0.5em] mt-3 lg:mt-4 ml-1 opacity-70 flex items-center gap-2 m-0">
-            <ShieldCheck size={14} className="text-blue-500 shrink-0" />
-            Cartographie opérationnelle des pôles d&apos;activité • Périmètre SMI
+            <h1 className="text-4xl lg:text-5xl tracking-tighter leading-none m-0 italic uppercase">
+              Sites & <span className="text-blue-600">Implantations</span>
+            </h1>
+          </div>
+          <p className="text-slate-500 text-[10px] tracking-[0.4em] m-0 flex items-center gap-2">
+            <ShieldCheck size={14} className="text-blue-600" /> Cartographie Opérationnelle • ISO 9001 §4.4
           </p>
         </div>
 
-        <button
-          onClick={() => fetchSites()}
-          className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors border-b border-transparent hover:border-blue-600 pb-1 cursor-pointer w-full md:w-auto"
-        >
-          <RefreshCcw size={14} /> Rafraîchir le registre
-        </button>
-      </div>
-
-      
-
-      {/* VISUALISATION HIÉRARCHIQUE */}
-      <div className="bg-blue-600/5 border border-blue-600/10 p-4 lg:p-5 rounded-3xl flex items-start sm:items-center gap-4 animate-in fade-in duration-1000 shadow-inner">
-        <Info className="text-blue-600 shrink-0 mt-0.5 sm:mt-0" size={20} />
-        <p className="text-[9px] lg:text-[10px] font-bold text-blue-800 uppercase tracking-tighter leading-relaxed m-0">
-          Cette cartographie assure la segmentation territoriale de vos processus et la traçabilité des audits multi-sites selon le référentiel ISO 9001.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-10">
-        {/* 📋 COLONNE GAUCHE : FORMULAIRE D'INDEXATION SCELLÉ */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-4xl lg:rounded-[2.5rem] p-6 lg:p-8 shadow-xl border border-slate-200 lg:sticky lg:top-8 animate-in slide-in-from-left-4 duration-700">
-            <div className="mb-6 lg:mb-8 border-b border-slate-100 pb-4 lg:pb-5">
-              <h2 className="text-[10px] lg:text-[11px] font-black uppercase text-slate-800 flex items-center gap-3 italic m-0">
-                <Plus size={18} className="text-blue-600 shrink-0" strokeWidth={3} /> Nouvelle Implantation
-              </h2>
-              <p className="text-[8px] text-slate-400 font-bold uppercase mt-2 tracking-widest m-0">Indexation au SDE Matrix</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5 lg:space-y-6">
-              <div className="space-y-2">
-                <label className="text-[9px] lg:text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Désignation du Site *</label>
-                <div className="relative group">
-                  <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" size={16} />
-                  <input
-                    required
-                    placeholder="EX: SIÈGE SOCIAL"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3 lg:py-4 text-xs outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-black uppercase tracking-tighter transition-all shadow-inner placeholder:opacity-30"
-                    value={formData.S_Name}
-                    onChange={(e) => setFormData({ ...formData, S_Name: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[9px] lg:text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Localisation Précise *</label>
-                <div className="relative group">
-                  <Navigation className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" size={16} />
-                  <input
-                    required
-                    placeholder="RUE, QUARTIER..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3 lg:py-4 text-xs outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-bold italic transition-all shadow-inner"
-                    value={formData.S_Address}
-                    onChange={(e) => setFormData({ ...formData, S_Address: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 lg:gap-4">
-                <div className="space-y-2">
-                  <label className="text-[9px] lg:text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Ville *</label>
-                  <input
-                    required
-                    placeholder="DAKAR"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 lg:px-6 py-3 lg:py-4 text-xs outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-black uppercase italic transition-all shadow-inner"
-                    value={formData.S_City}
-                    onChange={(e) => setFormData({ ...formData, S_City: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[9px] lg:text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Pays</label>
-                  <input
-                    required
-                    placeholder="SÉNÉGAL"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 lg:px-6 py-3 lg:py-4 text-xs outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-black uppercase italic transition-all shadow-inner"
-                    value={formData.S_Country}
-                    onChange={(e) => setFormData({ ...formData, S_Country: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {errorMessage && (
-                <div className="p-3 lg:p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-[9px] lg:text-[10px] font-black uppercase italic text-red-600 animate-in fade-in slide-in-from-top-2 shadow-sm">
-                  <AlertCircle size={16} className="shrink-0" />
-                  <span className="leading-tight tracking-widest">{errorMessage}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-slate-900 hover:bg-blue-600 disabled:opacity-50 text-white font-black uppercase py-4 lg:py-5 rounded-2xl text-[10px] lg:text-[11px] shadow-xl hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-3 cursor-pointer tracking-[0.2em] italic active:scale-95 m-0"
-              >
-                {submitting ? <Loader2 className="animate-spin shrink-0" size={18} /> : <ShieldCheck size={18} className="shrink-0" />}
-                {submitting ? "TRAITEMENT..." : "Valider L'IMPLANTATION"}
-              </button>
-            </form>
+        <div className="flex gap-4 w-full xl:w-auto">
+          <div className="relative flex-1 xl:flex-none group">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-all" size={20} />
+            <input 
+              value={search} 
+              onChange={e => setSearch(e.target.value)}
+              placeholder="RECHERCHER SITE..." 
+              className="w-full xl:w-80 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] py-5 pl-16 pr-8 text-[11px] font-black italic text-slate-900 outline-none focus:border-blue-600 shadow-inner uppercase" 
+            />
           </div>
+          <button onClick={fetchSites} className="p-5 bg-white border-2 border-slate-100 rounded-3xl text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all cursor-pointer">
+            <RefreshCw size={24} className={loading ? "animate-spin" : ""} />
+          </button>
         </div>
+      </header>
 
-        {/* 🌐 COLONNE DROITE : REGISTRE DES ENTITÉS GÉOGRAPHIQUES */}
-        <div className="lg:col-span-3">
-          <div className="bg-white rounded-4xl lg:rounded-[3rem] shadow-xl border border-slate-200 overflow-hidden min-h-100 animate-in slide-in-from-right-4 duration-700">
-            <div className="p-6 lg:p-8 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-50/50 backdrop-blur-md gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-blue-600/10 rounded-xl">
-                  <Globe size={20} className="text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-black uppercase italic text-xs lg:text-[13px] text-slate-800 tracking-tighter leading-none m-0">
-                    Implantations Actives
-                    <span className="text-blue-600 font-black ml-2 bg-blue-50 px-2.5 py-1 rounded-md text-[10px] lg:text-[11px] shadow-inner">
-                      {sites.length}
-                    </span>
-                  </h3>
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1.5 m-0">Sovereign Asset Core</p>
-                </div>
-              </div>
-              <div className="hidden sm:block text-[8px] lg:text-[9px] font-black uppercase italic text-slate-400 tracking-widest opacity-60">
-                © 2026 QUALISOFT RD
-              </div>
+      {/* 📊 KPI & FORMULA BAR */}
+      <nav className="shrink-0 px-8 py-4 bg-white border-b border-slate-200 flex justify-between items-center overflow-x-auto custom-scrollbar">
+        <div className="flex items-center gap-8">
+           <KPIStat label="Total Implantations" value={sites.length} />
+           <KPIStat label="Sites Actifs" value={sites.filter(s => s.S_IsActive).length} color="text-emerald-600" />
+        </div>
+        <div className="hidden lg:block bg-slate-50 px-6 py-2 rounded-2xl border border-slate-200 text-[10px] text-slate-500 font-black italic">
+          {"Indice de Maillage : $$I_m = \\frac{N_{Sites}}{N_{Processus}} \\times 100$$"}
+        </div>
+      </nav>
+
+      {/* 🧩 DUAL VIEWPORT MAIN */}
+      <main className="flex-1 overflow-hidden p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* COLONNE INDEXATION (Static in Viewport) */}
+        <section className="lg:col-span-4 bg-white p-10 rounded-[3.5rem] border-2 border-slate-100 shadow-2xl flex flex-col gap-10">
+          <header className="border-b border-slate-100 pb-6">
+            <h2 className="text-xl font-black italic m-0 flex items-center gap-4 text-slate-900 uppercase tracking-tighter">
+              <Plus className="text-blue-600" size={24} strokeWidth={3} /> Nouvelle <span className="text-blue-600">Entité</span>
+            </h2>
+            <p className="text-[9px] text-slate-400 tracking-widest mt-2 uppercase">Indexation au SDE Matrix</p>
+          </header>
+
+          <form onSubmit={handleSubmit} className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+            <SDEInput label="Désignation du Site *" value={formData.S_Name} onChange={(v: string) => setFormData({...formData, S_Name: v.toUpperCase()})} icon={<Building size={18}/>} />
+            <SDEInput label="Localisation Précise *" value={formData.S_Address} onChange={(v: any) => setFormData({...formData, S_Address: v})} icon={<Navigation size={18}/>} />
+            
+            <div className="grid grid-cols-2 gap-6">
+              <SDEInput label="Ville *" value={formData.S_City} onChange={(v: string) => setFormData({...formData, S_City: v.toUpperCase()})} />
+              <SDEInput label="Pays" value={formData.S_Country} onChange={(v: string) => setFormData({...formData, S_Country: v.toUpperCase()})} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 p-4 lg:p-8 gap-6 lg:gap-8">
-              {sites.map((site) => (
-                <div
-                  key={site.S_Id}
-                  className="group relative p-6 lg:p-8 rounded-4xl lg:rounded-4xl border border-slate-100 bg-slate-50/40 hover:bg-white hover:border-blue-600/30 hover:shadow-[0_20px_50px_rgba(37,99,235,0.1)] transition-all duration-500 ease-out"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex gap-4 lg:gap-6 items-start w-full">
-                      <div className="w-12 h-12 lg:w-16 lg:h-16 bg-white border border-slate-100 rounded-2xl lg:rounded-3xl flex items-center justify-center text-blue-600 shadow-sm group-hover:bg-blue-600 group-hover:text-white group-hover:rotate-6 transition-all duration-500 shrink-0">
-                        <MapPin size={24} strokeWidth={2.5} />
-                      </div>
-                      <div className="text-left space-y-1 flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 lg:gap-3">
-                          <h4 className="text-sm lg:text-[15px] font-black uppercase italic text-slate-900 group-hover:text-blue-700 transition-colors tracking-tighter leading-none m-0 truncate">
-                            {site.S_Name}
-                          </h4>
-                          {!site.S_IsActive && (
-                            <span className="text-[8px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-md uppercase w-fit">Inactif</span>
-                          )}
-                        </div>
-                        <p className="text-[10px] lg:text-[11px] text-slate-500 mt-2 font-bold italic leading-relaxed truncate opacity-80 m-0">
-                          {site.S_Address || "Aucune adresse"}
-                        </p>
-                        <div className="flex items-center gap-2 mt-4">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${site.S_IsActive ? "bg-emerald-500" : "bg-slate-300"} animate-pulse`}></span>
-                          <p className="text-[8px] lg:text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] italic truncate m-0">
-                            {site.S_City}, {site.S_Country}
-                          </p>
-                        </div>
-                      </div>
+            <button type="submit" disabled={submitting} className="w-full py-6 bg-slate-900 text-white rounded-4xl font-black text-[11px] tracking-[0.4em] italic shadow-4xl border-none cursor-pointer hover:bg-blue-600 transition-all flex items-center justify-center gap-4 uppercase active:scale-95">
+              {submitting ? <Loader2 className="animate-spin" /> : <ShieldCheck size={20} />} Valider l&apos;Implantation
+            </button>
+          </form>
+        </section>
+
+        {/* COLONNE REGISTRE (Isolated Scroll) */}
+        <section className="lg:col-span-8 bg-slate-100/40 rounded-[3.5rem] border-2 border-slate-100 overflow-hidden flex flex-col shadow-inner">
+          <header className="p-8 border-b border-slate-200 bg-white/80 backdrop-blur-md flex justify-between items-center">
+            <h2 className="text-sm font-black italic m-0 uppercase flex items-center gap-3 tracking-widest">
+              <Globe className="text-blue-600" size={20} /> Implantations Actives
+            </h2>
+            <span className="text-[10px] font-black bg-blue-600 text-white px-4 py-1.5 rounded-xl">RD-2026 SDE</span>
+          </header>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-8 grid grid-cols-1 xl:grid-cols-2 gap-8 content-start">
+            {filteredSites.length > 0 ? filteredSites.map((site) => (
+              <div key={site.S_Id} className="group bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:border-blue-500/50 hover:shadow-2xl transition-all duration-500 relative overflow-hidden text-left">
+                <div className="flex gap-6 items-start">
+                  <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner shrink-0">
+                    <MapPin size={28} strokeWidth={2.5} />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <h4 className="text-lg font-black uppercase italic text-slate-900 group-hover:text-blue-600 truncate m-0">{site.S_Name}</h4>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase italic truncate m-0 tracking-tight leading-none">{site.S_Address || "Pas d'adresse spécifiée"}</p>
+                    <div className="flex items-center gap-3 pt-3">
+                      <div className={cn("w-2 h-2 rounded-full animate-pulse", site.S_IsActive ? "bg-emerald-500" : "bg-slate-300")} />
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">{site.S_City}, {site.S_Country}</span>
                     </div>
-
-                    <button
-                      onClick={() => handleDelete(site.S_Id, site.S_Name)}
-                      className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 border-none cursor-pointer shrink-0"
-                      title="Révoquer l'implantation"
-                    >
-                      <Trash2 size={18} />
-                    </button>
                   </div>
-
-                  <div className="absolute bottom-4 right-6 lg:right-8 opacity-100 lg:opacity-0 lg:group-hover:opacity-40 transition-opacity">
-                    <p className="text-[7px] font-black text-slate-400 uppercase m-0">ID: {site.S_Id.substring(0, 8)}</p>
-                  </div>
+                  <button onClick={() => handleDelete(site.S_Id, site.S_Name)} className="p-4 bg-slate-50 rounded-2xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all border-none cursor-pointer opacity-100 xl:opacity-0 group-hover:opacity-100">
+                    <Trash2 size={20} />
+                  </button>
                 </div>
-              ))}
-
-              {/* ÉTAT VIDE : NÉANT GÉOGRAPHIQUE */}
-              {sites.length === 0 && !loading && (
-                <div className="col-span-1 md:col-span-2 py-20 lg:py-32 flex flex-col items-center justify-center text-slate-400 gap-6 border-4 border-dashed border-slate-100 rounded-[3rem] animate-in zoom-in duration-700">
-                  <div className="w-20 h-20 lg:w-28 lg:h-28 bg-slate-50 rounded-full flex items-center justify-center shadow-inner relative">
-                    <Globe size={40} className="opacity-10 text-slate-900 animate-spin" style={{ animationDuration: '4s' }} />
-                    <AlertCircle className="absolute top-0 right-0 text-blue-600/40" size={20} />
-                  </div>
-                  <div className="text-center space-y-2 lg:space-y-3 px-4">
-                    <p className="font-black uppercase text-xs lg:text-sm italic tracking-[0.2em] lg:tracking-[0.3em] text-slate-600 m-0">Néant géographique</p>
-                    <p className="text-[9px] lg:text-[10px] font-bold italic opacity-60 uppercase tracking-tighter max-w-xs mx-auto leading-relaxed m-0">
-                      L&apos;infrastructure Qualisoft Elite nécessite au moins une implantation physique pour activer les modules SMI.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )) : (
+              <div className="col-span-full py-32 flex flex-col items-center gap-6 opacity-30 italic">
+                <Layers size={60} strokeWidth={1} />
+                <p className="font-black uppercase tracking-[0.4em] text-[10px]">Aucune implantation scellée</p>
+              </div>
+            )}
           </div>
-        </div>
+        </section>
+      </main>
+
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 0px; }` }} />
+    </div>
+  );
+}
+
+// --- 🧩 COMPOSANTS ATOMIQUES SDE ---
+
+function SDEInput({ label, value, onChange, icon }: any) {
+  return (
+    <div className="space-y-3 text-left w-full">
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 italic m-0">{label}</label>
+      <div className="relative group">
+        {icon && <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors">{icon}</div>}
+        <input 
+          value={value || ""} 
+          onChange={e => onChange(e.target.value)} 
+          className={cn(
+            "w-full bg-slate-50 border-2 border-slate-100 rounded-3xl p-6 text-[12px] font-black text-slate-900 outline-none italic focus:border-blue-600 focus:bg-white transition-all uppercase shadow-inner",
+            icon ? "pl-16" : "px-6"
+          )} 
+          placeholder="..." 
+        />
       </div>
+    </div>
+  );
+}
+
+function KPIStat({ label, value, color = "text-blue-600" }: any) {
+  return (
+    <div className="flex flex-col text-left">
+      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic leading-none">{label}</span>
+      <span className={cn("text-2xl font-black italic m-0", color)}>{value}</span>
+    </div>
+  );
+}
+
+function LoadingScreen({ label }: { label: string }) {
+  return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F9FAFB] gap-8 lg:pl-72 text-blue-600 italic font-black uppercase tracking-[0.5em]">
+      <RefreshCw className="animate-spin" size={70} strokeWidth={1} />
+      <span className="text-[10px] animate-pulse text-center px-10 leading-relaxed uppercase">{label}</span>
     </div>
   );
 }

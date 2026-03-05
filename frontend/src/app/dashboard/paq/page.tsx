@@ -1,321 +1,216 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 🛡️ FICHIER : app/(dashboard)/paq/page.tsx
- * ===========================================================================
- * PAGE : PILOTAGE DES PLANS D'ACTIONS QUALITÉ (PAQ)
- * RÔLE : Pilotage du cycle d'amélioration continue (ISO 9001 §10.3)
- * DESIGN : Style ClickUp professionnel (sobre, épuré, orienté productivité)
- * ARCHITECTURE : Zéro NextAuth (100% apiClient), Zéro fausses données.
- * DATE : 02 Mars 2026 | 12:43 GMT
- * ===========================================================================
+ * 🛡️ MODULE : PILOTAGE DES PLANS D'ACTIONS QUALITÉ (PAQ)
+ * -------------------------------------------------------------------------
+ * RÔLE : Pilotage du cycle d'amélioration continue (ISO 9001 §10.3).
+ * DESIGN : Elite High-Density, 100dvh, Zéro Scroll Global, ClickUp Style.
+ * LOGIQUE : Zéro NextAuth • Synchronisation Kernel Matrix.
+ * -------------------------------------------------------------------------
+ * DATE : 05 Mars 2026 | 17:15 GMT
  */
 
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
 import {
-  Activity, ArrowRight, BarChart3, Calendar, CheckCircle2,
-  Edit3, LayoutGrid, Loader2, Plus, Printer, ShieldAlert,
-  Target, Users, X
+  ArrowRight, BarChart3, CheckCircle2,
+  Edit3, LayoutGrid, Plus, Printer, ShieldAlert,
+  Target, Users, X, RefreshCw, Zap
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-import type { Action, PAQ, User, Processus, ActionStatus, Priority } from '@/types/elite-sde';
-import { ActionStatus as ActionStatusEnum, Priority as PriorityEnum } from '@/types/elite-sde';
 
-// --- UTILITAIRE DE CLASSES ---
-const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
-
-// --- TYPES ÉTENDUS ---
-interface PAQDashboardData {
-  total: number;
-  enRetard: Action[];
-  aValider: Action[];
-  cloturees: Action[];
-  tauxEfficacite: number;
-  chargeTravail: Array<{ name: string; count: number }>;
-}
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 export default function PAQPage() {
   const router = useRouter();
-  const [data, setData] = useState<PAQDashboardData | null>(null);
-  const [paqs, setPaqs] = useState<PAQ[]>([]);
+  const [data, setData] = useState<any>(null);
+  const [paqs, setPaqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingAction, setEditingAction] = useState<Action | null>(null);
+  const [editingAction, setEditingAction] = useState<any>(null);
 
-  // --- 📡 CHARGEMENT DES DONNÉES SDE ---
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [resStats, resPaqs] = await Promise.all([
-        apiClient.get<PAQDashboardData>('/paq/dashboard'),
-        apiClient.get<PAQ[]>('/paq'),
+        apiClient.get('/paq/dashboard'),
+        apiClient.get('/paq'),
       ]);
-      setData(resStats.data);
-      setPaqs(resPaqs.data || []);
-    } catch (err) {
-      console.error('[PAQ] Échec de synchronisation:', err);
-      toast.error('Échec du chargement des plans d\'actions qualité');
-    } finally {
-      setLoading(false);
-    }
+      setData(resStats.data?.data || resStats.data);
+      setPaqs(resPaqs.data?.data || resPaqs.data || []);
+    } catch {
+      toast.error('ÉCHEC DE SYNCHRONISATION DU REGISTRE PAQ');
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // --- 💾 MISE À JOUR RAPIDE D'ACTION ---
-  const handleQuickUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingAction?.ACT_Id) return;
-
-    const tid = toast.loading("Mise à jour en cours...");
-    try {
-      await apiClient.patch(`/paq/actions/${editingAction.ACT_Id}`, {
-        ACT_Status: editingAction.ACT_Status,
-        ACT_Priority: editingAction.ACT_Priority,
-        ACT_Title: editingAction.ACT_Title,
-      });
-      toast.success('Action mise à jour avec succès', { id: tid });
-      setEditingAction(null);
-      fetchData();
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Échec de la mise à jour';
-      toast.error(Array.isArray(msg) ? msg[0] : msg, { id: tid });
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="ml-0 lg:ml-72 flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-indigo-600 mx-auto" />
-          <p className="mt-4 text-sm font-medium text-gray-600">Synchronisation des plans d&apos;actions...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen label="Synchronisation des Plans d'Actions..." />;
 
   return (
-    <div className="ml-0 lg:ml-72 bg-gray-50 min-h-screen p-6 lg:p-10 font-sans">
-      <Toaster position="top-right" richColors />
+    <div className="h-screen bg-[#0B0F1A] text-white italic font-black uppercase flex flex-col overflow-hidden w-full lg:pl-72 selection:bg-indigo-600/30">
+      <Toaster position="top-right" richColors theme="dark" />
 
-      <div className="mx-auto max-w-7xl space-y-8">
-        {/* 🔝 HEADER STRATÉGIQUE */}
-        <header className="border-b border-gray-200 pb-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800">ISO 9001:2015 §10.3</span>
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">{data?.total || 0} actions actives</span>
-              </div>
-              <h1 className="mt-3 text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">Plans d&apos;actions qualité</h1>
-              <p className="mt-1 text-sm text-gray-600">Pilotage du cycle d&apos;amélioration continue et suivi des mesures correctives</p>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-0">
-              <button onClick={() => window.print()} className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer transition-all">
-                <Printer className="mr-2 h-4 w-4" /> Exporter le rapport
-              </button>
-              <button onClick={() => router.push('/dashboard/paq/nouveau')} className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer transition-all">
-                <Plus className="mr-2 h-4 w-4" /> Nouveau plan annuel
-              </button>
-            </div>
+      {/* 🔝 HEADER STRATÉGIQUE (Fixe) */}
+      <header className="shrink-0 p-8 border-b border-white/5 flex flex-col xl:flex-row justify-between items-center bg-[#0B0F1A]/95 backdrop-blur-xl z-50 gap-8 mt-12 lg:mt-0">
+        <div className="text-left space-y-3">
+          <div className="flex items-center gap-4">
+            <span className="bg-indigo-600/10 border border-indigo-500/20 px-4 py-1 rounded-xl text-[9px] text-indigo-500 tracking-widest flex items-center gap-2">
+              <Zap size={12} /> ISO 9001 §10.3
+            </span>
+            <span className="text-slate-500 text-[9px] tracking-[0.4em] italic">{data?.total || 0} ACTIONS ACTIVES</span>
           </div>
+          <h1 className="text-4xl lg:text-5xl tracking-tighter leading-none m-0">Plans <span className="text-indigo-600">Actions</span></h1>
+        </div>
 
-          {/* 📊 KPI CARDS */}
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KPIStat title="Actions totales" value={data?.total.toString() || '0'} icon={Target} color="blue" subtext="Volume SMI" />
-            <KPIStat title="Retards critiques" value={data?.enRetard?.length.toString() || '0'} icon={ShieldAlert} color="red" subtext="Alerte §10.2" />
-            <KPIStat title="Taux d'efficacité" value={`${data?.tauxEfficacite || 0}%`} icon={CheckCircle2} color={data?.tauxEfficacite && data.tauxEfficacite >= 85 ? 'emerald' : 'amber'} subtext="Performance §9.1.3" />
-            <KPIStat title="Pilotes actifs" value={data?.chargeTravail?.length.toString() || '0'} icon={Users} color="indigo" subtext="Affectation ressources" />
-          </div>
-        </header>
+        <div className="flex items-center gap-4 w-full xl:w-auto">
+          <button onClick={() => window.print()} className="flex-1 xl:flex-none p-5 bg-white/5 hover:bg-white/10 rounded-3xl border border-white/10 text-slate-400 transition-all cursor-pointer"><Printer size={20}/></button>
+          <button onClick={() => router.push('/dashboard/paq/nouveau')} className="flex-1 xl:flex-none bg-indigo-600 hover:bg-white hover:text-indigo-600 px-10 py-5 rounded-3xl text-[10px] flex items-center justify-center gap-3 shadow-4xl border-none cursor-pointer text-white italic transition-all active:scale-95">
+            <Plus size={18} /> Nouveau Plan
+          </button>
+        </div>
+      </header>
 
-        {/* 🏛️ GRID PRINCIPALE */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      {/* 📊 KPI DASHBOARD (Fixe) */}
+      <div className="shrink-0 p-8 pb-4 grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <KPICard title="Actions Totales" value={data?.total || 0} icon={Target} color="indigo" sub="Volume SMI" />
+        <KPICard title="Retards Critiques" value={data?.enRetard?.length || 0} icon={ShieldAlert} color="red" sub="Alerte §10.2" />
+        <KPICard title="Efficacité" value={`${data?.tauxEfficacite || 0}%`} icon={CheckCircle2} color="emerald" sub="Performance" />
+        <KPICard title="Charge Pilotes" value={data?.chargeTravail?.length || 0} icon={Users} color="blue" sub="Ressources" />
+      </div>
+
+      {/* 📋 WORKZONE (Scroll Isolé) */}
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-8 pt-4">
+        <div className="grid grid-cols-12 gap-8 pb-20">
           
-          {/* COLONNE 1-2 : LISTE DES PAQ */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
-              <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Plans annuels</h2>
-                  <p className="mt-1 text-xs text-gray-500">Structurés par processus et année d&apos;exécution</p>
-                </div>
-                <span className="rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700">{paqs.length} plans scellés</span>
-              </div>
-
-              <div className="divide-y divide-gray-200">
-                {paqs.length > 0 ? (
-                  paqs.map((paq) => <PAQCard key={paq.PAQ_Id} paq={paq} onClick={() => router.push(`/dashboard/paq/${paq.PAQ_Id}`)} />)
-                ) : (
-                  <div className="p-16 text-center">
-                    <div className="mx-auto h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center"><LayoutGrid className="h-6 w-6 text-gray-400" /></div>
-                    <h3 className="mt-4 text-sm font-medium text-gray-900">Aucun plan d&apos;actions qualité</h3>
-                    <p className="mt-1 text-sm text-gray-500">Commencez par créer votre premier plan annuel.</p>
+          {/* Liste des PAQ (Colonne Large) */}
+          <section className="col-span-12 xl:col-span-8 space-y-6 text-left">
+            <h2 className="text-[11px] text-slate-500 tracking-[0.4em] m-0 mb-4 italic flex items-center gap-3">
+              <LayoutGrid size={16} /> Plans Annuels Scellés
+            </h2>
+            <div className="bg-[#151B2B] border-2 border-white/5 rounded-[3.5rem] overflow-hidden shadow-4xl divide-y divide-white/5">
+              {paqs.length > 0 ? paqs.map((paq) => (
+                <div key={paq.PAQ_Id} onClick={() => router.push(`/dashboard/paq/${paq.PAQ_Id}`)} className="p-8 hover:bg-white/5 transition-all cursor-pointer flex flex-col md:flex-row justify-between items-center gap-6 group">
+                  <div className="flex items-center gap-6 w-full md:w-auto">
+                    <div className="w-16 h-16 rounded-3xl bg-indigo-600/10 text-indigo-500 border border-indigo-500/20 flex flex-col items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                      <span className="text-[8px] font-black opacity-60">AN</span>
+                      <span className="text-xl font-black leading-none">{paq.PAQ_Year}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl m-0 tracking-tighter group-hover:text-indigo-400 transition-colors uppercase italic">{paq.PAQ_Title}</h3>
+                      <p className="text-[9px] text-slate-500 mt-2 m-0 tracking-widest uppercase">{paq.Processus?.PR_Libelle || 'Global SMI'}</p>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* COLONNE 3 : RADAR URGENCES + CHARGE */}
-          <div className="space-y-8">
-            <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
-              <div className="border-b border-rose-100 bg-rose-50 px-6 py-4">
-                <h2 className="text-sm font-bold text-rose-800 flex items-center gap-2 uppercase tracking-wide"><ShieldAlert className="h-4 w-4" /> Actions en retard</h2>
-              </div>
-              <div className="p-5">
-                {data?.enRetard && data.enRetard.length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-                    {data.enRetard.slice(0, 5).map((action) => {
-                      const deadline = action.ACT_Deadline ? new Date(action.ACT_Deadline) : null;
-                      const formattedDate = deadline && !isNaN(deadline.getTime()) ? deadline.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Non définie';
-                      return (
-                        <div key={action.ACT_Id} className="flex items-start justify-between rounded-lg border border-rose-100 bg-rose-50/50 p-3 hover:border-rose-300 transition-colors">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold text-rose-700 mb-1"><Calendar className="h-3 w-3" /> Échéance : {formattedDate}</div>
-                            <p className="truncate text-sm font-medium text-gray-900">{action.ACT_Title}</p>
-                          </div>
-                          <button onClick={() => setEditingAction(action)} className="ml-2 rounded p-1.5 text-gray-400 hover:bg-rose-100 hover:text-rose-600 transition-colors cursor-pointer"><Edit3 className="h-4 w-4" /></button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-10"><CheckCircle2 className="h-10 w-10 text-emerald-400 mb-3" /><p className="text-sm font-medium text-emerald-700">Aucune action en retard</p></div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden">
-              <div className="border-b border-indigo-100 bg-indigo-50 px-6 py-4">
-                <h2 className="text-sm font-bold text-indigo-800 flex items-center gap-2 uppercase tracking-wide"><Activity className="h-4 w-4" /> Charge par pilote</h2>
-              </div>
-              <div className="p-6">
-                {data?.chargeTravail && data.chargeTravail.length > 0 ? (
-                  <div className="space-y-5">
-                    {data.chargeTravail.map(({ name, count }) => (
-                      <div key={name} className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs font-semibold text-gray-700"><span>{name}</span><span className="text-indigo-600">{count} actions</span></div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                          <div className="h-full rounded-full bg-indigo-500 transition-all duration-1000" style={{ width: `${(count / (data.total || 1)) * 100}%` }} />
-                        </div>
+                  <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-[10px] text-slate-500 m-0 tracking-widest italic uppercase">Taux d&apos;avancement</p>
+                      <div className="w-32 h-1.5 bg-black/40 rounded-full mt-2 overflow-hidden border border-white/5">
+                        <div className="h-full bg-indigo-500" style={{ width: '65%' }} />
                       </div>
-                    ))}
+                    </div>
+                    <ArrowRight size={24} className="text-slate-800 group-hover:text-white group-hover:translate-x-2 transition-all" />
                   </div>
-                ) : (
-                  <div className="text-center py-8"><BarChart3 className="mx-auto h-8 w-8 text-gray-300 mb-2" /><p className="text-xs text-gray-500">Aucune donnée de charge</p></div>
-                )}
-              </div>
+                </div>
+              )) : (
+                <div className="p-20 text-center opacity-20"><Target size={60} className="mx-auto mb-4" /><p>Aucun plan d&apos;action enregistré</p></div>
+              )}
             </div>
-          </div>
-        </div>
-      </div>
+          </section>
 
-      {/* 📟 MODAL D'ÉDITION D'ACTION */}
+          {/* Radar Urgences & Charge (Colonne Latérale) */}
+          <aside className="col-span-12 xl:col-span-4 space-y-8 flex flex-col">
+            <div className="bg-[#151B2B] border-2 border-red-600/20 p-8 rounded-[3rem] shadow-4xl flex flex-col gap-8 relative overflow-hidden">
+               <ShieldAlert className="absolute -right-4 -top-4 opacity-5 text-red-600" size={100} />
+               <h3 className="text-[11px] text-red-500 tracking-[0.4em] m-0 italic flex items-center gap-3 uppercase font-black"><ShieldAlert size={16} /> Radar Retards §10.2</h3>
+               <div className="space-y-4">
+                 {data?.enRetard?.slice(0, 4).map((action: any) => (
+                   <div key={action.ACT_Id} className="bg-black/40 border border-white/5 p-5 rounded-2xl flex justify-between items-center group hover:border-red-600/40 transition-all">
+                     <div className="text-left">
+                       <p className="text-[10px] text-red-500 m-0 tracking-widest uppercase mb-1 font-black">Exp: {new Date(action.ACT_Deadline).toLocaleDateString()}</p>
+                       <p className="text-xs m-0 italic truncate w-40 text-slate-300">{action.ACT_Title}</p>
+                     </div>
+                     <button onClick={() => setEditingAction(action)} className="p-3 bg-white/5 rounded-xl border-none cursor-pointer text-slate-600 hover:text-white transition-all"><Edit3 size={16} /></button>
+                   </div>
+                 ))}
+               </div>
+            </div>
+
+            <div className="bg-[#151B2B] border-2 border-indigo-600/10 p-8 rounded-[3rem] shadow-4xl flex flex-col gap-8 flex-1">
+               <h3 className="text-[11px] text-indigo-500 tracking-[0.4em] m-0 italic flex items-center gap-3 uppercase font-black"><BarChart3 size={16} /> Charge par Pilote</h3>
+               <div className="space-y-6">
+                 {data?.chargeTravail?.map((pilot: any, i: number) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-between items-end italic"><span className="text-[10px] text-slate-400 tracking-widest truncate w-40">{pilot.name}</span><span className="text-lg leading-none">{pilot.count}</span></div>
+                      <div className="h-1 bg-black/40 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{ width: `${(pilot.count / (data.total || 1)) * 100}%` }} />
+                      </div>
+                    </div>
+                 ))}
+               </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+
+      {/* 📟 DRAWER DE RECTIFICATION */}
       {editingAction && (
-        <EditActionModal
-          action={editingAction}
-          onClose={() => setEditingAction(null)}
-          onSubmit={handleQuickUpdate}
-          onChange={(field: any, value: any) => setEditingAction((prev) => (prev ? { ...prev, [field]: value } : null))}
-        />
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setEditingAction(null)} />
+          <div className="relative w-full max-w-lg bg-[#0F172A] border-l-2 border-indigo-600/30 h-full p-12 flex flex-col shadow-4xl animate-in slide-in-from-right duration-500 text-left overflow-y-auto">
+             <header className="flex justify-between items-center mb-12">
+               <h2 className="text-3xl tracking-tighter m-0 uppercase italic">Rectifier <span className="text-indigo-600">Action</span></h2>
+               <button onClick={() => setEditingAction(null)} className="p-4 text-slate-500 hover:text-white bg-transparent border-none cursor-pointer"><X size={32}/></button>
+             </header>
+             <form className="space-y-10">
+                <div className="space-y-3">
+                  <label className="text-[10px] text-slate-500 tracking-[0.4em]">TITRE DE L&apos;ACTION *</label>
+                  <input value={editingAction.ACT_Title} className="w-full bg-black/40 border-2 border-white/5 rounded-3xl p-6 text-sm font-black text-white outline-none focus:border-indigo-600 uppercase italic" />
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-[10px] text-slate-500 tracking-[0.4em]">PRIORITÉ</label>
+                    <select className="w-full bg-black/40 border-2 border-white/5 rounded-3xl p-6 text-xs text-white outline-none appearance-none cursor-pointer">
+                      <option>URGENT</option><option>HAUTE</option><option>MOYENNE</option>
+                    </select>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] text-slate-500 tracking-[0.4em]">STATUT</label>
+                    <select className="w-full bg-black/40 border-2 border-white/5 rounded-3xl p-6 text-xs text-white outline-none appearance-none cursor-pointer">
+                      <option>EN_COURS</option><option>TERMINEE</option>
+                    </select>
+                  </div>
+                </div>
+                <button type="button" className="w-full bg-indigo-600 py-6 rounded-[2.5rem] text-[12px] text-white shadow-4xl border-none cursor-pointer hover:bg-white hover:text-indigo-600 transition-all font-black italic tracking-widest mt-12 uppercase">Sceller la Rectification §10.2</button>
+             </form>
+          </div>
+        </div>
       )}
+
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 0px; }` }} />
     </div>
   );
 }
 
-// --- SOUS-COMPOSANTS CLICKUP STYLE ---
-function KPIStat({ title, value, icon: Icon, color, subtext }: { title: string; value: string; icon: any; color: 'blue' | 'red' | 'emerald' | 'amber' | 'indigo'; subtext: string }) {
-  const colorClasses = {
-    blue: 'text-blue-700 bg-blue-50 border-blue-100',
-    red: 'text-rose-700 bg-rose-50 border-rose-100',
-    emerald: 'text-emerald-700 bg-emerald-50 border-emerald-100',
-    amber: 'text-amber-700 bg-amber-50 border-amber-100',
-    indigo: 'text-indigo-700 bg-indigo-50 border-indigo-100',
-  };
+function KPICard({ title, value, icon: Icon, color, sub }: any) {
+  const c: any = { indigo: "text-indigo-500 border-indigo-500/10", red: "text-red-500 border-red-500/10", emerald: "text-emerald-500 border-emerald-500/10", blue: "text-blue-500 border-blue-500/10" };
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-200">
-      <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl border ${colorClasses[color]}`}><Icon className="h-6 w-6" /></div>
-        <div>
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{title}</p>
-          <p className="text-2xl font-black text-gray-900 leading-tight">{value}</p>
-          <p className="text-[10px] font-medium text-gray-400 mt-0.5">{subtext}</p>
-        </div>
+    <div className={cn("bg-[#151B2B] p-8 rounded-[3rem] border-2 flex items-center gap-6 shadow-4xl transition-all hover:-translate-y-1 relative overflow-hidden", c[color])}>
+      <div className="p-5 rounded-2xl bg-black/40 border border-white/5 shadow-inner"><Icon size={28} /></div>
+      <div className="text-left relative z-10">
+        <p className="text-4xl font-black italic m-0 tracking-tighter text-white leading-none">{value}</p>
+        <p className="text-[10px] text-slate-500 tracking-widest mt-2 m-0 uppercase leading-none">{title}</p>
+        <p className="text-[8px] text-slate-700 mt-1 m-0 tracking-[0.3em] font-bold italic">{sub}</p>
       </div>
     </div>
   );
 }
 
-function PAQCard({ paq, onClick }: { paq: any; onClick: () => void }) {
+function LoadingScreen({ label }: { label: string }) {
   return (
-    <button onClick={onClick} className="w-full px-6 py-5 text-left transition-colors hover:bg-gray-50 focus:outline-none focus:bg-gray-50 cursor-pointer border-none bg-transparent">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 uppercase tracking-wider border border-indigo-100">Exercice {paq.PAQ_Year}</span>
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">{paq.PAQ_Processus?.PR_Libelle || paq.Processus?.PR_Libelle || 'PROCESSUS NON SPÉCIFIÉ'}</span>
-          </div>
-          <p className="text-base font-bold text-gray-900 truncate">{paq.PAQ_Title}</p>
-          <div className="mt-2 flex items-center gap-4 text-xs text-gray-500 font-medium">
-            <div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> Pilote : {paq.PAQ_QualityManager ? `${paq.PAQ_QualityManager.U_FirstName} ${paq.PAQ_QualityManager.U_LastName}` : 'Non assigné'}</div>
-            <div className="flex items-center gap-1.5"><Target className="h-3.5 w-3.5" /> {paq._count?.PAQ_Actions || paq.Actions?.length || 0} actions</div>
-          </div>
-        </div>
-        <div className="flex items-center justify-between sm:justify-end gap-4 mt-2 sm:mt-0">
-          <span className={cn('inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider border', paq.PAQ_Status === 'EN_COURS' ? 'bg-blue-50 text-blue-700 border-blue-200' : paq.PAQ_Status === 'CLOTURE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : paq.PAQ_Status === 'ARCHIVE' ? 'bg-gray-50 text-gray-600 border-gray-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
-            {paq.PAQ_Status?.replace('_', ' ') || 'BROUILLON'}
-          </span>
-          <ArrowRight className="h-5 w-5 text-gray-300" />
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function EditActionModal({ action, onClose, onSubmit, onChange }: any) {
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex justify-between items-start">
-          <div className="flex items-center gap-3">
-            <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600"><Edit3 size={20} /></div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 leading-tight">Modifier l&apos;action</h3>
-              <p className="text-xs text-gray-500 font-medium">Mise à jour rapide SDE</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors border-none bg-transparent cursor-pointer"><X size={20} /></button>
-        </div>
-        <form onSubmit={onSubmit} className="p-6 space-y-5">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Titre de l&apos;action</label>
-            <input type="text" value={action.ACT_Title} onChange={(e) => onChange('ACT_Title', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all" required />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Statut</label>
-            <select value={action.ACT_Status} onChange={(e) => onChange('ACT_Status', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-white cursor-pointer">
-              {Object.values(ActionStatusEnum).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Priorité</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[PriorityEnum.LOW, PriorityEnum.MEDIUM, PriorityEnum.HIGH, PriorityEnum.URGENT, PriorityEnum.CRITICAL].map((prio) => (
-                <button type="button" key={prio} onClick={() => onChange('ACT_Priority', prio)} className={cn('py-2 text-[10px] font-bold uppercase rounded-lg border transition-all cursor-pointer', action.ACT_Priority === prio ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50')}>{prio}</button>
-              ))}
-            </div>
-          </div>
-          <div className="pt-4 flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">Annuler</button>
-            <button type="submit" className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2"><CheckCircle2 size={16} /> Enregistrer</button>
-          </div>
-        </form>
-      </div>
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-8 lg:pl-72 text-indigo-500 italic font-black uppercase tracking-[0.5em]">
+      <RefreshCw className="animate-spin" size={70} strokeWidth={1} />
+      <span className="text-[10px] animate-pulse text-center px-10 leading-relaxed">{label}</span>
     </div>
   );
 }
