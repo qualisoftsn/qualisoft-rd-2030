@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 💡 MODULE : REGISTRE D'AMÉLIORATION CONTINUE (HUB)
+ * 💡 MODULE : REGISTRE D'AMÉLIORATION CONTINUE (HUB) - elite-sde
  * -------------------------------------------------------------------------
- * RÔLE : Pilotage des actions correctives, préventives et d'amélioration.
- * FIX : Ajout du responsive (lg:ml-72), sécurisation des retours API,
- * et intégration de schémas explicatifs pour la matrice d'Eisenhower.
+ * RÔLE : Pilotage PDCA (Plan-Do-Check-Act) §10.2 ISO 9001.
+ * FIX : Layout 100dvh, Zéro Scroll Global, Intégration Eisenhower, PWA.
+ * SÉCURITÉ : Zéro NextAuth, API Client Souverain.
  * -------------------------------------------------------------------------
- * DATE : 02 Mars 2026 | 01:51 GMT
+ * DATE : 05 Mars 2026 | 03:12 GMT
  */
 
 'use client';
@@ -15,63 +15,31 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/core/api/api-client';
+import { useAuthStore } from '@/store/authStore';
 import { differenceInDays, format, isPast } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast, Toaster } from 'sonner';
 import {
   AlertCircle, AlertTriangle, BarChart3, Calendar,
   CheckCircle2, Clock, Download, FileText, Filter,
-  LayoutGrid, List, Paperclip, Plus, RefreshCcw,
-  Search, ShieldCheck, Target, Users, Zap, Activity,
-  Fingerprint, Loader2, ChevronDown, ChevronUp
+  LayoutGrid, List, Plus, RefreshCcw,
+  Search, ShieldCheck, Target, Users, Activity,
+  Loader2, ChevronDown, ChevronUp, ArrowRight
 } from 'lucide-react';
 
-// --- TYPES STRICTS ---
-type ActionSource = 'AUDIT_INTERNE' | 'AUDIT_EXTERNE' | 'NC' | 'RECLAMATION' | 'COPIL' | 'REVUE_DIRECTION' | 'ANALYSE_RISQUE' | 'SUGGESTION' | 'AUTRE' | 'ALL';
-type ActionStatus = 'A_FAIRE' | 'EN_COURS' | 'A_VALIDER' | 'TERMINEE' | 'ANNULEE' | 'EN_RETARD' | 'ALL';
-type ActionPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'ALL';
+// --- TYPES & UTILS ---
 type ViewMode = 'kanban' | 'list' | 'matrix';
-
-interface Responsible {
-  id: string;
-  firstName: string;
-  lastName: string;
-  avatar?: string;
-}
-
-interface ActionItem {
-  id: string;
-  reference: string;
-  title: string;
-  description?: string;
-  source: Exclude<ActionSource, 'ALL'>;
-  sourceRef?: string;
-  status: Exclude<ActionStatus, 'ALL'>;
-  priority: Exclude<ActionPriority, 'ALL'>;
-  progress: number;
-  responsible: Responsible;
-  deadline: string;
-  createdAt: string;
-  evidencesCount: number;
-  commentsCount: number;
-  processus?: string;
-  paqId?: string;
-  planId?: string;
-}
-
-const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 export default function ContinuousImprovementHub() {
   const router = useRouter();
+  const { user } = useAuthStore() as any;
 
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [actions, setActions] = useState<ActionItem[]>([]);
+  const [actions, setActions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState<{ source: ActionSource; status: ActionStatus; priority: ActionPriority }>({
-    source: 'ALL', status: 'ALL', priority: 'ALL',
-  });
+  const [filters, setFilters] = useState({ source: 'ALL', status: 'ALL', priority: 'ALL' });
 
   const loadActions = useCallback(async () => {
     try {
@@ -80,8 +48,7 @@ export default function ContinuousImprovementHub() {
       const data = res.data?.data || res.data;
       setActions(Array.isArray(data) ? data : []);
     } catch (err) {
-      toast.error("RUPTURE DE FLUX : REGISTRE D'AMÉLIORATION INACCESSIBLE.");
-      setActions([]);
+      toast.error("FLUX INTERROMPU : ERREUR DE SYNCHRONISATION REGISTRE.");
     } finally {
       setLoading(false);
     }
@@ -89,387 +56,234 @@ export default function ContinuousImprovementHub() {
 
   useEffect(() => { loadActions(); }, [loadActions]);
 
-  const filteredActions = useMemo(() => {
-    return actions.filter((action) => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = action.title.toLowerCase().includes(searchLower) || action.reference.toLowerCase().includes(searchLower) || action.responsible.lastName.toLowerCase().includes(searchLower);
-      const matchesSource = selectedFilters.source === 'ALL' || action.source === selectedFilters.source;
-      const matchesStatus = selectedFilters.status === 'ALL' || action.status === selectedFilters.status;
-      const matchesPriority = selectedFilters.priority === 'ALL' || action.priority === selectedFilters.priority;
-      return matchesSearch && matchesSource && matchesStatus && matchesPriority;
+  const filtered = useMemo(() => {
+    return actions.filter(a => {
+      const matchSearch = a.title.toLowerCase().includes(searchTerm.toLowerCase()) || a.reference.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchStatus = filters.status === 'ALL' || a.status === filters.status;
+      return matchSearch && matchStatus;
     });
-  }, [actions, searchTerm, selectedFilters]);
+  }, [actions, searchTerm, filters]);
 
   const stats = useMemo(() => ({
     total: actions.length,
-    active: actions.filter((a) => ['A_FAIRE', 'EN_COURS', 'A_VALIDER'].includes(a.status)).length,
-    late: actions.filter((a) => isPast(new Date(a.deadline)) && a.status !== 'TERMINEE').length,
-    completed: actions.filter((a) => a.status === 'TERMINEE').length,
-    bySource: {
-      audit: actions.filter((a) => ['AUDIT_INTERNE', 'AUDIT_EXTERNE'].includes(a.source)).length,
-      nc: actions.filter((a) => a.source === 'NC').length,
-      copil: actions.filter((a) => ['COPIL', 'REVUE_DIRECTION'].includes(a.source)).length,
-    },
+    active: actions.filter(a => ['A_FAIRE', 'EN_COURS'].includes(a.status)).length,
+    late: actions.filter(a => isPast(new Date(a.deadline)) && a.status !== 'TERMINEE').length,
+    done: actions.filter(a => a.status === 'TERMINEE').length,
   }), [actions]);
 
-  const getStatusColor = (status: ActionStatus) => {
-    const colors: Record<string, string> = {
-      A_FAIRE: 'bg-gray-100 text-gray-700 border-gray-200',
-      EN_COURS: 'bg-blue-50 text-blue-700 border-blue-200',
-      A_VALIDER: 'bg-amber-50 text-amber-800 border-amber-200',
-      TERMINEE: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-      ANNULEE: 'bg-red-50 text-red-700 border-red-200',
-      EN_RETARD: 'bg-red-50 text-red-700 border-red-300 border-l-4',
-    };
-    return colors[status] || colors.A_FAIRE;
-  };
-
-  const getSourceIcon = (source: ActionSource) => {
-    switch (source) {
-      case 'AUDIT_INTERNE': return <FileText size={16} className="text-purple-600" />;
-      case 'AUDIT_EXTERNE': return <ShieldCheck size={16} className="text-indigo-600" />;
-      case 'NC': return <AlertTriangle size={16} className="text-red-600" />;
-      case 'COPIL': return <Users size={16} className="text-blue-600" />;
-      case 'REVUE_DIRECTION': return <BarChart3 size={16} className="text-emerald-600" />;
-      default: return <Target size={16} className="text-gray-600" />;
-    }
-  };
-
-  if (loading && actions.length === 0) {
-    return (
-      <div className="ml-0 lg:ml-72 flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="relative inline-block">
-            <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
-            <Fingerprint className="absolute inset-0 h-12 w-12 text-indigo-300 animate-pulse opacity-30" />
-          </div>
-          <p className="mt-4 text-sm font-black uppercase tracking-widest text-gray-600 italic">Chargement du registre...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading && actions.length === 0) return (
+    <div className="h-full w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-4">
+      <Loader2 className="animate-spin text-blue-500" size={48} />
+      <span className="text-[10px] font-black uppercase tracking-[0.4em] italic text-blue-500 animate-pulse">Extraction PDCA Matrix...</span>
+    </div>
+  );
 
   return (
-    <div className="ml-0 lg:ml-72 bg-gray-50 min-h-screen p-4 sm:p-6 pb-24 font-sans">
-      <Toaster position="top-right" richColors />
+    <div className="h-full flex flex-col bg-[#0B0F1A] text-white italic font-sans overflow-hidden w-full selection:bg-blue-600/30">
+      <Toaster position="top-right" richColors theme="dark" />
 
-      <div className="mx-auto max-w-7xl space-y-8 mt-12 lg:mt-0">
-        {/* HEADER */}
-        <header className="flex flex-col gap-6 border-b border-gray-200 pb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-800 border border-indigo-200">
-                  ISO 9001:2015 §10
-                </span>
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-800 border border-emerald-200">
-                  {stats.active} actions actives
-                </span>
-              </div>
-              <h1 className="mt-4 text-3xl font-black uppercase italic text-gray-900 tracking-tighter m-0">Amélioration Continue</h1>
-              <p className="mt-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500 m-0">
-                <Activity className="h-4 w-4 text-indigo-500" /> Pilotage des actions correctives et préventives
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex rounded-xl border border-gray-300 bg-white p-1 shadow-sm">
-                {[
-                  { id: 'kanban', icon: LayoutGrid, label: 'Kanban' },
-                  { id: 'list', icon: List, label: 'Liste' },
-                  { id: 'matrix', icon: Target, label: 'Matrice' },
-                ].map((mode) => (
-                  <button
-                    key={mode.id}
-                    onClick={() => setViewMode(mode.id as ViewMode)}
-                    className={cn(
-                      'flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all cursor-pointer border-none',
-                      viewMode === mode.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 bg-transparent'
-                    )}
-                  >
-                    <mode.icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">{mode.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => router.push('/dashboard/continuous-improvement/actions/new')}
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg hover:bg-indigo-700 transition-colors border-none cursor-pointer"
-              >
-                <Plus className="h-4 w-4" /> Nouvelle action
-              </button>
-            </div>
+      {/* 🔝 HEADER CLICKUP */}
+      <header className="shrink-0 p-6 md:px-10 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-3xl z-40 flex flex-col xl:flex-row justify-between items-center gap-6 mt-12 lg:mt-0">
+        <div className="flex items-center gap-8 w-full xl:w-auto">
+          <div>
+            <h1 className="text-3xl font-black uppercase tracking-tighter italic m-0">Amélioration <span className="text-blue-600">Continue</span></h1>
+            <p className="text-slate-500 text-[9px] font-black uppercase mt-2 tracking-[0.3em] m-0 italic flex items-center gap-2">
+              <Activity size={12} className="text-blue-500" /> §10 ISO 9001 • PERFORMANCE SYSTÉMIQUE
+            </p>
           </div>
-
-          {/* KPI CARDS */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <KPIStat title="Total actions" value={stats.total} icon={Target} color="indigo" />
-            <KPIStat title="En cours" value={stats.active} icon={RefreshCcw} color="blue" subtext={`${Math.round((stats.active / (stats.total || 1)) * 100)}% du flux`} />
-            <KPIStat title="En retard" value={stats.late} icon={AlertCircle} color={stats.late > 0 ? 'red' : 'emerald'} subtext={stats.late > 0 ? 'À traiter en urgence' : 'À jour'} />
-            <KPIStat title="Clôturées" value={stats.completed} icon={CheckCircle2} color="emerald" subtext={`${Math.round((stats.completed / (stats.total || 1)) * 100)}% d'efficacité`} />
-            <KPIStat title="Audits" value={stats.bySource.audit} icon={FileText} color="purple" subtext="Sources int/ext" />
-            <KPIStat title="NC" value={stats.bySource.nc} icon={AlertTriangle} color="orange" subtext="Non-conformités" />
-          </div>
-        </header>
-
-        {/* RECHERCHE ET FILTRES */}
-        <div className="rounded-3xl bg-white shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 sm:p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-md group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                <input
-                  type="text"
-                  placeholder="Rechercher par référence, titre..."
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 py-3 pl-12 pr-4 text-xs font-bold uppercase tracking-widest focus:border-indigo-500 focus:bg-white outline-none transition-all"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-black uppercase tracking-widest transition-all cursor-pointer',
-                    showFilters || selectedFilters.source !== 'ALL' || selectedFilters.status !== 'ALL' || selectedFilters.priority !== 'ALL'
-                      ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-200'
-                      : 'text-gray-600 hover:bg-gray-100 border-2 border-gray-200 bg-white'
-                  )}
-                >
-                  <Filter className="h-4 w-4" /> Filtres
-                  {(selectedFilters.source !== 'ALL' || selectedFilters.status !== 'ALL' || selectedFilters.priority !== 'ALL') && (
-                    <span className="ml-1 h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
-                  )}
-                  {showFilters ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
-                </button>
-
-                <button className="flex items-center gap-2 rounded-xl border-2 border-gray-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors">
-                  <Download className="h-4 w-4" /> Exporter
-                </button>
-
-                <button onClick={loadActions} className="flex items-center justify-center rounded-xl border-2 border-gray-200 bg-white p-3 text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors" title="Actualiser">
-                  <RefreshCcw className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {showFilters && (
-              <div className="mt-6 grid grid-cols-1 gap-6 border-t border-gray-100 pt-6 md:grid-cols-3">
-                {/* Sélecteurs de filtres */}
-                <FilterSelect label="Source normative" value={selectedFilters.source} onChange={(v: string) => setSelectedFilters({ ...selectedFilters, source: v as ActionSource })} options={[{ value: 'ALL', label: 'Toutes les sources' }, { value: 'AUDIT_INTERNE', label: 'Audit interne' }, { value: 'NC', label: 'Non-conformité' }, { value: 'REVUE_DIRECTION', label: 'Revue de direction' }]} />
-                <FilterSelect label="Statut" value={selectedFilters.status} onChange={(v: string) => setSelectedFilters({ ...selectedFilters, status: v as ActionStatus })} options={[{ value: 'ALL', label: 'Tous les statuts' }, { value: 'A_FAIRE', label: 'À faire' }, { value: 'EN_COURS', label: 'En cours' }, { value: 'TERMINEE', label: 'Terminée' }]} />
-                <FilterSelect label="Priorité" value={selectedFilters.priority} onChange={(v: string) => setSelectedFilters({ ...selectedFilters, priority: v as ActionPriority })} options={[{ value: 'ALL', label: 'Toutes les priorités' }, { value: 'CRITICAL', label: 'Critique' }, { value: 'HIGH', label: 'Haute' }, { value: 'MEDIUM', label: 'Moyenne' }, { value: 'LOW', label: 'Basse' }]} />
-              </div>
-            )}
+          <div className="hidden xl:flex gap-4 border-l border-white/10 pl-8">
+            <KPIStatSmall label="Actives" val={stats.active} color="blue" />
+            <KPIStatSmall label="En Retard" val={stats.late} color="red" />
+            <KPIStatSmall label="Efficacité" val={`${Math.round((stats.done / (stats.total || 1)) * 100)}%`} color="emerald" />
           </div>
         </div>
 
-        {/* AFFICHAGE DES VUES */}
-        {viewMode === 'kanban' && <KanbanView actions={filteredActions} router={router} />}
-        {viewMode === 'list' && <ListView actions={filteredActions} router={router} getStatusColor={getStatusColor} getSourceIcon={getSourceIcon} />}
+        <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto justify-end">
+          <div className="relative flex-1 xl:w-80">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+            <input 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="RECHERCHER ACTION..." 
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase outline-none focus:border-blue-600 transition-all text-white italic shadow-inner"
+            />
+          </div>
+          <button 
+            onClick={() => router.push('/dashboard/continuous-improvement/new')}
+            className="bg-blue-600 hover:bg-white hover:text-slate-900 px-6 py-3 rounded-2xl text-[10px] font-black uppercase italic border-none text-white cursor-pointer active:scale-95 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-3"
+          >
+            <Plus size={18} strokeWidth={3} /> Nouvelle Action
+          </button>
+        </div>
+      </header>
+
+      {/* 🎛️ TOOLBAR VUES */}
+      <nav className="shrink-0 px-6 py-3 border-b border-white/5 bg-black/20 flex flex-wrap justify-between items-center gap-4">
+        <div className="flex bg-black/40 rounded-xl p-1 border border-white/10">
+          <ViewBtn active={viewMode === 'kanban'} icon={LayoutGrid} label="Kanban" onClick={() => setViewMode('kanban')} />
+          <ViewBtn active={viewMode === 'list'} icon={List} label="Liste" onClick={() => setViewMode('list')} />
+          <ViewBtn active={viewMode === 'matrix'} icon={Target} label="Eisenhower" onClick={() => setViewMode('matrix')} />
+        </div>
+        <div className="flex items-center gap-4">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl text-[9px] font-black uppercase italic text-slate-400 hover:text-white transition-all border-none cursor-pointer">
+            <Download size={14} /> Exporter Rapport
+          </button>
+          <button onClick={loadActions} className="p-2 bg-white/5 rounded-xl text-slate-500 hover:text-blue-500 transition-all border-none cursor-pointer"><RefreshCcw size={16}/></button>
+        </div>
+      </nav>
+
+      {/* 📜 ZONE D'OCCUPATION INTÉGRALE (Isolated Scroll) */}
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 bg-[#0B0F1A]">
+        {viewMode === 'kanban' && <KanbanMatrix actions={filtered} router={router} />}
+        {viewMode === 'list' && <ListDense actions={filtered} router={router} />}
         {viewMode === 'matrix' && (
-          <>
-            
+          <div className="space-y-10">
+            <div className="max-w-4xl mx-auto text-center">
+              <h2 className="text-2xl font-black uppercase italic mb-4">Matrice de Décision Eisenhower</h2>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest leading-loose">Priorisation des actions correctives selon l&apos;urgence et l&apos;importance stratégique §10.2.</p>
+              
 
 [Image of Eisenhower Decision Matrix]
 
-            <MatrixView actions={filteredActions} router={router} />
-          </>
+            </div>
+            <EisenhowerGrid actions={filtered} router={router} />
+          </div>
         )}
-      </div>
+      </main>
+
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.2); border-radius: 10px; }` }} />
     </div>
   );
 }
 
-// --- COMPOSANTS INTERNES ---
+// --- SOUS-COMPOSANTS ---
 
-function FilterSelect({ label, value, onChange, options }: any) {
+const KPIStatSmall = ({ label, val, color }: any) => {
+  const themes: any = { blue: "text-blue-500", red: "text-red-500", emerald: "text-emerald-500" };
   return (
-    <div>
-      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">{label}</label>
-      <select
-        className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 py-3 pl-4 pr-10 text-xs font-bold uppercase text-gray-900 focus:border-indigo-500 outline-none cursor-pointer appearance-none transition-colors"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-      </select>
+    <div className="flex flex-col items-start">
+      <span className="text-[18px] font-black italic text-white leading-none">{val}</span>
+      <span className={cn("text-[8px] font-black uppercase tracking-widest mt-1", themes[color])}>{label}</span>
     </div>
   );
-}
+};
 
-function KPIStat({ title, value, icon: Icon, color, subtext }: any) {
-  const colorMap: Record<string, string> = {
-    indigo: 'text-indigo-600 bg-indigo-50 border-indigo-100',
-    blue: 'text-blue-600 bg-blue-50 border-blue-100',
-    emerald: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-    red: 'text-red-600 bg-red-50 border-red-100',
-    purple: 'text-purple-600 bg-purple-50 border-purple-100',
-    orange: 'text-orange-600 bg-orange-50 border-orange-100',
-  };
+const ViewBtn = ({ active, icon: Icon, label, onClick }: any) => (
+  <button onClick={onClick} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-[9px] font-black uppercase italic transition-all border-none cursor-pointer", active ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:text-white")}>
+    <Icon size={14} /> <span className="hidden sm:inline">{label}</span>
+  </button>
+);
 
-  return (
-    <div className={`rounded-2xl p-5 border shadow-sm ${colorMap[color]}`}>
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 bg-white rounded-lg shadow-sm"><Icon size={18} /></div>
-        <p className="text-[10px] font-black uppercase tracking-widest opacity-80 m-0">{title}</p>
-      </div>
-      <p className="text-3xl font-black italic m-0 leading-none">{value}</p>
-      {subtext && <p className="mt-2 text-[10px] font-bold uppercase tracking-widest opacity-70 m-0">{subtext}</p>}
-    </div>
-  );
-}
-
-function KanbanView({ actions, router }: any) {
+function KanbanMatrix({ actions, router }: any) {
   const columns = [
-    { id: 'A_FAIRE', title: 'À faire', icon: Clock, color: 'text-gray-500' },
-    { id: 'EN_COURS', title: 'En cours', icon: RefreshCcw, color: 'text-blue-500' },
-    { id: 'A_VALIDER', title: 'À valider', icon: CheckCircle2, color: 'text-amber-500' },
-    { id: 'TERMINEE', title: 'Terminée', icon: ShieldCheck, color: 'text-emerald-500' },
+    { id: 'A_FAIRE', title: 'À Faire', color: 'slate' },
+    { id: 'EN_COURS', title: 'En Cours', color: 'blue' },
+    { id: 'A_VALIDER', title: 'Validation', color: 'amber' },
+    { id: 'TERMINEE', title: 'Clôturée', color: 'emerald' },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 items-start">
-      {columns.map((col) => {
-        const colActions = actions.filter((a: any) => a.status === col.id);
-        const isLate = col.id === 'A_FAIRE' && colActions.some((a: any) => isPast(new Date(a.deadline)));
-
-        return (
-          <div key={col.id} className="rounded-3xl bg-gray-100 border border-gray-200 flex flex-col max-h-200">
-            <div className="p-4 border-b border-gray-200 bg-white rounded-t-3xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <col.icon className={`h-4 w-4 ${col.color}`} />
-                  <h2 className="text-xs font-black uppercase tracking-widest text-gray-900 m-0">{col.title}</h2>
-                </div>
-                <span className="rounded-lg bg-gray-100 px-3 py-1 text-[10px] font-black text-gray-600">{colActions.length}</span>
-              </div>
-              {isLate && (
-                <div className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-50 p-2 rounded-lg">
-                  <AlertCircle size={14} /> Actions en retard
-                </div>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {colActions.length > 0 ? colActions.map((action: any) => (
-                <KanbanCard key={action.id} action={action} onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)} />
-              )) : (
-                <div className="flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-gray-300 rounded-2xl">
-                  <Target className="h-8 w-8 text-gray-400 mb-2" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 m-0">Vide</p>
-                </div>
-              )}
-            </div>
+    <div className="flex flex-col md:flex-row gap-6 h-full min-h-150">
+      {columns.map(col => (
+        <div key={col.id} className="flex-1 min-w-75 flex flex-col bg-white/2 rounded-[2.5rem] border border-white/5 p-4 shadow-2xl">
+          <div className="flex justify-between items-center px-4 py-3 mb-4">
+             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic flex items-center gap-2">
+               <span className={cn("w-2 h-2 rounded-full", `bg-${col.color}-500`)} /> {col.title}
+             </h3>
+             <span className="bg-white/5 px-2 py-0.5 rounded-lg text-[10px] font-bold">{actions.filter((a:any) => a.status === col.id).length}</span>
           </div>
-        );
-      })}
+          <div className="flex-1 overflow-y-auto space-y-4 px-2 custom-scrollbar">
+            {actions.filter((a:any) => a.status === col.id).map((action: any) => (
+              <ActionCard key={action.id} action={action} onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)} />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function KanbanCard({ action, onClick }: any) {
+function ActionCard({ action, onClick }: any) {
   const isLate = isPast(new Date(action.deadline)) && action.status !== 'TERMINEE';
-  const daysLeft = differenceInDays(new Date(action.deadline), new Date());
-
   return (
-    <div onClick={onClick} className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all group">
-      <div className="flex items-start justify-between mb-3">
-        <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-gray-600 border border-gray-200 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-          {action.reference}
-        </span>
-        <div className={`h-2.5 w-2.5 rounded-full ${action.priority === 'CRITICAL' ? 'bg-red-500' : action.priority === 'HIGH' ? 'bg-orange-500' : action.priority === 'MEDIUM' ? 'bg-blue-500' : 'bg-gray-300'}`} />
+    <div onClick={onClick} className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 hover:border-blue-500/30 transition-all cursor-pointer group shadow-lg">
+      <div className="flex justify-between items-start mb-4">
+        <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic">{action.reference}</span>
+        <div className={cn("w-2 h-2 rounded-full", action.priority === 'CRITICAL' ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' : 'bg-slate-700')} />
       </div>
-      <h3 className="text-sm font-bold text-gray-900 leading-snug m-0 line-clamp-2">{action.title}</h3>
-      <div className="mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-black text-indigo-700 border border-indigo-200">
-            {action.responsible.firstName[0]}{action.responsible.lastName[0]}
-          </div>
+      <h4 className="text-xs font-black uppercase italic text-white m-0 group-hover:text-blue-400 transition-colors line-clamp-2 leading-tight">{action.title}</h4>
+      <div className="mt-6 flex justify-between items-center">
+        <div className="flex -space-x-2">
+           <div className="w-7 h-7 rounded-full bg-blue-600 border-2 border-[#0F172A] flex items-center justify-center text-[9px] font-black">{action.responsible.lastName[0]}</div>
         </div>
-        <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${isLate ? 'bg-red-50 text-red-600' : daysLeft <= 7 ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500'}`}>
-          {isLate ? `Retard: ${Math.abs(daysLeft)}j` : `J-${daysLeft}`}
+        <div className={cn("text-[8px] font-black px-2 py-1 rounded-md uppercase", isLate ? "bg-red-500 text-white" : "bg-white/5 text-slate-400")}>
+          {isLate ? "RETARD" : format(new Date(action.deadline), "dd MMM", { locale: fr })}
         </div>
-      </div>
-      <div className="mt-4 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-        <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${action.progress}%` }} />
       </div>
     </div>
   );
 }
 
-function ListView({ actions, router, getStatusColor, getSourceIcon }: any) {
+function ListDense({ actions, router }: any) {
   return (
-    <div className="rounded-3xl bg-white shadow-sm border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              {['Référence', 'Action', 'Source', 'Responsable', 'Échéance', 'Statut'].map((h) => (
-                <th key={h} className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">{h}</th>
-              ))}
+    <div className="bg-[#151A2D] border border-white/5 rounded-3xl overflow-hidden shadow-4xl">
+      <table className="w-full text-left border-collapse">
+        <thead className="bg-black/20 border-b border-white/10">
+          <tr className="text-[9px] text-slate-500 italic font-black uppercase tracking-[0.2em]">
+            <th className="px-6 py-4">Référence</th>
+            <th className="px-6 py-4">Action Corrective</th>
+            <th className="px-6 py-4">Pilote</th>
+            <th className="px-6 py-4">Statut</th>
+            <th className="px-6 py-4 text-right">Échéance</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {actions.map((a: any) => (
+            <tr key={a.id} onClick={() => router.push(`/dashboard/continuous-improvement/${a.id}`)} className="hover:bg-blue-600/5 transition-all cursor-pointer group">
+              <td className="px-6 py-4 text-[9px] font-black text-blue-500 uppercase italic">{a.reference}</td>
+              <td className="px-6 py-4">
+                <p className="text-[11px] font-black uppercase text-white m-0 italic group-hover:text-blue-400">{a.title}</p>
+              </td>
+              <td className="px-6 py-4 text-[10px] font-bold text-slate-400">{a.responsible.firstName} {a.responsible.lastName}</td>
+              <td className="px-6 py-4">
+                <span className="text-[8px] font-black uppercase px-3 py-1 bg-white/5 rounded-full border border-white/5">{a.status}</span>
+              </td>
+              <td className="px-6 py-4 text-right text-[10px] font-black italic">{format(new Date(a.deadline), 'dd/MM/yyyy')}</td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {actions.map((action: any) => (
-              <tr key={action.id} onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)} className="cursor-pointer hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-xs font-black text-gray-900">{action.reference}</td>
-                <td className="px-6 py-4">
-                  <div className="text-sm font-bold text-gray-900 line-clamp-1">{action.title}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600">
-                    <div className="rounded-lg bg-gray-100 p-1.5">{getSourceIcon(action.source)}</div>
-                    {action.source.replace('_', ' ')}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-700">
-                  {action.responsible.lastName} {action.responsible.firstName[0]}.
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-700">
-                  {format(new Date(action.deadline), 'dd/MM/yyyy')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex rounded-md px-3 py-1 text-[10px] font-black uppercase tracking-widest border ${getStatusColor(action.status)}`}>
-                    {action.status.replace('_', ' ')}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function MatrixView({ actions, router }: any) {
+function EisenhowerGrid({ actions, router }: any) {
   const quadrants = [
-    { id: 'q1', title: 'Faire (Prioritaire)', desc: 'Urgent & Important', color: 'bg-red-50 border-red-200', actions: actions.filter((a: any) => ['CRITICAL', 'HIGH'].includes(a.priority) && (a.status === 'EN_RETARD' || isPast(new Date(a.deadline)))) },
-    { id: 'q2', title: 'Planifier (Stratégique)', desc: 'Important, Non Urgent', color: 'bg-blue-50 border-blue-200', actions: actions.filter((a: any) => ['HIGH', 'MEDIUM'].includes(a.priority) && !isPast(new Date(a.deadline))) },
-    { id: 'q3', title: 'Déléguer (Opérationnel)', desc: 'Urgent, Non Important', color: 'bg-amber-50 border-amber-200', actions: actions.filter((a: any) => ['LOW'].includes(a.priority) && isPast(new Date(a.deadline))) },
-    { id: 'q4', title: 'Éliminer / Postposer', desc: 'Ni Urgent, Ni Important', color: 'bg-gray-50 border-gray-200', actions: actions.filter((a: any) => a.priority === 'LOW' && !isPast(new Date(a.deadline))) },
+    { id: 'q1', title: 'DÉCIDER (Immédiat)', desc: 'Urgent & Important', color: 'red', filter: (a:any) => ['CRITICAL', 'HIGH'].includes(a.priority) && isPast(new Date(a.deadline)) },
+    { id: 'q2', title: 'PLANIFIER (Stratégie)', desc: 'Non-Urgent & Important', color: 'blue', filter: (a:any) => ['HIGH', 'MEDIUM'].includes(a.priority) && !isPast(new Date(a.deadline)) },
+    { id: 'q3', title: 'DÉLÉGUER (Opérations)', desc: 'Urgent & Non-Important', color: 'amber', filter: (a:any) => a.priority === 'LOW' && isPast(new Date(a.deadline)) },
+    { id: 'q4', title: 'ÉLIMINER (Revue)', desc: 'Non-Urgent & Non-Important', color: 'slate', filter: (a:any) => a.priority === 'LOW' && !isPast(new Date(a.deadline)) },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {quadrants.map((q) => (
-        <div key={q.id} className={`rounded-3xl border-2 p-6 ${q.color}`}>
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="text-lg font-black uppercase italic text-gray-900 m-0">{q.title}</h3>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mt-1 m-0">{q.desc}</p>
-            </div>
-            <span className="bg-white border border-gray-200 text-gray-800 text-xs font-black px-3 py-1 rounded-lg">{q.actions.length}</span>
-          </div>
-          <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-            {q.actions.map((action: any) => (
-              <div key={action.id} onClick={() => router.push(`/dashboard/continuous-improvement/${action.id}`)} className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md transition-shadow">
-                <p className="text-xs font-bold text-gray-900 m-0 line-clamp-1">{action.title}</p>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {quadrants.map(q => (
+        <div key={q.id} className={cn("bg-white/2 border-2 rounded-[2.5rem] p-8 transition-all flex flex-col", `border-${q.color}-500/20 hover:border-${q.color}-500/50`)}>
+           <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className={cn("text-xl font-black uppercase italic m-0", `text-${q.color}-400`)}>{q.title}</h3>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">{q.desc}</p>
               </div>
-            ))}
-          </div>
+              <span className="bg-white/5 px-3 py-1 rounded-xl text-xs font-black">{actions.filter(q.filter).length}</span>
+           </div>
+           <div className="space-y-3 flex-1 overflow-y-auto max-h-75 custom-scrollbar pr-2">
+              {actions.filter(q.filter).map((a:any) => (
+                <div key={a.id} onClick={() => router.push(`/dashboard/continuous-improvement/${a.id}`)} className="bg-[#0F172A] p-4 rounded-xl border border-white/5 hover:border-blue-500/30 cursor-pointer flex items-center justify-between group">
+                  <p className="text-[10px] font-black uppercase italic m-0 truncate pr-4">{a.title}</p>
+                  <ArrowRight size={14} className="text-slate-700 group-hover:text-blue-500 transition-all" />
+                </div>
+              ))}
+           </div>
         </div>
       ))}
     </div>

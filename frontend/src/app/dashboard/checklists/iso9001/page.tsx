@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
- * 💡 MODULE : CHECKLIST D'AUDIT ISO 9001:2015
+ * 💡 MODULE : CHECKLIST D'AUDIT ISO 9001:2015 (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Évaluation de la conformité du Système de Management de la Qualité.
- * FIX : Conversion totale au Dark Theme (#0B0F1A) pour cohérence globale, 
- * refonte responsive (lg:ml-72), et intégration de Sonner pour les toasts.
+ * FIX : UI ClickUp 100dvh (Zéro Scroll Global), PWA Ready, Matrix Scaling.
+ * SÉCURITÉ : Synchronisation SDE Souveraine, Zéro NextAuth.
  * -------------------------------------------------------------------------
- * DATE : 02 Mars 2026 | 13:43 GMT
+ * DATE : 05 Mars 2026 | 01:32 GMT
  */
 
 'use client';
@@ -16,27 +16,16 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import apiClient from '@/core/api/api-client';
 import {
   CheckCircle2, Download, RefreshCw, Search, Target, XCircle,
-  Layers, Loader2, ExternalLink, Check, X, Minus, HelpCircle
+  Layers, Loader2, ExternalLink, Check, X, Minus, HelpCircle, ChevronRight
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
-// --- TYPES CONFORMES ---
+// --- TYPES ---
 type ResponseType = 'YES' | 'NO' | 'PARTIAL' | 'NA';
 
 interface ChecklistItem {
-  LC_Id: string;
-  LC_Clause: string;
-  LC_Title: string;
-  LC_Description: string;
-  LC_Criteria: string;
-  LC_IsMandatory: boolean;
-  LC_SenegalSpecific: boolean;
-  response?: {
-    CR_Response: ResponseType;
-    CR_Comment?: string;
-    CR_Evidence?: string;
-    CR_IsCompliant: boolean;
-  };
+  LC_Id: string; LC_Clause: string; LC_Title: string; LC_Criteria: string; LC_IsMandatory: boolean;
+  response?: { CR_Response: ResponseType; CR_IsCompliant: boolean; };
 }
 
 export default function ISO9001ChecklistPage() {
@@ -46,340 +35,177 @@ export default function ISO9001ChecklistPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  // --- CHARGEMENT DES DONNÉES ---
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiClient.get('/checklist?standard=ISO9001');
       const data = res.data?.data || res.data;
       setItems(Array.isArray(data) ? data : []);
-    } catch (err) {
-      toast.error('Échec du chargement de la checklist ISO 9001');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { toast.error('Échec synchronisation ISO 9001'); } 
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // --- CALCUL DES STATISTIQUES ---
   const stats = useMemo(() => {
     const total = items.length;
     const compliant = items.filter(i => i.response?.CR_Response === 'YES').length;
-    const nonCompliant = items.filter(i => i.response?.CR_Response === 'NO').length;
-    const partial = items.filter(i => i.response?.CR_Response === 'PARTIAL').length;
-    const na = items.filter(i => i.response?.CR_Response === 'NA').length;
     const rate = total > 0 ? Math.round((compliant / total) * 100) : 0;
-    return { total, compliant, nonCompliant, partial, na, rate };
+    return { total, compliant, rate, nonCompliant: items.filter(i => i.response?.CR_Response === 'NO').length };
   }, [items]);
 
-  // --- FILTRAGE ---
   const filteredItems = useMemo(() => {
     return items.filter(i =>
       i.LC_Clause.startsWith(activeClause) &&
-      (i.LC_Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        i.LC_Clause.includes(searchTerm) ||
-        i.LC_Description.toLowerCase().includes(searchTerm.toLowerCase()))
+      (i.LC_Title.toLowerCase().includes(searchTerm.toLowerCase()) || i.LC_Clause.includes(searchTerm))
     );
   }, [items, activeClause, searchTerm]);
 
-  // --- SAUVEGARDE ---
   const updateResponse = async (id: string, resp: ResponseType) => {
     setSavingId(id);
-    const tid = toast.loading("Enregistrement...");
     try {
       await apiClient.post('/checklist/response', { LC_Id: id, CR_Response: resp });
-      toast.success(`Conformité §${id} mise à jour.`, { id: tid });
+      toast.success(`Point §${id} mis à jour.`);
       fetchData();
-    } catch (e) {
-      toast.error("Échec de l'enregistrement.", { id: tid });
-    } finally {
-      setSavingId(null);
-    }
+    } catch (e) { toast.error("Erreur de sauvegarde."); } 
+    finally { setSavingId(null); }
   };
 
-  if (loading && items.length === 0) {
-    return (
-      <div className="ml-0 lg:ml-72 flex min-h-screen items-center justify-center bg-[#0B0F1A] gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-        <p className="text-sm font-black italic uppercase tracking-widest text-blue-500">
-          Chargement ISO 9001...
-        </p>
+  if (loading && items.length === 0) return (
+    <div className="flex h-full w-full items-center justify-center bg-[#0B0F1A]">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="animate-spin text-blue-500" size={48} />
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] animate-pulse text-blue-500">Extraction Clause §9001...</span>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="ml-0 lg:ml-72 bg-[#0B0F1A] min-h-screen p-6 lg:p-10 text-white font-sans selection:bg-blue-600/30 pb-24">
+    <div className="h-full flex flex-col bg-[#0B0F1A] text-white italic font-sans overflow-hidden w-full selection:bg-blue-600/30">
       <Toaster position="top-right" richColors theme="dark" />
 
-      <div className="mx-auto max-w-400 space-y-10">
-        
-        {/* HEADER */}
-        <header className="border-b-2 border-white/5 pb-8 mt-12 lg:mt-0">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-blue-600/20 border border-blue-500/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-400 italic">
-                  ISO 9001:2015
-                </span>
-                <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-400 italic">
-                  {stats.rate}% Conformité
-                </span>
-              </div>
-              <h1 className="mt-4 text-4xl lg:text-5xl font-black italic uppercase text-white tracking-tighter m-0 leading-none">
-                Checklist d&apos;Audit <span className="text-blue-500">Qualité</span>
-              </h1>
-              <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-slate-500 m-0">
-                Évaluation de la conformité selon les exigences des clauses §4 à §10
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
-              <button onClick={fetchData} className="inline-flex items-center justify-center rounded-2xl bg-white/5 px-5 py-4 text-xs font-black uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/10 transition-colors border-none cursor-pointer">
-                <RefreshCw className="mr-2 h-4 w-4" /> Actualiser
-              </button>
-              <button className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-6 py-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition-colors border-none cursor-pointer">
-                <Download className="mr-2 h-4 w-4" /> Rapport
-              </button>
-            </div>
+      {/* 🔝 EN-TÊTE FIXE */}
+      <header className="shrink-0 p-6 md:p-8 lg:px-10 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-md z-20 flex flex-col md:flex-row justify-between items-end gap-6 mt-12 lg:mt-0">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-widest italic rounded-full">SMI CORE</span>
+            <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase tracking-widest italic rounded-full">{stats.rate}% Conformité</span>
           </div>
-
-          <div className="mt-8 max-w-md">
-            <div className="relative group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
-              <input
-                type="text"
-                placeholder="Rechercher par clause, titre..."
-                className="w-full rounded-3xl bg-black/40 border-2 border-white/10 py-4 pl-12 pr-4 text-xs font-bold uppercase outline-none focus:border-blue-500 text-white placeholder-slate-600 transition-colors"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-2">
-              {filteredItems.length} résultat(s) • Clause active : §{activeClause}
-            </p>
-          </div>
-        </header>
-
-        {/* KPI DASHBOARD */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
-          <KPIStat title="Taux de conformité" value={`${stats.rate}%`} icon={Target} color={stats.rate >= 90 ? 'emerald' : stats.rate >= 75 ? 'blue' : 'amber'} />
-          <KPIStat title="Exigences conformes" value={stats.compliant.toString()} icon={CheckCircle2} color="emerald" />
-          <KPIStat title="Écarts identifiés" value={stats.nonCompliant.toString()} icon={XCircle} color="red" />
-          <KPIStat title="Total évalué" value={stats.total.toString()} icon={Layers} color="gray" />
+          <h1 className="text-4xl lg:text-5xl font-black uppercase italic tracking-tighter m-0 leading-none">Checklist <span className="text-blue-500">ISO 9001</span></h1>
+          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] m-0">Évaluation Systémique des Clauses Qualité</p>
         </div>
-
-        {/* MAIN CONTENT */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
-          
-          {/* NAVIGATION CLAUSES */}
-          <div className="xl:col-span-1 xl:sticky top-10">
-            <nav className="rounded-4xl bg-slate-900/40 border-2 border-white/5 overflow-hidden shadow-2xl">
-              <div className="border-b-2 border-white/5 px-6 py-5 bg-black/20">
-                <h2 className="text-sm font-black uppercase italic tracking-widest text-white m-0">Navigation ISO</h2>
-              </div>
-              <div className="divide-y divide-white/5">
-                {[
-                  { id: '4', title: 'Contexte de l\'organisation', desc: 'Enjeux & parties intéressées' },
-                  { id: '5', title: 'Leadership', desc: 'Politique & responsabilités' },
-                  { id: '6', title: 'Planification', desc: 'Risques & opportunités' },
-                  { id: '7', title: 'Support', desc: 'Ressources & information' },
-                  { id: '8', title: 'Réalisation', desc: 'Opérations & production' },
-                  { id: '9', title: 'Évaluation des perf.', desc: 'Surveillance & revue' },
-                  { id: '10', title: 'Amélioration', desc: 'Actions correctives' },
-                ].map((clause) => {
-                  const clauseItems = items.filter(i => i.LC_Clause.startsWith(clause.id));
-                  const progress = clauseItems.length > 0 ? Math.round((clauseItems.filter(i => i.response?.CR_Response === 'YES').length / clauseItems.length) * 100) : 0;
-                  
-                  return (
-                    <button
-                      key={clause.id}
-                      onClick={() => setActiveClause(clause.id)}
-                      className={`w-full px-6 py-5 text-left transition-all border-none cursor-pointer flex items-center justify-between group ${
-                        activeClause === clause.id ? 'bg-blue-600/10 border-l-4 border-l-blue-500' : 'hover:bg-white/5 border-l-4 border-l-transparent'
-                      }`}
-                    >
-                      <div className="pr-4">
-                        <p className={`text-xs font-black uppercase italic m-0 ${activeClause === clause.id ? 'text-blue-400' : 'text-slate-300 group-hover:text-white'}`}>
-                          §{clause.id} {clause.title}
-                        </p>
-                        <p className="mt-1 text-[10px] font-bold tracking-widest text-slate-500 m-0">{clause.desc}</p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className={`text-[10px] font-black m-0 ${activeClause === clause.id ? 'text-blue-400' : 'text-slate-500'}`}>{progress}%</p>
-                        <div className="mt-2 h-1.5 w-12 overflow-hidden rounded-full bg-white/10">
-                          <div className={`h-full rounded-full ${activeClause === clause.id ? 'bg-blue-500' : 'bg-slate-600'}`} style={{ width: `${progress}%` }} />
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </nav>
+        <div className="flex gap-4 w-full md:w-auto">
+          <div className="relative flex-1 md:w-80">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+            <input placeholder="FILTRER EXIGENCE..." className="w-full bg-[#0F172A] border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase outline-none focus:border-blue-500 text-white italic" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-
-          {/* CHECKLIST ITEMS */}
-          <div className="xl:col-span-3 space-y-6">
-            <div className="rounded-[2.5rem] bg-slate-900/40 border-2 border-white/5 overflow-hidden shadow-2xl">
-              <div className="border-b-2 border-white/5 bg-black/20 px-8 py-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                <div>
-                  <h2 className="text-xl font-black uppercase italic text-white m-0">Clause §{activeClause} — Exigences</h2>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 m-0">
-                    {filteredItems.length} critère(s) à évaluer
-                  </p>
-                </div>
-              </div>
-
-              <div className="divide-y divide-white/5">
-                {filteredItems.length === 0 ? (
-                  <div className="p-16 text-center">
-                    <Search className="mx-auto h-12 w-12 text-slate-600 mb-4 opacity-50" />
-                    <h3 className="text-sm font-black uppercase italic text-slate-400 m-0">Aucune exigence trouvée</h3>
-                    <button onClick={() => setSearchTerm('')} className="mt-6 rounded-2xl bg-white/5 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-colors border-none cursor-pointer">
-                      Réinitialiser la recherche
-                    </button>
-                  </div>
-                ) : (
-                  filteredItems.map((item) => (
-                    <div key={item.LC_Id} className="p-6 lg:p-8 hover:bg-white/5 transition-colors flex flex-col lg:flex-row gap-6 lg:items-center justify-between group">
-                      <div className="flex-1 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded bg-blue-600/20 border border-blue-500/20 px-2 py-1 text-[10px] font-black text-blue-400 uppercase tracking-widest italic">
-                            §{item.LC_Clause}
-                          </span>
-                          {item.LC_IsMandatory && (
-                            <span className="rounded bg-red-500/20 border border-red-500/20 px-2 py-1 text-[9px] font-black text-red-400 uppercase tracking-widest">
-                              Obligatoire
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm font-black italic uppercase text-white m-0 leading-tight group-hover:text-blue-300 transition-colors">
-                          {item.LC_Title}
-                        </p>
-                        <p className="text-[11px] font-bold text-slate-400 m-0 leading-relaxed italic border-l-2 border-white/10 pl-3">
-                          {item.LC_Criteria}
-                        </p>
-                      </div>
-                      
-                      <div className="flex flex-col sm:flex-row lg:flex-col gap-4 items-start sm:items-center lg:items-end shrink-0">
-                        <ResponseBadge response={item.response?.CR_Response} />
-                        <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
-                          <ResponseButton response="YES" active={item.response?.CR_Response === 'YES'} color="emerald" onClick={() => updateResponse(item.LC_Id, 'YES')} loading={savingId === item.LC_Id} />
-                          <ResponseButton response="NO" active={item.response?.CR_Response === 'NO'} color="red" onClick={() => updateResponse(item.LC_Id, 'NO')} loading={savingId === item.LC_Id} />
-                          <ResponseButton response="PARTIAL" active={item.response?.CR_Response === 'PARTIAL'} color="amber" onClick={() => updateResponse(item.LC_Id, 'PARTIAL')} loading={savingId === item.LC_Id} />
-                          <ResponseButton response="NA" active={item.response?.CR_Response === 'NA'} color="gray" onClick={() => updateResponse(item.LC_Id, 'NA')} loading={savingId === item.LC_Id} />
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* BLOC INFO */}
-            <div className="rounded-4xl bg-blue-900/10 border-2 border-blue-500/20 p-8 shadow-inner relative overflow-hidden">
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <h3 className="text-sm font-black uppercase italic text-blue-400 m-0 flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg">§</span>
-                    Exigence ISO 9001:2015
-                  </h3>
-                  <p className="mt-3 text-[11px] font-bold text-slate-300 m-0 max-w-2xl leading-relaxed italic">
-                    L&apos;organisation doit effectuer des audits internes à des intervalles planifiés pour fournir des informations sur la conformité du système de management de la qualité aux exigences de l&apos;ISO.
-                  </p>
-                </div>
-                <a href="https://www.iso.org/standard/62085.html" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-3xl bg-blue-600/20 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:bg-blue-600 hover:text-white transition-all border-none no-underline shrink-0">
-                  Norme Officielle <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-              </div>
-            </div>
-
-          </div>
+          <button onClick={fetchData} className="p-3 bg-white/5 rounded-2xl hover:bg-blue-600 transition-all border-none text-white cursor-pointer"><RefreshCw size={20} className={loading ? "animate-spin" : ""} /></button>
         </div>
+      </header>
+
+      {/* 📊 KPI BAR FIXE */}
+      <div className="shrink-0 px-6 lg:px-10 py-4 bg-black/20 border-b border-white/5 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPIStat title="Total" value={stats.total} icon={Layers} color="gray" />
+        <KPIStat title="Conforme" value={stats.compliant} icon={CheckCircle2} color="emerald" />
+        <KPIStat title="Écarts" value={stats.nonCompliant} icon={XCircle} color="red" />
+        <KPIStat title="Score" value={`${stats.rate}%`} icon={Target} color="blue" />
       </div>
+
+      {/* 📜 ZONE DE TRAVAIL (Isolated Scroll) */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        
+        {/* Navigation Clauses */}
+        <aside className="w-full lg:w-80 border-r border-white/5 bg-[#0F172A]/30 overflow-y-auto custom-scrollbar shrink-0">
+          <div className="p-4 border-b border-white/5 bg-black/20 sticky top-0 z-10">
+             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest m-0">Structure de la Norme</p>
+          </div>
+          <div className="divide-y divide-white/5">
+            {CLAUSES_9001.map((c) => (
+              <button key={c.id} onClick={() => setActiveClause(c.id)} className={`w-full p-5 text-left transition-all border-none cursor-pointer flex justify-between items-center group ${activeClause === c.id ? 'bg-blue-600/10 border-l-4 border-l-blue-500' : 'hover:bg-white/5 border-l-4 border-l-transparent'}`}>
+                <div className="min-w-0">
+                  <p className={`text-[10px] font-black uppercase italic truncate m-0 ${activeClause === c.id ? 'text-blue-400' : 'text-slate-300'}`}>§{c.id}. {c.title}</p>
+                </div>
+                <ChevronRight size={14} className={activeClause === c.id ? "text-blue-500" : "text-slate-700"} />
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        {/* Checklist Content */}
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 space-y-6">
+          <div className="max-w-5xl mx-auto space-y-4">
+            {filteredItems.length > 0 ? filteredItems.map((item) => (
+              <div key={item.LC_Id} className="bg-[#0F172A] border border-white/5 rounded-4xl p-6 lg:p-8 hover:border-blue-500/30 transition-all flex flex-col md:flex-row justify-between items-center gap-6 group">
+                <div className="flex-1 space-y-3 w-full">
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 bg-blue-600/10 border border-blue-500/20 text-blue-400 text-[9px] font-black italic rounded">§{item.LC_Clause}</span>
+                    {item.LC_IsMandatory && <span className="px-2 py-0.5 bg-red-500/10 text-red-500 text-[8px] font-black uppercase">Obligatoire</span>}
+                  </div>
+                  <h3 className="text-lg font-black uppercase italic text-white m-0 tracking-tight group-hover:text-blue-400 transition-colors leading-tight">{item.LC_Title}</h3>
+                  <p className="text-[11px] text-slate-400 italic m-0 border-l border-white/10 pl-4">{item.LC_Criteria}</p>
+                </div>
+                <div className="flex flex-col items-end gap-3 shrink-0 w-full md:w-auto">
+                   <ResponseBadge response={item.response?.CR_Response} />
+                   <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
+                      <RespBtn type="YES" active={item.response?.CR_Response === 'YES'} color="emerald" onClick={() => updateResponse(item.LC_Id, 'YES')} saving={savingId === item.LC_Id} />
+                      <RespBtn type="NO" active={item.response?.CR_Response === 'NO'} color="red" onClick={() => updateResponse(item.LC_Id, 'NO')} saving={savingId === item.LC_Id} />
+                      <RespBtn type="PARTIAL" active={item.response?.CR_Response === 'PARTIAL'} color="amber" onClick={() => updateResponse(item.LC_Id, 'PARTIAL')} saving={savingId === item.LC_Id} />
+                      <RespBtn type="NA" active={item.response?.CR_Response === 'NA'} color="gray" onClick={() => updateResponse(item.LC_Id, 'NA')} saving={savingId === item.LC_Id} />
+                   </div>
+                </div>
+              </div>
+            )) : (
+              <div className="h-64 border-2 border-dashed border-white/5 rounded-[3rem] flex flex-col items-center justify-center text-slate-700">
+                <Search size={48} className="mb-4 opacity-20" />
+                <p className="text-[10px] font-black uppercase italic tracking-widest">Aucune exigence ne correspond au filtre Matrix</p>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.2); border-radius: 10px; }` }} />
     </div>
   );
 }
 
-// ==========================================
-// COMPOSANTS ISO 9001
-// ==========================================
+// --- SOUS-COMPOSANTS ---
+
+const CLAUSES_9001 = [
+  { id: '4', title: 'Contexte' }, { id: '5', title: 'Leadership' }, { id: '6', title: 'Planification' },
+  { id: '7', title: 'Support' }, { id: '8', title: 'Opérations' }, { id: '9', title: 'Performance' }, { id: '10', title: 'Amélioration' }
+];
 
 function KPIStat({ title, value, icon: Icon, color }: any) {
-  const colorClasses: Record<string, string> = {
-    emerald: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)]',
-    blue: 'text-blue-400 bg-blue-500/10 border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.05)]',
-    amber: 'text-amber-400 bg-amber-500/10 border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.05)]',
-    red: 'text-red-400 bg-red-500/10 border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.05)]',
-    gray: 'text-slate-300 bg-white/5 border-white/10',
-  };
-
+  const themes: any = { emerald: "text-emerald-400", blue: "text-blue-400", red: "text-red-400", gray: "text-slate-500" };
   return (
-    <div className={`rounded-4xl p-6 border-2 flex items-center gap-5 ${colorClasses[color]}`}>
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-current bg-opacity-10 text-current">
-        <Icon size={24} />
-      </div>
+    <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-current bg-opacity-10 ${themes[color]}`}><Icon size={18} /></div>
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-current opacity-80 m-0">{title}</p>
-        <p className="mt-1 text-3xl font-black italic text-white m-0 leading-none">{value}</p>
+        <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest m-0">{title}</p>
+        <p className="text-xl font-black italic text-white m-0 leading-none mt-1">{value}</p>
       </div>
     </div>
   );
 }
 
 function ResponseBadge({ response }: { response?: ResponseType }) {
-  if (!response) {
-    return (
-      <span className="inline-flex items-center rounded-full bg-slate-800 border border-slate-700 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
-        <HelpCircle className="mr-1.5 h-3 w-3" /> En attente
-      </span>
-    );
-  }
-
-  const config: Record<ResponseType, { label: string; icon: React.ReactNode; color: string }> = {
-    YES: { label: 'Conforme', icon: <Check className="h-3 w-3" />, color: 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' },
-    NO: { label: 'Écart', icon: <X className="h-3 w-3" />, color: 'bg-red-500/20 border-red-500/30 text-red-400' },
-    PARTIAL: { label: 'Partiel', icon: <Minus className="h-3 w-3" />, color: 'bg-amber-500/20 border-amber-500/30 text-amber-400' },
-    NA: { label: 'N/A', icon: <Minus className="h-3 w-3" />, color: 'bg-white/10 border-white/20 text-slate-300' },
-  };
-
-  const { label, icon, color } = config[response];
-  return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-widest ${color}`}>
-      <span className="mr-1.5">{icon}</span> {label}
-    </span>
-  );
+  if (!response) return <span className="text-[8px] font-black uppercase text-slate-600 tracking-widest italic">Non éval.</span>;
+  const config: any = { YES: 'text-emerald-400', NO: 'text-red-400', PARTIAL: 'text-amber-400', NA: 'text-slate-400' };
+  return <span className={`text-[9px] font-black uppercase tracking-tighter ${config[response]}`}>{response === 'YES' ? 'CONFORME' : response === 'NO' ? 'ÉCART' : response}</span>;
 }
 
-function ResponseButton({ response, active, color, onClick, loading }: any) {
-  const activeStyles: Record<string, string> = {
-    emerald: 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20',
-    red: 'bg-red-600 text-white shadow-lg shadow-red-900/20',
-    amber: 'bg-amber-500 text-white shadow-lg shadow-amber-900/20',
-    gray: 'bg-slate-600 text-white shadow-lg',
+function RespBtn({ type, active, color, onClick, saving }: any) {
+  const styles: any = { 
+    emerald: active ? 'bg-emerald-600 text-white' : 'text-emerald-500 hover:bg-emerald-500/10',
+    red: active ? 'bg-red-600 text-white' : 'text-red-500 hover:bg-red-500/10',
+    amber: active ? 'bg-amber-600 text-white' : 'text-amber-500 hover:bg-amber-500/10',
+    gray: active ? 'bg-slate-600 text-white' : 'text-slate-500 hover:bg-slate-500/10'
   };
-
-  const idleStyles = 'bg-transparent text-slate-500 hover:bg-white/10 hover:text-white';
-
-  const icons: Record<ResponseType, React.ReactNode> = {
-    YES: <Check className="h-4 w-4" />,
-    NO: <X className="h-4 w-4" />,
-    PARTIAL: <Minus className="h-4 w-4" />,
-    NA: <HelpCircle className="h-4 w-4" />,
-  };
-
+  const icons: any = { YES: <Check size={14}/>, NO: <X size={14}/>, PARTIAL: <Minus size={14}/>, NA: <HelpCircle size={14}/> };
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={loading}
-      className={`inline-flex h-10 w-10 items-center justify-center rounded-lg transition-all border-none cursor-pointer ${
-        active ? activeStyles[color] : idleStyles
-      } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-      title={response}
-    >
-      {loading && active ? <Loader2 className="h-4 w-4 animate-spin" /> : icons[response as ResponseType]}
+    <button onClick={onClick} disabled={saving} className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all border-none cursor-pointer ${styles[color]} ${saving ? 'opacity-30' : ''}`}>
+      {saving && active ? <Loader2 size={14} className="animate-spin" /> : icons[type]}
     </button>
   );
 }
