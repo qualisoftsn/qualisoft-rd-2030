@@ -13,17 +13,21 @@
 
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
 
 // ✅ IMPORTS DES MODULES SCELLÉS
-import Sidebar from "@/app/dashboard/sidebar"; 
-import ActionHub from "@/components/layout/ActionHub"; 
 import TopUserNav from "@/components/dashboard/TopUserNav";
+import ActionHub from "@/components/layout/ActionHub";
+import Sidebar from "@/components/layout/sidebar";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const { user, isAuthenticated, isInitialized } = useAuthStore() as any;
   const [hasMounted, setHasMounted] = useState(false);
@@ -53,7 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isSuperAdmin = useMemo(() => {
     if (!user) return false;
     return (
-      user.U_Role?.toUpperCase() === "SUPER_ADMIN" || 
+      user.U_Role?.toUpperCase() === "SUPER_ADMIN" ||
       user.U_Role?.toUpperCase() === "ROOT" ||
       user.U_Email === "ab.thiongane@qualisoft.sn"
     );
@@ -64,8 +68,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="h-dvh w-full flex flex-col items-center justify-center bg-[#0B0F1A] italic font-sans overflow-hidden">
         <div className="relative">
-          <Loader2 className="animate-spin text-blue-600 mb-8" size={60} strokeWidth={3} />
-          <ShieldCheck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500/20" size={32} />
+          <Loader2
+            className="animate-spin text-blue-600 mb-8"
+            size={60}
+            strokeWidth={3}
+          />
+          <ShieldCheck
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500/20"
+            size={32}
+          />
         </div>
         <div className="text-center space-y-2">
           <p className="text-[11px] font-black text-blue-500 uppercase tracking-[0.6em] animate-pulse m-0">
@@ -82,20 +93,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     // CONTENEUR RACINE : Fixe, sans scroll, 100% de la hauteur PWA
     <div className="h-dvh w-full bg-[#0B0F1A] flex italic font-sans overflow-hidden selection:bg-blue-600/30">
-      
       {/* 🧭 NAVIGATION RÉGALIENNE (Sidebar fixe à gauche, rétractable sur mobile) */}
       <div className="hidden lg:block z-40">
         <Sidebar isSuperAdmin={isSuperAdmin} />
       </div>
-      
+
       {/* 🏗️ ZONE DE TRAVAIL ÉLITE (Prend l'espace restant, gère son propre scroll) */}
       <div className="flex-1 flex flex-col min-w-0 relative lg:pl-80 h-dvh">
-        
         {/* ⚡ ACTION HUB (La barre de commande supérieure, fixée en haut) */}
         <div className="sticky top-0 z-30 w-full shrink-0">
           <ActionHub />
         </div>
-        
+
         {/* 👤 TOP USER NAV (Responsive : adaptée mobile et desktop) */}
         <div className="absolute top-4 right-4 md:top-8 md:right-12 z-50">
           <TopUserNav />
@@ -104,20 +113,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* 📄 CONTENU DYNAMIQUE DES PROCESSUS (Scroll interne fluide) */}
         <main className="flex-1 relative overflow-y-auto overflow-x-hidden p-4 md:p-8 lg:p-12 custom-scrollbar bg-[#0B0F1A]">
           <div className="max-w-7xl mx-auto pt-16 md:pt-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 min-h-full pb-20">
-            
             {/* 🚩 EN-TÊTE DE CONTEXTE */}
             <div className="mb-8 md:mb-10 flex items-center gap-3 opacity-40 grayscale hover:grayscale-0 transition-all">
-               <ShieldCheck size={14} className="text-blue-500 shrink-0" />
-               <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white m-0 truncate">
-                 {user.U_TenantDomain?.toUpperCase() || 'ELITE'} • Périmètre Sécurisé
-               </p>
+              <ShieldCheck size={14} className="text-blue-500 shrink-0" />
+              <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white m-0 truncate">
+                {user.U_TenantDomain?.toUpperCase() || "ELITE"} • Périmètre
+                Sécurisé
+              </p>
             </div>
 
             {/* CONTENU DE LA PAGE */}
-            <div className="relative z-10">
-              {children}
-            </div>
-            
+            <div className="relative z-10">{children}</div>
           </div>
         </main>
 
@@ -131,19 +137,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <style jsx global>{`
         /* Barre de défilement d'élite intra-conteneur */
-        .custom-scrollbar::-webkit-scrollbar { 
-          width: 5px; 
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
           height: 5px;
         }
-        .custom-scrollbar::-webkit-scrollbar-track { 
-          background: transparent; 
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
-          background: rgba(37, 99, 235, 0.15); 
-          border-radius: 10px; 
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(37, 99, 235, 0.15);
+          border-radius: 10px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { 
-          background: rgba(37, 99, 235, 0.4); 
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(37, 99, 235, 0.4);
         }
       `}</style>
     </div>
