@@ -1,245 +1,175 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+'use client';
+
 /**
- * 🛰️ MODULE : AdminPaymentsPage.tsx (elite-sde)
+ * 🛰️ MODULE : CLOSING FINANCIER (ELITE-SDE)
  * -------------------------------------------------------------------------
- * RÔLE : Console de Closing Financier & Activation de Licences.
- * FIX : Dark Mode Matrix, Zéro Scroll Global (ClickUp UI).
- * RÉVISION : 04 Mars 2026 | 23:10 GMT
+ * RÔLE : Validation des transactions et activation des licences Matrix.
+ * DESIGN : 100dvh, ClickUp High-Density, Zero-Scroll Table, Glassmorphism.
+ * RÉVISION : 06 Mars 2026 | 21:05 GMT
  * -------------------------------------------------------------------------
  */
 
-"use client";
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { 
-  CheckCircle, Clock, Smartphone, CreditCard, Banknote, 
-  Loader2, ShieldCheck, RefreshCcw, User, Phone, Wallet,
-  ExternalLink, Ban, Check, AlertCircle
+  Check, Ban, Loader2, ShieldCheck, RefreshCcw, 
+  Wallet, Banknote, Smartphone, ExternalLink, Activity, AlertCircle, Clock
 } from 'lucide-react';
 import apiClient from '@/core/api/api-client';
-import { 
-  Tenant, Transaction, SubscriptionStatus, PaymentMethod, Plan 
-} from '@/types/elite-sde';
-import { toast } from 'sonner';
+import { toast, Toaster } from 'sonner';
 
-interface TenantWithTransactions extends Tenant {
-  T_Transactions: Transaction[];
-}
+export default function GlobalClosing() {
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actioning, setActioning] = useState<string | null>(null);
 
-export default function AdminPaymentsPage() {
-  const [tenants, setTenants] = useState<TenantWithTransactions[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchRegistry = useCallback(async () => {
     try {
-      const res = await apiClient.get<TenantWithTransactions[]>('/admin/transactions/pending');
+      setLoading(true);
+      const res = await apiClient.get('/admin/transactions/pending');
       setTenants(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      toast.error("ÉCHEC SYNCHRO : Impossible de joindre le registre financier.");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch {
+      toast.error("Rupture de flux financier : Liaison Kernel dégradée.");
+      setTenants([]);
+    } finally { setLoading(false); }
   }, []);
 
-  const handleAction = async (tenantId: string, action: 'ACTIVATE' | 'SUSPEND' | 'REJECT') => {
-    const tid = toast.loading(`Protocole ${action} en cours...`);
-    setIsProcessing(tenantId);
-    
+  useEffect(() => { fetchRegistry(); }, [fetchRegistry]);
+
+  const handleValidation = async (tenantId: string, action: 'ACTIVATE' | 'SUSPEND') => {
+    setActioning(tenantId);
+    const tid = toast.loading(`Exécution du protocole ${action}...`);
     try {
       await apiClient.post(`/admin/tenant/${tenantId}/status`, { action });
-      toast.success("REGISTRE SCELLÉ : La licence a été mise à jour.", { id: tid });
-      fetchData();
-    } catch (err) {
-      toast.error("REJET KERNEL : L'opération a été déclinée par le nœud.", { id: tid });
-    } finally {
-      setIsProcessing(null);
-    }
+      toast.success("REGISTRE SCELLÉ : Licence mise à jour.", { id: tid });
+      fetchRegistry();
+    } catch {
+      toast.error("REJET KERNEL : Opération déclinée.", { id: tid });
+    } finally { setActioning(null); }
   };
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // ✅ FIX : Affichage du composant de chargement local
+  if (loading) return <LoadingMatrix label="Calcul du Grand Livre..." />;
 
   return (
-    <div className="h-full flex flex-col p-4 md:p-8 lg:p-12 font-sans italic selection:bg-blue-600/30 text-white">
-      <div className="flex flex-col h-full max-w-400 mx-auto w-full animate-in fade-in duration-700">
-        
-        {/* --- 🛡️ HEADER CRM MATRIX --- */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-8 shrink-0">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 px-4 py-2 bg-blue-600/10 border border-blue-600/20 rounded-full w-fit">
-              <ShieldCheck size={14} className="text-blue-500" />
-              <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.3em]">Qualisoft Sovereign CRM</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter italic uppercase leading-none m-0">
-              Console <span className="text-blue-600 not-italic">Closing</span>
-            </h1>
-            <p className="text-slate-500 font-bold text-xs uppercase tracking-[0.2em] m-0">Pilotage des flux financiers & Activation des Nœuds</p>
+    <div className="h-full flex flex-col p-8 md:p-12 gap-10 font-sans italic text-white animate-in zoom-in-95 duration-500">
+      <Toaster position="top-right" richColors theme="dark" />
+
+      {/* 🔝 HEADER STRATÉGIQUE */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 shrink-0">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 px-4 py-2 bg-blue-600/10 border border-blue-600/20 rounded-full w-fit">
+            <ShieldCheck size={14} className="text-blue-500" />
+            <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.3em]">Qualisoft Sovereign CRM</span>
           </div>
-          
-          <button 
-            onClick={fetchData} 
-            disabled={isLoading}
-            className="flex items-center justify-center gap-3 px-8 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] text-slate-300 hover:bg-white hover:text-slate-900 transition-all uppercase tracking-widest active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
-          >
-            <RefreshCcw size={16} className={isLoading ? 'animate-spin text-blue-600' : ''} />
-            Actualiser Matrix
-          </button>
-        </header>
-
-        {/* --- 📊 REGISTRE DES TRANSACTIONS --- */}
-        <div className="flex-1 mt-8 rounded-4xl md:rounded-[3rem] border border-white/5 shadow-2xl overflow-hidden backdrop-blur-sm bg-white/5 flex flex-col min-h-0">
-          {isLoading ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-6">
-              <Loader2 className="animate-spin text-blue-600" size={48} strokeWidth={3} />
-              <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.6em] animate-pulse italic m-0">Lecture du grand livre...</p>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse min-w-225">
-                <thead className="sticky top-0 bg-[#0B0F1A]/90 backdrop-blur-md z-10">
-                  <tr className="border-b border-white/5">
-                    <th className="p-6 md:p-8 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic whitespace-nowrap">Organisation</th>
-                    <th className="p-6 md:p-8 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic whitespace-nowrap">Offre & Statut</th>
-                    <th className="p-6 md:p-8 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic whitespace-nowrap">Flux Financier</th>
-                    <th className="p-6 md:p-8 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic text-center whitespace-nowrap">Preuve</th>
-                    <th className="p-6 md:p-8 text-center text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic whitespace-nowrap">Protocole</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {tenants.map((tenant) => {
-                    const lastTx = tenant.T_Transactions?.[0];
-                    return (
-                      <tr key={tenant.T_Id} className="group hover:bg-white/5 transition-all duration-300">
-                        <td className="p-6 md:p-8">
-                          <div className="flex flex-col text-left">
-                            <span className="font-black text-white uppercase tracking-tighter text-xl md:text-2xl group-hover:text-blue-500 transition-colors leading-none mb-2 italic">
-                              {tenant.T_Name}
-                            </span>
-                            <div className="flex flex-wrap items-center gap-4 text-slate-500">
-                              <span className="flex items-center gap-2 text-[9px] font-black italic uppercase tracking-widest"><User size={12} className="text-blue-500"/> {tenant.T_CeoName || 'N/A'}</span>
-                              <span className="flex items-center gap-2 text-[9px] font-black italic uppercase tracking-widest"><Phone size={12} className="text-blue-500"/> {tenant.T_Phone || 'N/A'}</span>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="p-6 md:p-8">
-                          <div className="flex flex-col text-left gap-2">
-                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
-                              <Crown size={12} /> {tenant.T_Plan}
-                            </span>
-                            <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full w-fit border ${
-                              tenant.T_SubscriptionStatus === SubscriptionStatus.ACTIVE 
-                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
-                              : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                            }`}>
-                              ● {tenant.T_SubscriptionStatus}
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="p-6 md:p-8">
-                          {lastTx ? (
-                            <div className="flex flex-col text-left">
-                              <span className="font-black text-white text-xl tracking-tighter italic m-0">
-                                {lastTx.TX_Amount.toLocaleString()} <span className="text-blue-500 text-[10px] not-italic">XOF</span>
-                              </span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="p-1.5 bg-white/5 rounded-md text-slate-400">
-                                  {lastTx.TX_PaymentMethod === PaymentMethod.WAVE ? <Smartphone size={12}/> : <Banknote size={12}/>}
-                                </div>
-                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                                  {lastTx.TX_PaymentMethod}
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 text-slate-500">
-                               <AlertCircle size={14} />
-                               <span className="text-[9px] italic font-black uppercase tracking-widest">Zéro Flux</span>
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="p-6 md:p-8 text-center">
-                          {lastTx?.TX_ProofUrl ? (
-                            <a href={lastTx.TX_ProofUrl} target="_blank" rel="noreferrer"
-                               className="inline-flex items-center gap-2 px-4 py-3 bg-blue-600/10 text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all group/btn border border-blue-600/20 hover:border-transparent">
-                              <ExternalLink size={14} className="group-hover/btn:scale-110 transition-transform" />
-                              <span className="text-[8px] font-black uppercase tracking-widest">Voir</span>
-                            </a>
-                          ) : (
-                            <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">Aucun Doc</span>
-                          )}
-                        </td>
-
-                        <td className="p-6 md:p-8">
-                          <div className="flex items-center justify-center gap-3">
-                            <button 
-                              onClick={() => handleAction(tenant.T_Id, 'ACTIVATE')}
-                              disabled={isProcessing === tenant.T_Id || tenant.T_SubscriptionStatus === SubscriptionStatus.ACTIVE}
-                              className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-30 active:scale-95 flex items-center gap-2 border-none cursor-pointer"
-                            >
-                              {isProcessing === tenant.T_Id ? <Loader2 className="animate-spin" size={14}/> : <Check size={14} strokeWidth={4} />}
-                              Valider
-                            </button>
-                            
-                            {tenant.T_SubscriptionStatus === SubscriptionStatus.ACTIVE && (
-                              <button 
-                                onClick={() => handleAction(tenant.T_Id, 'SUSPEND')}
-                                disabled={isProcessing === tenant.T_Id}
-                                className="p-3 bg-white/5 border border-white/10 text-slate-500 rounded-2xl hover:text-red-500 hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-90 border-none cursor-pointer"
-                                title="Suspendre Licence"
-                              >
-                                <Ban size={16} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  
-                  {tenants.length === 0 && !isLoading && (
-                    <tr>
-                      <td colSpan={5} className="p-32 text-center">
-                        <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-700 opacity-30">
-                          <div className="w-20 h-20 bg-white/5 rounded-4xl flex items-center justify-center text-slate-400 border border-dashed border-white/10">
-                            <Clock size={32} />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-slate-400 font-black uppercase text-[10px] tracking-[0.5em] italic m-0">Zéro opération en attente</p>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter italic m-0 leading-none">
+            Closing <span className="text-blue-600">Financier</span>
+          </h1>
         </div>
+        <button 
+          onClick={fetchRegistry} 
+          className="bg-white/5 border border-white/10 px-8 py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-slate-950 transition-all flex items-center gap-4 cursor-pointer active:scale-95 shadow-2xl"
+        >
+          <RefreshCcw size={16} className={loading ? 'animate-spin text-blue-600' : ''} />
+          Actualiser Matrix
+        </button>
+      </header>
 
-        {/* --- 📡 CRM TELEMETRY FOOTER --- */}
-        <footer className="mt-6 pt-6 flex flex-col sm:flex-row justify-between items-center opacity-30 border-t border-white/5 shrink-0 gap-4">
-           <div className="flex flex-col gap-1 text-center sm:text-left">
-             <p className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-[0.5em] italic m-0">Qualisoft Enterprise CRM v2.1</p>
-             <p className="text-[7px] md:text-[8px] font-black text-blue-500 uppercase tracking-[0.3em] m-0">Status : Synchronisé</p>
-           </div>
-           <div className="text-center sm:text-right">
-             <p className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic m-0">Souveraineté Numérique</p>
-           </div>
-        </footer>
+      {/* 📊 REGISTRE DES TRANSACTIONS (Scroll Isolé) */}
+      <div className="flex-1 bg-white/5 border border-white/5 rounded-[4rem] overflow-hidden flex flex-col shadow-inner backdrop-blur-md">
+        <div className="flex-1 overflow-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse min-w-250">
+            <thead className="sticky top-0 bg-[#0B0F1A]/95 backdrop-blur-md z-20 border-b border-white/5">
+              <tr>
+                <th className="p-8 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic">Organisation</th>
+                <th className="p-8 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic text-center">Plan</th>
+                <th className="p-8 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic">Flux & Preuve</th>
+                <th className="p-8 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic text-center">Protocole</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {tenants.map((t) => (
+                <tr key={t.T_Id} className="group hover:bg-white/5 transition-all duration-300 italic">
+                  <td className="p-8">
+                    <p className="text-2xl font-black text-white uppercase tracking-tighter m-0 group-hover:text-blue-500 transition-colors leading-none">{t.T_Name}</p>
+                    <p className="text-[10px] text-slate-500 font-black uppercase mt-2 m-0 tracking-widest">{t.T_CeoName || 'N/A'}</p>
+                  </td>
+                  <td className="p-8 text-center">
+                    <span className="bg-blue-600/20 text-blue-500 border border-blue-600/30 px-5 py-2 rounded-xl text-[9px] font-black tracking-widest uppercase">{t.T_Plan}</span>
+                  </td>
+                  <td className="p-8">
+                    <div className="flex items-center gap-6">
+                       <div className="text-left">
+                          <p className="text-2xl font-black text-white m-0 italic">{(t.T_Transactions?.[0]?.TX_Amount || 0).toLocaleString()} <span className="text-xs text-blue-500 uppercase">XOF</span></p>
+                          <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1 m-0 italic">{t.T_Transactions?.[0]?.TX_PaymentMethod || 'VIREMENT'}</p>
+                       </div>
+                       {t.T_Transactions?.[0]?.TX_ProofUrl && (
+                         <a href={t.T_Transactions[0].TX_ProofUrl} target="_blank" className="p-4 bg-emerald-500/10 text-emerald-500 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all shadow-lg"><ExternalLink size={20}/></a>
+                       )}
+                    </div>
+                  </td>
+                  <td className="p-8">
+                    <div className="flex items-center justify-center gap-4">
+                       <button 
+                         disabled={actioning === t.T_Id}
+                         onClick={() => handleValidation(t.T_Id, 'ACTIVATE')} 
+                         className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[9px] tracking-widest uppercase hover:bg-white hover:text-emerald-600 transition-all border-none cursor-pointer active:scale-95 shadow-xl shadow-emerald-900/20"
+                       >
+                         {actioning === t.T_Id ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} className="inline mr-2" />} Activer
+                       </button>
+                       <button 
+                         disabled={actioning === t.T_Id}
+                         onClick={() => handleValidation(t.T_Id, 'SUSPEND')} 
+                         className="p-4 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-2xl transition-all border-none cursor-pointer"
+                       >
+                         <Ban size={18}/>
+                       </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              
+              {tenants.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-32 text-center opacity-30">
+                    <div className="flex flex-col items-center gap-6">
+                       <Clock size={60} strokeWidth={1} />
+                       <p className="text-[10px] font-black uppercase tracking-[0.5em] m-0 italic">Aucune transaction en attente de scellage</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* 📡 CRM TELEMETRY FOOTER */}
+      <footer className="shrink-0 flex items-center justify-between opacity-30 px-6">
+        <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest italic leading-none">
+          <Activity size={14} className="text-blue-500" /> Flux Financiers Scellés • SDE-RD-2026
+        </div>
+        <div className="text-[9px] font-black italic uppercase tracking-widest">Souveraineté Closing Qualisoft</div>
+      </footer>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(37,99,235,0.5); }
+      `}</style>
     </div>
   );
 }
 
-function Crown({ size, className }: { size: number, className?: string }) {
+// ✅ COMPOSANT ATOMIQUE : LOADING MATRIX (Indispensable pour éviter l'erreur)
+function LoadingMatrix({ label }: { label: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7z"/>
-      <path d="M5 20h14"/>
-    </svg>
+    <div className="h-full w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-6">
+      <Loader2 className="animate-spin text-blue-600" size={60} strokeWidth={1} />
+      <p className="text-blue-500 font-black uppercase italic text-[10px] tracking-[1.2em] animate-pulse m-0 pl-[1.2em]">
+        {label}
+      </p>
+    </div>
   );
 }

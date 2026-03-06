@@ -11,6 +11,7 @@ export const MASTER_NAV = [
     items: [
       { title: "Cockpit Global SMI", path: "/dashboard/smi-global", icon: "LayoutDashboard", desc: "Performance consolidée §9.1" },
       { title: "Revue de Direction", path: "/dashboard/gouvernance/copil", icon: "FileSearch", desc: "Arbitrage stratégique §9.3" },
+      { title: "ROI de Conformité", path: "/dashboard/analytics/roi", icon: "TrendingUp", desc: "Rentabilité du SMI §9.1.3" }, 
       { title: "Objectifs & Cibles", path: "/dashboard/objectifs", icon: "Target", desc: "Planification §6.2" },
       { title: "Veille Réglementaire", path: "/dashboard/gouvernance/compliance", icon: "ShieldCheck", desc: "Exigences légales §6.1.3" }
     ]
