@@ -6,9 +6,10 @@
  * 🛰️ MODULE : LOGIN TERMINAL (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
- * FIX : Restauration de la liste déroulante des Organisations pour 
- * garantir l'envoi du bon T_Id (UUID) au backend.
- * RÉVISION : 07 Mars 2026 | 22:05 GMT
+ * FIX : Restauration de la liste déroulante des Organisations avec un 
+ * extracteur de données universel pour garantir l'affichage.
+ * DESIGN : ClickUp High-Density, Zero-Scroll, PWA Ready.
+ * RÉVISION : 07 Mars 2026 | 22:30 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -51,7 +52,48 @@ function LoginFormContent() {
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
   /**
-   * 📡 INITIALISATION DU SAS : CHARGEMENT DE LA LISTE
+   * 📡 FETCH SÉCURISÉ DES ORGANISATIONS
+   * Extracteur universel pour contrer les variations de format de l'API NestJS.
+   */
+  const fetchAllTenants = async (slug: string) => {
+    try {
+      const res = await apiClient.get('/public/tenants', {
+        headers: { 'X-Skip-Interceptor': 'true' }
+      });
+
+      // 🛡️ EXTRACTION BLINDÉE DE LA LISTE
+      let list: any[] = [];
+      if (Array.isArray(res.data)) list = res.data;
+      else if (Array.isArray(res.data?.data)) list = res.data.data;
+      else if (Array.isArray(res.data?.items)) list = res.data.items;
+      else if (Array.isArray(res.data?.result)) list = res.data.result;
+
+      if (list.length === 0) {
+        console.warn("⚠️ API /public/tenants n'a renvoyé aucune organisation :", res.data);
+      }
+
+      setTenantList(list);
+
+      // Pré-sélection intelligente basée sur l'URL
+      if (list.length > 0) {
+        const found = list.find((t: any) => 
+          t.T_Slug?.toLowerCase() === slug || 
+          t.T_Name?.toLowerCase().includes(slug)
+        );
+        if (found) {
+          setForm(p => ({ ...p, tenantId: found.T_Id }));
+        }
+      }
+    } catch (err) {
+      console.error("❌ ERREUR DE LIAISON API :", err);
+      toast.error("Impossible de charger le réseau des organisations.");
+    } finally {
+      setMode('FORM');
+    }
+  };
+
+  /**
+   * 📡 INITIALISATION DU SAS
    */
   const initSAS = useCallback(async () => {
     if (isExpired) {
@@ -69,26 +111,7 @@ function LoginFormContent() {
       setMode('FORM');
     } else {
       setLoginType('TENANT');
-      
-      try {
-        // ✅ ON CHARGE TOUTE LA LISTE POUR AVOIR LES VRAIS IDs
-        const res = await apiClient.get('/public/tenants', {
-          headers: { 'X-Skip-Interceptor': 'true' }
-        });
-        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-        setTenantList(list);
-
-        // Bonus : On pré-sélectionne le bon si on le trouve par son nom/slug, mais on laisse la liste active
-        const found = list.find((t: any) => t.T_Name.toLowerCase().includes(slug) || t.T_Slug === slug);
-        if (found) {
-          setForm(p => ({ ...p, tenantId: found.T_Id }));
-        }
-
-      } catch (err) {
-        toast.error("Impossible de charger les organisations.");
-      } finally {
-        setMode('FORM');
-      }
+      await fetchAllTenants(slug); // Appel de la liste complète
     }
   }, [isExpired, logout]);
 
@@ -100,6 +123,7 @@ function LoginFormContent() {
     const tid = toast.loading("Séquençage de la session en cours...");
 
     try {
+      // Nettoyage machine invisible pour l'API
       const machineEmail = form.email.trim().toLowerCase();
 
       // 👑 BYPASS MASTER ARCHITECTE
@@ -149,7 +173,7 @@ function LoginFormContent() {
 
       <form onSubmit={handleAuth} className="space-y-5">
         
-        {/* CHAMP 1 : LA LISTE DES ORGANISATIONS (RÉTABLIE) */}
+        {/* 🏢 CHAMP 1 : LA LISTE DES ORGANISATIONS (RESTAURÉE ET SÉCURISÉE) */}
         {loginType === 'TENANT' && (
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation du Nœud</label>
@@ -161,7 +185,9 @@ function LoginFormContent() {
                 value={form.tenantId} 
                 onChange={e => setForm({...form, tenantId: e.target.value})}
               >
-                <option value="" disabled className="bg-[#0B0F1A]">SÉLECTIONNEZ LE NŒUD</option>
+                <option value="" disabled className="bg-[#0B0F1A]">
+                  {tenantList.length === 0 ? "⚠️ AUCUNE ORGANISATION TROUVÉE" : "SÉLECTIONNEZ LE NŒUD"}
+                </option>
                 {tenantList.map(t => (
                   <option key={t.T_Id} value={t.T_Id} className="bg-[#0B0F1A]">
                     {t.T_Name}
@@ -173,7 +199,7 @@ function LoginFormContent() {
           </div>
         )}
 
-        {/* CHAMP 2 : EMAIL */}
+        {/* 📧 CHAMP 2 : EMAIL (Saisie totalement libre) */}
         <MatrixInput 
           icon={Mail} 
           label="Identifiant de Liaison" 
@@ -183,7 +209,7 @@ function LoginFormContent() {
           onChange={(v: string) => setForm({...form, email: v})} 
         />
 
-        {/* CHAMP 3 : MOT DE PASSE */}
+        {/* 🔑 CHAMP 3 : MOT DE PASSE */}
         <MatrixInput 
           icon={Lock} 
           label="Clé de Cryptage" 
