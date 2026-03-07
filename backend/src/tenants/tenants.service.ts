@@ -1,6 +1,10 @@
 /**
- * 🛰️ TENANTS SERVICE - QUALISOFT ELITE RD 2030
+ * 🛰️ MODULE : TENANTS SERVICE (QUALISOFT ELITE)
+ * -------------------------------------------------------------------------
  * RÔLE : Résolution dynamique des nœuds et gestion des instances.
+ * FIX : Création de 'getPublicTenants' pour sécuriser les données.
+ * RÉVISION : 07 Mars 2026 | 23:00 GMT
+ * -------------------------------------------------------------------------
  */
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -13,23 +17,38 @@ import { Plan, SubscriptionStatus } from '@prisma/client';
 export class TenantsService {
   private readonly logger = new Logger(TenantsService.name);
 
-  // On utilise uniquement l'injection pour éviter les conflits d'instance
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * 🔓 RÉCUPÉRATION PUBLIQUE (SÉCURISÉE POUR LE LOGIN)
+   * Ne renvoie que le strict minimum pour éviter les fuites de données (RGPD).
+   */
+  async getPublicTenants() {
+    this.logger.log(`🔓 Extraction publique de la liste des nœuds actifs.`);
+    return this.prisma.tenant.findMany({
+      where: { T_IsActive: true },
+      select: {
+        T_Id: true,
+        T_Name: true,
+        T_Domain: true,
+      },
+      orderBy: { T_Name: 'asc' }
+    });
+  }
+
+  /**
    * 🔍 RÉCUPÉRATION DE LA CONFIGURATION
-   * C'est ici que l'étanchéité se joue : Match "pad" ou "pad.qualisoft.sn"
    */
   async getConfigBySlug(slug: string) {
     this.logger.log(`🔍 Reconnaissance du nœud Matrix : ${slug}`);
 
     const tenant = await this.prisma.tenant.findFirst({
       where: {
+        T_IsActive: true,
         OR: [
           { T_Domain: slug.toLowerCase() },
           { T_Domain: `${slug.toLowerCase()}.qualisoft.sn` }
-        ],
-        T_IsActive: true,
+        ]
       },
       include: {
         _count: {
@@ -39,7 +58,7 @@ export class TenantsService {
     });
 
     if (!tenant) {
-      this.logger.error(`🛑 Échec : Nœud [${slug}] introuvable.`);
+      this.logger.warn(`🛑 Échec : Nœud [${slug}] introuvable.`);
       throw new NotFoundException(`Le territoire ${slug} n'est pas activé.`);
     }
 
@@ -91,7 +110,7 @@ export class TenantsService {
     });
   }
 
-  // 📋 RÉCUPÉRATION
+  // 📋 RÉCUPÉRATION GLOBALE
   async findAll(includeArchived: boolean = false) {
     return this.prisma.tenant.findMany({
       where: includeArchived ? {} : { T_IsActive: true },
@@ -100,7 +119,7 @@ export class TenantsService {
     });
   }
 
-  // 📝 MISE À JOUR (CORRIGÉE : usage de this.prisma)
+  // 📝 MISE À JOUR
   async update(id: string, dto: UpdateTenantDto) {
     const tenant = await this.prisma.tenant.findUnique({ where: { T_Id: id } });
     if (!tenant) throw new NotFoundException('Instance inexistante');

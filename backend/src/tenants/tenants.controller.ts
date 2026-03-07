@@ -1,6 +1,10 @@
 /**
- * 🛰️ TENANTS CONTROLLER - QUALISOFT ELITE
+ * 🛰️ MODULE : TENANTS CONTROLLER (QUALISOFT ELITE)
+ * -------------------------------------------------------------------------
  * RÔLE : Point d'accès souverain pour la gestion des instances.
+ * FIX : Ajout de la route 'public/list' pour le SAS Login Frontend.
+ * RÉVISION : 07 Mars 2026 | 23:00 GMT
+ * -------------------------------------------------------------------------
  */
 
 import { 
@@ -14,8 +18,18 @@ import { UpdateTenantDto } from './dto/update-tenant.dto';
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 
-  /** * 🔍 RESOLUTION DE NŒUD (CRITIQUE)
-   * Appelée par le TenantProvider du Frontend pour charger l'identité du client.
+  /**
+   * 🔓 ROUTE PUBLIQUE : ALIMENTATION DU LOGIN (CRITIQUE)
+   * Route : GET /tenants/public/list
+   * Rôle : Renvoie uniquement les données non-sensibles pour la liste déroulante.
+   * Note : Si tu as un Guard global, ajoute ton décorateur @Public() ici.
+   */
+  @Get('public/list')
+  getPublicTenants() {
+    return this.tenantsService.getPublicTenants();
+  }
+
+  /** * 🔍 RESOLUTION DE NŒUD
    * Route : GET /tenants/config/:slug
    */
   @Get('config/:slug')
@@ -35,7 +49,7 @@ export class TenantsController {
     return this.tenantsService.getTenantStats(id);
   }
 
-  /** 📋 Liste exhaustive des instances de la Fédération */
+  /** 📋 Liste exhaustive des instances (Zone Privée) */
   @Get()
   findAll(@Query('all') all: string) {
     return this.tenantsService.findAll(all === 'true');

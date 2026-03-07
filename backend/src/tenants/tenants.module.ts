@@ -5,8 +5,8 @@ import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [TenantsController], // Enregistre les routes (POST, GET, etc.)
-  providers: [TenantsService],     // Enregistre la logique métier et Prisma
-  exports: [TenantsService]        // Permet à d'autres modules (ex: Auth) d'utiliser le service
+  controllers: [TenantsController],
+  providers: [TenantsService],
+  exports: [TenantsService]
 })
 export class TenantsModule {}

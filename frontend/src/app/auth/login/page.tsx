@@ -6,10 +6,10 @@
  * 🛰️ MODULE : LOGIN TERMINAL (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
- * DIAGNOSTIC : Injection d'un intercepteur visuel pour forcer l'affichage 
- * des erreurs de réseau (CORS, 404, 500) si la liste des organisations échoue.
+ * FIX : Alignement sur la route Backend '/tenants/public/list'
  * DESIGN : ClickUp High-Density, Zero-Scroll, PWA Ready.
- * RÉVISION : 07 Mars 2026 | 22:45 GMT
+ * SÉCURITÉ : Remplacement définitif de NextAuth par Zustand + HttpOnly.
+ * RÉVISION : 07 Mars 2026 | 23:15 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -52,15 +52,17 @@ function LoginFormContent() {
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
   /**
-   * 📡 FETCH SÉCURISÉ DES ORGANISATIONS (AVEC DIAGNOSTIC)
+   * 📡 FETCH SÉCURISÉ DES ORGANISATIONS
+   * ALIGNEMENT : On utilise la route `/tenants/public/list` fraîchement créée
    */
   const fetchAllTenants = async (slug: string) => {
     try {
-      const res = await apiClient.get('/public/tenants', {
+      // ✅ APPEL DE LA BONNE ROUTE (LA CLÉ EST ICI)
+      const res = await apiClient.get('/tenants/public/list', {
         headers: { 'X-Skip-Interceptor': 'true' }
       });
 
-      // 🛡️ EXTRACTION BLINDÉE DE LA LISTE
+      // 🛡️ EXTRACTION BLINDÉE
       let list: any[] = [];
       if (Array.isArray(res.data)) list = res.data;
       else if (Array.isArray(res.data?.data)) list = res.data.data;
@@ -68,15 +70,16 @@ function LoginFormContent() {
       else if (Array.isArray(res.data?.result)) list = res.data.result;
 
       if (list.length === 0) {
-        toast.warning("L'API a répondu (200 OK), mais la base de données des organisations est vide.", { duration: 8000 });
+        toast.warning("L'API a répondu, mais aucune organisation n'est active.", { duration: 8000 });
       }
 
       setTenantList(list);
 
-      // Pré-sélection intelligente basée sur l'URL
+      // Pré-sélection intelligente
       if (list.length > 0) {
         const found = list.find((t: any) => 
           t.T_Slug?.toLowerCase() === slug || 
+          t.T_Domain?.toLowerCase().includes(slug) ||
           t.T_Name?.toLowerCase().includes(slug)
         );
         if (found) {
@@ -84,12 +87,10 @@ function LoginFormContent() {
         }
       }
     } catch (err: any) {
-      // 🛑 DIAGNOSTIC RÉSEAU : Affichage à l'écran pour identification
-      const status = err.response?.status || "Erreur Réseau / CORS";
-      const message = err.response?.data?.message || err.response?.data?.error || err.message;
-      
+      const status = err.response?.status || "Réseau";
+      const message = err.response?.data?.message || err.message;
       console.error("CRASH API DÉTECTÉ :", err);
-      toast.error(`Rejet Serveur [Code: ${status}] : ${message}`, { duration: 10000 });
+      toast.error(`Échec Chargement Organisations [${status}] : ${message}`, { duration: 10000 });
     } finally {
       setMode('FORM');
     }
@@ -114,7 +115,7 @@ function LoginFormContent() {
       setMode('FORM');
     } else {
       setLoginType('TENANT');
-      await fetchAllTenants(slug); // Appel de la liste complète
+      await fetchAllTenants(slug); 
     }
   }, [isExpired, logout]);
 
@@ -126,7 +127,7 @@ function LoginFormContent() {
     const tid = toast.loading("Séquençage de la session en cours...");
 
     try {
-      // Nettoyage machine invisible pour l'API
+      // Nettoyage machine
       const machineEmail = form.email.trim().toLowerCase();
 
       // 👑 BYPASS MASTER ARCHITECTE
@@ -176,7 +177,7 @@ function LoginFormContent() {
 
       <form onSubmit={handleAuth} className="space-y-5">
         
-        {/* 🏢 CHAMP 1 : LA LISTE DES ORGANISATIONS (RESTAURÉE ET SÉCURISÉE) */}
+        {/* 🏢 CHAMP 1 : LA LISTE DES ORGANISATIONS */}
         {loginType === 'TENANT' && (
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation du Nœud</label>
@@ -202,7 +203,7 @@ function LoginFormContent() {
           </div>
         )}
 
-        {/* 📧 CHAMP 2 : EMAIL (Saisie totalement libre) */}
+        {/* 📧 CHAMP 2 : EMAIL */}
         <MatrixInput 
           icon={Mail} 
           label="Identifiant de Liaison" 

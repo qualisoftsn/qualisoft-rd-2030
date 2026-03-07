@@ -23,7 +23,7 @@ export class CreateTenantDto {
 
   @IsOptional()
   @IsString()
-  T_Domain?: string; // Si vide, le service générera le slug automatiquement
+  T_Domain?: string; 
 
   @IsOptional()
   @IsString()
@@ -34,7 +34,7 @@ export class CreateTenantDto {
   T_Plan?: string;
 
   @IsOptional()
-  @IsInt() // Changement : On force un entier pour la durée
+  @IsInt()
   T_ContractDuration?: number;
 
   @IsOptional()
