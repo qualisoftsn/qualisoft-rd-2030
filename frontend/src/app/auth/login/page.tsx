@@ -6,9 +6,9 @@
  * 🛰️ MODULE : LOGIN TERMINAL (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
- * FIX : Standardisation machine de l'email (`toLowerCase`) tout en 
- * gardant l'input visuel 100% libre pour l'utilisateur.
- * RÉVISION : 07 Mars 2026 | 17:15 GMT
+ * FIX : Restauration de la liste déroulante des Organisations pour 
+ * garantir l'envoi du bon T_Id (UUID) au backend.
+ * RÉVISION : 07 Mars 2026 | 22:05 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -16,7 +16,7 @@ import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Loader2, Mail, Lock, Eye, EyeOff, ShieldCheck, 
-  Building2, Fingerprint, Network, Zap, Activity
+  Building2, Fingerprint, Network, Zap, Activity, ChevronDown
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
@@ -47,11 +47,11 @@ function LoginFormContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  const [detectedTenant, setDetectedTenant] = useState<{ T_Id: string, T_Name: string } | null>(null);
+  const [tenantList, setTenantList] = useState<any[]>([]);
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
   /**
-   * 📡 INITIALISATION DU SAS
+   * 📡 INITIALISATION DU SAS : CHARGEMENT DE LA LISTE
    */
   const initSAS = useCallback(async () => {
     if (isExpired) {
@@ -71,23 +71,21 @@ function LoginFormContent() {
       setLoginType('TENANT');
       
       try {
-        const res = await apiClient.get(`/public/tenants/by-slug/${slug}`, {
-          headers: { 'X-Skip-Interceptor': 'true' },
-          timeout: 3000
+        // ✅ ON CHARGE TOUTE LA LISTE POUR AVOIR LES VRAIS IDs
+        const res = await apiClient.get('/public/tenants', {
+          headers: { 'X-Skip-Interceptor': 'true' }
         });
-        
-        const tenant = res.data?.data || res.data;
-        
-        if (tenant && tenant.T_Name) {
-          setDetectedTenant({ T_Id: tenant.T_Id, T_Name: tenant.T_Name });
-          setForm(p => ({ ...p, tenantId: tenant.T_Id }));
-        } else {
-          setDetectedTenant({ T_Id: slug, T_Name: slug.toUpperCase() });
-          setForm(p => ({ ...p, tenantId: slug }));
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        setTenantList(list);
+
+        // Bonus : On pré-sélectionne le bon si on le trouve par son nom/slug, mais on laisse la liste active
+        const found = list.find((t: any) => t.T_Name.toLowerCase().includes(slug) || t.T_Slug === slug);
+        if (found) {
+          setForm(p => ({ ...p, tenantId: found.T_Id }));
         }
+
       } catch (err) {
-        setDetectedTenant({ T_Id: slug, T_Name: slug.toUpperCase() });
-        setForm(p => ({ ...p, tenantId: slug }));
+        toast.error("Impossible de charger les organisations.");
       } finally {
         setMode('FORM');
       }
@@ -102,7 +100,6 @@ function LoginFormContent() {
     const tid = toast.loading("Séquençage de la session en cours...");
 
     try {
-      // 🛡️ CORRECTION MACHINE : On force la casse pour l'API uniquement
       const machineEmail = form.email.trim().toLowerCase();
 
       // 👑 BYPASS MASTER ARCHITECTE
@@ -133,7 +130,7 @@ function LoginFormContent() {
     }
   };
 
-  if (mode === 'LOADING') return <LoadingMatrix label="Vérification du Nœud..." />;
+  if (mode === 'LOADING') return <LoadingMatrix label="Chargement des Organisations..." />;
 
   return (
     <div className="w-full max-w-sm mx-auto space-y-10 animate-in fade-in zoom-in-95 duration-700">
@@ -144,7 +141,7 @@ function LoginFormContent() {
         </div>
         <div className="space-y-2">
           <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter m-0 leading-none">
-            {detectedTenant?.T_Name || (loginType === 'MASTER' ? "Console Master" : "Matrix OS")}
+            {loginType === 'MASTER' ? "Console Master" : "Matrix OS"}
           </h2>
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] italic m-0">Sovereign Access Service</p>
         </div>
@@ -152,22 +149,31 @@ function LoginFormContent() {
 
       <form onSubmit={handleAuth} className="space-y-5">
         
-        {/* CHAMP 1 : ORGANISATION SCELLÉE */}
+        {/* CHAMP 1 : LA LISTE DES ORGANISATIONS (RÉTABLIE) */}
         {loginType === 'TENANT' && (
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation du Nœud</label>
             <div className="relative">
               <Building2 className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
-              <input 
-                readOnly 
-                className="w-full bg-white/5 border border-blue-500/30 rounded-2xl py-5 pl-14 text-blue-400 font-black italic uppercase text-xs cursor-not-allowed outline-none shadow-inner" 
-                value={detectedTenant?.T_Name || "CHARGEMENT..."} 
-              />
+              <select 
+                required 
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-5 pl-14 pr-10 text-white font-black italic uppercase text-[10px] appearance-none outline-none focus:border-blue-600 transition-all cursor-pointer shadow-inner"
+                value={form.tenantId} 
+                onChange={e => setForm({...form, tenantId: e.target.value})}
+              >
+                <option value="" disabled className="bg-[#0B0F1A]">SÉLECTIONNEZ LE NŒUD</option>
+                {tenantList.map(t => (
+                  <option key={t.T_Id} value={t.T_Id} className="bg-[#0B0F1A]">
+                    {t.T_Name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
             </div>
           </div>
         )}
 
-        {/* CHAMP 2 : EMAIL (Visuellement Libre, Machine Strict) */}
+        {/* CHAMP 2 : EMAIL */}
         <MatrixInput 
           icon={Mail} 
           label="Identifiant de Liaison" 
@@ -255,7 +261,6 @@ function MatrixInput({ icon: Icon, label, placeholder, type, value, onChange, sh
       <label className="text-[9px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">{label}</label>
       <div className="relative">
         <Icon className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-        {/* L'input est text, autorisant les majuscules visuelles */}
         <input 
           type={type} 
           required 
