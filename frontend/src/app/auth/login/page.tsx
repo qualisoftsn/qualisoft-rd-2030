@@ -6,10 +6,10 @@
  * 🛰️ MODULE : LOGIN TERMINAL (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
- * FIX : Restauration de la liste déroulante des Organisations avec un 
- * extracteur de données universel pour garantir l'affichage.
+ * DIAGNOSTIC : Injection d'un intercepteur visuel pour forcer l'affichage 
+ * des erreurs de réseau (CORS, 404, 500) si la liste des organisations échoue.
  * DESIGN : ClickUp High-Density, Zero-Scroll, PWA Ready.
- * RÉVISION : 07 Mars 2026 | 22:30 GMT
+ * RÉVISION : 07 Mars 2026 | 22:45 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -52,8 +52,7 @@ function LoginFormContent() {
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
   /**
-   * 📡 FETCH SÉCURISÉ DES ORGANISATIONS
-   * Extracteur universel pour contrer les variations de format de l'API NestJS.
+   * 📡 FETCH SÉCURISÉ DES ORGANISATIONS (AVEC DIAGNOSTIC)
    */
   const fetchAllTenants = async (slug: string) => {
     try {
@@ -69,7 +68,7 @@ function LoginFormContent() {
       else if (Array.isArray(res.data?.result)) list = res.data.result;
 
       if (list.length === 0) {
-        console.warn("⚠️ API /public/tenants n'a renvoyé aucune organisation :", res.data);
+        toast.warning("L'API a répondu (200 OK), mais la base de données des organisations est vide.", { duration: 8000 });
       }
 
       setTenantList(list);
@@ -84,9 +83,13 @@ function LoginFormContent() {
           setForm(p => ({ ...p, tenantId: found.T_Id }));
         }
       }
-    } catch (err) {
-      console.error("❌ ERREUR DE LIAISON API :", err);
-      toast.error("Impossible de charger le réseau des organisations.");
+    } catch (err: any) {
+      // 🛑 DIAGNOSTIC RÉSEAU : Affichage à l'écran pour identification
+      const status = err.response?.status || "Erreur Réseau / CORS";
+      const message = err.response?.data?.message || err.response?.data?.error || err.message;
+      
+      console.error("CRASH API DÉTECTÉ :", err);
+      toast.error(`Rejet Serveur [Code: ${status}] : ${message}`, { duration: 10000 });
     } finally {
       setMode('FORM');
     }
