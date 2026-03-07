@@ -1,11 +1,8 @@
 /**
  * 🧠 MODULE : AUTH-STORE (ELITE-SDE)
  * -------------------------------------------------------------------------
- * RÔLE : Gestion de l'état global et Contexte Multi-Tenant.
- * FONCTION : Persistance atomique Zustand (§ISO 27001).
- * FIX : Alignement sur 'access_token' & Gestion dynamique du Wildcard Domain.
- * RÉVISION : 07 Mars 2026 | 15:10 GMT
- * -------------------------------------------------------------------------
+ * RÔLE : État Global & Persistance Multi-Tenant.
+ * RÉVISION : 07 Mars 2026 | 17:10 GMT
  */
 
 import { create } from 'zustand';
@@ -19,124 +16,63 @@ export interface AuthUser {
   U_Role: string;
   tenantId: string;
   U_TenantName: string;
-  U_TenantDomain?: string;
-  U_AssignedProcessId?: string | null;
 }
 
 interface AuthState {
   token: string | null;
-  tenantId: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
   isInitialized: boolean;
-  isMasterSession: boolean;
-  
-  // ACTIONS
-  setLogin: (data: { token: string; user: AuthUser; isMaster?: boolean }) => void;
+  setLogin: (data: { token: string; user: AuthUser }) => void;
   logout: () => void;
   setInitialized: (val: boolean) => void;
-  updateUser: (userData: Partial<AuthUser>) => void;
 }
 
 /**
- * 🛰️ UTILITAIRE : RÉSOLUTION DU WILDCARD DOMAIN
- * Permet au cookie d'être partagé entre sagam.qualisoft.sn et qualisoft.sn
+ * 🛰️ RÉSOLUTION DU WILDCARD DOMAIN
  */
 const getCookieDomain = () => {
   if (typeof window === 'undefined') return '';
   const hostname = window.location.hostname;
-  if (hostname === 'localhost' || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) return '';
-  
+  if (hostname === 'localhost') return '';
   const parts = hostname.split('.');
-  if (parts.length >= 2) {
-    // On extrait les deux derniers segments (ex: .qualisoft.sn)
-    return `domain=.${parts.slice(-2).join('.')};`;
-  }
-  return '';
+  return parts.length >= 2 ? `domain=.${parts.slice(-2).join('.')};` : '';
 };
 
+// ✅ EXPORT NOMMÉ EXPLICITE
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       token: null,
-      tenantId: null,
       user: null,
       isAuthenticated: false,
       isInitialized: false,
-      isMasterSession: false,
 
-      /**
-       * 🚀 ACTION : SCELLAGE DE SESSION
-       */
       setLogin: (data) => {
         if (typeof window !== 'undefined') {
           const domainConfig = getCookieDomain();
-          const cookieBase = `Path=/; ${domainConfig} Max-Age=86400; SameSite=Lax; Secure`;
-          
-          // ✅ FIX : On utilise 'access_token' pour matcher le Middleware et le Backend
-          document.cookie = `access_token=${data.token}; ${cookieBase}`;
-          
-          if (data.isMaster || data.token === 'MASTER_PROTOCOL_2026') {
-            document.cookie = `MASTER_SOUVERAIN=true; ${cookieBase}`;
-          }
+          // On scelle le cookie 'access_token' pour le middleware
+          document.cookie = `access_token=${data.token}; Path=/; ${domainConfig} Max-Age=86400; SameSite=Lax; Secure`;
         }
-
-        set({ 
-          token: data.token, 
-          tenantId: data.user.tenantId, 
-          user: data.user,
-          isAuthenticated: true,
-          isMasterSession: !!data.isMaster || data.token === 'MASTER_PROTOCOL_2026'
-        });
+        set({ token: data.token, user: data.user, isAuthenticated: true });
       },
 
       setInitialized: (val) => set({ isInitialized: val }),
 
-      updateUser: (userData) => {
-        const currentUser = get().user;
-        if (currentUser) {
-          set({ user: { ...currentUser, ...userData } });
-        }
-      },
-
-      /**
-       * 🧹 ACTION : PURGE ATOMIQUE
-       */
       logout: () => {
         if (typeof window !== 'undefined') {
           const domainConfig = getCookieDomain();
-          
-          // Nettoyage Storage
+          document.cookie = `access_token=; Path=/; Max-Age=0; SameSite=Lax; Secure`;
+          document.cookie = `access_token=; ${domainConfig} Path=/; Max-Age=0; SameSite=Lax; Secure`;
           localStorage.removeItem('qualisoft-auth-storage');
-          sessionStorage.clear();
-
-          // Nettoyage Cookies (On expire le cookie sur le domaine racine et actuel)
-          const expireBase = "Path=/; Max-Age=0; SameSite=Lax; Secure;";
-          document.cookie = `access_token=; ${expireBase}`;
-          document.cookie = `access_token=; ${domainConfig} ${expireBase}`;
-          document.cookie = `MASTER_SOUVERAIN=; ${domainConfig} ${expireBase}`;
         }
-        
-        set({ 
-          token: null, 
-          tenantId: null, 
-          user: null, 
-          isAuthenticated: false, 
-          isMasterSession: false,
-          isInitialized: true
-        });
+        set({ token: null, user: null, isAuthenticated: false, isInitialized: true });
       },
     }),
     { 
       name: 'qualisoft-auth-storage', 
       storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.setInitialized(true);
-          // Sécurité : recalcule l'auth basé sur la présence du token
-          state.isAuthenticated = !!state.token;
-        }
-      }
+      onRehydrateStorage: () => (state) => { if (state) state.setInitialized(true); }
     }
   )
 );
