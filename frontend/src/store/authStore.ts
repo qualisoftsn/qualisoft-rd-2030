@@ -1,9 +1,10 @@
 /**
- * 🧠 MODULE : authStore.ts
+ * 🧠 MODULE : AUTH-STORE (ELITE-SDE)
  * -------------------------------------------------------------------------
- * RÔLE : Gestion de l'état global d'authentification et du contexte Tenant.
- * PHILOSOPHIE : Persistance atomique via Zustand (§ISO 27001).
- * RÉVISION : 03 Mars 2026 | 18:05 GMT
+ * RÔLE : Gestion de l'état global et Contexte Multi-Tenant.
+ * FONCTION : Persistance atomique Zustand (§ISO 27001).
+ * FIX : Alignement sur 'access_token' & Gestion dynamique du Wildcard Domain.
+ * RÉVISION : 07 Mars 2026 | 15:10 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -19,7 +20,7 @@ export interface AuthUser {
   tenantId: string;
   U_TenantName: string;
   U_TenantDomain?: string;
-  U_AssignedProcessId?: string | null; // ✅ Correction du nommage physique
+  U_AssignedProcessId?: string | null;
 }
 
 interface AuthState {
@@ -30,11 +31,29 @@ interface AuthState {
   isInitialized: boolean;
   isMasterSession: boolean;
   
+  // ACTIONS
   setLogin: (data: { token: string; user: AuthUser; isMaster?: boolean }) => void;
   logout: () => void;
   setInitialized: (val: boolean) => void;
   updateUser: (userData: Partial<AuthUser>) => void;
 }
+
+/**
+ * 🛰️ UTILITAIRE : RÉSOLUTION DU WILDCARD DOMAIN
+ * Permet au cookie d'être partagé entre sagam.qualisoft.sn et qualisoft.sn
+ */
+const getCookieDomain = () => {
+  if (typeof window === 'undefined') return '';
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) return '';
+  
+  const parts = hostname.split('.');
+  if (parts.length >= 2) {
+    // On extrait les deux derniers segments (ex: .qualisoft.sn)
+    return `domain=.${parts.slice(-2).join('.')};`;
+  }
+  return '';
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -46,17 +65,19 @@ export const useAuthStore = create<AuthState>()(
       isInitialized: false,
       isMasterSession: false,
 
+      /**
+       * 🚀 ACTION : SCELLAGE DE SESSION
+       */
       setLogin: (data) => {
         if (typeof window !== 'undefined') {
-          const hostname = window.location.hostname;
-          const domainParts = hostname.split('.');
-          const baseDomain = domainParts.length >= 2 ? `.${domainParts.slice(-2).join('.')}` : hostname;
-          const domainConfig = hostname === 'localhost' ? '' : `domain=${baseDomain};`;
+          const domainConfig = getCookieDomain();
+          const cookieBase = `Path=/; ${domainConfig} Max-Age=86400; SameSite=Lax; Secure`;
           
-          document.cookie = `qualisoft_token=${data.token}; Path=/; ${domainConfig} Max-Age=86400; SameSite=Lax; Secure`;
+          // ✅ FIX : On utilise 'access_token' pour matcher le Middleware et le Backend
+          document.cookie = `access_token=${data.token}; ${cookieBase}`;
           
-          if (data.isMaster || data.token === 'MASTER_TOKEN_SOUVERAIN') {
-            document.cookie = `MASTER_TOKEN_SOUVERAIN=true; Path=/; ${domainConfig} Max-Age=28800; SameSite=Lax; Secure`;
+          if (data.isMaster || data.token === 'MASTER_PROTOCOL_2026') {
+            document.cookie = `MASTER_SOUVERAIN=true; ${cookieBase}`;
           }
         }
 
@@ -65,7 +86,7 @@ export const useAuthStore = create<AuthState>()(
           tenantId: data.user.tenantId, 
           user: data.user,
           isAuthenticated: true,
-          isMasterSession: !!data.isMaster || data.token === 'MASTER_TOKEN_SOUVERAIN'
+          isMasterSession: !!data.isMaster || data.token === 'MASTER_PROTOCOL_2026'
         });
       },
 
@@ -78,19 +99,22 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      /**
+       * 🧹 ACTION : PURGE ATOMIQUE
+       */
       logout: () => {
         if (typeof window !== 'undefined') {
-          const hostname = window.location.hostname;
-          const domainParts = hostname.split('.');
-          const baseDomain = domainParts.length >= 2 ? `.${domainParts.slice(-2).join('.')}` : hostname;
+          const domainConfig = getCookieDomain();
           
+          // Nettoyage Storage
           localStorage.removeItem('qualisoft-auth-storage');
           sessionStorage.clear();
 
-          const cookieBase = "Path=/; Max-Age=0; SameSite=Lax; Secure;";
-          document.cookie = `qualisoft_token=; ${cookieBase}`;
-          document.cookie = `qualisoft_token=; domain=${baseDomain}; ${cookieBase}`;
-          document.cookie = `MASTER_TOKEN_SOUVERAIN=; domain=${baseDomain}; ${cookieBase}`;
+          // Nettoyage Cookies (On expire le cookie sur le domaine racine et actuel)
+          const expireBase = "Path=/; Max-Age=0; SameSite=Lax; Secure;";
+          document.cookie = `access_token=; ${expireBase}`;
+          document.cookie = `access_token=; ${domainConfig} ${expireBase}`;
+          document.cookie = `MASTER_SOUVERAIN=; ${domainConfig} ${expireBase}`;
         }
         
         set({ 
@@ -108,8 +132,8 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // On s'assure que l'initialisation est marquée quoi qu'il arrive
           state.setInitialized(true);
+          // Sécurité : recalcule l'auth basé sur la présence du token
           state.isAuthenticated = !!state.token;
         }
       }
