@@ -26,7 +26,7 @@ export class TenantsService {
   async getPublicTenants() {
     this.logger.log(`🔓 Extraction publique de la liste des nœuds actifs.`);
     return this.prisma.tenant.findMany({
-      where: { T_IsActive: true },
+      // where: { T_IsActive: true },
       select: {
         T_Id: true,
         T_Name: true,
