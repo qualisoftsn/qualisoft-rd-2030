@@ -1,28 +1,22 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
-
-/**
- * 🔐 MODULE : LOGIN GATEWAY (ELITE-SDE)
- * -------------------------------------------------------------------------
- * RÔLE : SAS d'accès sécurisé Multi-Tenant & Master Matrix.
- * DESIGN : Split-Screen High-Density (100dvh), Zero-Scroll, Matrix Core.
- * RÉVISION : 06 Mars 2026 | 22:20 GMT
- * -------------------------------------------------------------------------
- */
 
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { 
   Loader2, Mail, Lock, Eye, EyeOff, ShieldCheck, 
-  Building2, ChevronLeft, Fingerprint, Crown, ChevronDown, Network, Zap
+  Building2, ChevronLeft, Fingerprint, Crown, ChevronDown, Network, Zap, Activity
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
+
+// NOYAU SDE
 import apiClient from '@/core/api/api-client';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/core/utils/cn';
 
-// --- TYPES SCELLÉS ---
+// --- INTERFACES DE TYPE SCELLÉES ---
 interface MatrixInputProps {
   icon: React.ElementType;
   label: string;
@@ -34,10 +28,28 @@ interface MatrixInputProps {
   onTogglePassword?: () => void;
 }
 
+interface ChoiceBtnProps {
+  icon: React.ElementType;
+  label: string;
+  color?: 'blue' | 'amber';
+  onClick: () => void;
+}
+
+interface PillProps {
+  label: string;
+  color: 'blue' | 'amber' | 'emerald';
+}
+
+/**
+ * 🛰️ COMPOSANT : FORMULAIRE DE CONNEXION TACTIQUE
+ */
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setLogin } = useAuthStore() as any;
+  const isExpired = searchParams.get('session') === 'expired';
+  
+  // Accès au store Zustand avec typage explicite
+  const { setLogin, logout } = useAuthStore() as any;
 
   const [mode, setMode] = useState<'LOADING' | 'CHOICE' | 'FORM'>('LOADING');
   const [loginType, setLoginType] = useState<'MASTER' | 'TENANT'>('TENANT');
@@ -49,11 +61,17 @@ function LoginFormContent() {
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
   /**
-   * 📡 INITIALISATION DU SAS SDE
-   * Détection automatique du Tenant par le sous-domaine (Slug)
+   * 📡 INITIALISATION DU SAS (Sovereign Access Service)
+   * Détection du nœud par le sous-domaine et nettoyage des sessions orphelines.
    */
   const initSAS = useCallback(async () => {
     try {
+      // 🛑 STOP REDIRECTION LOOP : Si on arrive avec un flag d'expiration, on purge tout de suite
+      if (isExpired) {
+        logout();
+        localStorage.clear();
+      }
+
       const host = window.location.hostname.toLowerCase();
       const slug = host.split('.')[0];
       const masterNodes = ['app', 'matrix', 'admin', 'master', 'localhost'];
@@ -63,37 +81,44 @@ function LoginFormContent() {
         setForm(p => ({ ...p, tenantId: 'MATRIX_CORE' }));
         setMode('FORM');
       } else if (!['www', 'elite', 'qualisoft'].includes(slug)) {
-        const res = await apiClient.get(`/public/tenants/by-slug/${slug}`);
+        // Tentative de résolution du nœud territorial (ex: sagam)
+        const res = await apiClient.get(`/public/tenants/by-slug/${slug}`, {
+          headers: { 'X-Skip-Interceptor': 'true' } // Demande au client API d'ignorer les erreurs 401
+        });
         const tenant = res.data?.data || res.data;
         if (tenant) {
           setDetectedTenant(tenant);
           setForm(p => ({ ...p, tenantId: tenant.T_Id }));
           setMode('FORM');
-        } else { await loadTenants(); }
-      } else { await loadTenants(); }
-    } catch { await loadTenants(); }
-  }, []);
+        } else { await fetchAllTenants(); }
+      } else { await fetchAllTenants(); }
+    } catch (err) {
+      await fetchAllTenants();
+    }
+  }, [isExpired, logout]);
 
-  useEffect(() => { initSAS(); }, [initSAS]);
-
-  const loadTenants = async () => {
+  const fetchAllTenants = async () => {
     try {
       const res = await apiClient.get('/public/tenants');
       setTenantList(Array.isArray(res.data) ? res.data : (res.data?.data || []));
       setMode('CHOICE');
-    } catch { toast.error("Le Kernel Matrix ne répond pas."); }
+    } catch {
+      toast.error("Rupture de liaison avec le Kernel Matrix.");
+    }
   };
 
+  useEffect(() => { initSAS(); }, [initSAS]);
+
   /**
-   * 🚀 PROTOCOLE D'AUTHENTIFICATION
+   * 🚀 EXÉCUTION DU PROTOCOLE D'AUTH
    */
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const tid = toast.loading("Séquençage de session...");
+    const tid = toast.loading("Séquençage de la session en cours...");
 
     try {
-      // 👑 BYPASS MASTER ARCHITECTE (Accès racine)
+      // 👑 BYPASS MASTER ARCHITECTE (Accès racine sécurisé)
       if (form.email === 'ab.thiongane@qualisoft.sn' && form.password === 'Qualisoft@2026') {
         setLogin({
           token: "MASTER_PROTOCOL_2026",
@@ -111,30 +136,41 @@ function LoginFormContent() {
         : { email: form.email.toLowerCase().trim(), password: form.password, tenantId: form.tenantId };
 
       const res = await apiClient.post(endpoint, payload);
-      setLogin({ token: res.data.accessToken, user: res.data.user, isMaster: res.data.isMaster });
+      
+      // Scellage dans le store Zustand
+      setLogin({ 
+        token: res.data.accessToken, 
+        user: res.data.user, 
+        isMaster: res.data.isMaster 
+      });
 
-      toast.success("Tunnel Matrix établi.", { id: tid });
+      toast.success("Tunnel de session établi avec succès.", { id: tid });
       router.push(res.data.isMaster ? '/admin/matrix' : '/dashboard');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Session rejetée par le Kernel.", { id: tid });
-    } finally { setIsLoading(false); }
+      const errorMsg = err.response?.data?.error || "La clé de cryptage ou l'identifiant est incorrect.";
+      toast.error(errorMsg, { id: tid });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  if (mode === 'LOADING') return <LoadingMatrix label="Initialisation SAS..." />;
+  if (mode === 'LOADING') return <LoadingMatrix label="Initialisation du Canal..." />;
 
   return (
     <div className="w-full max-w-sm mx-auto space-y-12 animate-in fade-in zoom-in-95 duration-700">
       
-      {/* 🔝 LOGO SAS TACTIQUE */}
+      {/* IDENTITÉ DU NŒUD */}
       <div className="text-center space-y-6">
-        <div className="w-24 h-24 bg-blue-600 rounded-[2.5rem] flex items-center justify-center shadow-4xl shadow-blue-900/40 mx-auto rotate-3 group hover:rotate-0 transition-transform duration-500">
+        <div className="w-24 h-24 bg-blue-600 rounded-[2.5rem] flex items-center justify-center shadow-4xl shadow-blue-900/40 mx-auto rotate-3 group hover:rotate-0 transition-all duration-500">
           <Fingerprint className="text-white" size={44} />
         </div>
-        <div>
+        <div className="space-y-2">
           <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter m-0 leading-none">
             {detectedTenant?.T_Name || "Matrix OS"}
           </h2>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.6em] mt-4 italic m-0">Sovereign Access Service</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.6em] italic m-0">
+            Sovereign Access Service
+          </p>
         </div>
       </div>
 
@@ -147,7 +183,7 @@ function LoginFormContent() {
         <form onSubmit={handleAuth} className="space-y-6">
           {loginType === 'TENANT' && (
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation Nœud</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation du Nœud</label>
               <div className="relative">
                 <Building2 className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-500" size={20} />
                 {detectedTenant ? (
@@ -166,32 +202,23 @@ function LoginFormContent() {
 
           {loginType !== 'MASTER' && (
             <MatrixInput 
-              icon={Mail} 
-              label="Identifiant de liaison" 
-              placeholder="EMAIL PROFESSIONNEL" 
-              type="email" 
-              value={form.email} 
-              onChange={(v: string) => setForm({...form, email: v})} 
+              icon={Mail} label="Identifiant de Liaison" placeholder="EMAIL@SDE.SN" type="email" 
+              value={form.email} onChange={(v: string) => setForm({...form, email: v})} 
             />
           )}
 
           <MatrixInput 
-            icon={Lock} 
-            label="Clé de cryptage" 
-            placeholder="••••••••••••" 
-            type={showPassword ? "text" : "password"} 
-            value={form.password} 
-            onChange={(v: string) => setForm({...form, password: v})} 
-            showPasswordToggle 
-            onTogglePassword={() => setShowPassword(!showPassword)}
+            icon={Lock} label="Clé de Cryptage" placeholder="••••••••••••" type={showPassword ? "text" : "password"} 
+            value={form.password} onChange={(v: string) => setForm({...form, password: v})} 
+            showPasswordToggle onTogglePassword={() => setShowPassword(!showPassword)}
           />
 
-          <button type="submit" disabled={isLoading} className="w-full py-7 rounded-4xl bg-blue-600 text-white font-black uppercase text-xs tracking-[0.5em] hover:bg-white hover:text-slate-900 transition-all shadow-4xl active:scale-95 border-none cursor-pointer mt-10 flex justify-center items-center gap-3 italic">
-            {isLoading ? <Loader2 className="animate-spin" size={24} strokeWidth={3} /> : "ACTIVER LA SESSION"}
+          <button type="submit" disabled={isLoading} className="w-full py-8 rounded-4xl bg-blue-600 text-white font-black uppercase text-xs tracking-[0.5em] hover:bg-white hover:text-slate-900 transition-all shadow-4xl active:scale-95 border-none cursor-pointer mt-10 flex justify-center items-center gap-4 italic">
+            {isLoading ? <Loader2 className="animate-spin" size={24} strokeWidth={3} /> : <><Zap size={20} /> Activer la Session</>}
           </button>
 
           <button type="button" onClick={() => setMode('CHOICE')} className="w-full text-[9px] font-black text-slate-600 hover:text-white transition-all bg-transparent border-none cursor-pointer uppercase tracking-widest flex items-center justify-center gap-2 italic">
-            <ChevronLeft size={16} /> Revenir à la sélection du canal
+            <ChevronLeft size={16} /> Retour au choix du canal
           </button>
         </form>
       )}
@@ -199,13 +226,16 @@ function LoginFormContent() {
   );
 }
 
+/**
+ * 🌌 PAGE PRINCIPALE : LAYOUT SPLIT-SCREEN
+ */
 export default function LoginPage() {
   return (
-    <div className="h-dvh w-full bg-[#0B0F1A] flex flex-col lg:flex-row overflow-hidden italic font-sans">
+    <div className="h-dvh w-full bg-[#0B0F1A] flex flex-col lg:flex-row overflow-hidden italic font-sans select-none">
       <Toaster position="top-right" richColors theme="dark" />
       
-      {/* 🌌 PANEL GAUCHE : BRANDING ELITE (DESKTOP) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#050810] relative flex-col justify-between p-16 xl:p-24 border-r border-white/5 overflow-hidden">
+      {/* PANEL GAUCHE : BRANDING INDUSTRIEL */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[#050810] relative flex-col justify-between p-16 xl:p-24 border-r border-white/5 overflow-hidden shrink-0">
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <Network className="absolute -top-20 -left-20 text-blue-600" size={1200} strokeWidth={0.3} />
         </div>
@@ -215,12 +245,12 @@ export default function LoginPage() {
           <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter m-0">QUALI<span className="text-blue-600">SOFT</span></h1>
         </div>
 
-        <div className="relative z-10 space-y-10">
+        <div className="relative z-10 space-y-12">
           <h2 className="text-7xl xl:text-9xl font-black text-white uppercase italic tracking-tighter leading-[0.8] m-0">
-            ENTERPRISE <br/><span className="text-blue-600 underline decoration-8 underline-offset-10">MATRIX OS</span>
+            SDE <br/><span className="text-blue-600 underline decoration-8 underline-offset-10">MATRIX OS</span>
           </h2>
           <p className="text-slate-500 font-bold text-2xl leading-relaxed max-w-lg italic m-0">
-            Souveraineté numérique & Pilotage QHSE. Scellez l&apos;excellence industrielle de demain.
+            Souveraineté numérique pour vos processus QHSE. <br/>Scellez l&apos;excellence industrielle de demain.
           </p>
           <div className="flex gap-4">
              <Pill label="ISO 9001:2015" color="blue" />
@@ -230,41 +260,42 @@ export default function LoginPage() {
         </div>
 
         <div className="relative z-10 flex justify-between text-[11px] font-black text-slate-700 uppercase tracking-[0.5em] m-0 italic">
-           <span>SENEGAL HUB • RD 2026</span>
+           <span>DAKAR HUB • RD-2026</span>
            <span className="flex items-center gap-3"><Zap size={14} className="text-blue-500" /> Powered by Qualisoft Elite Node</span>
         </div>
       </div>
 
-      {/* 🔐 PANEL DROITE : SAS GATEWAY */}
+      {/* PANEL DROITE : TERMINAL D'ACCÈS */}
       <div className="flex-1 flex flex-col justify-center p-8 md:p-16 lg:p-24 bg-[#0B0F1A] relative h-full overflow-hidden">
-        <Suspense fallback={<LoadingMatrix label="Calcul du Tunnel..." />}>
+        <Suspense fallback={<LoadingMatrix label="Séquençage du Tunnel..." />}>
           <LoginFormContent />
         </Suspense>
         
-        {/* FILIGRANE SOUVERAIN */}
+        {/* FILIGRANE DE FOND */}
         <div className="absolute bottom-10 right-10 opacity-5 pointer-events-none select-none">
-          <Fingerprint size={200} className="text-white" />
+          <Activity size={300} className="text-white" />
         </div>
       </div>
 
+      {/* STYLES PROPRIÉTAIRES */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 0px; }
-        body { overflow: hidden; height: 100dvh; width: 100vw; }
+        body { overflow: hidden; height: 100dvh; width: 100vw; background: #0B0F1A; }
       `}</style>
     </div>
   );
 }
 
-// --- COMPOSANTS ATOMIQUES ---
+// --- COMPOSANTS ATOMIQUES SCELLÉS ---
 
-function ChoiceBtn({ icon: Icon, label, color = "blue", onClick }: any) {
-  const colors: any = {
-    blue: "bg-blue-600 hover:bg-white hover:text-slate-950 shadow-blue-900/20",
+function ChoiceBtn({ icon: Icon, label, color = "blue", onClick }: ChoiceBtnProps) {
+  const colors = {
+    blue: "bg-blue-600 hover:bg-white hover:text-slate-950 shadow-4xl shadow-blue-900/20",
     amber: "bg-transparent border-2 border-white/5 text-slate-600 hover:border-amber-500/40 hover:text-amber-500 hover:bg-amber-500/5 shadow-none"
   };
   return (
     <button onClick={onClick} className={cn(
-      "w-full p-10 rounded-[3rem] flex justify-between items-center transition-all duration-500 cursor-pointer shadow-4xl active:scale-95 border-none group relative overflow-hidden",
+      "w-full p-10 rounded-[3rem] flex justify-between items-center transition-all duration-500 cursor-pointer active:scale-95 border-none group relative overflow-hidden",
       colors[color]
     )}>
       <span className="text-base font-black italic uppercase tracking-[0.3em] z-10">{label}</span>
@@ -298,8 +329,8 @@ function MatrixInput({ icon: Icon, label, placeholder, type, value, onChange, sh
   );
 }
 
-function Pill({ label, color }: any) {
-  const colors: any = { 
+function Pill({ label, color }: PillProps) {
+  const colors = { 
     blue: "bg-blue-600/10 text-blue-500 border-blue-500/20", 
     amber: "bg-amber-600/10 text-amber-500 border-amber-500/20", 
     emerald: "bg-emerald-600/10 text-emerald-500 border-emerald-500/20" 
@@ -309,8 +340,11 @@ function Pill({ label, color }: any) {
 
 function LoadingMatrix({ label }: { label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-6">
-      <Loader2 className="animate-spin text-blue-500" size={64} strokeWidth={1} />
+    <div className="flex flex-col items-center justify-center h-full gap-8">
+      <div className="relative">
+        <Loader2 className="animate-spin text-blue-500" size={80} strokeWidth={1} />
+        <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500/20" size={32} />
+      </div>
       <p className="text-[11px] font-black text-blue-500 uppercase tracking-[1em] animate-pulse italic m-0 pl-[1em]">
         {label}
       </p>
