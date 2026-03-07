@@ -2,13 +2,13 @@
  * 🛰️ MODULE : TENANTS CONTROLLER (QUALISOFT ELITE)
  * -------------------------------------------------------------------------
  * RÔLE : Point d'accès souverain pour la gestion des instances.
- * FIX : Ajout de la route 'public/list' pour le SAS Login Frontend.
- * RÉVISION : 07 Mars 2026 | 23:00 GMT
+ * FIX : Ajout de la route 'public/list' et import strict de SetMetadata.
+ * RÉVISION : 07 Mars 2026 | 23:20 GMT
  * -------------------------------------------------------------------------
  */
 
 import { 
-  Controller, Get, Post, Body, Patch, Param, Delete, Query 
+  Controller, Get, Post, Body, Patch, Param, Delete, Query, SetMetadata 
 } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
@@ -22,8 +22,8 @@ export class TenantsController {
    * 🔓 ROUTE PUBLIQUE : ALIMENTATION DU LOGIN (CRITIQUE)
    * Route : GET /tenants/public/list
    * Rôle : Renvoie uniquement les données non-sensibles pour la liste déroulante.
-   * Note : Si tu as un Guard global, ajoute ton décorateur @Public() ici.
    */
+  @SetMetadata('isPublic', true)
   @Get('public/list')
   getPublicTenants() {
     return this.tenantsService.getPublicTenants();
