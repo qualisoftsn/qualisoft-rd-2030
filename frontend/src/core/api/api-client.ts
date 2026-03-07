@@ -4,10 +4,9 @@
 /**
  * 🛰️ MODULE : API-CLIENT (ELITE-SDE)
  * -------------------------------------------------------------------------
- * RÔLE : Intercepteur de communication Matrix OS (Sovereign Engine).
- * FONCTION : Isolation Tenant & Routage Absolu vers le Matrix-Core.
- * FIX : Forçage de l'URL absolue pour éviter les redirections HTML sur subdomains.
- * RÉVISION : 07 Mars 2026 | 03:55 GMT
+ * RÔLE : Intercepteur de communication Matrix OS.
+ * FIX : Forçage de l'URL absolue pour briser les collisions de sous-domaines.
+ * RÉVISION : 07 Mars 2026 | 04:10 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -15,21 +14,24 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 
 import { useAuthStore } from '@/store/authStore';
 
 /**
- * 🏗️ RÉSOLUTION DE L'URL RACINE
- * Empêche le client de chercher l'API sur le sous-domaine actuel (ex: sagam.qualisoft.sn/api).
- * On force l'appel vers le domaine central api.qualisoft.sn ou l'URL de prod.
+ * 🏗️ RÉSOLUTION DE L'URL RACINE (MATRIX-CORE)
+ * On s'assure que l'API n'est jamais appelée de manière relative sur un sous-domaine.
  */
 const getBaseURL = () => {
+  // 1. Priorité à la variable d'environnement (Docker/Vercel)
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   
+  // 2. Logique de détection de production
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // Si on est sur un sous-domaine, on pointe vers le domaine racine pour l'API
+    // Si on est sur un sous-domaine client, on pointe vers l'API centrale
     if (hostname.includes('qualisoft.sn') && !hostname.startsWith('api.')) {
       return 'https://api.qualisoft.sn/api';
     }
   }
-  return '/api'; // Fallback local
+  
+  // 3. Fallback local pour le développement
+  return '/api'; 
 };
 
 /**
@@ -37,7 +39,6 @@ const getBaseURL = () => {
  */
 const getDomainContext = () => {
   if (typeof window === 'undefined') return { slug: 'elite' };
-  
   const hostname = window.location.hostname.toLowerCase();
   const parts = hostname.split('.');
   
@@ -47,55 +48,40 @@ const getDomainContext = () => {
   
   const slug = parts[0];
   const reserved = ['www', 'app', 'matrix', 'admin', 'master', 'qualisoft', 'elite', 'api'];
-  
-  return { 
-    slug: reserved.includes(slug) ? 'elite' : slug 
-  };
+  return { slug: reserved.includes(slug) ? 'elite' : slug };
 };
 
-/**
- * 🏗️ INSTANCIATION DU KERNEL AXIOS (ELITE-SDE)
- */
 const apiClient: AxiosInstance = axios.create({
   baseURL: getBaseURL(),
-  
-  // 🛡️ VITAL : Permet l'envoi du cookie HttpOnly 'access_token' via les tunnels cross-domain
-  withCredentials: true, 
-  
+  withCredentials: true, // Crucial pour les cookies HttpOnly 'access_token'
   headers: { 
     'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest' // Indique au serveur que c'est du AJAX
   },
-  
   timeout: 30000 
 });
 
 /**
- * 🛰️ INTERCEPTEUR DE REQUÊTE : SCELLAGE TACTIQUE
+ * 🛰️ INTERCEPTEUR DE REQUÊTE
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const { slug } = getDomainContext();
     const auth: any = useAuthStore.getState();
 
-    // 1. Injection du Jeton Matrix (Header de secours)
     if (auth?.token) {
       config.headers.Authorization = `Bearer ${auth.token}`;
     }
     
-    // 2. ISOLATION TENANT : On force l'identité du nœud dans chaque flux
     config.headers['X-Tenant-Id'] = slug;
-    
-    // 3. BYPASS MIDDLEWARE : On identifie la requête comme purement API
-    config.headers['X-Requested-With'] = 'XMLHttpRequest';
-    
     return config;
   }, 
   (error) => Promise.reject(error)
 );
 
 /**
- * 🛡️ INTERCEPTEUR DE RÉPONSE : SENTINELLE ANTI-BOUCLE
+ * 🛡️ INTERCEPTEUR DE RÉPONSE (ANTI-BOUCLE)
  */
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
@@ -106,35 +92,19 @@ apiClient.interceptors.response.use(
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname;
       const isAuthPage = pathname.includes('/auth/login');
-      
-      // Récupération du flag de skip
       const shouldSkip = originalRequest.headers['X-Skip-Interceptor'] === 'true';
 
-      /**
-       * 🚨 GESTION DU 401 (SESSION ROMPUE)
-       * Si on reçoit un 401 sur un appel JSON, on ne redirige que si on n'est pas déjà au SAS.
-       */
       if (status === 401 && !shouldSkip && !originalRequest._retry) {
         originalRequest._retry = true;
-
         if (!isAuthPage) {
-          // Purge souveraine du store
           try {
             const auth: any = useAuthStore.getState();
             auth.logout(); 
           } catch (e) { /* Store Silent */ }
-          
-          // Redirection navigateur (seule manière de sortir de l'app en cas de crash session)
           window.location.href = '/auth/login?session=expired';
         }
       }
-      
-      // Log des violations de droits (RBAC)
-      if (status === 403) {
-        console.error("🔒 MATRIX-SECURITY : Violation des droits d'accès détectée.");
-      }
     }
-
     return Promise.reject(error);
   }
 );

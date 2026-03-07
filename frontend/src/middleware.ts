@@ -1,9 +1,9 @@
 /**
- * 🛰️ MODULE : SDE KERNEL PROXY (ELITE-SDE)
+ * 🛡️ MODULE : SDE KERNEL PROXY (ELITE-SDE)
  * -------------------------------------------------------------------------
- * RÔLE : Sentinelle Frontend - Isolation stricte des flux API & Assets.
- * FIX : Protection contre l'interception des appels API sur subdomains.
- * RÉVISION : 07 Mars 2026 | 03:50 GMT
+ * RÔLE : Sentinelle périmétrique.
+ * FIX : Exclusion stricte de l'API et des routes publiques pour éviter les 404/Redirections.
+ * RÉVISION : 07 Mars 2026 | 04:15 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -13,15 +13,14 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // 🔍 RÉCUPÉRATION DU TOKEN SÉCURISÉ (Backend NestJS HttpOnly)
+  // 🔍 Lecture du jeton HttpOnly émis par le backend NestJS
   const token = request.cookies.get('access_token')?.value;
 
   /**
    * 1. 🏳️ ZONE DE LIBRE PASSAGE (WHITELIST)
-   * On autorise explicitement ces routes sans aucune vérification.
-   * On ajoute '/api' en priorité pour éviter que Axios reçoive du HTML.
+   * Ces routes ne sont JAMAIS interceptées.
    */
-  const isPublicResource = 
+  const isPublic = 
     pathname.startsWith('/api') || 
     pathname.startsWith('/auth') || 
     pathname.startsWith('/_next') || 
@@ -30,42 +29,38 @@ export function middleware(request: NextRequest) {
     pathname === '/favicon.ico' ||
     pathname === '/';
 
-  if (isPublicResource) {
+  if (isPublic) {
     return NextResponse.next();
   }
 
   /**
-   * 2. 🛡️ PROTECTION DU PÉRIMÈTRE PRIVÉ (RBAC FRONTEND)
-   * Seules ces routes déclenchent une redirection vers le login.
+   * 2. 🛡️ PROTECTION DES ZONES PRIVÉES
+   * On définit les préfixes de routes qui demandent un scellage (Token).
    */
-  const privateRoutes = ['/dashboard', '/admin', '/workspace', '/risks', '/audits'];
-  const isPrivateRoute = privateRoutes.some(route => pathname.startsWith(route));
+  const privatePrefixes = ['/dashboard', '/admin', '/workspace', '/risks', '/audits', '/ged'];
+  const isPrivateRoute = privatePrefixes.some(prefix => pathname.startsWith(prefix));
 
   if (isPrivateRoute && !token) {
-    // 🚧 On capture l'URL d'origine pour redirection post-login (optionnel)
+    // Si tentative d'accès privé sans token -> Redirection SAS Login
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('session', 'expired');
-    
     return NextResponse.redirect(loginUrl);
   }
 
-  // 3. CONTINUITÉ DU FLUX POUR TOUT LE RESTE
+  // 3. CONTINUITÉ POUR TOUT LE RESTE
   return NextResponse.next();
 }
 
 /**
- * ⚙️ CONFIGURATION DU MATCHER (PRÉCISION CHIRURGICALE)
- * On exclut les fichiers statiques pour ne pas surcharger le CPU du serveur.
+ * ⚙️ CONFIGURATION DU MATCHER
+ * On exclut les fichiers physiques pour ne pas déclencher le JS du middleware inutilement.
  */
 export const config = {
   matcher: [
     /*
-     * Match toutes les routes sauf :
-     * 1. api (géré manuellement à l'intérieur pour plus de sécurité)
-     * 2. _next/static (fichiers statiques)
-     * 3. _next/image (optimisation d'images)
-     * 4. favicon.ico (icône navigateur)
+     * Match toutes les routes sauf celles contenant un point (fichiers)
+     * et les dossiers internes de Next.js.
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.).*)',
   ],
 };
