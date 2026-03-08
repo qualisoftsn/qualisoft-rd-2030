@@ -3,9 +3,8 @@
  * -------------------------------------------------------------------------
  * RÔLE : Initialisation du Kernel NestJS et des Sceaux de Sécurité.
  * SÉCURITÉ : Zéro NextAuth. Validation Strict-Whitelist. Multi-Tenancy CORS.
- * FIX : Résolution définitive du crash 502 (Bad Gateway) sur requêtes OPTIONS.
- * NETTOYAGE : Suppression de la redondance des Static Assets.
- * RÉVISION : 04 Mars 2026 | 04:57 GMT
+ * FIX : Ajout du header 'X-Skip-Interceptor' vital pour le SAS Login Frontend.
+ * RÉVISION : 08 Mars 2026 | 23:45 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -35,12 +34,11 @@ async function bootstrap() {
     app.setGlobalPrefix('api');
 
     // 🛡️ VALIDATION DES DONNÉES (PROTOCOLE STRICT-WHITELIST)
-    // Garantit que les préfixes TX_, T_, U_ sont les seuls acceptés.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,               // Rejette tout champ non présent dans le DTO
         forbidNonWhitelisted: true,    // Déclenche une erreur si un champ intrus est détecté
-        transform: true,               // Conversion automatique des types (ex: string -> number)
+        transform: true,               // Conversion automatique des types
         transformOptions: { 
           enableImplicitConversion: true 
         },
@@ -48,7 +46,7 @@ async function bootstrap() {
           const formattedErrors = errors.map((err) => ({
             champ: err.property,
             erreurs: Object.values(err.constraints || {}),
-            reçu: err.value // Utile pour débugger les envois incorrects
+            reçu: err.value 
           }));
           
           logger.warn(`⚠️ TENTATIVE D'INTRUSION DE DONNÉES : ${JSON.stringify(formattedErrors)}`);
@@ -63,20 +61,19 @@ async function bootstrap() {
       }),
     );
 
-    // 📂 GESTION DES ASSETS SCELLÉS (Preuves de paiement, Documents QSE)
-    // Une seule déclaration propre et suffisante pour le dossier uploads
+    // 📂 GESTION DES ASSETS SCELLÉS
     app.useStaticAssets(join(process.cwd(), 'uploads'), {
       prefix: '/uploads/',
       index: false,
     });
 
-    // 🌐 CONFIGURATION CORS SOUVERAINE (Isolation Multi-Tenant Parfaite elite-sde)
+    // 🌐 CONFIGURATION CORS SOUVERAINE (Isolation Multi-Tenant Parfaite)
     app.enableCors({
       origin: (origin, callback) => {
         const env = configService.get('NODE_ENV');
         const allowedUrls = configService.get<string>('FRONTEND_URL')?.split(',') || [];
         
-        // Regex stricte pour autoriser qualisoft.sn ET tous ses sous-domaines (ex: sagam.qualisoft.sn)
+        // Regex stricte pour autoriser qualisoft.sn ET tous ses sous-domaines
         const qualisoftRegex = /^https:\/\/([a-zA-Z0-9-]+\.)?qualisoft\.sn$/;
         
         // Autorisation dynamique SDE
@@ -91,18 +88,20 @@ async function bootstrap() {
           callback(null, true);
         } else {
           logger.warn(`🛑 PROTOCOLE CORS : Origine bloquée proprement -> ${origin}`);
-          // ✅ FIX VITAL : On retourne false au lieu de throw new Error() 
-          // Cela évite le crash silencieux du socket et l'erreur 502 Bad Gateway sur Nginx
+          // Évite le crash silencieux du socket et l'erreur 502 Bad Gateway sur Nginx
           callback(null, false);
         }
       },
       credentials: true, // Crucial pour l'échange des cookies JWT avec Zustand
+      
+      // ✅ FIX VITAL : Ajout de X-Skip-Interceptor pour le Frontend
       allowedHeaders: [
         'Content-Type', 
         'Authorization', 
         'x-tenant-id', 
         'x-tenant-domain', 
-        'x-tenant-slug', // Support du middleware locataire (ex: sagam)
+        'x-tenant-slug',
+        'X-Skip-Interceptor', // <--- LA CLÉ EST ICI
         'Cookie', 
         'Accept'
       ],
@@ -111,7 +110,7 @@ async function bootstrap() {
 
     // 🚀 DÉPLOIEMENT DU NŒUD SDE
     const port = configService.get<number>('PORT') || 9000;
-    const host = '0.0.0.0'; // Exposition totale pour Docker/Cluster/OVH
+    const host = '0.0.0.0'; 
     
     await app.listen(port, host);
     
