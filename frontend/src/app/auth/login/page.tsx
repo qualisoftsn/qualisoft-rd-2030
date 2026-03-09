@@ -6,11 +6,10 @@
  * 🛰️ MODULE : LOGIN TERMINAL (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
- * FIX ULTIME : Contournement total de l'apiClient (Native Fetch) pour 
- * forcer l'affichage brut de la base de données OVH.
+ * FIX ULTIME : Alignement de la soumission du formulaire sur l'URL absolue OVH.
  * DESIGN : ClickUp High-Density, Split-Screen, Zero-Scroll, PWA Ready.
- * SÉCURITÉ : Zustand + HttpOnly.
- * RÉVISION : 09 Mars 2026 | 01:10 GMT
+ * SÉCURITÉ : Zustand + HttpOnly (Zéro NextAuth).
+ * RÉVISION : 09 Mars 2026 | 02:00 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -57,8 +56,7 @@ function LoginFormContent() {
    */
   const fetchAllTenants = async (slug: string) => {
     try {
-      // 🔥 LA FRAPPE NUCLÉAIRE : On tape directement sur l'URL OVH en contournant ton Axios
-      // Remplace l'URL si elle est légèrement différente.
+      // 🔥 LA FRAPPE NUCLÉAIRE N°1 : Lecture brute de la base OVH
       const response = await fetch('https://api.qualisoft.sn/api/tenants/public/list', {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
@@ -69,9 +67,7 @@ function LoginFormContent() {
       }
 
       const data = await response.json();
-      console.log("🔥 DONNÉES BRUTES RÉCUPÉRÉES VIA FETCH :", data);
-
-      // Si c'est un tableau, on l'affiche directement. Pas de chichis.
+      
       const list = Array.isArray(data) ? data : [];
 
       if (list.length === 0) {
@@ -80,7 +76,6 @@ function LoginFormContent() {
 
       setTenantList(list);
 
-      // Petite présélection de courtoisie si on trouve le domaine
       const found = list.find((t: any) => t.T_Domain?.toLowerCase().includes(slug));
       if (found) setForm(p => ({ ...p, tenantId: found.T_Id }));
 
@@ -114,6 +109,9 @@ function LoginFormContent() {
 
   useEffect(() => { initSAS(); }, [initSAS]);
 
+  /**
+   * 🚀 ACTIVATION DE LA SESSION (CONNEXION OVH FORCÉE)
+   */
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -122,6 +120,7 @@ function LoginFormContent() {
     try {
       const machineEmail = form.email.trim().toLowerCase();
 
+      // 👑 BYPASS MASTER ARCHITECTE
       if (machineEmail === 'ab.thiongane@qualisoft.sn' && form.password === 'Qualisoft@2026') {
         setLogin({
           token: "MASTER_PROTOCOL_2026",
@@ -137,13 +136,31 @@ function LoginFormContent() {
         ? { email: machineEmail, password: form.password } 
         : { email: machineEmail, password: form.password, tenantId: form.tenantId };
 
-      const res = await apiClient.post(endpoint, payload);
+      // 🔥 LA FRAPPE NUCLÉAIRE N°2 : On écrase l'adresse locale de l'apiClient
+      const absoluteUrl = `https://api.qualisoft.sn/api${endpoint}`;
+
+      // En passant une URL absolue, Axios ignorera son "baseURL" foireux
+      const res = await apiClient.post(absoluteUrl, payload);
       
       setLogin({ token: res.data.accessToken, user: res.data.user });
       toast.success("Tunnel de session établi.", { id: tid });
       router.push('/dashboard');
+      
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Identifiants ou clé incorrects.", { id: tid });
+      console.error("🛑 CRASH LOGIN :", err);
+      const status = err.response?.status || "Erreur Réseau";
+      
+      // Extraction chirurgicale du message d'erreur de ton NestJS
+      let serverMsg = "Identifiants ou clé incorrects.";
+      if (err.response?.data?.message) {
+        serverMsg = Array.isArray(err.response.data.message) 
+          ? err.response.data.message[0] 
+          : err.response.data.message;
+      } else if (err.message) {
+        serverMsg = err.message;
+      }
+
+      toast.error(`Rejet [Code: ${status}] : ${serverMsg}`, { id: tid, duration: 8000 });
     } finally {
       setIsLoading(false);
     }
