@@ -56,7 +56,7 @@ function LoginFormContent() {
   /**
    * 📡 FETCH SÉCURISÉ DES ORGANISATIONS (RÉÉCRITURE TOTALE DE L'EXTRACTION)
    */
-  const fetchAllTenants = async (slug: string) => {
+  const fetchAllTenants = async (T_Id: string) => {
     try {
       const res = await apiClient.get('/tenants/public/list', {
         headers: { 'X-Skip-Interceptor': 'true' }
@@ -89,7 +89,7 @@ function LoginFormContent() {
           if (!t.T_Domain) return false;
           // Extraction du préfixe (ex: "sagam" à partir de "sagam.qualisoft.sn")
           const domainPrefix = t.T_Domain.split('.')[0].toLowerCase();
-          return domainPrefix === slug;
+          return domainPrefix === T_Id;
         });
         
         if (found) {
