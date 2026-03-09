@@ -63,6 +63,9 @@ function LoginFormContent() {
         headers: { 'X-Skip-Interceptor': 'true' }
       });
 
+    // 🔥 AJOUTE CECI POUR FORCER L'AFFICHAGE DU DIAGNOSTIC
+      alert("Je parle à : " + res.config.baseURL + res.config.url + "\nJ'ai reçu : " + JSON.stringify(res.data));
+
       // 🛡️ EXTRACTION BLINDÉE
       let list: any[] = [];
       if (Array.isArray(res.data)) list = res.data;
