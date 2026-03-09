@@ -6,11 +6,11 @@
  * 🛰️ MODULE : LOGIN TERMINAL (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
- * FIX CRITIQUE : Extracteur de données blindé (Contournement de l'intercepteur Axios).
- * DYNAMIQUE : Alignement strict sur l'interface Prisma Tenant (T_Domain).
+ * FIX ULTIME : Contournement total de l'apiClient (Native Fetch) pour 
+ * forcer l'affichage brut de la base de données OVH.
  * DESIGN : ClickUp High-Density, Split-Screen, Zero-Scroll, PWA Ready.
- * SÉCURITÉ : Élimination totale de NextAuth. Étanchéité Zustand + HttpOnly.
- * RÉVISION : 09 Mars 2026 | 01:00 GMT
+ * SÉCURITÉ : Zustand + HttpOnly.
+ * RÉVISION : 09 Mars 2026 | 01:10 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -42,7 +42,6 @@ function LoginFormContent() {
   const searchParams = useSearchParams();
   const isExpired = searchParams.get('session') === 'expired';
   
-  // 🛡️ ZUSTAND STATE
   const { setLogin, logout } = useAuthStore() as any;
 
   const [mode, setMode] = useState<'LOADING' | 'FORM'>('LOADING');
@@ -54,61 +53,45 @@ function LoginFormContent() {
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
   /**
-   * 📡 FETCH SÉCURISÉ DES ORGANISATIONS (RÉÉCRITURE TOTALE DE L'EXTRACTION)
+   * 📡 FETCH BRUT ET DIRECT (BYPASS TOTAL DE L'API CLIENT)
    */
-  const fetchAllTenants = async (T_Id: string) => {
+  const fetchAllTenants = async (slug: string) => {
     try {
-      const res = await apiClient.get('/tenants/public/list', {
-        headers: { 'X-Skip-Interceptor': 'true' }
+      // 🔥 LA FRAPPE NUCLÉAIRE : On tape directement sur l'URL OVH en contournant ton Axios
+      // Remplace l'URL si elle est légèrement différente.
+      const response = await fetch('https://api.qualisoft.sn/api/tenants/public/list', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
       });
 
-      // 🛡️ EXTRACTION ABSOLUE (Prend en compte toutes les mutations possibles d'Axios)
-      let list: any[] = [];
-      
-      if (Array.isArray(res)) {
-        list = res; // Cas où l'intercepteur Axios renvoie directement le tableau
-      } else if (res && Array.isArray(res.data)) {
-        list = res.data; // Cas Axios standard
-      } else if (res?.data && Array.isArray(res.data.data)) {
-        list = res.data.data; // Cas NestJS encapsulé
-      } else if (res?.data && Array.isArray(res.data.items)) {
-        list = res.data.items;
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
       }
 
-      console.log("📡 DIAGNOSTIC BRUT API :", res); // Pour toi, si jamais ça coince encore
+      const data = await response.json();
+      console.log("🔥 DONNÉES BRUTES RÉCUPÉRÉES VIA FETCH :", data);
+
+      // Si c'est un tableau, on l'affiche directement. Pas de chichis.
+      const list = Array.isArray(data) ? data : [];
 
       if (list.length === 0) {
-        toast.warning("La connexion a réussi, mais la liste extraite est vide. Vérifiez la console (F12).");
+        toast.warning("Le serveur OVH a répondu, mais la table est considérée comme vide par le Frontend.");
       }
 
       setTenantList(list);
 
-      // 🎯 AUTO-SÉLECTION SCELLÉE SUR LE VRAI CHAMP PRISMA : T_Domain
-      if (list.length > 0) {
-        const found = list.find((t: any) => {
-          if (!t.T_Domain) return false;
-          // Extraction du préfixe (ex: "sagam" à partir de "sagam.qualisoft.sn")
-          const domainPrefix = t.T_Domain.split('.')[0].toLowerCase();
-          return domainPrefix === T_Id;
-        });
-        
-        if (found) {
-          setForm(p => ({ ...p, tenantId: found.T_Id }));
-        }
-      }
+      // Petite présélection de courtoisie si on trouve le domaine
+      const found = list.find((t: any) => t.T_Domain?.toLowerCase().includes(slug));
+      if (found) setForm(p => ({ ...p, tenantId: found.T_Id }));
+
     } catch (err: any) {
-      const status = err.response?.status || "Réseau";
-      const message = err.response?.data?.message || err.message;
-      console.error("CRASH API DÉTECTÉ :", err);
-      toast.error(`Échec Chargement Organisations [${status}] : ${message}`, { duration: 10000 });
+      console.error("🛑 CRASH FETCH DIRECT :", err);
+      toast.error("Impossible de joindre le serveur OVH. Vérifiez l'URL de l'API.");
     } finally {
       setMode('FORM');
     }
   };
 
-  /**
-   * 📡 INITIALISATION DU SAS
-   */
   const initSAS = useCallback(async () => {
     if (isExpired) {
       logout();
@@ -131,9 +114,6 @@ function LoginFormContent() {
 
   useEffect(() => { initSAS(); }, [initSAS]);
 
-  /**
-   * 🚀 ACTIVATION DE LA SESSION
-   */
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -142,7 +122,6 @@ function LoginFormContent() {
     try {
       const machineEmail = form.email.trim().toLowerCase();
 
-      // 👑 BYPASS MASTER ARCHITECTE
       if (machineEmail === 'ab.thiongane@qualisoft.sn' && form.password === 'Qualisoft@2026') {
         setLogin({
           token: "MASTER_PROTOCOL_2026",
@@ -189,7 +168,7 @@ function LoginFormContent() {
 
       <form onSubmit={handleAuth} className="space-y-5">
         
-        {/* 🏢 CHAMP 1 : LA LISTE DES ORGANISATIONS */}
+        {/* 🏢 CHAMP 1 : LA LISTE DES ORGANISATIONS (AFFICHAGE BRUT) */}
         {loginType === 'TENANT' && (
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation du Nœud</label>
