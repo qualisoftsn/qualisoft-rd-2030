@@ -6,11 +6,11 @@
  * 🛰️ MODULE : LOGIN TERMINAL (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
- * DYNAMIQUE : Routage API absolu sur `/tenants/public/list`.
- * FIX CRITIQUE : Alignement strict sur l'interface Prisma Tenant (T_Domain).
+ * FIX CRITIQUE : Extracteur de données blindé (Contournement de l'intercepteur Axios).
+ * DYNAMIQUE : Alignement strict sur l'interface Prisma Tenant (T_Domain).
  * DESIGN : ClickUp High-Density, Split-Screen, Zero-Scroll, PWA Ready.
  * SÉCURITÉ : Élimination totale de NextAuth. Étanchéité Zustand + HttpOnly.
- * RÉVISION : 09 Mars 2026 | 00:30 GMT
+ * RÉVISION : 09 Mars 2026 | 01:00 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -54,7 +54,7 @@ function LoginFormContent() {
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
   /**
-   * 📡 FETCH SÉCURISÉ DES ORGANISATIONS (API MATRIX)
+   * 📡 FETCH SÉCURISÉ DES ORGANISATIONS (RÉÉCRITURE TOTALE DE L'EXTRACTION)
    */
   const fetchAllTenants = async (slug: string) => {
     try {
@@ -62,15 +62,23 @@ function LoginFormContent() {
         headers: { 'X-Skip-Interceptor': 'true' }
       });
 
-      // 🛡️ EXTRACTION
+      // 🛡️ EXTRACTION ABSOLUE (Prend en compte toutes les mutations possibles d'Axios)
       let list: any[] = [];
-      if (Array.isArray(res.data)) list = res.data;
-      else if (Array.isArray(res.data?.data)) list = res.data.data;
-      else if (Array.isArray(res.data?.items)) list = res.data.items;
-      else if (Array.isArray(res.data?.result)) list = res.data.result;
+      
+      if (Array.isArray(res)) {
+        list = res; // Cas où l'intercepteur Axios renvoie directement le tableau
+      } else if (res && Array.isArray(res.data)) {
+        list = res.data; // Cas Axios standard
+      } else if (res?.data && Array.isArray(res.data.data)) {
+        list = res.data.data; // Cas NestJS encapsulé
+      } else if (res?.data && Array.isArray(res.data.items)) {
+        list = res.data.items;
+      }
+
+      console.log("📡 DIAGNOSTIC BRUT API :", res); // Pour toi, si jamais ça coince encore
 
       if (list.length === 0) {
-        toast.warning("L'API a répondu, mais la liste des nœuds est vide.");
+        toast.warning("La connexion a réussi, mais la liste extraite est vide. Vérifiez la console (F12).");
       }
 
       setTenantList(list);
@@ -99,7 +107,7 @@ function LoginFormContent() {
   };
 
   /**
-   * 📡 INITIALISATION DU SAS & DÉTECTION DU NŒUD
+   * 📡 INITIALISATION DU SAS
    */
   const initSAS = useCallback(async () => {
     if (isExpired) {
