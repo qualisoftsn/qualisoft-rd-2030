@@ -1,34 +1,22 @@
-/**
- * 🛰️ MODULE : layout.tsx (ROOT)
- * -------------------------------------------------------------------------
- * RÔLE : Fondations globales Matrix OS.
- * RÉPARATION : Neutre pour libérer la Landing Page sur elite.qualisoft.sn.
- * RÉVISION : 03 Mars 2026 | 23:35 GMT
- * -------------------------------------------------------------------------
- */
+import React from 'react';
+import Sidebar from '@/components/layout/sidebar'; // Ajuste l'import selon ton dossier
 
-import "./globals.css";
-import { Inter } from "next/font/google";
-import { Toaster } from "sonner";
-import LayoutClient from "./layout-client";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-
-export const metadata = {
-  title: "Qualisoft Elite | Matrix SDE",
-  description: "Système de Décision Éclairée Souverain",
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className="scroll-smooth">
-      <body className={`${inter.variable} font-sans bg-[#0B0F1A] text-white antialiased`}>
-        <Toaster position="top-right" richColors theme="dark" />
-        {/* Le LayoutClient gère l'hydratation sans redirection forcée */}
-        <LayoutClient>
+    // 'h-dvh' et 'overflow-hidden' empêchent le scroll global (Zero-Scroll Design)
+    <div className="flex h-dvh w-full overflow-hidden bg-[#050810]">
+      
+      {/* La Sidebar s'occupe de sa propre largeur et de son état Mobile/Desktop */}
+      <Sidebar isSuperAdmin={true} /> {/* Passe true ou false selon ton store Zustand */}
+
+      {/* Zone de contenu principale (qui peut scroller indépendamment) */}
+      <main className="flex-1 overflow-y-auto relative custom-scrollbar flex flex-col">
+        {/* Ton Header principal pourrait venir ici si tu en as un */}
+        <div className="flex-1 w-full p-4 lg:p-8">
           {children}
-        </LayoutClient>
-      </body>
-    </html>
+        </div>
+      </main>
+
+    </div>
   );
 }
