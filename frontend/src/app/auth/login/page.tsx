@@ -7,10 +7,10 @@
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
  * DYNAMIQUE : Routage API absolu sur `/tenants/public/list`.
- * MATCHING : Reconnaissance automatique optimisée via `T_Domain`.
+ * FIX CRITIQUE : Alignement strict sur l'interface Prisma Tenant (T_Domain).
  * DESIGN : ClickUp High-Density, Split-Screen, Zero-Scroll, PWA Ready.
  * SÉCURITÉ : Élimination totale de NextAuth. Étanchéité Zustand + HttpOnly.
- * RÉVISION : 08 Mars 2026 | 23:30 GMT
+ * RÉVISION : 09 Mars 2026 | 00:30 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -42,7 +42,7 @@ function LoginFormContent() {
   const searchParams = useSearchParams();
   const isExpired = searchParams.get('session') === 'expired';
   
-  // 🛡️ ZUSTAND STATE (Remplacement strict de NextAuth)
+  // 🛡️ ZUSTAND STATE
   const { setLogin, logout } = useAuthStore() as any;
 
   const [mode, setMode] = useState<'LOADING' | 'FORM'>('LOADING');
@@ -58,15 +58,11 @@ function LoginFormContent() {
    */
   const fetchAllTenants = async (slug: string) => {
     try {
-      // ✅ APPEL DE LA BONNE ROUTE (Validée sur le serveur OVH)
       const res = await apiClient.get('/tenants/public/list', {
         headers: { 'X-Skip-Interceptor': 'true' }
       });
 
-    // 🔥 AJOUTE CECI POUR FORCER L'AFFICHAGE DU DIAGNOSTIC
-      alert("Je parle à : " + res.config.baseURL + res.config.url + "\nJ'ai reçu : " + JSON.stringify(res.data));
-
-      // 🛡️ EXTRACTION BLINDÉE
+      // 🛡️ EXTRACTION
       let list: any[] = [];
       if (Array.isArray(res.data)) list = res.data;
       else if (Array.isArray(res.data?.data)) list = res.data.data;
@@ -74,17 +70,18 @@ function LoginFormContent() {
       else if (Array.isArray(res.data?.result)) list = res.data.result;
 
       if (list.length === 0) {
-        toast.warning("L'API a répondu, mais aucune organisation n'est active.", { duration: 8000 });
+        toast.warning("L'API a répondu, mais la liste des nœuds est vide.");
       }
 
       setTenantList(list);
 
-      // 🎯 AUTO-SÉLECTION SCELLÉE SUR LE `T_Domain`
+      // 🎯 AUTO-SÉLECTION SCELLÉE SUR LE VRAI CHAMP PRISMA : T_Domain
       if (list.length > 0) {
         const found = list.find((t: any) => {
-          const domain = (t.T_Domain || '').toLowerCase();
-          const name = (t.T_Name || '').toLowerCase();
-          return domain.includes(slug) || name.includes(slug);
+          if (!t.T_Domain) return false;
+          // Extraction du préfixe (ex: "sagam" à partir de "sagam.qualisoft.sn")
+          const domainPrefix = t.T_Domain.split('.')[0].toLowerCase();
+          return domainPrefix === slug;
         });
         
         if (found) {
@@ -105,7 +102,6 @@ function LoginFormContent() {
    * 📡 INITIALISATION DU SAS & DÉTECTION DU NŒUD
    */
   const initSAS = useCallback(async () => {
-    // Purge totale si session expirée
     if (isExpired) {
       logout();
       if (typeof window !== 'undefined') localStorage.clear();
@@ -128,7 +124,7 @@ function LoginFormContent() {
   useEffect(() => { initSAS(); }, [initSAS]);
 
   /**
-   * 🚀 ACTIVATION DE LA SESSION (ZUSTAND STORE)
+   * 🚀 ACTIVATION DE LA SESSION
    */
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,10 +132,9 @@ function LoginFormContent() {
     const tid = toast.loading("Séquençage de la session en cours...");
 
     try {
-      // Nettoyage machine de l'identifiant pour éviter les erreurs de casse API
       const machineEmail = form.email.trim().toLowerCase();
 
-      // 👑 BYPASS MASTER ARCHITECTE (Dépannage d'urgence)
+      // 👑 BYPASS MASTER ARCHITECTE
       if (machineEmail === 'ab.thiongane@qualisoft.sn' && form.password === 'Qualisoft@2026') {
         setLogin({
           token: "MASTER_PROTOCOL_2026",
@@ -157,7 +152,6 @@ function LoginFormContent() {
 
       const res = await apiClient.post(endpoint, payload);
       
-      // Validation dans le Store Zustand (Zéro NextAuth)
       setLogin({ token: res.data.accessToken, user: res.data.user });
       toast.success("Tunnel de session établi.", { id: tid });
       router.push('/dashboard');
@@ -173,7 +167,6 @@ function LoginFormContent() {
   return (
     <div className="w-full max-w-sm mx-auto space-y-10 animate-in fade-in zoom-in-95 duration-700">
       
-      {/* IDENTITÉ VISUELLE DU NŒUD */}
       <div className="text-center space-y-6">
         <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-4xl shadow-blue-900/40 mx-auto rotate-3">
           <Fingerprint className="text-white" size={40} />
@@ -188,7 +181,7 @@ function LoginFormContent() {
 
       <form onSubmit={handleAuth} className="space-y-5">
         
-        {/* 🏢 CHAMP 1 : LA LISTE DES ORGANISATIONS (DYNAMIQUE) */}
+        {/* 🏢 CHAMP 1 : LA LISTE DES ORGANISATIONS */}
         {loginType === 'TENANT' && (
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation du Nœud</label>
@@ -214,7 +207,7 @@ function LoginFormContent() {
           </div>
         )}
 
-        {/* 📧 CHAMP 2 : EMAIL (Saisie totalement libre pour l'utilisateur) */}
+        {/* 📧 CHAMP 2 : EMAIL */}
         <MatrixInput 
           icon={Mail} 
           label="Identifiant de Liaison" 
@@ -236,7 +229,6 @@ function LoginFormContent() {
           onTogglePassword={() => setShowPassword(!showPassword)}
         />
 
-        {/* ACTION BUTTON */}
         <button type="submit" disabled={isLoading} className="w-full py-6 rounded-3xl bg-blue-600 text-white font-black uppercase text-xs tracking-[0.4em] hover:bg-white hover:text-slate-900 transition-all shadow-4xl active:scale-95 border-none cursor-pointer mt-8 flex justify-center items-center gap-3 italic">
           {isLoading ? <Loader2 className="animate-spin" size={20} /> : <><Zap size={18} /> Activer la Session</>}
         </button>
@@ -245,16 +237,11 @@ function LoginFormContent() {
   );
 }
 
-/**
- * 🌌 PAGE PRINCIPALE : LAYOUT SPLIT-SCREEN (CLICKUP DESIGN / PWA)
- */
 export default function LoginPage() {
   return (
-    // fixed inset-0 : Garantie absolue du "Zéro Scroll", s'adapte à 100% de l'écran (Mobile, Tablette, PC)
     <div className="fixed inset-0 w-full bg-[#0B0F1A] flex flex-col lg:flex-row overflow-hidden italic font-sans select-none">
       <Toaster position="top-right" richColors theme="dark" />
       
-      {/* PANEL GAUCHE : BRANDING INDUSTRIEL (Caché sur mobile) */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#050810] relative flex-col justify-between p-16 xl:p-24 border-r border-white/5 overflow-hidden shrink-0">
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <Network className="absolute -top-20 -left-20 text-blue-600" size={1200} strokeWidth={0.3} />
@@ -284,19 +271,16 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* PANEL DROITE : TERMINAL D'ACCÈS (Plein écran sur mobile) */}
       <div className="flex-1 flex flex-col justify-center p-8 md:p-16 lg:p-24 bg-[#0B0F1A] relative h-full overflow-y-auto custom-scrollbar">
         <Suspense fallback={<LoadingMatrix label="Séquençage du Tunnel..." />}>
           <LoginFormContent />
         </Suspense>
         
-        {/* FILIGRANE DE FOND */}
         <div className="absolute bottom-10 right-10 opacity-5 pointer-events-none select-none">
           <Activity size={300} className="text-white" />
         </div>
       </div>
 
-      {/* STYLES PROPRIÉTAIRES (PWA) */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 0px; }
         body { overflow: hidden; height: 100dvh; width: 100vw; background: #0B0F1A; margin: 0; padding: 0; }
@@ -304,8 +288,6 @@ export default function LoginPage() {
     </div>
   );
 }
-
-// --- COMPOSANTS ATOMIQUES ---
 
 function MatrixInput({ icon: Icon, label, placeholder, type, value, onChange, showPasswordToggle, onTogglePassword }: MatrixInputProps) {
   return (
