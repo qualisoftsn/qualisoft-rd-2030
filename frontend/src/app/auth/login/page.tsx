@@ -6,10 +6,10 @@
  * 🛰️ MODULE : LOGIN TERMINAL (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Authentification Multi-Tenant SDE Matrix.
- * FIX ULTIME : Alignement de la soumission du formulaire sur l'URL absolue OVH.
+ * FIX ULTIME : Remplacement total d'Axios par Native Fetch pour le GET et le POST.
  * DESIGN : ClickUp High-Density, Split-Screen, Zero-Scroll, PWA Ready.
- * SÉCURITÉ : Zustand + HttpOnly (Zéro NextAuth).
- * RÉVISION : 09 Mars 2026 | 02:00 GMT
+ * SÉCURITÉ : Zustand + HttpOnly.
+ * RÉVISION : 09 Mars 2026 | 02:10 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -22,7 +22,7 @@ import {
 import { toast, Toaster } from 'sonner';
 
 import { useAuthStore } from '@/store/authStore';
-import apiClient from '@/core/api/api-client';
+// On n'utilise plus apiClient ici, on force le passage en natif.
 import { cn } from '@/core/utils/cn';
 
 interface MatrixInputProps {
@@ -52,22 +52,18 @@ function LoginFormContent() {
   const [form, setForm] = useState({ email: '', password: '', tenantId: '' });
 
   /**
-   * 📡 FETCH BRUT ET DIRECT (BYPASS TOTAL DE L'API CLIENT)
+   * 📡 FETCH BRUT ET DIRECT : LISTE DES ORGANISATIONS
    */
   const fetchAllTenants = async (slug: string) => {
     try {
-      // 🔥 LA FRAPPE NUCLÉAIRE N°1 : Lecture brute de la base OVH
       const response = await fetch('https://api.qualisoft.sn/api/tenants/public/list', {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       });
 
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
 
       const data = await response.json();
-      
       const list = Array.isArray(data) ? data : [];
 
       if (list.length === 0) {
@@ -80,8 +76,8 @@ function LoginFormContent() {
       if (found) setForm(p => ({ ...p, tenantId: found.T_Id }));
 
     } catch (err: any) {
-      console.error("🛑 CRASH FETCH DIRECT :", err);
-      toast.error("Impossible de joindre le serveur OVH. Vérifiez l'URL de l'API.");
+      console.error("🛑 CRASH FETCH LISTE :", err);
+      toast.error("Impossible de joindre le serveur OVH pour la liste.");
     } finally {
       setMode('FORM');
     }
@@ -110,7 +106,7 @@ function LoginFormContent() {
   useEffect(() => { initSAS(); }, [initSAS]);
 
   /**
-   * 🚀 ACTIVATION DE LA SESSION (CONNEXION OVH FORCÉE)
+   * 🚀 ACTIVATION DE LA SESSION (NATIVE FETCH)
    */
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,29 +132,36 @@ function LoginFormContent() {
         ? { email: machineEmail, password: form.password } 
         : { email: machineEmail, password: form.password, tenantId: form.tenantId };
 
-      // 🔥 LA FRAPPE NUCLÉAIRE N°2 : On écrase l'adresse locale de l'apiClient
+      // 🔥 LA FRAPPE NUCLÉAIRE N°2 : Native Fetch POST
       const absoluteUrl = `https://api.qualisoft.sn/api${endpoint}`;
 
-      // En passant une URL absolue, Axios ignorera son "baseURL" foireux
-      const res = await apiClient.post(absoluteUrl, payload);
+      const response = await fetch(absoluteUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // On tente de lire le JSON même si c'est une erreur 401/404
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        // Extraction du message d'erreur du backend NestJS
+        const errorMsg = Array.isArray(data.message) ? data.message[0] : (data.message || `Rejet Serveur ${response.status}`);
+        throw { status: response.status, message: errorMsg };
+      }
       
-      setLogin({ token: res.data.accessToken, user: res.data.user });
+      // ✅ SUCCÈS : Injection dans Zustand
+      setLogin({ token: data.accessToken, user: data.user });
       toast.success("Tunnel de session établi.", { id: tid });
       router.push('/dashboard');
       
     } catch (err: any) {
       console.error("🛑 CRASH LOGIN :", err);
-      const status = err.response?.status || "Erreur Réseau";
-      
-      // Extraction chirurgicale du message d'erreur de ton NestJS
-      let serverMsg = "Identifiants ou clé incorrects.";
-      if (err.response?.data?.message) {
-        serverMsg = Array.isArray(err.response.data.message) 
-          ? err.response.data.message[0] 
-          : err.response.data.message;
-      } else if (err.message) {
-        serverMsg = err.message;
-      }
+      const status = err.status || "CORS/Réseau";
+      const serverMsg = err.message || "La connexion au serveur a été bloquée ou perdue.";
 
       toast.error(`Rejet [Code: ${status}] : ${serverMsg}`, { id: tid, duration: 8000 });
     } finally {
