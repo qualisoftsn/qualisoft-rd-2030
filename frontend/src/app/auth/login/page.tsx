@@ -266,19 +266,19 @@ export default function LoginPage() {
       {/* 🛡️ MOITIÉ GAUCHE : LE PANNEAU MATRIX (Invisible sur mobile) */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#050810] relative flex-col justify-between p-16 xl:p-24 border-r border-white/5 overflow-hidden shrink-0">
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
-          <Network className="absolute -top-20 -left-20 text-blue-400" size={1200} strokeWidth={0.5} />
+          <Network className="absolute -top-20 -left-20 text-blue-700" size={1200} strokeWidth={0.5} />
         </div>
         
         <div className="relative z-10 flex items-center gap-5">
           <div className="p-3 bg-blue-700/10 rounded-2xl border border-blue-500/20">
              <ShieldCheck className="text-blue-500" size={30} />
           </div>
-          <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter m-0">QUALI<span className="text-blue-600">SOFT</span></h1>
+          <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter m-0">QUALI<span className="text-blue-600">SOFT</span></h1>
         </div>
 
         <div className="relative z-10 space-y-12">
-          <h2 className="text-4xl xl:text-5xl font-black text-white uppercase italic tracking-tighter leading-[0.85] m-0">
-            ELITE <br/><span className="text-blue-700 underline decoration-8 underline-offset-16">QHSE</span>
+          <h2 className="text-4xl xl:text-4xl font-black text-white uppercase italic tracking-tighter leading-[0.85] m-0">
+            ELITE <br/><span className="text-blue-500 underline decoration-8 underline-offset-16">QHSE</span>
           </h2>
           <p className="text-slate-250 font-bold text-xl xl:text-2xl leading-relaxed max-w-lg italic m-0">
             Digitalisation de votre conformité. <br/>L&apos;excellence à forte valeur ajoutée.
