@@ -82,8 +82,8 @@ function LoginFormContent() {
       }
 
     } catch (err: any) {
-      console.error("🛑 CRASH FETCH LISTE :", err);
-      toast.error("Impossible de joindre le serveur Matrix pour la liste des locataires.");
+      console.error("🛑 CRASH QS Recherche :", err);
+      toast.error("Impossible d'afficher les clients !");
     } finally {
       setMode('FORM');
     }
@@ -102,7 +102,7 @@ function LoginFormContent() {
       const host = window.location.hostname.toLowerCase();
       // Extraction sécurisée du sous-domaine
       const slug = host.split('.')[0] || 'app'; 
-      const masterNodes = ['app', 'matrix', 'admin', 'master', 'localhost', 'elite', 'www', 'qualisoft'];
+      const masterNodes = ['app', 'matrix', 'admin', 'master', 'localhost', 'elite', 'www', 'qs'];
 
       // Si on est sur un nœud maître (ex: www.qualisoft.sn/auth/login), on affiche le login Master
       if (masterNodes.includes(slug)) {
@@ -125,7 +125,7 @@ function LoginFormContent() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const tid = toast.loading("Séquençage de la session en cours...");
+    const tid = toast.loading("Démarrage en cours...");
 
     try {
       const machineEmail = form.email.trim().toLowerCase();
@@ -167,33 +167,33 @@ function LoginFormContent() {
       
       // ✅ SUCCÈS : Injection Zustand
       setLogin({ token: data.accessToken, user: data.user });
-      toast.success("Tunnel de session établi.", { id: tid });
+      toast.success("Connexion établi.", { id: tid });
       router.push('/dashboard');
       
     } catch (err: any) {
-      console.error("🛑 CRASH LOGIN :", err);
+      console.error("🛑 CRASH QS LOGIN :", err);
       const status = err.status || "CORS/Réseau";
-      const serverMsg = err.message || "La connexion au serveur a été bloquée ou perdue.";
+      const serverMsg = err.message || "Connexion bloquée ou perdue.";
       toast.error(`Rejet [Code: ${status}] : ${serverMsg}`, { id: tid, duration: 8000 });
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (mode === 'LOADING') return <LoadingMatrix label="Connexion au Noyau Qualisoft..." />;
+  if (mode === 'LOADING') return <LoadingMatrix label="Connexion à Qualisoft Elite ..." />;
 
   return (
     <div className="w-full max-w-sm mx-auto space-y-10 animate-in fade-in zoom-in-95 duration-700 relative z-10">
       
       <div className="text-center space-y-6">
-        <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-4xl shadow-blue-900/40 mx-auto rotate-3">
-          <Fingerprint className="text-white" size={40} />
+        <div className="w-20 h-20 bg-blue-300 rounded-3xl flex items-center justify-center shadow-4xl shadow-blue-400/20 mx-auto rotate-3">
+          <Fingerprint className="text-white" size={25} />
         </div>
         <div className="space-y-2">
           <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter m-0 leading-none">
-            {loginType === 'MASTER' ? "Console Master" : "Matrix OS"}
+            {loginType === 'MASTER' ? "Console Master" : "QS Elite"}
           </h2>
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] italic m-0">Sovereign Access Service</p>
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] italic m-0">Acces</p>
         </div>
       </div>
 
@@ -202,7 +202,7 @@ function LoginFormContent() {
         {/* 🏢 CHAMP 1 : LA LISTE DES ORGANISATIONS (Visible seulement pour les Tenants) */}
         {loginType === 'TENANT' && (
           <div className="space-y-2">
-            <label className="text-[9px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation du Nœud</label>
+            <label className="text-[9px] font-black text-slate-500 uppercase ml-4 tracking-widest italic">Organisation</label>
             <div className="relative">
               <Building2 className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none" size={18} />
               <select 
@@ -212,7 +212,7 @@ function LoginFormContent() {
                 onChange={e => setForm({...form, tenantId: e.target.value})}
               >
                 <option value="" disabled className="bg-[#0B0F1A]">
-                  {tenantList.length === 0 ? "⚠️ AUCUNE ORGANISATION" : "SÉLECTIONNEZ LE NŒUD"}
+                  {tenantList.length === 0 ? "⚠️ AUCUNE ORGANISATION" : "Sélectionnez une organisation"}
                 </option>
                 {tenantList.map(t => (
                   <option key={t.T_Id} value={t.T_Id} className="bg-[#0B0F1A]">
@@ -228,7 +228,7 @@ function LoginFormContent() {
         {/* 📧 CHAMP 2 : EMAIL */}
         <MatrixInput 
           icon={Mail} 
-          label="Identifiant de Liaison" 
+          label="Login - email" 
           placeholder="Saisie libre (Ex: ab.thiongane...)" 
           type="email" 
           value={form.email} 
@@ -238,7 +238,7 @@ function LoginFormContent() {
         {/* 🔑 CHAMP 3 : MOT DE PASSE */}
         <MatrixInput 
           icon={Lock} 
-          label="Clé de Cryptage" 
+          label="Mot de passe" 
           placeholder="••••••••••••" 
           type={showPassword ? "text" : "password"} 
           value={form.password} 
@@ -248,7 +248,7 @@ function LoginFormContent() {
         />
 
         <button type="submit" disabled={isLoading} className="w-full py-6 rounded-3xl bg-blue-600 text-white font-black uppercase text-[10px] tracking-[0.4em] hover:bg-white hover:text-slate-900 transition-all shadow-[0_0_30px_rgba(37,99,235,0.4)] active:scale-95 border-none cursor-pointer mt-8 flex justify-center items-center gap-3 italic">
-          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <><Zap size={18} /> Activer la Session</>}
+          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <><Zap size={18} /> Connectez-vous</>}
         </button>
       </form>
     </div>
@@ -266,32 +266,32 @@ export default function LoginPage() {
       {/* 🛡️ MOITIÉ GAUCHE : LE PANNEAU MATRIX (Invisible sur mobile) */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#050810] relative flex-col justify-between p-16 xl:p-24 border-r border-white/5 overflow-hidden shrink-0">
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
-          <Network className="absolute -top-20 -left-20 text-blue-600" size={1200} strokeWidth={0.5} />
+          <Network className="absolute -top-20 -left-20 text-blue-200" size={1000} strokeWidth={0.5} />
         </div>
         
         <div className="relative z-10 flex items-center gap-5">
-          <div className="p-3 bg-blue-600/10 rounded-2xl border border-blue-500/20">
-             <ShieldCheck className="text-blue-500" size={40} />
+          <div className="p-3 bg-blue-400/10 rounded-2xl border border-blue-300/20">
+             <ShieldCheck className="text-blue-500" size={30} />
           </div>
-          <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter m-0">QUALI<span className="text-blue-600">SOFT</span></h1>
+          <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter m-0">QUALI<span className="text-blue-600">SOFT</span></h1>
         </div>
 
         <div className="relative z-10 space-y-12">
-          <h2 className="text-7xl xl:text-9xl font-black text-white uppercase italic tracking-tighter leading-[0.85] m-0">
-            SDE <br/><span className="text-blue-600 underline decoration-8 underline-offset-16">MATRIX OS</span>
+          <h2 className="text-4xl xl:text-5xl font-black text-white uppercase italic tracking-tighter leading-[0.85] m-0">
+            ELITE <br/><span className="text-blue-400 underline decoration-8 underline-offset-16">QHSE</span>
           </h2>
-          <p className="text-slate-500 font-bold text-xl xl:text-2xl leading-relaxed max-w-lg italic m-0">
-            Souveraineté numérique pour vos processus QHSE. <br/>Scellez l&apos;excellence industrielle de demain.
+          <p className="text-slate-250 font-bold text-xl xl:text-2xl leading-relaxed max-w-lg italic m-0">
+            Digitalisation de votre conformité. <br/>L&apos;excellence à forte valeur ajoutée.
           </p>
           <div className="flex gap-4">
              <span className="px-5 py-2.5 rounded-xl text-[10px] font-black border border-blue-500/20 bg-blue-600/10 text-blue-500 uppercase tracking-widest italic shadow-lg shadow-blue-900/20">ISO 9001:2015</span>
-             <span className="px-5 py-2.5 rounded-xl text-[10px] font-black border border-amber-500/20 bg-amber-600/10 text-amber-500 uppercase tracking-widest italic shadow-lg shadow-amber-900/20">§9.1.2 MONITORING</span>
+             <span className="px-5 py-2.5 rounded-xl text-[10px] font-black border border-amber-500/20 bg-amber-600/10 text-amber-500 uppercase tracking-widest italic shadow-lg shadow-amber-900/20">14001 & 27000</span>
           </div>
         </div>
 
         <div className="relative z-10 flex justify-between text-[10px] font-black text-slate-600 uppercase tracking-[0.5em] m-0 italic">
-           <span>DAKAR HUB • RD-2026</span>
-           <span className="flex items-center gap-3"><Zap size={14} className="text-blue-500" /> Powered by Qualisoft Elite Node</span>
+           <span>DAKAR LAC ROSE • AT-2026</span>
+           <span className="flex items-center gap-3"><Zap size={14} className="text-blue-500" /> Qualisoft Corporate</span>
         </div>
       </div>
 
