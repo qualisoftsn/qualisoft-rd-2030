@@ -2,14 +2,14 @@
 'use client';
 
 /**
- * 🔔 MODULE : NotificationCenter (ELITE-SDE)
+ * 🔔 MODULE : NotificationCenter.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Hub central de monitoring QHSE avec notifications temps réel
- * VERSION : 3.0 - Fix JSX namespace + WebSocket Ready + Typing strict
- * FONCTION : Signalement écarts, rappels maintenance, alertes conformité
+ * VERSION : 2.0 - Corrections Tailwind + Typing + WebSocket Ready + Accessibilité
+ * FONCTION : Signalement des écarts, rappels de maintenance, alertes conformité
  * DESIGN : Elite Sovereign UI - Italic & High-Density, WCAG AA
  * LOGIQUE : Polling API + WebSocket fallback + Actions contextuelles
- * RÉVISION : 19 Mars 2026 | Production OVH
+ * RÉVISION : 19 Mars 2026 | 12:45 GMT
  * -------------------------------------------------------------------------
  */
 
@@ -23,13 +23,12 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 
 // ============================================================================
-// TYPES & INTERFACES (Strict Typing)
+// TYPES & INTERFACES
 // ============================================================================
 
-export type NotificationType = 'urgent' | 'warning' | 'success' | 'info';
-export type NotificationCategory = 'audit' | 'maintenance' | 'compliance' | 'security' | 'general';
+type NotificationType = 'urgent' | 'warning' | 'success' | 'info';
 
-export interface Notification {
+interface Notification {
   id: string;
   title: string;
   description: string;
@@ -38,11 +37,11 @@ export interface Notification {
   read: boolean;
   actionUrl?: string;
   actionLabel?: string;
-  category?: NotificationCategory;
+  category?: 'audit' | 'maintenance' | 'compliance' | 'security' | 'general';
   tenantId?: string;
 }
 
-export interface NotificationBellProps {
+interface NotificationBellProps {
   className?: string;
   onNotificationClick?: (notification: Notification) => void;
   pollInterval?: number; // en ms
@@ -52,12 +51,12 @@ interface NotificationPanelProps {
   notifications: Notification[];
   onDismiss: (id: string) => void;
   onMarkAllRead: () => void;
-  onViewAll: (notification?: Notification) => void;
+  onViewAll: () => void;
   isLoading: boolean;
 }
 
 // ============================================================================
-// CONSTANTES & UTILITAIRES (Pure Functions - SSR Safe)
+// CONSTANTES & UTILITAIRES
 // ============================================================================
 
 const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: string; label: string }> = {
@@ -65,14 +64,6 @@ const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: st
   warning: { icon: ShieldAlert, color: 'text-amber-500', label: 'Attention' },
   success: { icon: CheckCircle2, color: 'text-emerald-500', label: 'Succès' },
   info: { icon: Info, color: 'text-blue-500', label: 'Info' },
-};
-
-const CATEGORY_ICONS: Record<NotificationCategory, React.ElementType> = {
-  audit: ShieldAlert,
-  maintenance: Clock,
-  compliance: CheckCircle2,
-  security: AlertCircle,
-  general: Info,
 };
 
 const formatTimeAgo = (timestamp: string): string => {
@@ -86,20 +77,32 @@ const formatTimeAgo = (timestamp: string): string => {
   return then.toLocaleDateString('fr-SN', { day: 'numeric', month: 'short' });
 };
 
+const getCategoryIcon = (category?: string): React.ElementType | null => {
+  const icons: Record<string, React.ElementType> = {
+    audit: ShieldAlert,
+    maintenance: Clock,
+    compliance: CheckCircle2,
+    security: AlertCircle,
+  };
+  return category ? icons[category] || null : null;
+};
+
 // ============================================================================
 // SOUS-COMPOSANT : NOTIFICATION ITEM
 // ============================================================================
 
-interface NotificationItemProps {
-  notification: Notification;
+function NotificationItem({ 
+  notification, 
+  onDismiss, 
+  onClick 
+}: { 
+  notification: Notification; 
   onDismiss: (id: string) => void;
   onClick: (notification: Notification) => void;
-}
-
-function NotificationItem({ notification, onDismiss, onClick }: NotificationItemProps) {
+}) {
   const config = TYPE_CONFIG[notification.type];
   const Icon = config.icon;
-  const CategoryIcon = notification.category ? CATEGORY_ICONS[notification.category] : null;
+  const CategoryIcon = notification.category ? getCategoryIcon(notification.category) : null;
 
   return (
     <article 
@@ -107,31 +110,26 @@ function NotificationItem({ notification, onDismiss, onClick }: NotificationItem
         "p-4 border-b border-white/5 hover:bg-white/5 transition-all flex gap-3 group relative text-left",
         !notification.read && "bg-blue-500/5 border-l-2 border-l-blue-500"
       )}
-      role="article"
-      aria-labelledby={`notification-title-${notification.id}`}
     >
       {/* Icône de type */}
       <div className={cn("mt-0.5 shrink-0", config.color)}>
-        <Icon size={18} aria-hidden="true" />
+        <Icon size={18} className="w-[18px] h-[18px] md:w-[20px] md:h-[20px]" aria-hidden="true" />
       </div>
       
       {/* Contenu */}
       <div className="flex-1 min-w-0 pr-8">
         <div className="flex justify-between items-start mb-1">
-          <h4 
-            id={`notification-title-${notification.id}`}
-            className={cn(
-              "text-[9px] md:text-[10px] font-black text-slate-200 leading-none uppercase tracking-widest italic m-0 truncate",
-              !notification.read && "text-white"
-            )}
-          >
+          <h4 className={cn(
+            "text-[9px] md:text-[10px] font-black text-slate-200 leading-none uppercase tracking-widest italic m-0 truncate",
+            !notification.read && "text-white"
+          )}>
             {notification.title}
           </h4>
           <time 
             className="flex items-center gap-1 text-[7px] md:text-[8px] font-black text-slate-500 uppercase italic shrink-0"
             dateTime={notification.timestamp}
           >
-            <Clock size={9} aria-hidden="true" /> 
+            <Clock size={9} className="w-[9px] h-[9px] md:w-[10px] md:h-[10px]" aria-hidden="true" /> 
             {formatTimeAgo(notification.timestamp)}
           </time>
         </div>
@@ -142,9 +140,9 @@ function NotificationItem({ notification, onDismiss, onClick }: NotificationItem
         
         {/* Badge catégorie + Action */}
         <div className="flex items-center gap-2 mt-2">
-          {CategoryIcon && notification.category && (
+          {CategoryIcon && (
             <span className="flex items-center gap-1 text-[7px] text-slate-500 uppercase tracking-wider">
-              <CategoryIcon size={9} aria-hidden="true" />
+              <CategoryIcon size={9} className="w-[9px] h-[9px]" aria-hidden="true" />
               {notification.category}
             </span>
           )}
@@ -157,7 +155,7 @@ function NotificationItem({ notification, onDismiss, onClick }: NotificationItem
               }}
               className="text-[7px] md:text-[8px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest italic flex items-center gap-1 no-underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
             >
-              {notification.actionLabel} <ExternalLink size={9} aria-hidden="true" />
+              {notification.actionLabel} <ExternalLink size={9} className="w-[9px] h-[9px]" aria-hidden="true" />
             </Link>
           )}
         </div>
@@ -173,7 +171,7 @@ function NotificationItem({ notification, onDismiss, onClick }: NotificationItem
         className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-400"
         aria-label={`Fermer: ${notification.title}`}
       >
-        <X size={14} aria-hidden="true" />
+        <X size={14} className="w-[14px] h-[14px]" aria-hidden="true" />
       </button>
     </article>
   );
@@ -203,7 +201,7 @@ function NotificationPanel({
       <header className="p-4 md:p-5 border-b border-white/5 flex justify-between items-center bg-[#050810]/80 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-600/20 rounded-lg">
-             <ShieldAlert className="text-blue-400" size={16} aria-hidden="true" />
+             <ShieldAlert className="text-blue-400 w-[16px] h-[16px] md:w-[18px] md:h-[18px]" aria-hidden="true" />
           </div>
           <div>
             <h4 className="font-black text-white uppercase text-[10px] md:text-[11px] tracking-[0.2em] italic m-0 leading-none">
@@ -227,15 +225,15 @@ function NotificationPanel({
       </header>
 
       {/* Liste des notifications */}
-      <div className="max-h-80 md:max-h-96 overflow-y-auto custom-scrollbar bg-[#0B0F1A]" role="list">
+      <div className="max-h-80 md:max-h-96 overflow-y-auto custom-scrollbar bg-[#0B0F1A]">
         {isLoading ? (
           <div className="p-8 flex flex-col items-center justify-center gap-4">
-            <Loader2 size={24} className="text-blue-500 animate-spin" aria-hidden="true" />
+            <Loader2 size={24} className="text-blue-500 animate-spin w-[24px] h-[24px] md:w-[28px] md:h-[28px]" aria-hidden="true" />
             <p className="text-[9px] text-slate-500 uppercase tracking-widest italic">Chargement...</p>
           </div>
         ) : notifications.length === 0 ? (
           <div className="p-8 md:p-12 text-center space-y-4">
-            <Bell className="mx-auto opacity-10 text-slate-400" size={40} aria-hidden="true" />
+            <Bell className="mx-auto opacity-10 text-slate-400 w-[40px] h-[40px] md:w-[48px] md:h-[48px]" aria-hidden="true" />
             <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest italic leading-relaxed">
               Le registre est vierge <br/> Aucun signalement actif
             </p>
@@ -257,9 +255,9 @@ function NotificationPanel({
          <Link 
            href="/dashboard/notifications" 
            className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest hover:text-blue-400 transition-all flex items-center justify-center gap-2 mx-auto no-underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded py-1"
-           onClick={() => onViewAll()}
+           onClick={onViewAll}
          >
-           Journal complet <ChevronRight size={12} aria-hidden="true" />
+           Journal complet <ChevronRight size={12} className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]" aria-hidden="true" />
          </Link>
       </footer>
     </div>
@@ -285,14 +283,11 @@ export default function NotificationBell({
 
   // Chargement initial des notifications
   const fetchNotifications = useCallback(async () => {
-    // SSR guard: ne pas fetch côté serveur
-    if (typeof window === 'undefined') return;
-    
     try {
       setIsLoading(true);
       setError(null);
       
-      // Appel API - à remplacer par ton endpoint réel
+      // Appel API simulé - à remplacer par ton endpoint réel
       const response = await fetch('/api/notifications?limit=10', {
         credentials: 'include',
         cache: 'no-store',
@@ -364,12 +359,10 @@ export default function NotificationBell({
 
   // Polling des nouvelles notifications
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      fetchNotifications();
-      
-      // Setup polling
-      pollTimerRef.current = setInterval(fetchNotifications, pollInterval);
-    }
+    fetchNotifications();
+    
+    // Setup polling
+    pollTimerRef.current = setInterval(fetchNotifications, pollInterval);
     
     return () => {
       if (pollTimerRef.current) {
@@ -380,8 +373,6 @@ export default function NotificationBell({
 
   // Fermeture du panel au clic extérieur
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
     const handleClickOutside = (event: MouseEvent) => {
       if (isOpen && panelRef.current && !panelRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -421,20 +412,6 @@ export default function NotificationBell({
   // Calcul du badge
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // SSR guard: ne pas rendre côté serveur
-  if (typeof window === 'undefined') {
-    return (
-      <button 
-        type="button"
-        className={cn("relative p-2.5 md:p-3 lg:p-4 bg-white/5 border border-white/10 rounded-xl md:rounded-2xl", className)}
-        aria-label="Notifications"
-        disabled
-      >
-        <Bell size={18} md:size={20} className="text-slate-400" aria-hidden="true" />
-      </button>
-    );
-  }
-
   return (
     <div 
       className={cn("relative font-sans italic", className)}
@@ -453,9 +430,9 @@ export default function NotificationBell({
         aria-haspopup="dialog"
       >
         <Bell 
-          size={18}
+          size={18} 
           className={cn(
-            "w-4.5 h-4.5 md:w-5 md:h-5 transition-colors flex-shrink-0", 
+            "transition-colors w-[18px] h-[18px] md:w-[20px] md:h-[20px] lg:w-[24px] lg:h-[24px]", 
             unreadCount > 0 ? "text-blue-400" : "text-slate-400"
           )} 
           aria-hidden="true" 
@@ -491,20 +468,6 @@ export default function NotificationBell({
           />
         </>
       )}
-
-      {/* GLOBAL STYLES */}
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
-          background: rgba(37, 99, 235, 0.3); 
-          border-radius: 10px; 
-        }
-        :focus-visible {
-          outline: 2px solid #3b82f6;
-          outline-offset: 2px;
-        }
-      `}</style>
     </div>
   );
 }

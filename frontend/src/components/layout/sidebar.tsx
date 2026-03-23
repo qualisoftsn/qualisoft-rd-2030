@@ -1,22 +1,24 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 /**
  * 🔱 MODULE : SIDEBAR SOUVERAINE (ELITE-SDE)
  * -------------------------------------------------------------------------
- * RÔLE : Navigation pilotée par le Registre de Vérité ISO & Grade User
- * VERSION : 3.0 - Fix JSX namespace + Typing strict + Accessibilité WCAG AA
- * DESIGN : Elite MS, w-[300px] strict, Glassmorphism, Responsive
+ * RÔLE : Navigation pilotée par le Registre de Vérité ISO & Grade User.
+ * VERSION : 2.0 - Corrections critiques + Accessibilité + Design System Elite
+ * DESIGN : Elite MS, Glassmorphism, w-[300px] strict, WCAG AA
  * SÉCURITÉ : Isolation Kernel (Zustand) - Zéro NextAuth
- * RÉVISION : 19 Mars 2026 | Production OVH
+ * RÉVISION : 19 Mars 2026 | 10:30 GMT
  * -------------------------------------------------------------------------
  */
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import * as LucideIcons from "lucide-react";
+import * as Icons from "lucide-react";
 import { cn } from "@/core/utils/cn";
 import { MASTER_NAV } from "@/core/config/navigation";
 import { useAuthStore } from "@/store/authStore";
@@ -26,19 +28,19 @@ import {
 } from "lucide-react";
 
 // ============================================================================
-// TYPES & INTERFACES (Strict Typing)
+// TYPES & INTERFACES
 // ============================================================================
 
-export interface NavItem {
+interface NavItem {
   path: string;
   title: string;
   desc: string;
-  icon: keyof typeof LucideIcons;
+  icon: string;
   iso?: string;
   roles?: string[];
 }
 
-export interface NavGroup {
+interface NavGroup {
   id: string;
   label: string;
   iso: string;
@@ -46,23 +48,21 @@ export interface NavGroup {
   roles?: string[];
 }
 
-export interface UserData {
-  U_Id?: string;
+interface UserData {
   U_FirstName?: string;
   U_LastName?: string;
   U_Role?: string;
   U_Email?: string;
   U_Avatar?: string;
-  U_IsActive?: boolean;
 }
 
-export interface SidebarProps {
+interface SidebarProps {
   isSuperAdmin?: boolean;
   className?: string;
 }
 
 // ============================================================================
-// CONSTANTES & CONFIGURATION
+// CONSTANTES
 // ============================================================================
 
 const DEFAULT_USER: UserData = {
@@ -73,66 +73,25 @@ const DEFAULT_USER: UserData = {
 
 const EXPANDED_GROUPS_DEFAULT = ["strategie", "amelioration", "workspace"];
 
-const ROLE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  SUPER_ADMIN: { bg: 'bg-amber-600/20', text: 'text-amber-400', border: 'border-amber-500/30' },
-  ADMIN: { bg: 'bg-emerald-600/20', text: 'text-emerald-400', border: 'border-emerald-500/30' },
-  MANAGER: { bg: 'bg-blue-600/20', text: 'text-blue-400', border: 'border-blue-500/30' },
-  USER: { bg: 'bg-slate-600/20', text: 'text-slate-400', border: 'border-slate-500/30' },
-};
-
 // ============================================================================
-// UTILITAIRES (Pure Functions - SSR Safe)
+// UTILITAIRES
 // ============================================================================
 
 const getInitials = (firstName?: string, lastName?: string): string => {
-  const first = firstName?.charAt(0).toUpperCase() || "U";
-  const last = lastName?.charAt(0).toUpperCase() || "";
-  return first + last;
+  const first = firstName?.charAt(0) || "U";
+  const last = lastName?.charAt(0) || "";
+  return (first + last).toUpperCase();
 };
 
-const getRoleBadgeClasses = (role?: string, isSuperAdmin?: boolean): string => {
-  if (isSuperAdmin) return ROLE_COLORS.SUPER_ADMIN.bg + ' ' + ROLE_COLORS.SUPER_ADMIN.text + ' ' + ROLE_COLORS.SUPER_ADMIN.border;
-  const key = (role || 'USER') as keyof typeof ROLE_COLORS;
-  const colors = ROLE_COLORS[key] || ROLE_COLORS.USER;
-  return colors.bg + ' ' + colors.text + ' ' + colors.border;
+const getRoleBadgeColor = (role?: string, isSuperAdmin?: boolean): string => {
+  if (isSuperAdmin) return "bg-amber-600/20 text-amber-400 border-amber-500/30";
+  if (role === "ADMIN") return "bg-emerald-600/20 text-emerald-400 border-emerald-500/30";
+  if (role === "MANAGER") return "bg-blue-600/20 text-blue-400 border-blue-500/30";
+  return "bg-slate-600/20 text-slate-400 border-slate-500/30";
 };
 
 // ============================================================================
-// SOUS-COMPOSANT : ICON RENDERER (Fix JSX namespace)
-// ============================================================================
-
-interface IconRendererProps {
-  iconName: keyof typeof LucideIcons;
-  active: boolean;
-  className?: string;
-  size?: 'sm' | 'md' | 'lg';
-}
-
-function IconRenderer({ iconName, active, className, size = 'md' }: IconRendererProps) {
-  // Mapping des tailles en pixels pour lucide-react
-  const sizeMap = { sm: 14, md: 18, lg: 24 };
-  const pixelSize = sizeMap[size];
-  
-  const Icon = LucideIcons[iconName] || LucideIcons.HelpCircle;
-  
-  return (
-    <Icon 
-      size={pixelSize}
-      strokeWidth={active ? 3 : 2}
-      className={cn(
-        "transition-all duration-300 flex-shrink-0",
-        active 
-          ? "text-white drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]" 
-          : "text-slate-600 group-hover:text-blue-500",
-        className
-      )}
-      aria-hidden="true"
-    />
-  );
-}
-
-// ============================================================================
-// COMPOSANT PRINCIPAL : SIDEBAR
+// COMPOSANT PRINCIPAL
 // ============================================================================
 
 export default function Sidebar({ isSuperAdmin = false, className }: SidebarProps) {
@@ -156,6 +115,7 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
       router.push("/auth/login");
     } catch (error) {
       console.error("❌ Erreur déconnexion:", error);
+      // Fallback : redirection forcée
       router.push("/auth/login");
     }
   }, [logout, router]);
@@ -164,6 +124,22 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
   const toggleGroup = useCallback((id: string) => {
     setExpandedGroups(prev => 
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }, []);
+
+  // Rendu des icônes avec cache
+  const renderIcon = useCallback((iconName: string, active: boolean) => {
+    const Icon = (Icons as any)[iconName] || Icons.HelpCircle;
+    // ✅ FIX: Utiliser className pour le responsive au lieu de md:size
+    return (
+      <Icon 
+        size={18} 
+        strokeWidth={active ? 3 : 2} 
+        className={cn(
+          "transition-all duration-300 w-4.5 h-4.5 md:w-5 md:h-5", 
+          active ? "text-white drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]" : "text-slate-600 group-hover:text-blue-500"
+        )} 
+      />
     );
   }, []);
 
@@ -182,37 +158,33 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
     return item.roles.includes(userRole);
   }, [isSuperAdmin, user?.U_Role]);
 
-  // États de chargement (SSR safe)
+  // État de chargement (évite le flash d'hydratation)
   if (!mounted || isLoading) {
     return (
-      <aside 
-        className="w-[300px] h-full flex flex-col items-center justify-center bg-[#0B0F1A] border-r border-white/5"
-        role="status"
-        aria-live="polite"
-      >
-        <Loader2 size={32} className="text-blue-600 animate-spin mb-4" aria-hidden="true" />
+      <div className="w-75 h-full flex flex-col items-center justify-center bg-[#0B0F1A] border-r border-white/5">
+        <Loader2 size={32} className="text-blue-600 animate-spin mb-4 w-8 h-8 md:w-10 md:h-10" />
         <p className="text-[8px] text-slate-500 uppercase tracking-widest font-black italic">
           Chargement Kernel...
         </p>
-      </aside>
+      </div>
     );
   }
 
   // Utilisateur non connecté
   if (!user) {
     return (
-      <aside className="w-[300px] h-full flex flex-col items-center justify-center bg-[#0B0F1A] border-r border-white/5 p-6">
-        <AlertCircle size={40} className="text-amber-500 mb-4" aria-hidden="true" />
+      <div className="w-75 h-full flex flex-col items-center justify-center bg-[#0B0F1A] border-r border-white/5 p-6">
+        <AlertCircle size={40} className="text-amber-500 mb-4 w-10 h-10 md:w-12 md:h-12" />
         <p className="text-[9px] text-slate-400 uppercase tracking-widest font-black italic text-center mb-4">
           Session non authentifiée
         </p>
         <button
           onClick={() => router.push("/auth/login")}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/30 border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/30 border-none cursor-pointer"
         >
           Se connecter
         </button>
-      </aside>
+      </div>
     );
   }
 
@@ -225,7 +197,7 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
   return (
     <aside 
       className={cn(
-        "w-[300px] h-full flex flex-col font-sans italic overflow-hidden select-none shrink-0 bg-[#0B0F1A] border-r border-white/5 shadow-2xl",
+        "w-75 h-full flex flex-col font-sans italic overflow-hidden select-none shrink-0 bg-[#0B0F1A] border-r border-white/5 shadow-2xl",
         className
       )}
       role="navigation"
@@ -283,14 +255,14 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
                   : "text-slate-500 hover:bg-white/5 hover:text-emerald-400"
               )}
             >
-              <IconRenderer iconName="Settings2" active={pathname.includes('/workspace')} />
+              <Settings2 size={18} className="w-4.5 h-4.5 md:w-5 md:h-5" aria-hidden="true" />
               <span className="text-[10px] font-black uppercase tracking-widest">Configuration SMI</span>
             </Link>
           </section>
         )}
 
         {/* Groupes de navigation principaux */}
-        {(MASTER_NAV as NavGroup[]).map((group) => {
+        {MASTER_NAV.map((group: NavGroup) => {
           // Filtrage par permissions
           if (!canAccessGroup(group)) return null;
           if (group.id === "matrix" && !isSuperAdmin) return null;
@@ -324,10 +296,7 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
                     )}
                     aria-hidden="true"
                   >
-                    <IconRenderer 
-                      iconName={group.items[0]?.icon || 'HelpCircle'} 
-                      active={isExpanded} 
-                    />
+                    {renderIcon(group.items[0]?.icon || 'HelpCircle', isExpanded)}
                   </div>
                   <div className="text-left leading-none">
                     <span 
@@ -346,7 +315,7 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
                 <ChevronDown 
                   size={14} 
                   className={cn(
-                    "text-slate-800 transition-transform duration-500 flex-shrink-0", 
+                    "text-slate-800 transition-transform duration-500 w-3.5 h-3.5 md:w-4 md:h-4", 
                     isExpanded && "rotate-180 text-blue-500"
                   )} 
                   aria-hidden="true"
@@ -381,7 +350,7 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
                             aria-hidden="true" 
                           />
                         )}
-                        <IconRenderer iconName={item.icon} active={isActive} />
+                        {renderIcon(item.icon, isActive)}
                         <div className="flex flex-col min-w-0">
                           <span 
                             className={cn(
@@ -418,8 +387,8 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
               className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black border border-white/10 shrink-0 shadow-2xl transition-transform duration-300 group-hover/user:rotate-12", 
                 isSuperAdmin 
-                  ? "bg-gradient-to-br from-amber-500 to-amber-700 text-white" 
-                  : "bg-gradient-to-br from-blue-500 to-blue-700 text-white"
+                  ? "bg-linear-to-br from-amber-500 to-amber-700 text-white" 
+                  : "bg-linear-to-br from-blue-500 to-blue-700 text-white"
               )}
               aria-hidden="true"
             >
@@ -434,13 +403,13 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
               <div className="flex items-center gap-1.5 mt-1">
                 <ShieldCheck 
                   size={10} 
-                  className={isSuperAdmin ? "text-amber-500" : "text-blue-500"} 
+                  className={cn("w-2.5 h-2.5 md:w-3 md:h-3", isSuperAdmin ? "text-amber-500" : "text-blue-500")} 
                   aria-hidden="true" 
                 />
                 <span 
                   className={cn(
                     "text-[7px] font-black tracking-widest m-0 uppercase italic truncate px-1.5 py-0.5 rounded border",
-                    getRoleBadgeClasses(safeUser?.U_Role, isSuperAdmin)
+                    getRoleBadgeColor(safeUser?.U_Role, isSuperAdmin)
                   )}
                 >
                   {safeUser?.U_Role || 'USER'}
@@ -463,7 +432,7 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
             aria-label="Se déconnecter de l'espace Matrix"
             type="button"
           >
-            <LogOut size={16} aria-hidden="true" />
+            <LogOut size={16} className="w-4 h-4 md:w-4.5 md:h-4.5 group-hover:-translate-x-1 transition-transform" aria-hidden="true" />
           </button>
         </div>
         
@@ -472,20 +441,6 @@ export default function Sidebar({ isSuperAdmin = false, className }: SidebarProp
           © 2026 Qualisoft Elite • Multi-Tenant Sécurisé
         </p>
       </footer>
-
-      {/* GLOBAL STYLES */}
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
-          background: rgba(37, 99, 235, 0.3); 
-          border-radius: 10px; 
-        }
-        :focus-visible {
-          outline: 2px solid #3b82f6;
-          outline-offset: 2px;
-        }
-      `}</style>
     </aside>
   );
 }
