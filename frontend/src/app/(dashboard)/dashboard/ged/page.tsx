@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -303,7 +303,7 @@ function ActionButton({ icon: Icon, onClick, color, label, disabled }: ActionBut
       aria-label={label}
       title={label}
     >
-      <Icon size={14} md:size={16} aria-hidden="true" />
+      <Icon size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" aria-hidden="true" />
     </button>
   );
 }
@@ -329,7 +329,7 @@ function DocumentNode({ doc, viewMode, onAction, onDownload }: DocumentNodeProps
       <article className="bg-[#0F172A] border border-white/5 rounded-xl md:rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 group hover:border-blue-500/30 transition-all focus-within:border-blue-500/30">
         {/* Icon */}
         <div className="w-10 h-10 md:w-12 md:h-12 bg-white/5 rounded-lg md:rounded-xl flex items-center justify-center shrink-0 border border-white/5 group-hover:bg-blue-600 transition-all">
-          <FileText size={18} md:size={20} className="text-blue-400 group-hover:text-white" aria-hidden="true" />
+          <FileText size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" className="text-blue-400 group-hover:text-white" aria-hidden="true" />
         </div>
         
         {/* Content */}
@@ -391,7 +391,7 @@ function DocumentNode({ doc, viewMode, onAction, onDownload }: DocumentNodeProps
       {/* Header */}
       <div className="flex justify-between items-start mb-5 md:mb-6 relative z-10">
         <div className="w-12 h-12 md:w-14 md:h-14 bg-white/5 rounded-xl md:rounded-2xl flex items-center justify-center border border-white/5 group-hover:bg-blue-600 transition-all">
-          <FileText size={24} md:size={28} className="text-blue-400 group-hover:text-white" aria-hidden="true" />
+          <FileText size={24} className="w-24 h-24 md:w-28 md:h-28 flex-shrink-0" className="text-blue-400 group-hover:text-white" aria-hidden="true" />
         </div>
         <span className={cn(
           "px-3 md:px-4 py-1 md:py-1.5 rounded-full border text-[8px] md:text-[9px] font-black uppercase italic tracking-widest",
@@ -453,7 +453,7 @@ function DocumentNode({ doc, viewMode, onAction, onDownload }: DocumentNodeProps
           className="w-10 h-10 md:w-12 md:h-12 bg-blue-600 rounded-lg md:rounded-xl flex items-center justify-center text-white hover:bg-white hover:text-blue-700 transition-all border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
           aria-label={`Télécharger ${doc.DOC_Title}`}
         >
-          <Download size={16} md:size={18} aria-hidden="true" />
+          <Download size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" aria-hidden="true" />
         </button>
       </div>
     </article>
@@ -502,7 +502,7 @@ function ModalFrame({ title, icon: Icon, onClose, children, width = 'max-w-xl', 
         {/* Header */}
         <header className="sticky top-0 bg-[#0F172A]/95 backdrop-blur-md z-20 flex justify-between items-center px-5 md:px-8 py-4 md:py-6 border-b border-white/5">
           <h2 id="modal-title" className="text-lg md:text-xl font-black uppercase italic text-white m-0 flex items-center gap-3">
-            <Icon className="text-blue-400" size={20} md:size={24} aria-hidden="true" /> 
+            <Icon className="text-blue-400" size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" /> 
             {title}
           </h2>
           <button
@@ -511,7 +511,7 @@ function ModalFrame({ title, icon: Icon, onClose, children, width = 'max-w-xl', 
             className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
             aria-label="Fermer"
           >
-            <X size={20} md:size={24} aria-hidden="true" />
+            <X size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" />
           </button>
         </header>
         
@@ -753,7 +753,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
               className="hidden"
               accept=".pdf,.docx,.xlsx,.pptx"
             />
-            <UploadCloud size={32} md:size={40} className="text-blue-400 mb-3 mx-auto" aria-hidden="true" />
+            <UploadCloud size={32} className="w-32 h-32 md:w-40 md:h-40 flex-shrink-0" className="text-blue-400 mb-3 mx-auto" aria-hidden="true" />
             <p className="text-[9px] md:text-[10px] text-white m-0">
               {file ? file.name : 'DÉPOSER LE FICHIER ISO (PDF/WORD/EXCEL)'}
             </p>
@@ -957,7 +957,7 @@ function PreviewMatrixModal({ doc, onClose, onDownload }: PreviewModalProps) {
             onClick={onDownload}
             className="px-4 md:px-6 py-2.5 md:py-3 bg-blue-600 rounded-xl text-[8px] md:text-[9px] font-black text-white uppercase italic border-none cursor-pointer flex items-center gap-2 hover:bg-blue-500 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
-            <Download size={14} md:size={16} aria-hidden="true"/> Télécharger
+            <Download size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" aria-hidden="true"/> Télécharger
           </button>
           <button
             type="button"
@@ -965,7 +965,7 @@ function PreviewMatrixModal({ doc, onClose, onDownload }: PreviewModalProps) {
             className="p-2.5 md:p-3 bg-white/5 rounded-xl text-white border-none cursor-pointer hover:bg-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
             aria-label="Fermer l'aperçu"
           >
-            <X size={18} md:size={20} aria-hidden="true"/>
+            <X size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" aria-hidden="true"/>
           </button>
         </div>
       </header>
@@ -982,7 +982,7 @@ function PreviewMatrixModal({ doc, onClose, onDownload }: PreviewModalProps) {
           />
         ) : (
           <div className="text-center p-8">
-            <FileText size={48} md:size={64} className="mx-auto mb-4 text-slate-600" aria-hidden="true" />
+            <FileText size={48} className="w-48 h-48 md:w-64 md:h-64 flex-shrink-0" className="mx-auto mb-4 text-slate-600" aria-hidden="true" />
             <p className="text-[10px] md:text-[11px] text-slate-400 italic mb-4">
               Aperçu non disponible pour le format {latestVersion?.DV_FileType || 'inconnu'}
             </p>
@@ -1051,7 +1051,7 @@ export default function GEDMatrixPage() {
   if (loading && documents.length === 0 && typeof window !== 'undefined') {
     return (
       <div className="h-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-4 md:gap-6" role="status" aria-live="polite">
-        <Loader2 className="animate-spin text-blue-500" size={40} md:size={48} aria-hidden="true" />
+        <Loader2 className="animate-spin text-blue-500" size={40} className="w-40 h-40 md:w-48 md:h-48 flex-shrink-0" aria-hidden="true" />
         <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.35em] italic text-slate-400">
           Extraction de la Matrix...
         </p>
@@ -1106,7 +1106,7 @@ export default function GEDMatrixPage() {
             aria-label="Actualiser le registre"
             title="Synchroniser"
           >
-            <RefreshCw size={16} md:size={18} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+            <RefreshCw size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           </button>
           
           <button
@@ -1114,7 +1114,7 @@ export default function GEDMatrixPage() {
             onClick={() => setModal({ type: 'create', doc: null })}
             className="bg-blue-600 hover:bg-white hover:text-blue-700 px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-[8px] md:text-[9px] font-black uppercase italic border-none text-white cursor-pointer active:scale-95 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
-            <Plus size={16} md:size={18} strokeWidth={3} aria-hidden="true" />
+            <Plus size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" strokeWidth={3} aria-hidden="true" />
             <span className="hidden sm:inline">Nouveau</span>
           </button>
         </div>
@@ -1156,7 +1156,7 @@ export default function GEDMatrixPage() {
             )}
             aria-pressed={filters.overdue}
           >
-            <AlertTriangle size={10} md:size={12} aria-hidden="true" />
+            <AlertTriangle size={10} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" aria-hidden="true" />
             <span className="hidden sm:inline">Revues échues</span>
           </button>
           
@@ -1175,7 +1175,7 @@ export default function GEDMatrixPage() {
               )}
               aria-label="Vue grille"
             >
-              <LayoutGrid size={14} md:size={16} aria-hidden="true"/>
+              <LayoutGrid size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" aria-hidden="true"/>
             </button>
             <button
               type="button"
@@ -1188,7 +1188,7 @@ export default function GEDMatrixPage() {
               )}
               aria-label="Vue liste"
             >
-              <List size={14} md:size={16} aria-hidden="true"/>
+              <List size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" aria-hidden="true"/>
             </button>
           </div>
         </div>
@@ -1215,7 +1215,7 @@ export default function GEDMatrixPage() {
           </div>
         ) : (
           <div className="h-64 md:h-80 border-2 border-dashed border-white/10 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center text-slate-500" role="status">
-            <Archive size={48} md:size={64} className="mb-3 md:mb-4 opacity-10" aria-hidden="true" />
+            <Archive size={48} className="w-48 h-48 md:w-64 md:h-64 flex-shrink-0" className="mb-3 md:mb-4 opacity-10" aria-hidden="true" />
             <p className="font-black uppercase italic text-[9px] md:text-[10px] tracking-widest text-center px-4">
               {filters.search || filters.category !== 'ALL' || filters.status !== 'ALL' || filters.overdue
                 ? 'Aucun document ne correspond aux filtres'

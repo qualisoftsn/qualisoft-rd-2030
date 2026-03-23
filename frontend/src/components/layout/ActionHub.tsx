@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -391,7 +391,7 @@ export default function ActionHub({ className, onActionClick }: ActionHubProps) 
             aria-label={`Créer: ${context.action}`}
           >
             <Plus 
-              size={14} md:size={16} lg:size={18} 
+              size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" lg:size={18} 
               strokeWidth={3} 
               className="group-hover:rotate-90 transition-transform duration-300 shrink-0" 
               aria-hidden="true" 

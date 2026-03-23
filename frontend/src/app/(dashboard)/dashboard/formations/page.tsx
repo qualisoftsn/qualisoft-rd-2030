@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -147,7 +147,7 @@ const isExpired = (expiryDate?: string): boolean => {
 function LoadingScreen({ label }: { label: string }) {
   return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-6" role="status" aria-live="polite">
-      <Activity className="animate-spin text-blue-500" size={48} md:size={60} strokeWidth={1} aria-hidden="true" />
+      <Activity className="animate-spin text-blue-500" size={48} className="w-48 h-48 md:w-60 md:h-60 flex-shrink-0" strokeWidth={1} aria-hidden="true" />
       <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.8em] text-blue-400 animate-pulse italic text-center px-4 md:px-10">
         {label}
       </span>
@@ -270,7 +270,7 @@ function FormationModal({ isOpen, onClose, onSuccess, users, initialData }: Form
             className="p-2 hover:bg-white/5 rounded-xl border-none bg-transparent cursor-pointer text-slate-400 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
             aria-label="Fermer"
           >
-            <X size={20} md:size={24} aria-hidden="true" />
+            <X size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" />
           </button>
         </header>
         
@@ -439,12 +439,12 @@ function FormationModal({ isOpen, onClose, onSuccess, users, initialData }: Form
         >
           {isSubmitting ? (
             <>
-              <Loader2 size={16} md:size={18} className="animate-spin" aria-hidden="true" /> 
+              <Loader2 size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" className="animate-spin" aria-hidden="true" /> 
               <span>TRAITEMENT...</span>
             </>
           ) : (
             <>
-              <RefreshCcw size={16} md:size={18} aria-hidden="true" /> 
+              <RefreshCcw size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" aria-hidden="true" /> 
               <span>{initialData ? 'METTRE À JOUR' : 'INDEXER LE CAPITAL HUMAIN'}</span>
             </>
           )}
@@ -473,7 +473,7 @@ function FormationRow({ formation, onEdit }: FormationRowProps) {
       <td className="px-4 md:px-6 lg:px-10 py-4 md:py-6">
         <div className="flex items-center gap-3 md:gap-5">
           <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-600/10 flex items-center justify-center text-blue-400 border border-blue-500/20 shadow-inner shrink-0">
-            <GraduationCap size={18} md:size={22} aria-hidden="true" />
+            <GraduationCap size={18} className="w-18 h-18 md:w-22 md:h-22 flex-shrink-0" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <p className="text-sm md:text-base font-black m-0 leading-none text-white truncate">
@@ -663,7 +663,7 @@ export default function FormationsPage() {
             Plan <span className="text-blue-500">GPEC</span>
           </h1>
           <p className="text-slate-500 text-[8px] md:text-[9px] tracking-[0.35em] m-0 flex items-center gap-2 italic">
-            <ShieldCheck size={12} md:size={14} className="text-emerald-400" aria-hidden="true" /> 
+            <ShieldCheck size={12} className="w-12 h-12 md:w-14 md:h-14 flex-shrink-0" className="text-emerald-400" aria-hidden="true" /> 
             ISO 9001 §7.2 • Matrice des Compétences Matrix
           </p>
         </div>
@@ -691,14 +691,14 @@ export default function FormationsPage() {
             aria-label="Actualiser le registre"
             title="Synchroniser"
           >
-            <RefreshCcw size={16} md:size={18} aria-hidden="true" />
+            <RefreshCcw size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" aria-hidden="true" />
           </button>
           
           <button 
             onClick={handleCreate}
             className="bg-blue-600 px-5 md:px-7 lg:px-8 py-2.5 md:py-3 lg:py-4 rounded-xl md:rounded-2xl text-[8px] md:text-[9px] lg:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 md:gap-3 transition-all border-none cursor-pointer text-white shadow-xl hover:bg-white hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
-            <Plus size={16} md:size={18} strokeWidth={3} aria-hidden="true" /> 
+            <Plus size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" strokeWidth={3} aria-hidden="true" /> 
             <span className="hidden sm:inline">Planifier Session</span>
           </button>
         </div>
@@ -711,7 +711,7 @@ export default function FormationsPage() {
           {/* Table Header */}
           <div className="p-5 md:p-7 lg:p-8 md:p-10 border-b border-white/5 bg-black/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3 md:gap-4 text-blue-400">
-              <BookOpen size={20} md:size={24} aria-hidden="true" />
+              <BookOpen size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" />
               <h3 className="text-sm md:text-base tracking-widest italic m-0 text-white uppercase font-black">
                 Registre des Habilitations Matrix
               </h3>
@@ -750,7 +750,7 @@ export default function FormationsPage() {
                 ) : (
                   <tr>
                     <td colSpan={3} className="px-4 md:px-6 lg:px-10 py-12 md:py-16 text-center text-slate-500">
-                      <Search size={32} md:size={40} className="mx-auto mb-3 md:mb-4 opacity-20" aria-hidden="true" />
+                      <Search size={32} className="w-32 h-32 md:w-40 md:h-40 flex-shrink-0" className="mx-auto mb-3 md:mb-4 opacity-20" aria-hidden="true" />
                       <p className="text-[9px] md:text-[10px] font-black uppercase italic tracking-widest">
                         {search ? 'Aucune formation ne correspond à la recherche' : 'Aucune habilitation enregistrée'}
                       </p>

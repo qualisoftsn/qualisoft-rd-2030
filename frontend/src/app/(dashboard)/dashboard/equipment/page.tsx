@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -335,7 +335,7 @@ function MetricTile({ title, value, icon: Icon, color, formula, onClick }: Metri
         "p-3 md:p-4 rounded-xl md:rounded-2xl border transition-transform group-hover:scale-110 shrink-0",
         theme.bg, theme.text, theme.border
       )}>
-        <Icon size={20} md:size={24} aria-hidden="true" />
+        <Icon size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" />
       </div>
       
       {/* Content */}
@@ -349,7 +349,7 @@ function MetricTile({ title, value, icon: Icon, color, formula, onClick }: Metri
       {/* Formula overlay on hover */}
       {formula && (
         <div className="absolute inset-0 bg-blue-600/90 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center p-6 text-center pointer-events-none">
-          <Calculator size={28} md:size={32} className="mb-3 text-white animate-pulse" aria-hidden="true" />
+          <Calculator size={28} className="w-28 h-28 md:w-32 md:h-32 flex-shrink-0" className="mb-3 text-white animate-pulse" aria-hidden="true" />
           <p className="text-[10px] md:text-[11px] font-black text-white italic uppercase leading-tight">
             {formula}
           </p>
@@ -396,7 +396,7 @@ function EquipmentRow({ equipment, onEdit, onDelete }: EquipmentRowProps) {
           "inline-flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-wider border",
           vgp.config.bg, vgp.config.color, vgp.config.border
         )}>
-          <vgp.config.icon size={10} md:size={12} aria-hidden="true" />
+          <vgp.config.icon size={10} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" aria-hidden="true" />
           <span className="hidden sm:inline">{vgp.config.label}</span> : {vgp.dateStr}
         </span>
       </td>
@@ -423,7 +423,7 @@ function EquipmentRow({ equipment, onEdit, onDelete }: EquipmentRowProps) {
             aria-label={`Modifier ${equipment.EQ_Reference}`}
             title="Modifier"
           >
-            <Edit3 size={14} md:size={16} aria-hidden="true" />
+            <Edit3 size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" aria-hidden="true" />
           </button>
           <button 
             onClick={() => onDelete(equipment.EQ_Id)}
@@ -431,7 +431,7 @@ function EquipmentRow({ equipment, onEdit, onDelete }: EquipmentRowProps) {
             aria-label={`Supprimer ${equipment.EQ_Reference}`}
             title="Supprimer"
           >
-            <Trash2 size={14} md:size={16} aria-hidden="true" />
+            <Trash2 size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" aria-hidden="true" />
           </button>
         </div>
       </td>
@@ -548,7 +548,7 @@ export default function EquipmentsPage() {
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-6" role="status" aria-live="polite">
-        <RefreshCcw className="animate-spin text-blue-500" size={48} md:size={60} strokeWidth={1} aria-hidden="true" />
+        <RefreshCcw className="animate-spin text-blue-500" size={48} className="w-48 h-48 md:w-60 md:h-60 flex-shrink-0" strokeWidth={1} aria-hidden="true" />
         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.8em] text-blue-400 animate-pulse italic text-center px-4 md:px-10">
           Chargement Matrix Assets...
         </span>
@@ -571,7 +571,7 @@ export default function EquipmentsPage() {
             Registre <span className="text-blue-500">Actifs</span>
           </h1>
           <p className="text-slate-500 text-[8px] md:text-[9px] tracking-[0.35em] m-0 flex items-center gap-2">
-            <Zap size={10} md:size={12} className="text-blue-400" aria-hidden="true" /> 
+            <Zap size={10} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" className="text-blue-400" aria-hidden="true" /> 
             ISO 9001 §7.1.3 • Master Asset Management
           </p>
         </div>
@@ -597,7 +597,7 @@ export default function EquipmentsPage() {
             onClick={handleCreate}
             className="bg-blue-600 px-5 md:px-7 lg:px-8 py-2.5 md:py-3 lg:py-4 rounded-xl md:rounded-2xl text-[8px] md:text-[9px] lg:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 md:gap-3 transition-all border-none cursor-pointer text-white shadow-xl hover:bg-white hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
-            <Plus size={16} md:size={18} strokeWidth={3} aria-hidden="true" /> 
+            <Plus size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" strokeWidth={3} aria-hidden="true" /> 
             <span className="hidden sm:inline">Nouvel Actif</span>
           </button>
         </div>
@@ -648,7 +648,7 @@ export default function EquipmentsPage() {
           <section className="xl:col-span-8 bg-[#0F172A] border-2 border-white/5 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl flex flex-col min-h-[400px]">
             <div className="p-5 md:p-7 lg:p-8 border-b border-white/5 bg-black/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-base md:text-lg font-black italic m-0 flex items-center gap-2 md:gap-3 text-white">
-                <LinkIcon size={14} md:size={16} className="text-blue-400" aria-hidden="true"/> 
+                <LinkIcon size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" className="text-blue-400" aria-hidden="true"/> 
                 Inventaire des Infrastructures
               </h3>
               <span className="text-[8px] md:text-[9px] text-slate-500 uppercase tracking-wider">
@@ -704,9 +704,9 @@ export default function EquipmentsPage() {
             
             {/* Risk Alert Card */}
             <article className="bg-rose-500/5 border-2 border-rose-500/20 p-5 md:p-7 lg:p-8 rounded-2xl md:rounded-3xl relative overflow-hidden">
-              <ShieldAlert size={120} md:size={150} className="absolute -right-8 md:-right-10 -bottom-8 md:-bottom-10 text-rose-500/10 pointer-events-none" aria-hidden="true" />
+              <ShieldAlert size={120} className="w-120 h-120 md:w-150 md:h-150 flex-shrink-0" className="absolute -right-8 md:-right-10 -bottom-8 md:-bottom-10 text-rose-500/10 pointer-events-none" aria-hidden="true" />
               <h3 className="text-lg md:text-xl font-black text-rose-400 mb-4 md:mb-5 flex items-center gap-2 md:gap-3 m-0 leading-none">
-                <AlertTriangle size={20} md:size={24} aria-hidden="true"/> Risques SMI §10.2
+                <AlertTriangle size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true"/> Risques SMI §10.2
               </h3>
               <p className="text-[10px] md:text-[11px] text-slate-400 leading-relaxed m-0 font-black italic">
                 ATTENTION : <span className="text-rose-400">{stats.critical} actif{stats.critical > 1 ? 's' : ''}</span> en défaut de VGP génère{stats.critical > 1 ? 'nt' : ''} un risque de non-conformité majeure lors du prochain audit.
@@ -715,14 +715,14 @@ export default function EquipmentsPage() {
                 onClick={() => router.push('/dashboard/actions/correctives?source=vgp')}
                 className="mt-6 md:mt-8 text-[9px] md:text-[10px] text-rose-400 hover:text-rose-300 bg-transparent border-none cursor-pointer underline flex items-center gap-1.5 md:gap-2 font-black italic focus:outline-none focus:ring-2 focus:ring-rose-400 rounded px-2 py-1"
               >
-                Lancer action corrective <ChevronRight size={12} md:size={14} aria-hidden="true"/>
+                Lancer action corrective <ChevronRight size={12} className="w-12 h-12 md:w-14 md:h-14 flex-shrink-0" aria-hidden="true"/>
               </button>
             </article>
 
             {/* Asset Intelligence Card */}
             <article className="bg-blue-500/5 border-2 border-blue-500/10 p-5 md:p-7 lg:p-8 rounded-2xl md:rounded-3xl">
               <h3 className="text-lg md:text-xl font-black text-blue-400 mb-5 md:mb-6 flex items-center gap-2 md:gap-3 m-0 leading-none">
-                <Calculator size={20} md:size={24} aria-hidden="true"/> Asset Intelligence
+                <Calculator size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true"/> Asset Intelligence
               </h3>
               <div className="space-y-4 md:space-y-5">
                 <div className="p-4 md:p-5 bg-white/5 border border-white/5 rounded-xl md:rounded-2xl">

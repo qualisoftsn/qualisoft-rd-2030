@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
+﻿/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
@@ -407,7 +407,7 @@ export default function UnifiedDashboardLayout({ children }: DashboardLayoutProp
           title="DÉCONNEXION SÉCURISÉE"
           aria-label="Se déconnecter de l'espace Matrix"
         >
-          <LogOut size={18} xl:size={20} className="group-hover:-translate-x-1 transition-transform" aria-hidden="true" />
+          <LogOut size={18} className="w-18 h-18 xl:w-20 xl:h-20 flex-shrink-0" className="group-hover:-translate-x-1 transition-transform" aria-hidden="true" />
         </button>
       </nav>
 

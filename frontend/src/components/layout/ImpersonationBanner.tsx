@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -140,7 +140,7 @@ export default function ImpersonationBanner({ className, onExit }: Impersonation
         
         {/* SECTION GAUCHE : Info impersonation */}
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <ShieldAlert size={14} md:size={16} className="text-white animate-pulse shrink-0" aria-hidden="true" />
+          <ShieldAlert size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" className="text-white animate-pulse shrink-0" aria-hidden="true" />
           <p className="text-[8px] md:text-[9px] font-black text-white uppercase tracking-[0.15em] m-0 italic truncate">
             Mode Mascarade
             <span className="mx-1 md:mx-2 opacity-50 hidden sm:inline">|</span> 
@@ -202,7 +202,7 @@ export default function ImpersonationBanner({ className, onExit }: Impersonation
                 {isExiting ? 'SORTIE...' : 'QUITTER'}
               </span>
               <ZapOff 
-                size={12} md:size={14} 
+                size={12} className="w-12 h-12 md:w-14 md:h-14 flex-shrink-0" 
                 className="text-white group-hover:scale-110 transition-transform" 
                 aria-hidden="true" 
               />
