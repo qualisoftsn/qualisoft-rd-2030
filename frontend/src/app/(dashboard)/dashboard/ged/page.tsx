@@ -5,34 +5,36 @@
  * 💡 MODULE : GED MATRIX ELITE (ISO 9001 §7.5)
  * -------------------------------------------------------------------------
  * RÔLE : Centralisation, Maîtrise et Traçabilité documentaire SMI
- * VERSION : 2.0 - Typing strict + Design Elite + Accessibilité + Cycle de vie complet
+ * VERSION : 3.0 - Production Ready, Build Server-Side, Zero Client-Side PDF
  * API : apiClient Axios avec interceptors (Bearer + X-Tenant-Id)
- * RÉVISION : 19 Mars 2026 | 19:30 GMT
+ * BUILD : Compatible Node.js runtime uniquement pour PDF generation
+ * RÉVISION : 19 Mars 2026 | Production OVH
  * -------------------------------------------------------------------------
  */
 
-import apiClient, { ApiError } from "@/core/api/api-client";
+import apiClient from "@/core/api/api-client";
 import { useAuthStore } from "@/store/authStore";
 import { clsx, type ClassValue } from "clsx";
-import { addMonths, format, isPast, isWithinInterval } from "date-fns";
+import { format, isPast } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle, AlertTriangle, Archive, Calendar, CheckCircle2,
-  CheckSquare, Clock, Download, Eye, FileEdit, FileText,
-  Filter, GitCompare, History, LayoutGrid, List, Loader2, Plus,
-  RefreshCw, Save, Search, ShieldCheck, UploadCloud, User, X,
+  Clock, Download, Eye, FileEdit, FileText, Filter, GitCompare,
+  History, LayoutGrid, List, Loader2, Plus, RefreshCw, Save,
+  Search, ShieldCheck, UploadCloud, X
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState, ChangeEvent, FormEvent } from "react";
 import { toast, Toaster } from "sonner";
 import { cn } from "@/core/utils/cn";
 
 // ============================================================================
-// TYPES & INTERFACES ISO 9001 §7.5
+// TYPES & INTERFACES ISO 9001 §7.5 (Strict Typing)
 // ============================================================================
 
 export type DocumentStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'OBSOLETE' | 'ARCHIVED';
 export type DocumentCategory = 'PROCEDURE' | 'MANUEL' | 'NORME' | 'ENREGISTREMENT' | 'INSTRUCTION' | 'AUTRE';
+export type FileType = 'PDF' | 'DOCX' | 'XLSX' | 'PPTX' | 'AUTRE';
 
 export interface UserRef {
   U_Id: string;
@@ -50,7 +52,7 @@ export interface DocumentVersion {
   DV_CreatedBy: UserRef;
   DV_ApprovedBy?: UserRef;
   DV_ChangeDescription: string;
-  DV_FileType: 'PDF' | 'DOCX' | 'XLSX' | 'PPTX' | 'AUTRE';
+  DV_FileType: FileType;
   DV_FileUrl: string;
   DV_FileSize?: number;
 }
@@ -88,7 +90,7 @@ export interface FilterState {
 }
 
 // ============================================================================
-// CONFIGURATION DES STATUTS
+// CONFIGURATION DES STATUTS (Server-Side Safe)
 // ============================================================================
 
 interface StatusTheme {
@@ -154,7 +156,7 @@ const CATEGORY_OPTIONS: Array<{ value: DocumentCategory | 'ALL'; label: string }
 ];
 
 // ============================================================================
-// UTILITAIRES
+// UTILITAIRES (Pure Functions - SSR Safe)
 // ============================================================================
 
 const formatFileSize = (bytes?: number): string => {
@@ -179,7 +181,7 @@ const isReviewOverdue = (doc: SMI_Document): boolean => {
 };
 
 // ============================================================================
-// HOOK : GED CORE LOGIC
+// HOOK : GED CORE LOGIC (Client-Side Only)
 // ============================================================================
 
 const useGEDCore = () => {
@@ -206,7 +208,11 @@ const useGEDCore = () => {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { 
+    if (typeof window !== 'undefined') {
+      fetchData(); 
+    }
+  }, [fetchData]);
 
   const filtered = useMemo(() => {
     return documents.filter(d => {
@@ -232,7 +238,7 @@ const useGEDCore = () => {
 };
 
 // ============================================================================
-// SOUS-COMPOSANT : METRIC BADGE
+// SOUS-COMPOSANT : METRIC BADGE (Pure Component)
 // ============================================================================
 
 interface MetricProps {
@@ -264,7 +270,7 @@ function Metric({ title, value, color }: MetricProps) {
 }
 
 // ============================================================================
-// SOUS-COMPOSANT : ACTION BUTTON
+// SOUS-COMPOSANT : ACTION BUTTON (Pure Component)
 // ============================================================================
 
 interface ActionButtonProps {
@@ -303,7 +309,7 @@ function ActionButton({ icon: Icon, onClick, color, label, disabled }: ActionBut
 }
 
 // ============================================================================
-// SOUS-COMPOSANT : DOCUMENT NODE (CARD)
+// SOUS-COMPOSANT : DOCUMENT NODE (CARD) - Pure Presentation
 // ============================================================================
 
 interface DocumentNodeProps {
@@ -364,31 +370,11 @@ function DocumentNode({ doc, viewMode, onAction, onDownload }: DocumentNodeProps
             </p>
           </div>
           <div className="flex gap-1 md:gap-2">
-            <ActionButton 
-              icon={Eye} 
-              onClick={() => onAction('preview', doc)} 
-              color="blue" 
-              label={`Aperçu de ${doc.DOC_Title}`} 
-            />
-            <ActionButton 
-              icon={History} 
-              onClick={() => onAction('history', doc)} 
-              color="slate" 
-              label="Historique des versions" 
-            />
-            <ActionButton 
-              icon={Download} 
-              onClick={() => onDownload(doc)} 
-              color="emerald" 
-              label="Télécharger" 
-            />
+            <ActionButton icon={Eye} onClick={() => onAction('preview', doc)} color="blue" label={`Aperçu de ${doc.DOC_Title}`} />
+            <ActionButton icon={History} onClick={() => onAction('history', doc)} color="slate" label="Historique des versions" />
+            <ActionButton icon={Download} onClick={() => onDownload(doc)} color="emerald" label="Télécharger" />
             {doc.DOC_Status === 'APPROVED' && (
-              <ActionButton 
-                icon={GitCompare} 
-                onClick={() => onAction('revision', doc)} 
-                color="amber" 
-                label="Créer une révision" 
-              />
+              <ActionButton icon={GitCompare} onClick={() => onAction('revision', doc)} color="amber" label="Créer une révision" />
             )}
           </div>
         </div>
@@ -447,21 +433,21 @@ function DocumentNode({ doc, viewMode, onAction, onDownload }: DocumentNodeProps
       
       {/* Actions */}
       <div className="flex gap-2 relative z-10">
-        <button 
+        <button
           type="button"
           onClick={() => onAction('preview', doc)}
           className="flex-1 py-2.5 md:py-3 bg-white/5 hover:bg-white/10 rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black uppercase italic transition-all border-none text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           Aperçu
         </button>
-        <button 
+        <button
           type="button"
           onClick={() => onAction('history', doc)}
           className="flex-1 py-2.5 md:py-3 bg-white/5 hover:bg-white/10 rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black uppercase italic transition-all border-none text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           Historique
         </button>
-        <button 
+        <button
           type="button"
           onClick={() => onDownload(doc)}
           className="w-10 h-10 md:w-12 md:h-12 bg-blue-600 rounded-lg md:rounded-xl flex items-center justify-center text-white hover:bg-white hover:text-blue-700 transition-all border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -475,7 +461,7 @@ function DocumentNode({ doc, viewMode, onAction, onDownload }: DocumentNodeProps
 }
 
 // ============================================================================
-// SOUS-COMPOSANT : MODAL FRAME
+// SOUS-COMPOSANT : MODAL FRAME (SSR Safe with useEffect guard)
 // ============================================================================
 
 interface ModalFrameProps {
@@ -488,8 +474,10 @@ interface ModalFrameProps {
 }
 
 function ModalFrame({ title, icon: Icon, onClose, children, width = 'max-w-xl', 'aria-labelledby': ariaLabelledBy }: ModalFrameProps) {
-  // Close on Escape key
+  // Close on Escape key - SSR safe guard
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -517,7 +505,7 @@ function ModalFrame({ title, icon: Icon, onClose, children, width = 'max-w-xl', 
             <Icon className="text-blue-400" size={20} md:size={24} aria-hidden="true" /> 
             {title}
           </h2>
-          <button 
+          <button
             type="button"
             onClick={onClose}
             className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -537,7 +525,7 @@ function ModalFrame({ title, icon: Icon, onClose, children, width = 'max-w-xl', 
 }
 
 // ============================================================================
-// MODAL : CREATE/EDIT DOCUMENT
+// MODAL : CREATE/EDIT DOCUMENT (Client-Side Only)
 // ============================================================================
 
 interface DocumentModalProps {
@@ -608,12 +596,13 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
     try {
       // Upload file first if present
       let fileUrl = initialData?.DOC_Versions[0]?.DV_FileUrl;
-      if (file) {
-        const uploadRes = await apiClient.post<{ fileUrl: string }>('/documents/upload', {
-          file: file,
-          fileName: file.name,
-          fileType: file.type.split('/')[1]?.toUpperCase() || 'AUTRE',
-        }, {
+      if (file && typeof window !== 'undefined') {
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', file);
+        formDataUpload.append('fileName', file.name);
+        formDataUpload.append('fileType', file.type.split('/')[1]?.toUpperCase() || 'AUTRE');
+        
+        const uploadRes = await apiClient.post<{ fileUrl: string }>('/documents/upload', formDataUpload, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         fileUrl = uploadRes.data.fileUrl;
@@ -644,10 +633,13 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
     }
   };
 
+  // SSR guard: ne pas rendre le modal côté serveur
+  if (typeof window === 'undefined') return null;
+
   return (
-    <ModalFrame 
-      title={initialData ? 'Modifier le Document' : 'Nouveau Document SMI'} 
-      icon={ShieldCheck} 
+    <ModalFrame
+      title={initialData ? 'Modifier le Document' : 'Nouveau Document SMI'}
+      icon={ShieldCheck}
       onClose={onClose}
       aria-labelledby="modal-title"
     >
@@ -659,7 +651,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
             <label htmlFor="DOC_Category" className="text-[9px] text-slate-500 tracking-widest ml-2 block">
               Catégorie *
             </label>
-            <select 
+            <select
               id="DOC_Category"
               name="DOC_Category"
               value={formData.DOC_Category}
@@ -675,7 +667,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
             <label htmlFor="DOC_Reference" className="text-[9px] text-slate-500 tracking-widest ml-2 block">
               Référence *
             </label>
-            <input 
+            <input
               id="DOC_Reference"
               name="DOC_Reference"
               value={formData.DOC_Reference}
@@ -699,7 +691,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
           <label htmlFor="DOC_Title" className="text-[9px] text-slate-500 tracking-widest ml-2 block">
             Désignation Officielle *
           </label>
-          <input 
+          <input
             id="DOC_Title"
             name="DOC_Title"
             value={formData.DOC_Title}
@@ -723,7 +715,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
           <label htmlFor="DOC_Description" className="text-[9px] text-slate-500 tracking-widest ml-2 block">
             Description
           </label>
-          <textarea 
+          <textarea
             id="DOC_Description"
             name="DOC_Description"
             value={formData.DOC_Description}
@@ -754,7 +746,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
           role="button"
           aria-label="Sélectionner un fichier"
           >
-            <input 
+            <input
               id="file-input"
               type="file"
               onChange={handleFileChange}
@@ -780,7 +772,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
             <label htmlFor="DOC_NextReviewDate" className="text-[9px] text-slate-500 tracking-widest ml-2 block">
               Prochaine revue
             </label>
-            <input 
+            <input
               id="DOC_NextReviewDate"
               name="DOC_NextReviewDate"
               type="date"
@@ -794,7 +786,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
               Tags
             </label>
             <div className="flex gap-2">
-              <input 
+              <input
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -806,7 +798,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
                 placeholder="Ajouter un tag..."
                 className="flex-1 bg-[#0B0F1A] border border-white/10 rounded-xl p-3 text-[10px] text-white outline-none focus:border-blue-600"
               />
-              <button 
+              <button
                 type="button"
                 onClick={addTag}
                 className="px-4 bg-blue-600 rounded-xl text-white hover:bg-blue-500 transition-all"
@@ -818,7 +810,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
               {formData.DOC_Tags.map(tag => (
                 <span key={tag} className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-[8px] font-black uppercase flex items-center gap-1">
                   {tag}
-                  <button 
+                  <button
                     type="button"
                     onClick={() => removeTag(tag)}
                     className="hover:text-white"
@@ -833,7 +825,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
         </div>
         
         {/* Submit */}
-        <button 
+        <button
           type="submit"
           disabled={isSubmitting}
           className={cn(
@@ -844,12 +836,12 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
         >
           {isSubmitting ? (
             <>
-              <Loader2 size={16} className="animate-spin" aria-hidden="true" /> 
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
               <span>TRAITEMENT...</span>
             </>
           ) : (
             <>
-              <Save size={16} aria-hidden="true" /> 
+              <Save size={16} aria-hidden="true" />
               <span>{initialData ? 'METTRE À JOUR' : 'SCeller LE DOCUMENT'}</span>
             </>
           )}
@@ -860,7 +852,7 @@ function DocumentModal({ initialData, onClose, onSuccess }: DocumentModalProps) 
 }
 
 // ============================================================================
-// MODAL : HISTORY TIMELINE
+// MODAL : HISTORY TIMELINE (Pure Presentation)
 // ============================================================================
 
 interface HistoryModalProps {
@@ -914,7 +906,7 @@ function HistoryTimelineModal({ doc, onClose, onDownload }: HistoryModalProps) {
                   <span className="text-[8px] text-slate-500 uppercase">
                     {v.DV_FileType} • {formatFileSize(v.DV_FileSize)}
                   </span>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => onDownload(v.DV_Id)}
                     className="text-[8px] md:text-[9px] font-black text-blue-400 hover:text-blue-300 transition-all uppercase italic tracking-widest bg-transparent border-none cursor-pointer flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded px-2 py-1"
@@ -932,7 +924,7 @@ function HistoryTimelineModal({ doc, onClose, onDownload }: HistoryModalProps) {
 }
 
 // ============================================================================
-// MODAL : PREVIEW
+// MODAL : PREVIEW (Client-Side Only - iframe safe)
 // ============================================================================
 
 interface PreviewModalProps {
@@ -943,6 +935,9 @@ interface PreviewModalProps {
 
 function PreviewMatrixModal({ doc, onClose, onDownload }: PreviewModalProps) {
   const latestVersion = doc.DOC_Versions[0];
+  
+  // SSR guard
+  if (typeof window === 'undefined') return null;
   
   return (
     <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col p-4">
@@ -957,14 +952,14 @@ function PreviewMatrixModal({ doc, onClose, onDownload }: PreviewModalProps) {
           </p>
         </div>
         <div className="flex gap-2 md:gap-4">
-          <button 
+          <button
             type="button"
             onClick={onDownload}
             className="px-4 md:px-6 py-2.5 md:py-3 bg-blue-600 rounded-xl text-[8px] md:text-[9px] font-black text-white uppercase italic border-none cursor-pointer flex items-center gap-2 hover:bg-blue-500 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             <Download size={14} md:size={16} aria-hidden="true"/> Télécharger
           </button>
-          <button 
+          <button
             type="button"
             onClick={onClose}
             className="p-2.5 md:p-3 bg-white/5 rounded-xl text-white border-none cursor-pointer hover:bg-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -975,22 +970,23 @@ function PreviewMatrixModal({ doc, onClose, onDownload }: PreviewModalProps) {
         </div>
       </header>
       
-      {/* Preview area */}
+      {/* Preview area - iframe is client-side only */}
       <div className="flex-1 bg-[#0F172A] rounded-b-2xl mt-2 md:mt-4 relative overflow-hidden flex items-center justify-center">
-        {latestVersion?.DV_FileType === 'PDF' ? (
-          <iframe 
-            src={latestVersion.DV_FileUrl} 
+        {latestVersion?.DV_FileType === 'PDF' && latestVersion.DV_FileUrl ? (
+          <iframe
+            src={latestVersion.DV_FileUrl}
             className="w-full h-full border-none relative z-10"
             title={`Aperçu de ${doc.DOC_Title}`}
             aria-label={`Document ${doc.DOC_Title}`}
+            sandbox="allow-same-origin allow-scripts"
           />
         ) : (
           <div className="text-center p-8">
             <FileText size={48} md:size={64} className="mx-auto mb-4 text-slate-600" aria-hidden="true" />
             <p className="text-[10px] md:text-[11px] text-slate-400 italic mb-4">
-              Aperçu non disponible pour le format {latestVersion?.DV_FileType}
+              Aperçu non disponible pour le format {latestVersion?.DV_FileType || 'inconnu'}
             </p>
-            <button 
+            <button
               type="button"
               onClick={onDownload}
               className="px-6 py-3 bg-blue-600 rounded-xl text-[9px] font-black text-white uppercase italic border-none cursor-pointer hover:bg-blue-500 transition-all"
@@ -1005,7 +1001,7 @@ function PreviewMatrixModal({ doc, onClose, onDownload }: PreviewModalProps) {
 }
 
 // ============================================================================
-// COMPOSANT PRINCIPAL
+// COMPOSANT PRINCIPAL : GEDMatrixPage
 // ============================================================================
 
 export default function GEDMatrixPage() {
@@ -1016,10 +1012,12 @@ export default function GEDMatrixPage() {
 
   // Actions handlers
   const handleDownload = useCallback(async (doc: SMI_Document, versionId?: string) => {
+    if (typeof window === 'undefined') return;
+    
     const toastId = toast.loading('Extraction sécurisée du document...');
     try {
       const targetV = versionId || doc.DOC_Versions[0]?.DV_Id;
-      const res = await apiClient.get(`/documents/${doc.DOC_Id}/versions/${targetV}/download`, { 
+      const res = await apiClient.get(`/documents/${doc.DOC_Id}/versions/${targetV}/download`, {
         responseType: 'blob',
       });
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -1049,8 +1047,8 @@ export default function GEDMatrixPage() {
     }
   };
 
-  // Loading state
-  if (loading && documents.length === 0) {
+  // Loading state - SSR safe
+  if (loading && documents.length === 0 && typeof window !== 'undefined') {
     return (
       <div className="h-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-4 md:gap-6" role="status" aria-live="polite">
         <Loader2 className="animate-spin text-blue-500" size={40} md:size={48} aria-hidden="true" />
@@ -1089,19 +1087,19 @@ export default function GEDMatrixPage() {
           <div className="relative flex-1 xl:w-64 lg:w-80">
             <label htmlFor="doc-search" className="sr-only">Rechercher un document</label>
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} aria-hidden="true" />
-            <input 
+            <input
               id="doc-search"
               type="search"
               value={filters.search}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setFilters(f => ({ ...f, search: e.target.value }))}
-              placeholder="RÉFÉRENCE OU TITRE..." 
+              placeholder="RÉFÉRENCE OU TITRE..."
               className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 md:pl-12 pr-4 text-[8px] md:text-[9px] font-black uppercase outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30 transition-all text-white italic placeholder:text-slate-600"
               aria-label="Filtrer les documents par référence ou titre"
             />
           </div>
           
           {/* Actions */}
-          <button 
+          <button
             type="button"
             onClick={handleRefresh}
             className="p-2.5 md:p-3 bg-white/5 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-white/10 text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -1111,12 +1109,12 @@ export default function GEDMatrixPage() {
             <RefreshCw size={16} md:size={18} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           </button>
           
-          <button 
+          <button
             type="button"
             onClick={() => setModal({ type: 'create', doc: null })}
             className="bg-blue-600 hover:bg-white hover:text-blue-700 px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-[8px] md:text-[9px] font-black uppercase italic border-none text-white cursor-pointer active:scale-95 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
-            <Plus size={16} md:size={18} strokeWidth={3} aria-hidden="true" /> 
+            <Plus size={16} md:size={18} strokeWidth={3} aria-hidden="true" />
             <span className="hidden sm:inline">Nouveau</span>
           </button>
         </div>
@@ -1127,14 +1125,14 @@ export default function GEDMatrixPage() {
         {/* Category filters */}
         <div className="flex gap-1.5 md:gap-2">
           {CATEGORY_OPTIONS.slice(0, 5).map((cat) => (
-            <button 
+            <button
               key={cat.value}
               type="button"
               onClick={() => setFilters(f => ({ ...f, category: cat.value }))}
               className={cn(
                 "px-3 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[7px] md:text-[8px] font-black uppercase italic transition-all border tracking-widest cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400",
-                filters.category === cat.value 
-                  ? "bg-blue-600 border-blue-600 text-white" 
+                filters.category === cat.value
+                  ? "bg-blue-600 border-blue-600 text-white"
                   : "bg-white/5 border-white/10 text-slate-500 hover:text-white"
               )}
               aria-pressed={filters.category === cat.value}
@@ -1147,18 +1145,18 @@ export default function GEDMatrixPage() {
         {/* Right controls */}
         <div className="flex items-center gap-2 md:gap-4">
           {/* Overdue filter */}
-          <button 
+          <button
             type="button"
             onClick={() => setFilters(f => ({ ...f, overdue: !f.overdue }))}
             className={cn(
               "flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-lg md:rounded-xl text-[7px] md:text-[8px] font-black uppercase transition-all border cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0B0F1A]",
-              filters.overdue 
-                ? "bg-rose-500 border-rose-500 text-white" 
+              filters.overdue
+                ? "bg-rose-500 border-rose-500 text-white"
                 : "bg-white/5 border-white/10 text-rose-400 hover:text-rose-300"
             )}
             aria-pressed={filters.overdue}
           >
-            <AlertTriangle size={10} md:size={12} aria-hidden="true" /> 
+            <AlertTriangle size={10} md:size={12} aria-hidden="true" />
             <span className="hidden sm:inline">Revues échues</span>
           </button>
           
@@ -1166,7 +1164,7 @@ export default function GEDMatrixPage() {
           
           {/* View toggle */}
           <div className="flex bg-black/40 rounded-lg md:rounded-xl p-1 border border-white/10" role="tablist" aria-label="Mode d'affichage">
-            <button 
+            <button
               type="button"
               onClick={() => setViewMode('grid')}
               role="tab"
@@ -1179,7 +1177,7 @@ export default function GEDMatrixPage() {
             >
               <LayoutGrid size={14} md:size={16} aria-hidden="true"/>
             </button>
-            <button 
+            <button
               type="button"
               onClick={() => setViewMode('list')}
               role="tab"
@@ -1200,16 +1198,16 @@ export default function GEDMatrixPage() {
       <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#0B0F1A]">
         {documents.length > 0 ? (
           <div className={cn(
-            "gap-4 md:gap-6", 
-            viewMode === 'grid' 
-              ? "grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3" 
+            "gap-4 md:gap-6",
+            viewMode === 'grid'
+              ? "grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3"
               : "flex flex-col"
           )}>
             {documents.map((doc) => (
-              <DocumentNode 
-                key={doc.DOC_Id} 
-                doc={doc} 
-                viewMode={viewMode} 
+              <DocumentNode
+                key={doc.DOC_Id}
+                doc={doc}
+                viewMode={viewMode}
                 onAction={handleAction}
                 onDownload={handleDownload}
               />
@@ -1224,7 +1222,7 @@ export default function GEDMatrixPage() {
                 : 'Aucune information documentée scellée'}
             </p>
             {!filters.search && filters.category === 'ALL' && filters.status === 'ALL' && !filters.overdue && (
-              <button 
+              <button
                 type="button"
                 onClick={() => setModal({ type: 'create', doc: null })}
                 className="mt-3 md:mt-4 text-[8px] md:text-[9px] text-blue-400 hover:text-blue-300 uppercase tracking-widest italic underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded px-3 py-1"
@@ -1243,39 +1241,39 @@ export default function GEDMatrixPage() {
         </footer>
       </main>
 
-      {/* 🚀 MODALS */}
-      {modal.type === 'create' && (
-        <DocumentModal 
-          onClose={() => setModal({ type: null, doc: null })} 
-          onSuccess={refetch} 
+      {/* 🚀 MODALS - SSR Safe Guards */}
+      {typeof window !== 'undefined' && modal.type === 'create' && (
+        <DocumentModal
+          onClose={() => setModal({ type: null, doc: null })}
+          onSuccess={refetch}
         />
       )}
-      {modal.type === 'edit' && modal.doc && (
-        <DocumentModal 
+      {typeof window !== 'undefined' && modal.type === 'edit' && modal.doc && (
+        <DocumentModal
           initialData={modal.doc}
-          onClose={() => setModal({ type: null, doc: null })} 
-          onSuccess={refetch} 
+          onClose={() => setModal({ type: null, doc: null })}
+          onSuccess={refetch}
         />
       )}
-      {modal.type === 'revision' && modal.doc && (
-        <DocumentModal 
+      {typeof window !== 'undefined' && modal.type === 'revision' && modal.doc && (
+        <DocumentModal
           initialData={{ ...modal.doc, DOC_Status: 'DRAFT', DOC_Reference: `${modal.doc.DOC_Reference}-REV` }}
-          onClose={() => setModal({ type: null, doc: null })} 
-          onSuccess={refetch} 
+          onClose={() => setModal({ type: null, doc: null })}
+          onSuccess={refetch}
         />
       )}
-      {modal.type === 'history' && modal.doc && (
-        <HistoryTimelineModal 
-          doc={modal.doc} 
-          onClose={() => setModal({ type: null, doc: null })} 
-          onDownload={(vId: string) => handleDownload(modal.doc!, vId)} 
+      {typeof window !== 'undefined' && modal.type === 'history' && modal.doc && (
+        <HistoryTimelineModal
+          doc={modal.doc}
+          onClose={() => setModal({ type: null, doc: null })}
+          onDownload={(vId: string) => handleDownload(modal.doc!, vId)}
         />
       )}
-      {modal.type === 'preview' && modal.doc && (
-        <PreviewMatrixModal 
-          doc={modal.doc} 
-          onClose={() => setModal({ type: null, doc: null })} 
-          onDownload={() => handleDownload(modal.doc!)} 
+      {typeof window !== 'undefined' && modal.type === 'preview' && modal.doc && (
+        <PreviewMatrixModal
+          doc={modal.doc}
+          onClose={() => setModal({ type: null, doc: null })}
+          onDownload={() => handleDownload(modal.doc!)}
         />
       )}
 

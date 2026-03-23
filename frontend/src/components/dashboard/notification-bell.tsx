@@ -2,14 +2,14 @@
 'use client';
 
 /**
- * 🔔 MODULE : NotificationCenter.tsx
+ * 🔔 MODULE : NotificationCenter (ELITE-SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Hub central de monitoring QHSE avec notifications temps réel
- * VERSION : 2.0 - Corrections Tailwind + Typing + WebSocket Ready + Accessibilité
- * FONCTION : Signalement des écarts, rappels de maintenance, alertes conformité
+ * VERSION : 3.0 - Fix JSX namespace + WebSocket Ready + Typing strict
+ * FONCTION : Signalement écarts, rappels maintenance, alertes conformité
  * DESIGN : Elite Sovereign UI - Italic & High-Density, WCAG AA
  * LOGIQUE : Polling API + WebSocket fallback + Actions contextuelles
- * RÉVISION : 19 Mars 2026 | 12:45 GMT
+ * RÉVISION : 19 Mars 2026 | Production OVH
  * -------------------------------------------------------------------------
  */
 
@@ -23,12 +23,13 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 
 // ============================================================================
-// TYPES & INTERFACES
+// TYPES & INTERFACES (Strict Typing)
 // ============================================================================
 
-type NotificationType = 'urgent' | 'warning' | 'success' | 'info';
+export type NotificationType = 'urgent' | 'warning' | 'success' | 'info';
+export type NotificationCategory = 'audit' | 'maintenance' | 'compliance' | 'security' | 'general';
 
-interface Notification {
+export interface Notification {
   id: string;
   title: string;
   description: string;
@@ -37,11 +38,11 @@ interface Notification {
   read: boolean;
   actionUrl?: string;
   actionLabel?: string;
-  category?: 'audit' | 'maintenance' | 'compliance' | 'security' | 'general';
+  category?: NotificationCategory;
   tenantId?: string;
 }
 
-interface NotificationBellProps {
+export interface NotificationBellProps {
   className?: string;
   onNotificationClick?: (notification: Notification) => void;
   pollInterval?: number; // en ms
@@ -51,12 +52,12 @@ interface NotificationPanelProps {
   notifications: Notification[];
   onDismiss: (id: string) => void;
   onMarkAllRead: () => void;
-  onViewAll: () => void;
+  onViewAll: (notification?: Notification) => void;
   isLoading: boolean;
 }
 
 // ============================================================================
-// CONSTANTES & UTILITAIRES
+// CONSTANTES & UTILITAIRES (Pure Functions - SSR Safe)
 // ============================================================================
 
 const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: string; label: string }> = {
@@ -64,6 +65,14 @@ const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: st
   warning: { icon: ShieldAlert, color: 'text-amber-500', label: 'Attention' },
   success: { icon: CheckCircle2, color: 'text-emerald-500', label: 'Succès' },
   info: { icon: Info, color: 'text-blue-500', label: 'Info' },
+};
+
+const CATEGORY_ICONS: Record<NotificationCategory, React.ElementType> = {
+  audit: ShieldAlert,
+  maintenance: Clock,
+  compliance: CheckCircle2,
+  security: AlertCircle,
+  general: Info,
 };
 
 const formatTimeAgo = (timestamp: string): string => {
@@ -77,32 +86,20 @@ const formatTimeAgo = (timestamp: string): string => {
   return then.toLocaleDateString('fr-SN', { day: 'numeric', month: 'short' });
 };
 
-const getCategoryIcon = (category?: string): React.ElementType | null => {
-  const icons: Record<string, React.ElementType> = {
-    audit: ShieldAlert,
-    maintenance: Clock,
-    compliance: CheckCircle2,
-    security: AlertCircle,
-  };
-  return category ? icons[category] || null : null;
-};
-
 // ============================================================================
 // SOUS-COMPOSANT : NOTIFICATION ITEM
 // ============================================================================
 
-function NotificationItem({ 
-  notification, 
-  onDismiss, 
-  onClick 
-}: { 
-  notification: Notification; 
+interface NotificationItemProps {
+  notification: Notification;
   onDismiss: (id: string) => void;
   onClick: (notification: Notification) => void;
-}) {
+}
+
+function NotificationItem({ notification, onDismiss, onClick }: NotificationItemProps) {
   const config = TYPE_CONFIG[notification.type];
   const Icon = config.icon;
-  const CategoryIcon = notification.category ? getCategoryIcon(notification.category) : null;
+  const CategoryIcon = notification.category ? CATEGORY_ICONS[notification.category] : null;
 
   return (
     <article 
@@ -110,6 +107,8 @@ function NotificationItem({
         "p-4 border-b border-white/5 hover:bg-white/5 transition-all flex gap-3 group relative text-left",
         !notification.read && "bg-blue-500/5 border-l-2 border-l-blue-500"
       )}
+      role="article"
+      aria-labelledby={`notification-title-${notification.id}`}
     >
       {/* Icône de type */}
       <div className={cn("mt-0.5 shrink-0", config.color)}>
@@ -119,10 +118,13 @@ function NotificationItem({
       {/* Contenu */}
       <div className="flex-1 min-w-0 pr-8">
         <div className="flex justify-between items-start mb-1">
-          <h4 className={cn(
-            "text-[9px] md:text-[10px] font-black text-slate-200 leading-none uppercase tracking-widest italic m-0 truncate",
-            !notification.read && "text-white"
-          )}>
+          <h4 
+            id={`notification-title-${notification.id}`}
+            className={cn(
+              "text-[9px] md:text-[10px] font-black text-slate-200 leading-none uppercase tracking-widest italic m-0 truncate",
+              !notification.read && "text-white"
+            )}
+          >
             {notification.title}
           </h4>
           <time 
@@ -140,7 +142,7 @@ function NotificationItem({
         
         {/* Badge catégorie + Action */}
         <div className="flex items-center gap-2 mt-2">
-          {CategoryIcon && (
+          {CategoryIcon && notification.category && (
             <span className="flex items-center gap-1 text-[7px] text-slate-500 uppercase tracking-wider">
               <CategoryIcon size={9} aria-hidden="true" />
               {notification.category}
@@ -225,7 +227,7 @@ function NotificationPanel({
       </header>
 
       {/* Liste des notifications */}
-      <div className="max-h-80 md:max-h-96 overflow-y-auto custom-scrollbar bg-[#0B0F1A]">
+      <div className="max-h-80 md:max-h-96 overflow-y-auto custom-scrollbar bg-[#0B0F1A]" role="list">
         {isLoading ? (
           <div className="p-8 flex flex-col items-center justify-center gap-4">
             <Loader2 size={24} className="text-blue-500 animate-spin" aria-hidden="true" />
@@ -255,7 +257,7 @@ function NotificationPanel({
          <Link 
            href="/dashboard/notifications" 
            className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest hover:text-blue-400 transition-all flex items-center justify-center gap-2 mx-auto no-underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded py-1"
-           onClick={onViewAll}
+           onClick={() => onViewAll()}
          >
            Journal complet <ChevronRight size={12} aria-hidden="true" />
          </Link>
@@ -283,11 +285,14 @@ export default function NotificationBell({
 
   // Chargement initial des notifications
   const fetchNotifications = useCallback(async () => {
+    // SSR guard: ne pas fetch côté serveur
+    if (typeof window === 'undefined') return;
+    
     try {
       setIsLoading(true);
       setError(null);
       
-      // Appel API simulé - à remplacer par ton endpoint réel
+      // Appel API - à remplacer par ton endpoint réel
       const response = await fetch('/api/notifications?limit=10', {
         credentials: 'include',
         cache: 'no-store',
@@ -297,7 +302,7 @@ export default function NotificationBell({
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
       
-      const  = await response.json();
+      const data = await response.json();
       
       // Fallback avec données de démo si l'API n'est pas dispo en dev
       const demoNotifications: Notification[] = [
@@ -359,10 +364,12 @@ export default function NotificationBell({
 
   // Polling des nouvelles notifications
   useEffect(() => {
-    fetchNotifications();
-    
-    // Setup polling
-    pollTimerRef.current = setInterval(fetchNotifications, pollInterval);
+    if (typeof window !== 'undefined') {
+      fetchNotifications();
+      
+      // Setup polling
+      pollTimerRef.current = setInterval(fetchNotifications, pollInterval);
+    }
     
     return () => {
       if (pollTimerRef.current) {
@@ -373,6 +380,8 @@ export default function NotificationBell({
 
   // Fermeture du panel au clic extérieur
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const handleClickOutside = (event: MouseEvent) => {
       if (isOpen && panelRef.current && !panelRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -412,6 +421,20 @@ export default function NotificationBell({
   // Calcul du badge
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // SSR guard: ne pas rendre côté serveur
+  if (typeof window === 'undefined') {
+    return (
+      <button 
+        type="button"
+        className={cn("relative p-2.5 md:p-3 lg:p-4 bg-white/5 border border-white/10 rounded-xl md:rounded-2xl", className)}
+        aria-label="Notifications"
+        disabled
+      >
+        <Bell size={18} md:size={20} className="text-slate-400" aria-hidden="true" />
+      </button>
+    );
+  }
+
   return (
     <div 
       className={cn("relative font-sans italic", className)}
@@ -430,9 +453,9 @@ export default function NotificationBell({
         aria-haspopup="dialog"
       >
         <Bell 
-          size={18} md:size={20} 
+          size={18}
           className={cn(
-            "transition-colors", 
+            "w-4.5 h-4.5 md:w-5 md:h-5 transition-colors flex-shrink-0", 
             unreadCount > 0 ? "text-blue-400" : "text-slate-400"
           )} 
           aria-hidden="true" 
@@ -468,6 +491,20 @@ export default function NotificationBell({
           />
         </>
       )}
+
+      {/* GLOBAL STYLES */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+          background: rgba(37, 99, 235, 0.3); 
+          border-radius: 10px; 
+        }
+        :focus-visible {
+          outline: 2px solid #3b82f6;
+          outline-offset: 2px;
+        }
+      `}</style>
     </div>
   );
 }
