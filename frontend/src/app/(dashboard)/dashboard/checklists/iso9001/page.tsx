@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -158,7 +158,7 @@ function KpiStat({ title, value, icon: Icon, color, subtext }: KpiStatProps) {
   return (
     <div className="flex items-center gap-3 md:gap-4 bg-[#0F172A]/50 p-3 md:p-4 rounded-2xl border border-white/5">
       <div className={cn("w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0", colorMap[color])}>
-        <Icon size={16} md:size={18} aria-hidden="true" />
+        <Icon size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" aria-hidden="true" />
       </div>
       <div className="min-w-0">
         <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest m-0">{title}</p>
@@ -514,7 +514,7 @@ export default function ISO9001ChecklistPage() {
               aria-label="Actualiser la checklist"
               title="Synchroniser"
             >
-              <RefreshCw size={16} md:size={20} className={cn(loading && "animate-spin")} aria-hidden="true" />
+              <RefreshCw size={16} className="w-16 h-16 md:w-20 md:h-20 flex-shrink-0" className={cn(loading && "animate-spin")} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -613,7 +613,7 @@ export default function ISO9001ChecklistPage() {
                 role="status"
                 aria-live="polite"
               >
-                <Search size={40} md:size={48} className="mb-3 md:mb-4 opacity-20" aria-hidden="true" />
+                <Search size={40} className="w-40 h-40 md:w-48 md:h-48 flex-shrink-0" className="mb-3 md:mb-4 opacity-20" aria-hidden="true" />
                 <p className="text-[9px] md:text-[10px] font-black uppercase italic tracking-widest text-center px-4">
                   {searchTerm 
                     ? 'Aucune exigence ne correspond au filtre' 

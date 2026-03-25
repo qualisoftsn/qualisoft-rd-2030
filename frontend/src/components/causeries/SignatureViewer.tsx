@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 🖋️ MODULE : src/components/causeries/SignatureViewer.tsx
  * -------------------------------------------------------------------------
  * FONCTION : Affichage et authentification de la signature participant.

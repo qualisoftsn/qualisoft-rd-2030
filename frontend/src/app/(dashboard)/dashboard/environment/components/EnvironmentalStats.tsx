@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -113,7 +113,7 @@ function MetricCard({ metric }: MetricCardProps) {
       aria-labelledby={`metric-${metric.label.replace(/\s+/g, '-').toLowerCase()}`}
     >
       <div className={cn("p-3 md:p-4 rounded-xl md:rounded-2xl bg-white/5 mb-4 md:mb-5", metric.color)}>
-        <Icon size={24} md:size={28} aria-hidden="true" />
+        <Icon size={24} className="w-24 h-24 md:w-28 md:h-28 flex-shrink-0" aria-hidden="true" />
       </div>
       
       <p id={`metric-${metric.label.replace(/\s+/g, '-').toLowerCase()}`} className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 md:mb-2 italic m-0">
@@ -126,7 +126,7 @@ function MetricCard({ metric }: MetricCardProps) {
       
       {metric.alert && metric.alertMessage && (
         <p className="text-[7px] md:text-[8px] font-black text-amber-400 uppercase mt-2 md:mt-3 flex items-center gap-1 md:gap-1.5" role="status">
-          <AlertTriangle size={10} md:size={12} aria-hidden="true" /> 
+          <AlertTriangle size={10} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" aria-hidden="true" /> 
           <span className="truncate max-w-[120px]">{metric.alertMessage}</span>
         </p>
       )}

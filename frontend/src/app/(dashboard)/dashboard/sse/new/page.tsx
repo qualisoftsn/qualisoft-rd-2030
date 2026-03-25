@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 🚨 MODULE : NEW SSE INCIDENT PAGE (ELITE SDE)
  * -------------------------------------------------------------------------
  * RÔLE : Initialisation de l'investigation §10.2.

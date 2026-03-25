@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -415,7 +415,7 @@ export default function ISO14001ChecklistPage() {
       <header className="shrink-0 p-4 md:p-6 lg:p-8 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-md z-20 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
         <div className="flex items-start gap-4 md:gap-5">
            <div className="bg-gradient-to-br from-green-600 to-emerald-800 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-green-900/20 border border-green-500/20 shrink-0">
-             <Leaf size={24} md:size={32} className="text-white" aria-hidden="true" />
+             <Leaf size={24} className="w-24 h-24 md:w-32 md:h-32 flex-shrink-0" className="text-white" aria-hidden="true" />
            </div>
            <div>
               <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black uppercase italic tracking-tighter m-0 leading-none text-white">

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 🚀 MODULE : WelcomeModal.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Onboarding visuel et confirmation de scellage d'instance.

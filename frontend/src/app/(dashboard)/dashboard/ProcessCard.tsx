@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 📊 COMPOSANT : ProcessCard.tsx
  * -------------------------------------------------------------------------
  * FONCTION : Monitoring Performance (KPI) & Risques ISO §4.4 / §9.1.

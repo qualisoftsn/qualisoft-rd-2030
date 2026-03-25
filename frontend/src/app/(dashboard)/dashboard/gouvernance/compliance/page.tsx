@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ⚖️ MODULE : VEILLE LÉGALE & RÉGLEMENTAIRE §6.1.3 (ELITE-SDE)

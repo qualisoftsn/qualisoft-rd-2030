@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 🛰️ MODULE API : DASHBOARD RECENT ACTIVITY (elite-sde)
  * -------------------------------------------------------------------------
  * RÔLE : Extraction du flux d'activités (Mocked pour l'instant).

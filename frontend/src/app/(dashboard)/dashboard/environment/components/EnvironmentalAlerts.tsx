@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -123,7 +123,7 @@ function AlertCard({ alert, onClick }: AlertCardProps) {
       tabIndex={0}
     >
       <div className={cn("p-2.5 md:p-3 rounded-xl shadow-inner shrink-0", config.iconBg)}>
-        <Icon size={18} md:size={20} className={cn("animate-pulse", config.text)} aria-hidden="true" />
+        <Icon size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" className={cn("animate-pulse", config.text)} aria-hidden="true" />
       </div>
       
       <div className="space-y-1 md:space-y-1.5 min-w-0 flex-1">

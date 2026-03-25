@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 🚀 MODULE : ProspectConsole.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Interface de démonstration des avantages stratégiques RD-2026.

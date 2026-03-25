@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -496,7 +496,7 @@ export default function EnvironmentAnalyticsPage() {
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] gap-6" role="status" aria-live="polite">
-        <Loader2 className="animate-spin text-emerald-500" size={48} md:size={64} strokeWidth={1} aria-hidden="true" />
+        <Loader2 className="animate-spin text-emerald-500" size={48} className="w-48 h-48 md:w-64 md:h-64 flex-shrink-0" strokeWidth={1} aria-hidden="true" />
         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.8em] text-emerald-500 animate-pulse italic text-center px-4">
           Analyse de Conformité SDE...
         </span>

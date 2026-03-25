@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ♻️ FORMULAIRE DE CRÉATION DÉCHETS (SDE-CORE)
  * FIX : Design Matrix Sombre, Z-index SDE, Validation ISO 14001.

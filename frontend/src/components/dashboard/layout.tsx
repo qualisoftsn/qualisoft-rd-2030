@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
+﻿/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * 🛰️ MODULE : DashboardLayout.tsx
@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 
 // ✅ IMPORT : Sidebar autonome (ne nécessite plus de prop 'user')
-import Sidebar from "@/components/layout/sidebar";
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function DashboardLayout({
   children,

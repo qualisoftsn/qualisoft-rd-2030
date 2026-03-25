@@ -1,3 +1,4 @@
+﻿/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
@@ -228,12 +229,12 @@ function NotificationPanel({
       <div className="max-h-80 md:max-h-96 overflow-y-auto custom-scrollbar bg-[#0B0F1A]">
         {isLoading ? (
           <div className="p-8 flex flex-col items-center justify-center gap-4">
-            <Loader2 size={24} className="text-blue-500 animate-spin w-[24px] h-[24px] md:w-[28px] md:h-[28px]" aria-hidden="true" />
+            <Loader2 size={24} className="text-blue-500 animate-spin w-6 h-6 md:w-7 md:h-7" aria-hidden="true" />
             <p className="text-[9px] text-slate-500 uppercase tracking-widest italic">Chargement...</p>
           </div>
         ) : notifications.length === 0 ? (
           <div className="p-8 md:p-12 text-center space-y-4">
-            <Bell className="mx-auto opacity-10 text-slate-400 w-[40px] h-[40px] md:w-[48px] md:h-[48px]" aria-hidden="true" />
+            <Bell className="mx-auto opacity-10 text-slate-400 w-10 h-10 md:w-12 md:h-12" aria-hidden="true" />
             <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest italic leading-relaxed">
               Le registre est vierge <br/> Aucun signalement actif
             </p>
@@ -257,7 +258,7 @@ function NotificationPanel({
            className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest hover:text-blue-400 transition-all flex items-center justify-center gap-2 mx-auto no-underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded py-1"
            onClick={onViewAll}
          >
-           Journal complet <ChevronRight size={12} className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]" aria-hidden="true" />
+           Journal complet <ChevronRight size={12} className="w-3 h-3 md:w-3.5 md:h-3.5" aria-hidden="true" />
          </Link>
       </footer>
     </div>
@@ -432,7 +433,7 @@ export default function NotificationBell({
         <Bell 
           size={18} 
           className={cn(
-            "transition-colors w-[18px] h-[18px] md:w-[20px] md:h-[20px] lg:w-[24px] lg:h-[24px]", 
+            "transition-colors w-4.5 h-4.5 md:w-5 md:h-5 lg:w-6 lg:h-6", 
             unreadCount > 0 ? "text-blue-400" : "text-slate-400"
           )} 
           aria-hidden="true" 

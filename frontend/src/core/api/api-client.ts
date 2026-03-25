@@ -123,6 +123,7 @@ export type ApiResponse<T = any> = {
 };
 
 export type ApiError = {
+  response: any;
   message: string;
   code?: string;
   status?: number;

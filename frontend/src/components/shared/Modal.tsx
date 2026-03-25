@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 📦 MODULE : Modal.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Isolation transactionnelle pour les formulaires de saisie.

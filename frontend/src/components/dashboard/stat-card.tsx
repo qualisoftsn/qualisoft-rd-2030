@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 🎴 MODULE : StatCard.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Affichage de KPI critique avec filigrane dynamique.

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 📋 COMPOSANT : ActionList.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Reporting tabulaire haute fidélité des actions correctives.

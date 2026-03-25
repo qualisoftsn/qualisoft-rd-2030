@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -359,7 +359,7 @@ export default function AuditsPage() {
         {/* FORMULAIRE */}
         <aside className="w-full xl:w-80 lg:w-96 p-4 md:p-6 lg:p-8 bg-[#0F172A]/50 border-r border-white/5 overflow-y-auto custom-scrollbar shrink-0">
           <h2 className="text-lg md:text-xl font-black uppercase italic mb-6 md:mb-8 flex items-center gap-3 m-0 text-white">
-            <Plus className="text-blue-500" size={20} md:size={24} aria-hidden="true" /> Planifier
+            <Plus className="text-blue-500" size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" /> Planifier
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5" noValidate>
@@ -482,7 +482,7 @@ export default function AuditsPage() {
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 xl:p-12 bg-[#0B0F1A]">
           <div className="flex items-center justify-between mb-6 md:mb-8">
             <h2 className="text-xl md:text-2xl font-black uppercase italic flex items-center gap-3 m-0 text-white">
-              <ClipboardCheck className="text-blue-500" size={24} md:size={28} aria-hidden="true" /> 
+              <ClipboardCheck className="text-blue-500" size={24} className="w-24 h-24 md:w-28 md:h-28 flex-shrink-0" aria-hidden="true" /> 
               Registre Souverain <span className="text-slate-500 font-normal not-italic text-sm md:text-base">({audits.length})</span>
             </h2>
           </div>
@@ -490,7 +490,7 @@ export default function AuditsPage() {
           <div className="grid grid-cols-1 gap-4 md:gap-6">
             {audits.length > 0 ? audits.map((audit) => <AuditCard key={audit.AU_Id} audit={audit} />) : (
               <div className="h-48 md:h-64 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center text-slate-500" role="status" aria-live="polite">
-                <ClipboardCheck size={40} md:size={48} className="mb-3 md:mb-4 opacity-20" aria-hidden="true" />
+                <ClipboardCheck size={40} className="w-40 h-40 md:w-48 md:h-48 flex-shrink-0" className="mb-3 md:mb-4 opacity-20" aria-hidden="true" />
                 <p className="uppercase font-black text-xs md:text-sm tracking-widest m-0 text-center px-4">
                   {loading ? 'Chargement du registre...' : 'Aucun audit planifié dans le SMI'}
                 </p>

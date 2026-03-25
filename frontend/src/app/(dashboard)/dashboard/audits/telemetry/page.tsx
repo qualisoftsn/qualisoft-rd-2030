@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -124,7 +124,7 @@ function KpiCard({
         "w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center border border-white/5 transition-transform group-hover:scale-110",
         bg, color
       )}>
-        <Icon size={24} md:size={28} aria-hidden="true" />
+        <Icon size={24} className="w-24 h-24 md:w-28 md:h-28 flex-shrink-0" aria-hidden="true" />
       </div>
     </div>
   );
@@ -322,7 +322,7 @@ export default function AuditTelemetry() {
             
             <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 relative z-10">
               <div className="p-2 md:p-3 bg-blue-600/10 rounded-xl md:rounded-2xl text-blue-400">
-                <TrendingUp size={20} md:size={24} aria-hidden="true" />
+                <TrendingUp size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" />
               </div>
               <h3 className="text-sm md:text-base font-black uppercase tracking-widest italic m-0 text-white">
                 Score de conformité par Processus (%)

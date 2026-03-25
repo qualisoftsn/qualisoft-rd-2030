@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -215,7 +215,7 @@ export default function LandingView({
           aria-label={`Accueil ${config.name}`}
         >
           <div className={cn("drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]", config.accentColor)}>
-            <LogoIcon size={28} md:size={36} aria-hidden="true" />
+            <LogoIcon size={28} className="w-28 h-28 md:w-36 md:h-36 flex-shrink-0" aria-hidden="true" />
           </div>
           <span className="text-lg md:text-xl lg:text-2xl font-black uppercase tracking-tighter italic text-white group-hover:text-blue-300 transition-colors">
             QUALISOFT <span className={config.accentColor}>{config.slug.toUpperCase()}</span>
@@ -245,7 +245,7 @@ export default function LandingView({
         
         {/* Badge Instance */}
         <div className="flex items-center justify-center gap-2 md:gap-3 mb-6 md:mb-8 opacity-50">
-           <Globe size={12} md:size={14} className="shrink-0" aria-hidden="true" />
+           <Globe size={12} className="w-12 h-12 md:w-14 md:h-14 flex-shrink-0" className="shrink-0" aria-hidden="true" />
            <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.4em] truncate">
              Instance: {config.domain}
            </span>
@@ -277,7 +277,7 @@ export default function LandingView({
                 key={index}
                 className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-slate-300 hover:border-blue-500/30 hover:text-blue-300 transition-all"
               >
-                <FeatureIcon size={12} md:size={14} className="shrink-0" aria-hidden="true" />
+                <FeatureIcon size={12} className="w-12 h-12 md:w-14 md:h-14 flex-shrink-0" className="shrink-0" aria-hidden="true" />
                 {feature.label}
               </span>
             );
@@ -294,7 +294,7 @@ export default function LandingView({
               config.gradient
             )}
           >
-            {config.ctaPrimary} <ArrowRight size={16} md:size={18} aria-hidden="true" />
+            {config.ctaPrimary} <ArrowRight size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" aria-hidden="true" />
           </Link>
           
           <button 
@@ -302,7 +302,7 @@ export default function LandingView({
             onClick={handleSecondaryCta}
             className="bg-white/5 border border-white/10 px-6 md:px-10 lg:px-12 py-4 md:py-5 rounded-2xl md:rounded-3xl font-black uppercase text-[9px] md:text-[10px] italic text-slate-400 hover:text-white hover:border-white/30 transition-all flex items-center justify-center gap-3 cursor-pointer w-full sm:w-auto focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#0B0F1A]"
           >
-            <Database size={16} md:size={18} aria-hidden="true" /> {config.ctaSecondary}
+            <Database size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" aria-hidden="true" /> {config.ctaSecondary}
           </button>
         </div>
 
@@ -317,7 +317,7 @@ export default function LandingView({
                 key={i}
                 className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400"
               >
-                <CheckCircle2 size={10} md:size={12} className="text-emerald-500" aria-hidden="true" />
+                <CheckCircle2 size={10} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" className="text-emerald-500" aria-hidden="true" />
                 {cert}
               </span>
             ))}

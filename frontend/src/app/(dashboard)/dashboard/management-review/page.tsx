@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * 🏛️ MODULE : REVUE DE DIRECTION STRATÉGIQUE §9.3 (ELITE-SDE)

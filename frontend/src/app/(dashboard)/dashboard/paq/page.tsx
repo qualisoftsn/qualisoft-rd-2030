@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * 🛡️ MODULE : PILOTAGE DES PLANS D'ACTIONS QUALITÉ (PAQ)
  * -------------------------------------------------------------------------

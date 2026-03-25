@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 🛰️ MODULE : FeatureHighlight.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Présentation stratégique des capacités Matrix.

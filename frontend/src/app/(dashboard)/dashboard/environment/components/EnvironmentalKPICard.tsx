@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -151,7 +151,7 @@ export default function EnvironmentalKPICard({
           onClick && "group-hover:scale-110",
           `bg-gradient-to-br ${config.gradient}`
         )}>
-          <Icon size={20} md:size={24} aria-hidden="true" />
+          <Icon size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" />
         </div>
         {isoRef && (
           <span className="text-[7px] md:text-[8px] font-black bg-black/40 text-slate-500 px-2.5 md:px-3 py-1 rounded-full border border-white/5 italic">
@@ -188,11 +188,11 @@ export default function EnvironmentalKPICard({
       {/* Footer: Analytics + Trend */}
       <div className="flex items-center justify-between mt-6 md:mt-8 pt-4 border-t border-white/5">
         <p className="text-[8px] md:text-[9px] font-black uppercase italic text-slate-500 m-0 tracking-widest flex items-center gap-1.5 md:gap-2">
-          Matrix Analytics <ArrowUpRight size={10} md:size={12} aria-hidden="true" />
+          Matrix Analytics <ArrowUpRight size={10} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" aria-hidden="true" />
         </p>
         {trend && (
           <div className={cn("flex items-center text-[9px] md:text-[10px] font-black italic", trendConfig.color)}>
-            {TrendIcon && <TrendIcon size={12} md:size={14} className="mr-1" aria-hidden="true" />}
+            {TrendIcon && <TrendIcon size={12} className="w-12 h-12 md:w-14 md:h-14 flex-shrink-0" className="mr-1" aria-hidden="true" />}
             <span aria-label={`${trendConfig.label}: ${trend}`}>{trend}</span>
           </div>
         )}

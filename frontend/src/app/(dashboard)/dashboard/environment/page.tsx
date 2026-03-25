@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /**
@@ -315,7 +315,7 @@ function AlertBanner({ type, title, message, actionLabel, onAction }: AlertBanne
     role="alert"
     aria-live="polite"
     >
-      <Icon size={18} md:size={20} className={cn("shrink-0 mt-0.5", config.text)} aria-hidden="true" />
+      <Icon size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" className={cn("shrink-0 mt-0.5", config.text)} aria-hidden="true" />
       <div className="flex-1 min-w-0">
         <p className={cn("text-[9px] md:text-[10px] font-black uppercase tracking-wider m-0", config.text)}>
           {title}
@@ -682,7 +682,7 @@ export default function EnvironmentDashboardPage() {
         <header className="flex flex-col xl:flex-row justify-between xl:items-end gap-6 md:gap-8 border-b border-white/5 pb-6 md:pb-8">
           <div className="flex items-center gap-4 md:gap-5">
             <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-lg shadow-green-900/20 shrink-0">
-              <Leaf size={24} md:size={32} className="text-white" aria-hidden="true" />
+              <Leaf size={24} className="w-24 h-24 md:w-32 md:h-32 flex-shrink-0" className="text-white" aria-hidden="true" />
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black uppercase italic tracking-tighter m-0 leading-none text-white">
@@ -811,7 +811,7 @@ export default function EnvironmentDashboardPage() {
             target={`${formatNumber(stats.energyTarget, 'kWh')}`}
             progress={stats.energyProgress}
             trend={stats.trendEnergy}
-            icon={<Zap size={18} md:size={20} aria-hidden="true" />}
+            icon={<Zap size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" aria-hidden="true" />}
             color="amber"
             isoRef="ISO 14001 §9.1.1"
             alert={stats.energyConsumption > stats.energyTarget * 0.9}
@@ -823,7 +823,7 @@ export default function EnvironmentDashboardPage() {
             target={`${formatNumber(stats.waterTarget, 'm³')}`}
             progress={stats.waterProgress}
             trend={stats.trendWater}
-            icon={<Droplets size={18} md:size={20} aria-hidden="true" />}
+            icon={<Droplets size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" aria-hidden="true" />}
             color="blue"
             isoRef="ISO 14001 §9.1.1"
             alert={stats.waterConsumption > stats.waterTarget * 0.9}
@@ -835,7 +835,7 @@ export default function EnvironmentDashboardPage() {
             target={`${formatNumber(stats.wasteTarget, 'kg')}`}
             progress={stats.wasteProgress}
             trend={stats.trendRecycling}
-            icon={<Flame size={18} md:size={20} aria-hidden="true" />}
+            icon={<Flame size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" aria-hidden="true" />}
             color="rose"
             isoRef="ISO 14001 §8.1"
             alert={stats.totalWaste > stats.wasteTarget * 0.9}
@@ -847,7 +847,7 @@ export default function EnvironmentDashboardPage() {
             target={`${stats.recyclingTarget}%`}
             progress={stats.recyclingRate}
             trend={stats.trendRecycling}
-            icon={<Recycle size={18} md:size={20} aria-hidden="true" />}
+            icon={<Recycle size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" aria-hidden="true" />}
             color="emerald"
             isoRef="ISO 14001 §8.1"
             alert={stats.recyclingRate < stats.recyclingTarget}
@@ -861,7 +861,7 @@ export default function EnvironmentDashboardPage() {
           <section className="bg-[#0F172A]/50 border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-7 lg:p-8 backdrop-blur-sm">
             <div className="flex justify-between items-center mb-6 md:mb-8">
               <h2 className="text-lg md:text-xl font-black uppercase italic flex items-center gap-3 m-0 text-white">
-                <div className="p-2 bg-amber-500/10 rounded-xl"><Zap className="text-amber-400" size={18} md:size={20} aria-hidden="true" /></div>
+                <div className="p-2 bg-amber-500/10 rounded-xl"><Zap className="text-amber-400" size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" aria-hidden="true" /></div>
                 Consommations
               </h2>
               <button 
@@ -892,7 +892,7 @@ export default function EnvironmentDashboardPage() {
           <section className="bg-[#0F172A]/50 border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-7 lg:p-8 backdrop-blur-sm">
             <div className="flex justify-between items-center mb-6 md:mb-8">
               <h2 className="text-lg md:text-xl font-black uppercase italic flex items-center gap-3 m-0 text-white">
-                <div className="p-2 bg-green-500/10 rounded-xl"><Recycle className="text-green-400" size={18} md:size={20} aria-hidden="true" /></div>
+                <div className="p-2 bg-green-500/10 rounded-xl"><Recycle className="text-green-400" size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" aria-hidden="true" /></div>
                 Déchets
               </h2>
               <button 
@@ -935,7 +935,7 @@ export default function EnvironmentDashboardPage() {
         <section className="bg-[#0F172A]/50 border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-7 lg:p-8 backdrop-blur-sm overflow-hidden">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 md:mb-8">
             <h2 className="text-lg md:text-xl font-black uppercase italic flex items-center gap-3 m-0 text-white">
-              <div className="p-2 bg-rose-500/10 rounded-xl"><AlertTriangle className="text-rose-400" size={18} md:size={20} aria-hidden="true" /></div>
+              <div className="p-2 bg-rose-500/10 rounded-xl"><AlertTriangle className="text-rose-400" size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" aria-hidden="true" /></div>
               Incidents Récents
             </h2>
             <span className="text-[9px] font-black text-slate-500 uppercase px-3 md:px-4 py-1.5 md:py-2 bg-white/5 rounded-full">
@@ -1043,7 +1043,7 @@ export default function EnvironmentDashboardPage() {
         <section className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/20 rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10 relative overflow-hidden">
           <Leaf size={200} className="absolute -bottom-8 -right-8 opacity-[0.03] text-green-500 pointer-events-none" aria-hidden="true" />
           <h3 className="text-lg md:text-xl font-black uppercase italic mb-6 md:mb-8 flex items-center gap-3 relative z-10 m-0 text-white">
-            <Target className="text-green-400" size={24} md:size={28} aria-hidden="true" /> Actions Prioritaires ISO 14001
+            <Target className="text-green-400" size={24} className="w-24 h-24 md:w-28 md:h-28 flex-shrink-0" aria-hidden="true" /> Actions Prioritaires ISO 14001
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 relative z-10">
@@ -1092,11 +1092,11 @@ export default function EnvironmentDashboardPage() {
         <footer className="pt-6 md:pt-8 border-t border-white/5 text-center">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-6 mb-3 md:mb-4">
             <div className="flex items-center gap-2 text-[8px] md:text-[9px] font-black uppercase text-slate-500">
-              <CheckCircle className="text-emerald-500" size={14} md:size={16} aria-hidden="true" />
+              <CheckCircle className="text-emerald-500" size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" aria-hidden="true" />
               <span>Conforme ISO 14001:2015</span>
             </div>
             <div className="flex items-center gap-2 text-[8px] md:text-[9px] font-black uppercase text-slate-500">
-              <Leaf className="text-emerald-500" size={14} md:size={16} aria-hidden="true" />
+              <Leaf className="text-emerald-500" size={14} className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0" aria-hidden="true" />
               <span>Objectifs Environnementaux Suivis</span>
             </div>
           </div>

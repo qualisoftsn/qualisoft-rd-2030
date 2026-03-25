@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ⏳ MODULE : TrialCountdown.tsx
  * -------------------------------------------------------------------------
  * RÔLE : Monitoring temps réel et protection de l'instance.
