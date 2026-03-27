@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * 🛰️ ADMIN SERVICE - QUALISOFT ELITE RD-2026 (elite-sde)
  * -------------------------------------------------------------------------
@@ -23,7 +24,8 @@ import {
   TicketStatus,
   TransactionStatus,
   Role,
-  User
+  User,
+  Plan
 } from '@prisma/client';
 import { addMonths } from 'date-fns';
 import { JwtService } from '@nestjs/jwt';
@@ -33,6 +35,8 @@ import { EmailService } from '../common/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BackupTaskService } from './tasks/backup-task.service';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { InvoiceData } from './utils/pdf-invoice.util';
+import { ProformaData } from './utils/pdf-proforma.util';
 
 // Outils de génération PDF et Templates
 import { getInvoiceEmailTemplate } from './templates/invoice-email.template';
@@ -181,10 +185,94 @@ export class AdminService {
   // 3. FACTURATION, MASTER DATA & OUTILS
   // ==========================================
 
+  /**
+   * 🔧 TRANSFORMER TENANT → ProformaData
+   */
+  private transformToProformaData(
+    tenant: Tenant, 
+    plan: any, 
+    proformaNumber: string
+  ): ProformaData {
+    const planPrice = this.getPlanPrice(plan.name || plan);
+    const subtotal = planPrice;
+    const tax = subtotal * 0.18; // TVA 18%
+    const total = subtotal + tax;
+
+    return {
+      proformaNumber,
+      proformaDate: new Date().toISOString().split('T')[0],
+      validityDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      tenantName: tenant.T_Name,
+      tenantAddress: tenant.T_Address ?? undefined,
+      tenantEmail: tenant.T_Email ?? undefined,
+      items: [{
+        description: `Abonnement ${plan.name || plan} - ${tenant.T_Name}`,
+        quantity: 1,
+        unitPrice: subtotal,
+        total: subtotal,
+      }],
+      subtotal,
+      tax,
+      total,
+      currency: 'XOF',
+      notes: 'Valable 30 jours. Paiement à la commande.',
+    };
+  }
+
+  /**
+   * 🔧 TRANSFORMER TENANT → InvoiceData
+   */
+  private transformToInvoiceData(
+    tenant: Tenant, 
+    transaction: any, 
+    invoiceNumber: string
+  ): InvoiceData {
+    const subtotal = transaction.TX_Amount;
+    const tax = subtotal * 0.18;
+    const total = subtotal + tax;
+
+    return {
+      invoiceNumber,
+      invoiceDate: new Date(transaction.TX_Date).toISOString().split('T')[0],
+      dueDate: new Date(transaction.TX_DueDate || Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      tenantName: tenant.T_Name,
+      tenantAddress: tenant.T_Address ?? undefined,
+      tenantEmail: tenant.T_Email ?? undefined,
+      items: [{
+        description: `Transaction ${transaction.TX_Reference}`,
+        quantity: 1,
+        unitPrice: subtotal,
+        total: subtotal,
+      }],
+      subtotal,
+      tax,
+      total,
+      currency: 'XOF',
+      notes: transaction.TX_Notes || 'Paiement reçu. Merci.',
+    };
+  }
+
+  /**
+   * 💰 OBTENIR LE PRIX DU PLAN
+   */
+  private getPlanPrice(plan: string): number {
+    const prices: Record<string, number> = {
+      STARTER: 55000,
+      BUSINESS: 105000,
+      ENTERPRISE: 175000,
+      ELITE: 350000,
+    };
+    return prices[plan] || 55000;
+  }
+
   async processProformaRequest(tenantId: string, plan: any): Promise<{ success: boolean; message: string }> {
     const tenant = await this.getTenantById(tenantId);
     try {
-      const pdfBuffer = await generateProformaPDF(tenant, plan);
+      const proformaNumber = `PRO-${tenant.T_Id}-${Date.now()}`;
+      const proformaData = this.transformToProformaData(tenant, plan, proformaNumber);
+      const outputPath = `/tmp/proforma_${proformaNumber}.pdf`;
+      const pdfBuffer = await generateProformaPDF(proformaData, outputPath);
+      
       await this.emailService.sendMail({
         to: tenant.T_Email,
         subject: `📄 Facture Pro-forma Qualisoft RD 2030 - Plan ${plan.name}`,
@@ -222,11 +310,30 @@ export class AdminService {
       });
 
       try {
-        const invoiceBuffer = await generateInvoicePDF(updatedTenant, transaction);
+        const invoiceNumber = `INV-${updatedTenant.T_Id}-${Date.now()}`;
+        const invoiceData = this.transformToInvoiceData(updatedTenant, transaction, invoiceNumber);
+        const outputPath = `/tmp/invoice_${invoiceNumber}.pdf`;
+        const invoiceBuffer = await generateInvoicePDF(invoiceData, outputPath);
+        
         await this.emailService.sendMail({
           to: updatedTenant.T_Email,
           subject: `🚀 Bienvenue chez Qualisoft - Activation`,
-          html: getInvoiceEmailTemplate(updatedTenant.T_Name, transaction.TX_Amount.toLocaleString()),
+          html: getInvoiceEmailTemplate({
+            tenantName: updatedTenant.T_Name,
+            invoiceNumber: invoiceNumber,
+            invoiceDate: new Date().toLocaleDateString('fr-SN'),
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-SN'),
+            amount: transaction.TX_Amount,
+            currency: 'XOF',
+            items: [{
+              description: 'Transaction',
+              quantity: 1,
+              unitPrice: transaction.TX_Amount,
+              total: transaction.TX_Amount,
+            }],
+            paymentLink: `${process.env.APP_URL}/billing/pay/${transaction.TX_Id}`,
+            supportEmail: 'support@qualisoft.sn',
+          }),
           attachments: [{ filename: `Facture_${updatedTenant.T_Name}.pdf`, content: invoiceBuffer }]
         });
       } catch (e: any) {
@@ -253,7 +360,7 @@ export class AdminService {
           totalRevenue: isMaster ? `${revenue.toLocaleString()} XOF` : "•••••• XOF",
           activeCount: tenants.filter(t => t.T_SubscriptionStatus === SubscriptionStatus.ACTIVE).length,
           openTickets: tenants.reduce((acc, t) => acc + (t.T_Tickets?.filter(tk => tk.TK_Status === TicketStatus.OPEN).length || 0), 0),
-          backupsCount: (await this.backupTask.getBackupsList()).length
+          backupsCount: (await this.backupTask.listBackups()).length
         }
       };
     } catch (error: any) {
@@ -284,6 +391,6 @@ export class AdminService {
   }
 
   async getBackups(): Promise<any[]> { 
-    return this.backupTask.getBackupsList(); 
+    return this.backupTask.listBackups(); 
   }
 }
