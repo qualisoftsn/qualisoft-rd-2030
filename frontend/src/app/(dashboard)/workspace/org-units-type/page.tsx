@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useState, ChangeEvent, KeyboardEvent } from "react";
 import apiClient, { type ApiError } from "@/core/api/api-client";
 import { Network, Plus, RefreshCw, Search, Settings, ShieldCheck, Trash2, X, Edit3, Activity, AlertCircle, MoreVertical } from "lucide-react";
-import { toast, Toaster } from "sonner';
+import { toast, Toaster } from "sonner";
 import { cn } from '@/core/utils/cn';
 
 // ============================================================================
