@@ -2,50 +2,53 @@
 'use client';
 
 /**
- * 💡 MODULE : CHECKLIST D'AUDIT ISO 9001:2015 (elite-sde)
+ * 💡 MODULE : CHECKLIST D'AUDIT ISO 9001:2015 (ISO 9001 §9.2)
  * -------------------------------------------------------------------------
  * RÔLE : Évaluation de la conformité du Système de Management de la Qualité
- * VERSION : 2.0 - Typing strict + Design Elite + Accessibilité + CRUD activé
+ * VERSION : 3.0 - Typing strict Prisma + Design Elite + Accessibilité + CRUD complet
  * API : apiClient Axios avec interceptors (Bearer + X-Tenant-Id)
- * RÉVISION : 19 Mars 2026 | 15:30 GMT
+ * RÉVISION : 19 Mars 2026 | Production OVH
  * -------------------------------------------------------------------------
  */
 
-import React, { useEffect, useMemo, useState, useCallback, ChangeEvent } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, ChangeEvent, KeyboardEvent } from 'react';
 import {
   CheckCircle2, Download, RefreshCw, Search, Target, XCircle,
   Layers, Loader2, ExternalLink, Check, X, Minus, HelpCircle, ChevronRight,
-  AlertCircle, FileText, Printer
+  AlertCircle, FileText
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { cn } from '@/core/utils/cn';
-import apiClient, { ApiError } from '@/core/api/api-client';
+import apiClient, { type ApiError } from '@/core/api/api-client';
 
 // ============================================================================
-// TYPES & INTERFACES
+// TYPES & INTERFACES (Strict Typing - Prisma aligned)
 // ============================================================================
 
+// Basé sur enum/field CR_Response du schema.prisma (String avec valeurs contrôlées)
 export type ResponseType = 'YES' | 'NO' | 'PARTIAL' | 'NA';
 
+// Basé sur model ChecklistResponse du schema.prisma
 export interface ChecklistResponse {
   CR_Id?: string;
   CR_ChecklistId: string;
   CR_Response: ResponseType;
   CR_IsCompliant: boolean;
   CR_Comment?: string;
-  CR_UpdatedAt?: string;
+  CR_UpdatedAt?: string; // ISO string
   CR_UpdatedBy?: string;
 }
 
+// Basé sur model LegalChecklist du schema.prisma
 export interface ChecklistItem {
   LC_Id: string;
-  LC_Clause: string;
+  LC_Clause: string;        // ex: "4.1", "5.2", etc.
   LC_Title: string;
   LC_Criteria: string;
   LC_IsMandatory: boolean;
   LC_SortOrder?: number;
   LC_Category?: string;
-  response?: ChecklistResponse;
+  response?: ChecklistResponse; // Relation eager-loaded
 }
 
 export interface ChecklistStats {
@@ -54,7 +57,7 @@ export interface ChecklistStats {
   nonCompliant: number;
   partial: number;
   na: number;
-  rate: number;
+  rate: number; // % de conformité (Conformes + N/A) / Total
 }
 
 interface Clause {
@@ -77,13 +80,15 @@ const CLAUSES_9001: Clause[] = [
   { id: '10', title: 'Amélioration', description: 'Non-conformités, actions correctives' },
 ];
 
-const RESPONSE_CONFIG: Record<ResponseType, { 
-  label: string; 
-  color: string; 
-  bg: string; 
+interface ResponseConfig {
+  label: string;
+  color: string;
+  bg: string;
   icon: React.ElementType;
   compliant: boolean;
-}> = {
+}
+
+const RESPONSE_CONFIG: Record<ResponseType, ResponseConfig> = {
   YES: { 
     label: 'Conforme', 
     color: 'text-emerald-400', 
@@ -115,7 +120,7 @@ const RESPONSE_CONFIG: Record<ResponseType, {
 };
 
 // ============================================================================
-// UTILITAIRES
+// UTILITAIRES (Pure Functions - SSR Safe)
 // ============================================================================
 
 const calculateStats = (items: ChecklistItem[]): ChecklistStats => {
@@ -156,16 +161,20 @@ function KpiStat({ title, value, icon: Icon, color, subtext }: KpiStatProps) {
   };
 
   return (
-    <div className="flex items-center gap-3 md:gap-4 bg-[#0F172A]/50 p-3 md:p-4 rounded-2xl border border-white/5">
+    <article 
+      className="flex items-center gap-3 md:gap-4 bg-[#0F172A]/50 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white/5"
+      role="status"
+      aria-label={`${title}: ${value}`}
+    >
       <div className={cn("w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0", colorMap[color])}>
-        <Icon size={16} className="w-16 h-16 md:w-18 md:h-18 flex-shrink-0" aria-hidden="true" />
+        <Icon size={16} className="w-4 h-4 md:w-5 md:h-5" aria-hidden="true" />
       </div>
       <div className="min-w-0">
         <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest m-0">{title}</p>
         <p className="text-lg md:text-xl font-black italic text-white m-0 leading-none mt-0.5">{value}</p>
         {subtext && <p className="text-[7px] text-slate-600 mt-0.5">{subtext}</p>}
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -189,7 +198,7 @@ function ResponseBadge({ response }: { response?: ResponseType }) {
       "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-wider border",
       config.bg, config.color
     )}>
-      <Icon size={10} aria-hidden="true" />
+      <Icon size={10} className="w-2.5 h-2.5" aria-hidden="true" />
       {config.label}
     </span>
   );
@@ -204,10 +213,10 @@ interface RespBtnProps {
   active: boolean;
   onClick: () => void;
   saving: boolean;
-  'aria-label': string;
+  ariaLabel: string;
 }
 
-function RespBtn({ type, active, onClick, saving, 'aria-label': ariaLabel }: RespBtnProps) {
+function RespBtn({ type, active, onClick, saving, ariaLabel }: RespBtnProps) {
   const config = RESPONSE_CONFIG[type];
   const Icon = config.icon;
 
@@ -227,9 +236,9 @@ function RespBtn({ type, active, onClick, saving, 'aria-label': ariaLabel }: Res
       )}
     >
       {saving && active ? (
-        <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+        <Loader2 size={14} className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
       ) : (
-        <Icon size={14} aria-hidden="true" />
+        <Icon size={14} className="w-3.5 h-3.5" aria-hidden="true" />
       )}
     </button>
   );
@@ -249,7 +258,11 @@ function ChecklistItemCard({ item, onUpdate, savingId }: ChecklistItemCardProps)
   const isSaving = savingId === item.LC_Id;
 
   return (
-    <article className="bg-[#0F172A] border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-7 lg:p-8 hover:border-blue-500/30 transition-all flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 group">
+    <article 
+      className="bg-[#0F172A] border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-7 lg:p-8 hover:border-blue-500/30 transition-all flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 group focus-within:border-blue-500/30"
+      role="article"
+      aria-labelledby={`clause-title-${item.LC_Id}`}
+    >
       
       {/* Contenu principal */}
       <div className="flex-1 min-w-0 space-y-3">
@@ -271,7 +284,10 @@ function ChecklistItemCard({ item, onUpdate, savingId }: ChecklistItemCardProps)
         </div>
         
         {/* Titre */}
-        <h3 className="text-base md:text-lg font-black uppercase italic text-white m-0 group-hover:text-blue-400 transition-colors leading-tight">
+        <h3 
+          id={`clause-title-${item.LC_Id}`}
+          className="text-base md:text-lg font-black uppercase italic text-white m-0 group-hover:text-blue-400 transition-colors leading-tight"
+        >
           {item.LC_Title}
         </h3>
         
@@ -284,10 +300,10 @@ function ChecklistItemCard({ item, onUpdate, savingId }: ChecklistItemCardProps)
         {item.LC_Category && (
           <button 
             type="button"
-            className="text-[8px] text-blue-400 hover:text-blue-300 uppercase tracking-widest italic flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded"
+            className="text-[8px] text-blue-400 hover:text-blue-300 uppercase tracking-widest italic flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded px-2 py-1"
             aria-label={`Voir la documentation pour ${item.LC_Title}`}
           >
-            <ExternalLink size={10} aria-hidden="true" /> Documentation ISO
+            <ExternalLink size={10} className="w-2.5 h-2.5" aria-hidden="true" /> Documentation ISO
           </button>
         )}
       </div>
@@ -304,7 +320,7 @@ function ChecklistItemCard({ item, onUpdate, savingId }: ChecklistItemCardProps)
               active={item.response?.CR_Response === type}
               onClick={() => onUpdate(item.LC_Id, type)}
               saving={isSaving}
-              aria-label={`Marquer comme ${RESPONSE_CONFIG[type].label}`}
+              ariaLabel={`Marquer comme ${RESPONSE_CONFIG[type].label}`}
             />
           ))}
         </div>
@@ -314,7 +330,7 @@ function ChecklistItemCard({ item, onUpdate, savingId }: ChecklistItemCardProps)
 }
 
 // ============================================================================
-// COMPOSANT PRINCIPAL
+// COMPOSANT PRINCIPAL : ISO 9001 CHECKLIST PAGE
 // ============================================================================
 
 export default function ISO9001ChecklistPage() {
@@ -326,7 +342,7 @@ export default function ISO9001ChecklistPage() {
   const [exporting, setExporting] = useState(false);
 
   // ============================================================================
-  // FETCH DATA
+  // FETCH DATA (CRUD: READ)
   // ============================================================================
 
   const fetchData = useCallback(async () => {
@@ -343,10 +359,14 @@ export default function ISO9001ChecklistPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { 
+    if (typeof window !== 'undefined') {
+      fetchData(); 
+    }
+  }, [fetchData]);
 
   // ============================================================================
-  // CALCULS & FILTRES
+  // CALCULS & FILTRES (Memoized)
   // ============================================================================
 
   const stats = useMemo((): ChecklistStats => calculateStats(items), [items]);
@@ -363,7 +383,7 @@ export default function ISO9001ChecklistPage() {
   }, [items, activeClause, searchTerm]);
 
   // ============================================================================
-  // ACTIONS
+  // ACTIONS (CRUD: UPDATE, EXPORT)
   // ============================================================================
 
   const updateResponse = async (id: string, response: ResponseType) => {
@@ -382,10 +402,10 @@ export default function ISO9001ChecklistPage() {
       // Rafraîchir pour avoir les données à jour
       await fetchData();
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Erreur mise à jour réponse:', error);
-      const apiError = error?.response?.data as ApiError | undefined;
-      const message = apiError?.message || error?.message || "Erreur de sauvegarde";
+      const apiError = error as { response?: { data?: ApiError }; message?: string };
+      const message = apiError?.response?.data?.message || apiError?.message || "Erreur de sauvegarde";
       toast.error(message, { id: toastId, duration: 5000 });
     } finally {
       setSavingId(null);
@@ -432,15 +452,30 @@ export default function ISO9001ChecklistPage() {
   };
 
   // ============================================================================
+  // KEYBOARD NAVIGATION HELPER
+  // ============================================================================
+
+  const handleClauseKeyDown = useCallback((e: KeyboardEvent<HTMLButtonElement>, clauseId: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setActiveClause(clauseId);
+    }
+  }, []);
+
+  // ============================================================================
   // ÉTATS D'AFFICHAGE
   // ============================================================================
 
-  if (loading && items.length === 0) {
+  if (loading && items.length === 0 && typeof window !== 'undefined') {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-[#0B0F1A]" role="status" aria-live="polite">
+      <div 
+        className="flex h-full w-full items-center justify-center bg-[#0B0F1A]" 
+        role="status" 
+        aria-live="polite"
+      >
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin text-blue-500" size={48} aria-hidden="true" />
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] animate-pulse text-blue-400">
+          <Loader2 className="animate-spin text-blue-400 w-12 h-12" aria-hidden="true" />
+          <span className="text-[10px] font-black uppercase tracking-widest animate-pulse text-blue-400">
             Extraction Clause §9001...
           </span>
         </div>
@@ -457,7 +492,7 @@ export default function ISO9001ChecklistPage() {
       <Toaster position="top-right" richColors theme="dark" closeButton />
 
       {/* 🔝 EN-TÊTE FIXE */}
-      <header className="shrink-0 p-4 md:p-6 lg:p-8 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-md z-20 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
+      <header className="shrink-0 px-4 md:px-6 lg:px-8 py-4 md:py-6 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-3xl z-40 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
         <div className="space-y-3 md:space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] md:text-[9px] font-black uppercase tracking-widest italic rounded-full">
@@ -472,10 +507,10 @@ export default function ISO9001ChecklistPage() {
               {stats.rate}% Conformité
             </span>
           </div>
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase italic tracking-tighter m-0 leading-none text-white">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase italic tracking-tighter m-0 leading-none text-white">
             Checklist <span className="text-blue-500">ISO 9001</span>
           </h1>
-          <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-[0.3em] m-0">
+          <p className="text-slate-500 font-black text-[8px] md:text-[9px] uppercase tracking-widest m-0">
             Évaluation Systémique des Clauses Qualité
           </p>
         </div>
@@ -484,12 +519,12 @@ export default function ISO9001ChecklistPage() {
           {/* Recherche */}
           <div className="relative flex-1 md:w-64 lg:w-72">
             <label htmlFor="checklist-search" className="sr-only">Rechercher une exigence</label>
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} aria-hidden="true" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none w-4 h-4" aria-hidden="true" />
             <input 
               id="checklist-search"
               type="search"
               placeholder="FILTRER EXIGENCE..." 
-              className="w-full bg-[#0F172A] border border-white/10 rounded-2xl py-2.5 md:py-3 pl-10 md:pl-12 pr-4 text-[9px] md:text-[10px] font-black uppercase outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 text-white italic placeholder:text-slate-600"
+              className="w-full bg-[#0F172A] border border-white/10 rounded-xl md:rounded-2xl py-2.5 md:py-3 pl-10 md:pl-12 pr-4 text-[9px] md:text-[10px] font-black uppercase outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 text-white italic placeholder:text-slate-600"
               value={searchTerm} 
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
               aria-label="Filtrer les exigences ISO 9001"
@@ -499,40 +534,52 @@ export default function ISO9001ChecklistPage() {
           {/* Actions */}
           <div className="flex items-center gap-2">
             <button 
+              type="button"
               onClick={handleExport}
               disabled={exporting}
-              className="p-2.5 md:p-3 bg-white/5 rounded-2xl hover:bg-blue-600 hover:text-white transition-all border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="p-2.5 md:p-3 bg-white/5 rounded-xl md:rounded-2xl hover:bg-blue-600 hover:text-white transition-all border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
               aria-label="Exporter le rapport de conformité"
               title="Exporter en PDF"
             >
-              {exporting ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+              {exporting ? (
+                <Loader2 size={16} className="w-4 h-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Download size={16} className="w-4 h-4" aria-hidden="true" />
+              )}
             </button>
             <button 
+              type="button"
               onClick={handleRefresh}
               disabled={loading}
-              className="p-2.5 md:p-3 bg-white/5 rounded-2xl hover:bg-blue-600 hover:text-white transition-all border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="p-2.5 md:p-3 bg-white/5 rounded-xl md:rounded-2xl hover:bg-blue-600 hover:text-white transition-all border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
               aria-label="Actualiser la checklist"
               title="Synchroniser"
             >
-              <RefreshCw size={16} className="w-16 h-16 md:w-20 md:h-20 flex-shrink-0" className={cn(loading && "animate-spin")} aria-hidden="true" />
+              <RefreshCw size={16} className={cn("w-4 h-4", loading && "animate-spin")} aria-hidden="true" />
             </button>
           </div>
         </div>
       </header>
 
       {/* 📊 KPI BAR FIXE */}
-      <div className="shrink-0 px-4 md:px-6 lg:px-10 py-3 md:py-4 bg-black/20 border-b border-white/5 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <nav 
+        className="shrink-0 px-4 md:px-6 lg:px-10 py-3 md:py-4 bg-black/20 border-b border-white/5 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"
+        aria-label="Indicateurs de conformité ISO 9001"
+      >
         <KpiStat title="Total" value={stats.total} icon={Layers} color="slate" subtext="exigences" />
         <KpiStat title="Conforme" value={stats.compliant} icon={CheckCircle2} color="emerald" />
         <KpiStat title="Écarts" value={stats.nonCompliant} icon={XCircle} color="rose" />
         <KpiStat title="Score" value={`${stats.rate}%`} icon={Target} color="blue" subtext="objectif: 95%" />
-      </div>
+      </nav>
 
       {/* 📜 ZONE DE TRAVAIL */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
         {/* Navigation Clauses */}
-        <aside className="w-full lg:w-72 xl:w-80 border-r border-white/5 bg-[#0F172A]/30 overflow-y-auto custom-scrollbar shrink-0">
+        <aside 
+          className="w-full lg:w-72 xl:w-80 border-r border-white/5 bg-[#0F172A]/30 overflow-y-auto custom-scrollbar shrink-0"
+          aria-label="Navigation des clauses ISO 9001"
+        >
           <div className="p-4 border-b border-white/5 bg-black/20 sticky top-0 z-10">
              <p className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest m-0">
                Structure de la Norme
@@ -545,15 +592,11 @@ export default function ISO9001ChecklistPage() {
                 <button 
                   key={clause.id} 
                   onClick={() => setActiveClause(clause.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setActiveClause(clause.id);
-                    }
-                  }}
+                  onKeyDown={(e) => handleClauseKeyDown(e, clause.id)}
                   role="tab"
                   aria-selected={isActive}
                   aria-controls={`clause-${clause.id}`}
+                  id={`tab-${clause.id}`}
                   className={cn(
                     "w-full p-4 text-left transition-all border-none cursor-pointer flex justify-between items-center group focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-inset",
                     isActive 
@@ -574,7 +617,7 @@ export default function ISO9001ChecklistPage() {
                   </div>
                   <ChevronRight 
                     size={14} 
-                    className={cn("shrink-0 transition-transform", isActive ? "text-blue-500" : "text-slate-700")} 
+                    className={cn("w-3.5 h-3.5 shrink-0 transition-transform", isActive ? "text-blue-400" : "text-slate-700")} 
                     aria-hidden="true" 
                   />
                 </button>
@@ -584,12 +627,17 @@ export default function ISO9001ChecklistPage() {
         </aside>
 
         {/* Checklist Content */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 xl:p-10">
+        <main className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-6 lg:px-8 py-5 md:py-6" aria-label="Évaluation des exigences ISO 9001">
           <div className="max-w-5xl mx-auto space-y-4 md:space-y-5">
             
             {/* En-tête de section */}
             <div className="flex items-center justify-between pb-4 border-b border-white/5">
-              <h2 className="text-lg md:text-xl font-black uppercase italic text-white">
+              <h2 
+                id={`clause-${activeClause}`}
+                className="text-lg md:text-xl font-black uppercase italic text-white"
+                role="heading"
+                aria-level={2}
+              >
                 Clause §{activeClause} — {getClauseTitle(activeClause)}
               </h2>
               <span className="text-[9px] text-slate-500 uppercase tracking-widest">
@@ -609,11 +657,11 @@ export default function ISO9001ChecklistPage() {
               ))
             ) : (
               <div 
-                className="h-48 md:h-64 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center text-slate-500"
+                className="h-48 md:h-64 border-2 border-dashed border-white/10 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center text-slate-500"
                 role="status"
                 aria-live="polite"
               >
-                <Search size={40} className="w-40 h-40 md:w-48 md:h-48 flex-shrink-0" className="mb-3 md:mb-4 opacity-20" aria-hidden="true" />
+                <Search size={40} className="w-10 h-10 mb-3 md:mb-4 opacity-20" aria-hidden="true" />
                 <p className="text-[9px] md:text-[10px] font-black uppercase italic tracking-widest text-center px-4">
                   {searchTerm 
                     ? 'Aucune exigence ne correspond au filtre' 
@@ -621,6 +669,7 @@ export default function ISO9001ChecklistPage() {
                 </p>
                 {searchTerm && (
                   <button 
+                    type="button"
                     onClick={() => setSearchTerm('')}
                     className="mt-3 text-[8px] text-blue-400 hover:text-blue-300 uppercase tracking-widest italic focus:outline-none focus:ring-2 focus:ring-blue-400 rounded px-3 py-1"
                   >

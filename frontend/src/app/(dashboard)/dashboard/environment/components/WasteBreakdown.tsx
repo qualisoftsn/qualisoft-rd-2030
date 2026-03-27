@@ -2,17 +2,14 @@
 'use client';
 
 /**
- * 💡 COMPOSANT : PIE-CHART DÉCHETS MATRIX
- * -------------------------------------------------------------------------
- * RÔLE : Analyse granulométrique des flux de sortie (§8.1 ISO 14001)
- * VERSION : 2.0 - Typing strict + Accessibilité + Fallback Recharts
+ * 💡 COMPOSANT : PIE-CHART DÉCHETS MATRIX (ISO 14001 §8.1)
+ * RÔLE : Analyse granulométrique des flux de sortie
+ * VERSION : 3.0 - Typing strict + Accessibilité + Positioning fix
  * DESIGN : Donut chart interactif, légende accessible, WCAG AA
- * RÉVISION : 19 Mars 2026 | 18:00 GMT
- * -------------------------------------------------------------------------
  */
 
 import React, { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, TooltipProps } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, type TooltipProps } from 'recharts';
 import { cn } from '@/core/utils/cn';
 
 // ============================================================================
@@ -41,6 +38,11 @@ interface ChartDataPoint {
   unit: string;
 }
 
+interface WasteTooltipProps extends TooltipProps<number, string> {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color: string }>;
+}
+
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
@@ -62,13 +64,8 @@ const WASTE_LABELS: Record<string, string> = {
 };
 
 // ============================================================================
-// CUSTOM TOOLTIP (Typé)
+// CUSTOM TOOLTIP (Typé + Accessible)
 // ============================================================================
-
-interface WasteTooltipProps extends TooltipProps<number, string> {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
-}
 
 function WasteTooltip({ active, payload }: WasteTooltipProps) {
   if (!active || !payload?.length) return null;
@@ -82,7 +79,7 @@ function WasteTooltip({ active, payload }: WasteTooltipProps) {
       role="tooltip"
       aria-label={`Détails pour ${entry.name}`}
     >
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
+      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
         {WASTE_LABELS[entry.name] || entry.name}
       </p>
       <p className="text-lg font-black italic text-white m-0">
@@ -133,13 +130,13 @@ export default function WasteBreakdown({
         color: WASTE_COLORS[type as keyof typeof WASTE_COLORS] || WASTE_COLORS.AUTRE,
         unit: data.unit,
       }))
-      .sort((a, b) => b.value - a.value); // Tri décroissant
+      .sort((a, b) => b.value - a.value);
   }, [wastes, siteId]);
 
-  // Fallback si pas de données
+  // Empty state
   if (chartData.length === 0) {
     return (
-      <div className={cn("h-full w-full flex items-center justify-center", className)} role="status">
+      <div className={cn("h-full w-full flex items-center justify-center", className)} role="status" aria-live="polite">
         <p className="text-[10px] text-slate-500 italic">Aucune donnée de déchets disponible</p>
       </div>
     );
@@ -149,7 +146,7 @@ export default function WasteBreakdown({
 
   return (
     <div 
-      className={cn("h-full w-full min-h-[300px]", className)}
+      className={cn("relative h-full w-full min-h-[300px]", className)}
       role="region"
       aria-label={ariaLabel || "Répartition des déchets par type"}
     >
@@ -198,8 +195,8 @@ export default function WasteBreakdown({
         </PieChart>
       </ResponsiveContainer>
       
-      {/* Valeur totale au centre (optionnel) */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {/* Valeur totale au centre */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
         <div className="text-center">
           <p className="text-[8px] text-slate-500 uppercase tracking-wider">Total</p>
           <p className="text-lg font-black italic text-white">

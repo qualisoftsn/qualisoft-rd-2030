@@ -2,13 +2,11 @@
 'use client';
 
 /**
- * 💡 COMPOSANT : GRAPH DE CONSOMMATION ÉLITE (SDE-CORE)
- * -------------------------------------------------------------------------
- * RÔLE : Analyse comparative Énergie/Eau pour le SMI (§9.1.1 ISO 14001)
- * VERSION : 2.0 - Typing strict + Accessibilité + Fallback Recharts
- * DESIGN : AreaChart Matrix avec gradients, Responsive PWA, WCAG AA
- * RÉVISION : 19 Mars 2026 | 17:00 GMT
- * -------------------------------------------------------------------------
+ * 💡 COMPOSANT : GRAPH DE CONSOMMATION ÉLITE (ISO 14001 §9.1.1)
+ * RÔLE : Analyse comparative Énergie/Eau pour le SMI
+ * VERSION : 3.0 - Typing strict + Accessibilité + Gradients Matrix
+ * API : Props uniquement (données injectées par parent)
+ * DESIGN : AreaChart avec gradients, Responsive PWA, WCAG AA
  */
 
 import React, { useMemo } from 'react';
@@ -48,6 +46,12 @@ interface ChartDataPoint {
   rawDate: Date;
 }
 
+interface CustomTooltipProps extends TooltipProps<number, string> {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color: string }>;
+  label?: string;
+}
+
 // ============================================================================
 // UTILITAIRES
 // ============================================================================
@@ -66,14 +70,8 @@ const formatValue = (value: number, type: 'energy' | 'water'): string => {
 };
 
 // ============================================================================
-// CUSTOM TOOLTIP (Typé)
+// CUSTOM TOOLTIP (Typé + Accessible)
 // ============================================================================
-
-interface CustomTooltipProps extends TooltipProps<number, string> {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
-  label?: string;
-}
 
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
@@ -84,7 +82,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
       role="tooltip"
       aria-label={`Données pour ${label}`}
     >
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
+      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
         {label}
       </p>
       {payload.map((entry, index) => (
@@ -112,7 +110,7 @@ export default function ConsumptionChart({
   const chartData = useMemo((): ChartDataPoint[] => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0-indexed
+    const currentMonth = now.getMonth();
     
     const monthsToShow = period === 'MONTH' ? 1 : period === 'QUARTER' ? 3 : 12;
     const data: ChartDataPoint[] = [];
@@ -136,7 +134,7 @@ export default function ConsumptionChart({
         .reduce((sum, c) => sum + (Number(c.CON_Value) || 0), 0);
       
       data.push({
-        month: targetDate.toISOString().slice(0, 7), // YYYY-MM for sorting
+        month: targetDate.toISOString().slice(0, 7),
         monthLabel: targetDate.toLocaleString('fr-FR', { month: 'short' }).toUpperCase(),
         energy: Math.round(energy),
         water: Math.round(water),
@@ -146,10 +144,10 @@ export default function ConsumptionChart({
     return data;
   }, [consumptions, period, siteId]);
 
-  // Fallback si pas de données
+  // Empty state
   if (chartData.length === 0) {
     return (
-      <div className={cn("h-full w-full flex items-center justify-center", className)} role="status">
+      <div className={cn("h-full w-full flex items-center justify-center", className)} role="status" aria-live="polite">
         <p className="text-[10px] text-slate-500 italic">Aucune donnée de consommation disponible</p>
       </div>
     );
@@ -168,7 +166,6 @@ export default function ConsumptionChart({
           aria-label="Évolution mensuelle des consommations"
         >
           <defs>
-            {/* Gradients Matrix Néon */}
             <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
               <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
@@ -208,7 +205,6 @@ export default function ConsumptionChart({
 
           <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }} />
 
-          {/* ÉNERGIE AREA */}
           <Area 
             type="monotone" 
             dataKey="energy" 
@@ -221,7 +217,6 @@ export default function ConsumptionChart({
             isAnimationActive={true}
           />
 
-          {/* EAU AREA */}
           <Area 
             type="monotone" 
             dataKey="water" 

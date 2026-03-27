@@ -2,17 +2,13 @@
 'use client';
 
 /**
- * 💡 COMPOSANT : KPI CARD ENVIRONNEMENTALE
- * -------------------------------------------------------------------------
+ * 💡 COMPOSANT : KPI CARD ENVIRONNEMENTALE (ISO 14001 §9.1.1)
  * RÔLE : Visualisation atomique d'un indicateur de performance (IPE)
- * VERSION : 2.0 - Typing strict + Accessibilité + Design Elite
- * DESIGN : Style "ClickUp Glass", barres de progression néon, WCAG AA
- * RÉVISION : 19 Mars 2026 | 17:30 GMT
- * -------------------------------------------------------------------------
+ * VERSION : 3.0 - Typing strict + Accessibilité + Design Elite
  */
 
 import React from 'react';
-import { TrendingUp, TrendingDown, ArrowUpRight, LucideIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import { cn } from '@/core/utils/cn';
 
 // ============================================================================
@@ -85,14 +81,14 @@ const COLOR_CONFIG: Record<KpiColor, {
 };
 
 const getTrendConfig = (trend?: string) => {
-  if (!trend) return { icon: null, color: 'text-slate-400', label: '' };
+  if (!trend) return { icon: null as React.ElementType | null, color: 'text-slate-400', label: '' };
   if (trend.startsWith('-') && !trend.includes('Incident')) {
     return { icon: TrendingDown, color: 'text-emerald-400', label: 'Amélioration' };
   }
   if (trend.startsWith('+') && !trend.includes('Incident')) {
     return { icon: TrendingUp, color: 'text-rose-400', label: 'Dégradation' };
   }
-  return { icon: null, color: 'text-slate-400', label: '' };
+  return { icon: null as React.ElementType | null, color: 'text-slate-400', label: '' };
 };
 
 // ============================================================================
@@ -151,7 +147,7 @@ export default function EnvironmentalKPICard({
           onClick && "group-hover:scale-110",
           `bg-gradient-to-br ${config.gradient}`
         )}>
-          <Icon size={20} className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0" aria-hidden="true" />
+          <Icon size={20} className={cn("w-5 h-5 md:w-6 md:h-6")} aria-hidden="true" />
         </div>
         {isoRef && (
           <span className="text-[7px] md:text-[8px] font-black bg-black/40 text-slate-500 px-2.5 md:px-3 py-1 rounded-full border border-white/5 italic">
@@ -162,7 +158,7 @@ export default function EnvironmentalKPICard({
       
       {/* Contenu principal */}
       <div className="space-y-1 md:space-y-1.5 text-left">
-        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 italic m-0">
+        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 italic m-0">
           {title}
         </p>
         <h3 className="text-2xl md:text-3xl lg:text-4xl font-black italic text-white tracking-tighter m-0 uppercase leading-none">
@@ -188,11 +184,11 @@ export default function EnvironmentalKPICard({
       {/* Footer: Analytics + Trend */}
       <div className="flex items-center justify-between mt-6 md:mt-8 pt-4 border-t border-white/5">
         <p className="text-[8px] md:text-[9px] font-black uppercase italic text-slate-500 m-0 tracking-widest flex items-center gap-1.5 md:gap-2">
-          Matrix Analytics <ArrowUpRight size={10} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" aria-hidden="true" />
+          Matrix Analytics <ArrowUpRight size={10} className="w-2.5 h-2.5" aria-hidden="true" />
         </p>
         {trend && (
           <div className={cn("flex items-center text-[9px] md:text-[10px] font-black italic", trendConfig.color)}>
-            {TrendIcon && <TrendIcon size={12} className="w-12 h-12 md:w-14 md:h-14 flex-shrink-0" className="mr-1" aria-hidden="true" />}
+            {TrendIcon && <TrendIcon size={12} className={cn("w-3 h-3 mr-1")} aria-hidden="true" />}
             <span aria-label={`${trendConfig.label}: ${trend}`}>{trend}</span>
           </div>
         )}

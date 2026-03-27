@@ -2,17 +2,13 @@
 'use client';
 
 /**
- * 💡 COMPOSANT : ALERTES ENVIRONNEMENTALES SDE
- * -------------------------------------------------------------------------
- * RÔLE : Monitoring temps réel des dérives IPE (§9.1 ISO 14001)
- * VERSION : 2.0 - Typing strict + Accessibilité + Design Elite
- * DESIGN : Cartes de priorité Matrix, Glow dynamique, Mobile Ready, WCAG AA
- * RÉVISION : 19 Mars 2026 | 17:15 GMT
- * -------------------------------------------------------------------------
+ * 💡 COMPOSANT : ALERTES ENVIRONNEMENTALES (ISO 14001 §9.1.1)
+ * RÔLE : Monitoring temps réel des dérives IPE
+ * VERSION : 3.0 - Typing strict + Accessibilité + Design Elite
  */
 
-import React from 'react';
-import { AlertTriangle, Flame, Zap, Recycle, ShieldAlert, LucideIcon } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { AlertTriangle, Flame, Zap, Recycle, ShieldAlert, type LucideIcon } from 'lucide-react';
 import { cn } from '@/core/utils/cn';
 
 // ============================================================================
@@ -92,7 +88,7 @@ const PRIORITY_ORDER: Record<AlertPriority, number> = {
 };
 
 // ============================================================================
-// COMPOSANT : ALERT CARD
+// SOUS-COMPOSANT : ALERT CARD
 // ============================================================================
 
 interface AlertCardProps {
@@ -123,7 +119,11 @@ function AlertCard({ alert, onClick }: AlertCardProps) {
       tabIndex={0}
     >
       <div className={cn("p-2.5 md:p-3 rounded-xl shadow-inner shrink-0", config.iconBg)}>
-        <Icon size={18} className="w-18 h-18 md:w-20 md:h-20 flex-shrink-0" className={cn("animate-pulse", config.text)} aria-hidden="true" />
+        <Icon 
+          size={18} 
+          className={cn("w-4.5 h-4.5 md:w-5 md:h-5 animate-pulse", config.text)} 
+          aria-hidden="true" 
+        />
       </div>
       
       <div className="space-y-1 md:space-y-1.5 min-w-0 flex-1">
@@ -186,8 +186,8 @@ export default function EnvironmentalAlerts({
       icon: ShieldAlert, 
       title: 'INCIDENT CRITIQUE', 
       description: `${criticalIncidents} événement${criticalIncidents > 1 ? 's' : ''} à traiter immédiatement`, 
-      color: 'rose' as AlertColor, 
-      priority: 'CRITICAL' as AlertPriority,
+      color: 'rose', 
+      priority: 'CRITICAL',
       actionUrl: '/dashboard/environment/incidents?status=critical',
       actionLabel: 'Voir les incidents',
     },
@@ -197,8 +197,8 @@ export default function EnvironmentalAlerts({
       icon: Flame, 
       title: 'DÉCHETS DANGEREUX', 
       description: `${new Intl.NumberFormat('fr-SN').format(hazardousWaste)} kg de matières à filière spécifique`, 
-      color: 'amber' as AlertColor, 
-      priority: 'HIGH' as AlertPriority,
+      color: 'amber', 
+      priority: 'HIGH',
       actionUrl: '/dashboard/environment/wastes',
       actionLabel: 'Gérer les déchets',
     },
@@ -208,8 +208,8 @@ export default function EnvironmentalAlerts({
       icon: Zap, 
       title: 'DÉRIVE ÉLECTRIQUE', 
       description: 'Seuil de consommation > 90% de l\'objectif ISO 14001', 
-      color: 'amber' as AlertColor, 
-      priority: 'MEDIUM' as AlertPriority,
+      color: 'amber', 
+      priority: 'MEDIUM',
       actionUrl: '/dashboard/environment/consumptions',
       actionLabel: 'Optimiser',
     },
@@ -219,8 +219,8 @@ export default function EnvironmentalAlerts({
       icon: Recycle, 
       title: 'DÉFAUT RECYCLAGE', 
       description: 'Taux inférieur au standard ISO 14001 (75%)', 
-      color: 'blue' as AlertColor, 
-      priority: 'LOW' as AlertPriority,
+      color: 'blue', 
+      priority: 'LOW',
       actionUrl: '/dashboard/environment/wastes',
       actionLabel: 'Améliorer',
     },

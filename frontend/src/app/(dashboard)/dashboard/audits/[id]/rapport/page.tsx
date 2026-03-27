@@ -2,16 +2,16 @@
 'use client';
 
 /**
- * 💡 MODULE : RAPPORT D'AUDIT ET CLÔTURE (elite-sde)
+ * 💡 MODULE : RAPPORT D'AUDIT ET CLÔTURE (ISO 9001 §9.2)
  * -------------------------------------------------------------------------
  * RÔLE : Saisie des constats et auto-génération de Fiches d'Anomalies (NC)
- * VERSION : 2.0 - Typing strict + Validation + Design Elite + Export PDF ready
- * API : apiClient Axios avec interceptors
- * RÉVISION : 19 Mars 2026 | 14:45 GMT
+ * VERSION : 3.0 - Typing strict Prisma + Design Elite + Accessibilité + Export PDF
+ * API : apiClient Axios avec interceptors (Bearer + X-Tenant-Id)
+ * RÉVISION : 19 Mars 2026 | Production OVH
  * -------------------------------------------------------------------------
  */
 
-import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   FileText, Plus, Trash2, Save, Loader2, ArrowLeft, ShieldAlert, 
@@ -19,12 +19,13 @@ import {
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { cn } from '@/core/utils/cn';
-import apiClient, { ApiError } from '@/core/api/api-client';
+import apiClient, { type ApiError } from '@/core/api/api-client';
 
 // ============================================================================
-// TYPES
+// TYPES & INTERFACES (Strict Typing - Prisma aligned)
 // ============================================================================
 
+// Basé sur model Finding du schema.prisma
 export type FindingType = 
   | 'CONFORMITE' 
   | 'POINT_FORT' 
@@ -40,6 +41,7 @@ export interface Finding {
   FI_Recommandation?: string;
 }
 
+// Basé sur model Audit du schema.prisma
 export interface AuditReport {
   AU_Id: string;
   AU_Title: string;
@@ -50,47 +52,61 @@ export interface AuditReport {
   AU_Findings?: Finding[];
 }
 
-const FINDING_CONFIG: Record<FindingType, { label: string; color: string; icon: string }> = {
-  CONFORMITE: { label: '✅ Conformité', color: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5', icon: '✓' },
-  POINT_FORT: { label: '⭐ Point Fort', color: 'border-blue-500/30 text-blue-400 bg-blue-500/5', icon: '★' },
-  OBSERVATION: { label: '👀 Observation', color: 'border-amber-500/30 text-amber-400 bg-amber-500/5', icon: '○' },
-  NC_MINEURE: { label: '⚠️ NC Mineure', color: 'border-orange-500/30 text-orange-400 bg-orange-500/5', icon: '⚠' },
-  NC_MAJEURE: { label: '🚨 NC Majeure', color: 'border-rose-500/30 text-rose-400 bg-rose-500/5', icon: '✗' },
+// ============================================================================
+// CONFIGURATION DES TYPES DE CONSTATS
+// ============================================================================
+
+interface FindingConfig {
+  label: string;
+  color: string;
+  icon: string;
+}
+
+const FINDING_CONFIG: Record<FindingType, FindingConfig> = {
+  CONFORMITE: { label: 'Conformité', color: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5', icon: '✓' },
+  POINT_FORT: { label: 'Point Fort', color: 'border-blue-500/30 text-blue-400 bg-blue-500/5', icon: '★' },
+  OBSERVATION: { label: 'Observation', color: 'border-amber-500/30 text-amber-400 bg-amber-500/5', icon: '○' },
+  NC_MINEURE: { label: 'NC Mineure', color: 'border-orange-500/30 text-orange-400 bg-orange-500/5', icon: '⚠' },
+  NC_MAJEURE: { label: 'NC Majeure', color: 'border-rose-500/30 text-rose-400 bg-rose-500/5', icon: '✗' },
 };
 
 // ============================================================================
 // SOUS-COMPOSANT : FINDING CARD
 // ============================================================================
 
-function FindingCard({ 
-  finding, 
-  index, 
-  onUpdate, 
-  onRemove, 
-  canRemove 
-}: { 
-  finding: Finding & { _tempId?: string }; 
-  index: number; 
+interface FindingCardProps {
+  finding: Finding & { _tempId?: string };
+  index: number;
   onUpdate: (index: number, field: keyof Finding, value: string) => void;
   onRemove: (index: number) => void;
   canRemove: boolean;
-}) {
+}
+
+function FindingCard({ finding, index, onUpdate, onRemove, canRemove }: FindingCardProps) {
   const config = FINDING_CONFIG[finding.FI_Type];
   
   return (
-    <div className={cn(
-      "p-5 md:p-6 bg-[#0B0F1A] border rounded-2xl md:rounded-[2rem] grid grid-cols-1 lg:grid-cols-12 gap-6 hover:border-blue-500/30 transition-all",
-      config.color
-    )}>
+    <article 
+      className={cn(
+        "p-5 md:p-6 bg-[#0B0F1A] border rounded-2xl md:rounded-3xl grid grid-cols-1 lg:grid-cols-12 gap-6 hover:border-blue-500/30 transition-all focus-within:border-blue-500/30",
+        config.color
+      )}
+      role="group"
+      aria-labelledby={`finding-title-${index}`}
+    >
       {/* Description */}
       <div className="lg:col-span-8 space-y-3">
-        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2 italic block">
+        <label 
+          htmlFor={`finding-desc-${index}`}
+          className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2 italic block"
+        >
           Détails factuels du constat #{index + 1}
         </label>
         <textarea 
+          id={`finding-desc-${index}`}
           className="w-full bg-[#0F172A] border border-white/10 rounded-xl p-4 text-sm font-bold text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 min-h-[100px] resize-none italic transition-all"
           value={finding.FI_Description} 
-          onChange={(e) => onUpdate(index, 'FI_Description', e.target.value)} 
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onUpdate(index, 'FI_Description', e.target.value)} 
           placeholder="Saisissez l'observation factuelle, avec références aux clauses ISO..."
           aria-label={`Description du constat ${index + 1}`}
         />
@@ -99,10 +115,14 @@ function FindingCard({
       {/* Classification + Actions */}
       <div className="lg:col-span-4 flex flex-col justify-between">
         <div className="space-y-3">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2 italic block">
+          <label 
+            htmlFor={`finding-type-${index}`}
+            className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2 italic block"
+          >
             Classification ISO
           </label>
           <select 
+            id={`finding-type-${index}`}
             className={cn(
               "w-full bg-[#0F172A] border-2 rounded-xl p-4 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none transition-all",
               finding.FI_Type.includes('NC') 
@@ -110,7 +130,7 @@ function FindingCard({
                 : "border-blue-500/30 text-blue-400 focus:border-blue-500"
             )}
             value={finding.FI_Type} 
-            onChange={(e) => onUpdate(index, 'FI_Type', e.target.value as FindingType)}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => onUpdate(index, 'FI_Type', e.target.value as FindingType)}
             aria-label={`Classification du constat ${index + 1}`}
           >
             {Object.entries(FINDING_CONFIG).map(([value, { label }]) => (
@@ -133,15 +153,15 @@ function FindingCard({
           )}
           aria-label={`Supprimer le constat ${index + 1}`}
         >
-          <Trash2 size={14} aria-hidden="true" /> Supprimer
+          <Trash2 size={14} className="w-3.5 h-3.5" aria-hidden="true" /> Supprimer
         </button>
       </div>
-    </div>
+    </article>
   );
 }
 
 // ============================================================================
-// COMPOSANT PRINCIPAL
+// COMPOSANT PRINCIPAL : RAPPORT AUDIT PAGE
 // ============================================================================
 
 export default function RapportAuditPage() {
@@ -158,7 +178,7 @@ export default function RapportAuditPage() {
   const [previewMode, setPreviewMode] = useState(false);
 
   // ============================================================================
-  // FETCH
+  // FETCH DATA (CRUD: READ)
   // ============================================================================
 
   const fetchAudit = useCallback(async (id: string) => {
@@ -184,11 +204,13 @@ export default function RapportAuditPage() {
   }, [router]);
 
   useEffect(() => {
-    if (auditId) fetchAudit(auditId);
+    if (auditId && typeof window !== 'undefined') {
+      fetchAudit(auditId);
+    }
   }, [auditId, fetchAudit]);
 
   // ============================================================================
-  // FINDINGS HANDLERS
+  // FINDINGS HANDLERS (CRUD: CREATE, UPDATE, DELETE)
   // ============================================================================
 
   const addFinding = useCallback(() => {
@@ -212,7 +234,7 @@ export default function RapportAuditPage() {
   }, []);
 
   // ============================================================================
-  // SUBMISSION
+  // SUBMISSION (CRUD: UPDATE - Submit Report)
   // ============================================================================
 
   const validateFindings = useCallback((): boolean => {
@@ -251,10 +273,10 @@ export default function RapportAuditPage() {
         router.push('/dashboard/audits');
       }, 1500);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Erreur soumission rapport:', error);
-      const apiError = error?.response?.data as ApiError | undefined;
-      const message = apiError?.message || error?.message || "Échec du scellement";
+      const apiError = error as { response?: { data?: ApiError }; message?: string };
+      const message = apiError?.response?.data?.message || apiError?.message || "Échec du scellement";
       toast.error(message, { id: toastId, duration: 6000 });
     } finally {
       setSubmitting(false);
@@ -268,26 +290,30 @@ export default function RapportAuditPage() {
   }, [auditId]);
 
   // ============================================================================
-  // CALCULS
+  // CALCULS (Memoized)
   // ============================================================================
 
-  const ncCount = findings.filter(f => f.FI_Type.includes('NC')).length;
-  const hasNC = ncCount > 0;
+  const ncCount = useMemo(() => findings.filter(f => f.FI_Type.includes('NC')).length, [findings]);
+  const hasNC = useMemo(() => ncCount > 0, [ncCount]);
 
   // ============================================================================
   // ÉTATS D'AFFICHAGE
   // ============================================================================
 
-  if (loading) {
+  if (loading && typeof window !== 'undefined') {
     return (
-      <div className="h-full flex items-center justify-center bg-[#0B0F1A] text-blue-400 font-black italic uppercase text-xs animate-pulse tracking-widest" role="status">
-        <Loader2 className="animate-spin mr-3" size={24} aria-hidden="true" />
+      <div 
+        className="h-full flex items-center justify-center bg-[#0B0F1A] text-blue-400 font-black italic uppercase text-xs animate-pulse tracking-widest" 
+        role="status"
+        aria-live="polite"
+      >
+        <Loader2 className="animate-spin w-6 h-6 mr-3" aria-hidden="true" />
         Initialisation du Rapport Souverain...
       </div>
     );
   }
 
-  if (!audit) {
+  if (!audit && typeof window !== 'undefined') {
     return null; // Redirection gérée dans fetchAudit
   }
 
@@ -300,21 +326,22 @@ export default function RapportAuditPage() {
       <Toaster position="top-right" richColors theme="dark" closeButton />
 
       {/* HEADER */}
-      <header className="shrink-0 p-4 md:p-6 lg:p-8 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
+      <header className="shrink-0 px-4 md:px-6 lg:px-8 py-4 md:py-6 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-3xl z-40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
         <div className="flex items-center gap-4 md:gap-6 min-w-0">
           <button 
+            type="button"
             onClick={() => router.back()} 
             className="p-3 md:p-4 bg-white/5 rounded-2xl hover:bg-blue-600 hover:text-white transition-all border border-white/10 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
-            aria-label="Retour"
+            aria-label="Retour à la liste des audits"
           >
-            <ArrowLeft size={18} md:size={20} aria-hidden="true" />
+            <ArrowLeft size={18} className="w-4.5 h-4.5 md:w-5 md:h-5" aria-hidden="true" />
           </button>
           <div className="min-w-0">
             <h1 className="text-xl md:text-2xl lg:text-3xl font-black uppercase italic tracking-tighter m-0 text-white">
               Rapport d&apos;<span className="text-blue-500">Audit</span>
             </h1>
-            <p className="text-[9px] md:text-[10px] text-slate-500 font-black uppercase tracking-[0.3em] mt-1 italic truncate">
-              REF: {audit.AU_Reference} • {audit.AU_Processus?.PR_Libelle || 'N/A'}
+            <p className="text-[9px] md:text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1 italic truncate">
+              REF: {audit?.AU_Reference} • {audit?.AU_Processus?.PR_Libelle || 'N/A'}
             </p>
           </div>
         </div>
@@ -329,8 +356,9 @@ export default function RapportAuditPage() {
               previewMode ? "bg-blue-600 text-white" : "bg-white/5 text-slate-400 hover:text-white"
             )}
             aria-pressed={previewMode}
+            aria-label={previewMode ? "Passer en mode édition" : "Passer en mode aperçu"}
           >
-            <Eye size={16} aria-hidden="true" />
+            <Eye size={16} className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">{previewMode ? 'Édition' : 'Aperçu'}</span>
           </button>
           
@@ -340,8 +368,9 @@ export default function RapportAuditPage() {
             onClick={handleExportPDF}
             className="px-4 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all border border-white/10 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
             title="Exporter en PDF"
+            aria-label="Exporter le rapport en PDF"
           >
-            <Download size={16} aria-hidden="true" />
+            <Download size={16} className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">PDF</span>
           </button>
           
@@ -357,22 +386,28 @@ export default function RapportAuditPage() {
             aria-busy={submitting}
           >
             {submitting ? (
-              <><Loader2 className="animate-spin" size={18} aria-hidden="true" /><span className="hidden sm:inline">Scellement...</span></>
+              <>
+                <Loader2 className="animate-spin w-4.5 h-4.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Scellement...</span>
+              </>
             ) : (
-              <><CheckCircle size={18} aria-hidden="true" /><span className="hidden sm:inline">Clôturer & Archiver</span></>
+              <>
+                <CheckCircle size={18} className="w-4.5 h-4.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Clôturer & Archiver</span>
+              </>
             )}
           </button>
         </div>
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 xl:p-12">
-        <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
+      <main className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-6 lg:px-8 py-5 md:py-6">
+        <div className="max-w-6xl mx-auto space-y-5 md:space-y-6">
           
           {/* Section Constats */}
-          <section className="bg-[#0F172A] border border-white/5 rounded-3xl md:rounded-[3rem] p-6 md:p-8 lg:p-12 shadow-2xl">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 md:mb-10 border-b border-white/5 pb-6 md:pb-8">
-              <h2 className="text-xl md:text-2xl font-black uppercase italic m-0 text-white">
+          <section className="bg-[#0F172A] border border-white/5 rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10 shadow-2xl" aria-label="Saisie des constats d'audit">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-8 border-b border-white/5 pb-5 md:pb-6">
+              <h2 className="text-lg md:text-xl font-black uppercase italic m-0 text-white">
                 Constats de Terrain
               </h2>
               {!previewMode && (
@@ -382,12 +417,12 @@ export default function RapportAuditPage() {
                   className="p-3 md:p-4 bg-blue-600 rounded-2xl text-white shadow-xl hover:scale-105 hover:bg-blue-500 transition-all border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
                   aria-label="Ajouter un nouveau constat"
                 >
-                  <Plus size={20} md:size={24} aria-hidden="true" />
+                  <Plus size={20} className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
                 </button>
               )}
             </div>
 
-            <div className="space-y-6 md:space-y-8">
+            <div className="space-y-5 md:space-y-6" role="list" aria-label="Liste des constats">
               {findings.map((finding, index) => (
                 <FindingCard 
                   key={finding._tempId}
@@ -403,16 +438,17 @@ export default function RapportAuditPage() {
 
           {/* Alertes NC */}
           {hasNC && (
-            <section className="bg-rose-500/5 border border-rose-500/20 rounded-3xl md:rounded-[3rem] p-6 md:p-8 lg:p-10 animate-in slide-in-from-bottom-4">
+            <section className="bg-rose-500/5 border border-rose-500/20 rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10 animate-in slide-in-from-bottom-4" aria-label="Alertes de non-conformités" role="alert">
               <h3 className="text-rose-400 font-black uppercase italic text-lg md:text-xl m-0 mb-4 md:mb-6 flex items-center gap-3 md:gap-4">
-                <ShieldAlert size={24} md:size={28} aria-hidden="true" /> 
+                <ShieldAlert size={24} className="w-6 h-6 md:w-7 md:h-7" aria-hidden="true" /> 
                 Alertes Non-Conformités Détectées ({ncCount})
               </h3>
-              <div className="space-y-3 md:space-y-4">
+              <div className="space-y-3 md:space-y-4" role="list">
                 {findings.filter(f => f.FI_Type.includes('NC')).map((nc, idx) => (
                   <div 
                     key={nc._tempId || idx} 
                     className="p-4 bg-rose-500/10 rounded-xl md:rounded-2xl border border-rose-500/10 text-[9px] md:text-[10px] font-bold text-white uppercase italic tracking-widest flex items-start gap-3 md:gap-4"
+                    role="listitem"
                   >
                     <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.6)] mt-1.5 shrink-0" aria-hidden="true"/> 
                     <span className="truncate">
@@ -428,26 +464,26 @@ export default function RapportAuditPage() {
           )}
 
           {/* Résumé */}
-          <section className="bg-[#0F172A]/50 border border-white/5 rounded-2xl md:rounded-3xl p-6">
-            <h4 className="text-sm font-black uppercase italic text-slate-400 mb-4">Résumé du Rapport</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-[#0B0F1A] rounded-xl">
+          <section className="bg-[#0F172A]/50 border border-white/5 rounded-2xl md:rounded-3xl p-6" aria-label="Résumé du rapport">
+            <h4 className="text-sm font-black uppercase italic text-slate-500 mb-4">Résumé du Rapport</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4" role="list">
+              <div className="text-center p-4 bg-[#0B0F1A] rounded-xl" role="listitem">
                 <p className="text-2xl md:text-3xl font-black text-white">{findings.length}</p>
                 <p className="text-[8px] text-slate-500 uppercase tracking-widest">Total Constats</p>
               </div>
-              <div className="text-center p-4 bg-[#0B0F1A] rounded-xl">
+              <div className="text-center p-4 bg-[#0B0F1A] rounded-xl" role="listitem">
                 <p className="text-2xl md:text-3xl font-black text-emerald-400">
                   {findings.filter(f => f.FI_Type === 'CONFORMITE').length}
                 </p>
                 <p className="text-[8px] text-slate-500 uppercase tracking-widest">Conformes</p>
               </div>
-              <div className="text-center p-4 bg-[#0B0F1A] rounded-xl">
+              <div className="text-center p-4 bg-[#0B0F1A] rounded-xl" role="listitem">
                 <p className="text-2xl md:text-3xl font-black text-amber-400">
                   {findings.filter(f => f.FI_Type === 'OBSERVATION').length}
                 </p>
                 <p className="text-[8px] text-slate-500 uppercase tracking-widest">Observations</p>
               </div>
-              <div className="text-center p-4 bg-[#0B0F1A] rounded-xl">
+              <div className="text-center p-4 bg-[#0B0F1A] rounded-xl" role="listitem">
                 <p className="text-2xl md:text-3xl font-black text-rose-400">{ncCount}</p>
                 <p className="text-[8px] text-slate-500 uppercase tracking-widest">Non-Conformités</p>
               </div>
@@ -460,8 +496,14 @@ export default function RapportAuditPage() {
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(37, 99, 235, 0.3); border-radius: 10px; }
-        :focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+          background: rgba(37, 99, 235, 0.3); 
+          border-radius: 10px; 
+        }
+        :focus-visible {
+          outline: 2px solid #3b82f6;
+          outline-offset: 2px;
+        }
       `}</style>
     </div>
   );

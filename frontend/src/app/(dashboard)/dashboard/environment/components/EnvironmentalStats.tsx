@@ -2,17 +2,13 @@
 'use client';
 
 /**
- * 💡 COMPOSANT : BARRE STATISTIQUE MATRIX
- * -------------------------------------------------------------------------
+ * 💡 COMPOSANT : BARRE STATISTIQUE MATRIX (ISO 14001 §9.1.1)
  * RÔLE : Synthèse rapide des tendances IPE mensuelles
- * VERSION : 2.0 - Typing strict + Accessibilité + Design Elite
- * DESIGN : Grid responsive, alertes visuelles, WCAG AA
- * RÉVISION : 19 Mars 2026 | 17:45 GMT
- * -------------------------------------------------------------------------
+ * VERSION : 3.0 - Typing strict + Accessibilité + Design Elite
  */
 
 import React from 'react';
-import { Zap, Droplets, Recycle, Trash2, AlertTriangle, LucideIcon } from 'lucide-react';
+import { Zap, Droplets, Recycle, Trash2, AlertTriangle, type LucideIcon } from 'lucide-react';
 import { cn } from '@/core/utils/cn';
 
 // ============================================================================
@@ -61,7 +57,7 @@ const DEFAULT_THRESHOLDS = {
 const getMetricConfig = (stats: EnvStatsData, thresholds: typeof DEFAULT_THRESHOLDS): MetricConfig[] => [
   { 
     label: 'ÉLECTRICITÉ', 
-    val: `${new Intl.NumberFormat('fr-SN').format(stats.energy)} ${stats.energyUnit || 'kWh'}`, 
+    value: `${new Intl.NumberFormat('fr-SN').format(stats.energy)} ${stats.energyUnit || 'kWh'}`, 
     icon: Zap, 
     color: 'text-amber-400', 
     alert: stats.energy > thresholds.energy,
@@ -69,14 +65,14 @@ const getMetricConfig = (stats: EnvStatsData, thresholds: typeof DEFAULT_THRESHO
   },
   { 
     label: 'RESSOURCES EAU', 
-    val: `${new Intl.NumberFormat('fr-SN').format(stats.water)} ${stats.waterUnit || 'm³'}`, 
+    value: `${new Intl.NumberFormat('fr-SN').format(stats.water)} ${stats.waterUnit || 'm³'}`, 
     icon: Droplets, 
     color: 'text-blue-400', 
     alert: false,
   },
   { 
     label: 'VALORISATION', 
-    val: `${stats.recycling}%`, 
+    value: `${stats.recycling}%`, 
     icon: Recycle, 
     color: 'text-emerald-400', 
     alert: stats.recycling < thresholds.recycling,
@@ -84,7 +80,7 @@ const getMetricConfig = (stats: EnvStatsData, thresholds: typeof DEFAULT_THRESHO
   },
   { 
     label: 'VOLUME DÉCHETS', 
-    val: `${new Intl.NumberFormat('fr-SN').format(stats.waste)} ${stats.wasteUnit || 'kg'}`, 
+    value: `${new Intl.NumberFormat('fr-SN').format(stats.waste)} ${stats.wasteUnit || 'kg'}`, 
     icon: Trash2, 
     color: 'text-rose-400', 
     alert: stats.waste > thresholds.waste,
@@ -93,7 +89,7 @@ const getMetricConfig = (stats: EnvStatsData, thresholds: typeof DEFAULT_THRESHO
 ];
 
 // ============================================================================
-// COMPOSANT : METRIC CARD
+// SOUS-COMPOSANT : METRIC CARD
 // ============================================================================
 
 interface MetricCardProps {
@@ -102,6 +98,7 @@ interface MetricCardProps {
 
 function MetricCard({ metric }: MetricCardProps) {
   const Icon = metric.icon;
+  const metricId = `metric-${metric.label.replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
     <article 
@@ -110,13 +107,13 @@ function MetricCard({ metric }: MetricCardProps) {
         metric.alert && "animate-pulse ring-1 ring-amber-500/20 border-amber-500/30"
       )}
       role="article"
-      aria-labelledby={`metric-${metric.label.replace(/\s+/g, '-').toLowerCase()}`}
+      aria-labelledby={metricId}
     >
       <div className={cn("p-3 md:p-4 rounded-xl md:rounded-2xl bg-white/5 mb-4 md:mb-5", metric.color)}>
-        <Icon size={24} className="w-24 h-24 md:w-28 md:h-28 flex-shrink-0" aria-hidden="true" />
+        <Icon size={24} className="w-6 h-6 md:w-7 md:h-7" aria-hidden="true" />
       </div>
       
-      <p id={`metric-${metric.label.replace(/\s+/g, '-').toLowerCase()}`} className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 md:mb-2 italic m-0">
+      <p id={metricId} className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 md:mb-2 italic m-0">
         {metric.label}
       </p>
       
@@ -126,7 +123,7 @@ function MetricCard({ metric }: MetricCardProps) {
       
       {metric.alert && metric.alertMessage && (
         <p className="text-[7px] md:text-[8px] font-black text-amber-400 uppercase mt-2 md:mt-3 flex items-center gap-1 md:gap-1.5" role="status">
-          <AlertTriangle size={10} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" aria-hidden="true" /> 
+          <AlertTriangle size={10} className="w-2.5 h-2.5" aria-hidden="true" /> 
           <span className="truncate max-w-[120px]">{metric.alertMessage}</span>
         </p>
       )}

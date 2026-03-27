@@ -1,176 +1,424 @@
-﻿/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
+'use client';
+
 /**
- * ⚙️ MODULE : ADMINISTRATION STRUCTURELLE (ELITE SDE)
- * ---------------------------------------------------------------------------
- * RÔLE : Configuration des référentiels (Unités, Processus, Risques).
- * DESIGN : Elite Multi-Tab / High-Density Grid / 100dvh.
- * SÉCURITÉ : Zéro NextAuth (Souveraineté JWT).
- * ---------------------------------------------------------------------------
- * DATE : 05 Mars 2026 | 19:10 GMT
+ * ⚙️ MODULE : ADMINISTRATION STRUCTURELLE (ISO 9001 §4.4)
+ * RÔLE : Configuration des référentiels (Unités, Processus, Risques)
+ * VERSION : 3.0 - Typing strict + Design Elite + Accessibilité
  */
 
-"use client";
-
-import { useEffect, useState, useCallback } from "react";
-import apiClient from "@/core/api/api-client";
-import { Loader2, Plus, Save, Settings2, Trash2, RefreshCw, Layers } from "lucide-react";
+import { useEffect, useState, useCallback, ChangeEvent, FormEvent, KeyboardEvent } from "react";
+import apiClient, { type ApiError } from "@/core/api/api-client";
+import { Loader2, Plus, Save, Settings2, Trash2, RefreshCw, Layers, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { cn } from "@/core/utils/cn';
 
-type TabType = "units" | "processes" | "risks";
+// ============================================================================
+// TYPES (Prisma aligned)
+// ============================================================================
+
+export type TabType = "units" | "processes" | "risks";
+
+export interface OrgUnitType {
+  OUT_Id: string;
+  OUT_Label: string;
+  OUT_Description?: string;
+  OUT_IsActive?: boolean;
+}
+
+export interface ProcessType {
+  PT_Id: string;
+  PT_Label: string;
+  PT_Color?: string;
+  PT_Category?: string;
+  PT_IsActive?: boolean;
+}
+
+export interface RiskType {
+  RT_Id: string;
+  RT_Label: string;
+  RT_Category?: string;
+  RT_IsActive?: boolean;
+}
+
+export type ReferenceItem = OrgUnitType | ProcessType | RiskType;
+
+export interface TabConfig {
+  endpoint: string;
+  title: string;
+  label: string;
+  key: keyof ReferenceItem;
+  idKey: keyof ReferenceItem;
+}
+
+export interface FormData {
+  label: string;
+  color: string;
+}
+
+export interface FormErrors {
+  label?: string;
+}
+
+// ============================================================================
+// CONSTANTES
+// ============================================================================
+
+const TAB_CONFIGS: Record<TabType, TabConfig> = {
+  units: { endpoint: "/org-unit-types", title: "Unités d'Organisation", label: "EX: DIRECTION, ATELIER", key: "OUT_Label", idKey: "OUT_Id" },
+  processes: { endpoint: "/process-types", title: "Types de Processus", label: "EX: MÉTIER, SUPPORT", key: "PT_Label", idKey: "PT_Id" },
+  risks: { endpoint: "/risk-types", title: "Typologies de Risques", label: "EX: QUALITÉ, ENVIRONNEMENT", key: "RT_Label", idKey: "RT_Id" },
+};
+
+const DEFAULT_FORM: FormData = { label: "", color: "#2563eb" };
+
+// ============================================================================
+// SOUS-COMPOSANT : LOADING SCREEN
+// ============================================================================
+
+function LoadingScreen({ label }: { label: string }) {
+  return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-6" role="status" aria-live="polite">
+      <RefreshCw className="animate-spin text-blue-400 w-12 h-12 md:w-16 md:h-16" aria-hidden="true" />
+      <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 animate-pulse italic text-center px-4 md:px-10">{label}</span>
+    </div>
+  );
+}
+
+// ============================================================================
+// SOUS-COMPOSANT : TAB BUTTON
+// ============================================================================
+
+interface TabButtonProps {
+  tab: TabType;
+  activeTab: TabType;
+  onClick: (tab: TabType) => void;
+  title: string;
+}
+
+function TabButton({ tab, activeTab, onClick, title }: TabButtonProps) {
+  return (
+    <button 
+      type="button"
+      onClick={() => onClick(tab)} 
+      className={cn(
+        "px-4 md:px-6 lg:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[9px] md:text-[10px] transition-all border-none cursor-pointer italic uppercase whitespace-nowrap tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-400",
+        activeTab === tab ? "bg-blue-600 text-white shadow-xl" : "bg-white text-slate-400 hover:text-blue-400"
+      )}
+      role="tab"
+      aria-selected={activeTab === tab}
+      aria-controls={`${tab}-panel`}
+    >
+      {title}
+    </button>
+  );
+}
+
+// ============================================================================
+// SOUS-COMPOSANT : DATA ROW
+// ============================================================================
+
+interface DataRowProps {
+  item: ReferenceItem;
+  idKey: keyof ReferenceItem;
+  labelKey: keyof ReferenceItem;
+  isProcessTab: boolean;
+  onDelete: (id: string) => void;
+}
+
+function DataRow({ item, idKey, labelKey, isProcessTab, onDelete }: DataRowProps) {
+  const id = item[idKey] as string;
+  const label = item[labelKey] as string;
+  const color = isProcessTab ? (item as ProcessType).PT_Color : undefined;
+
+  return (
+    <tr className="group hover:bg-blue-50/30 transition-all italic focus-within:bg-blue-50/30 focus:outline-none" role="row">
+      <td className="p-4 md:p-6" role="gridcell">
+        <div className="flex items-center gap-3 md:gap-4 lg:gap-5">
+          {isProcessTab && color && (
+            <div 
+              className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl border-2 border-white shadow-sm shrink-0" 
+              style={{ backgroundColor: color }}
+              aria-hidden="true"
+            />
+          )}
+          <span className="text-[11px] md:text-sm font-black text-slate-800 uppercase tracking-tighter truncate">
+            {label}
+          </span>
+        </div>
+      </td>
+      <td className="p-4 md:p-6 text-right" role="gridcell">
+        <button 
+          type="button"
+          onClick={() => onDelete(id)} 
+          className="p-2 md:p-3 lg:p-4 bg-white border border-slate-100 rounded-lg md:rounded-xl lg:rounded-2xl text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all border-none cursor-pointer opacity-100 lg:opacity-0 group-hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-400"
+          aria-label={`Supprimer ${label}`}
+          title="Supprimer"
+        >
+          <Trash2 size={16} className="w-4 h-4 md:w-4.5 md:h-4.5 lg:w-5 lg:h-5" aria-hidden="true" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// ============================================================================
+// COMPOSANT PRINCIPAL
+// ============================================================================
 
 export default function SystemSettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("units");
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<ReferenceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newItem, setNewItem] = useState({ label: "", color: "#2563eb" });
+  const [formData, setFormData] = useState<FormData>(DEFAULT_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
-  const config = {
-    units: { endpoint: "/org-unit-types", title: "Unités d'Organisation", label: "EX: DIRECTION, ATELIER", key: "OUT_Label" },
-    processes: { endpoint: "/process-types", title: "Types de Processus", label: "EX: MÉTIER, SUPPORT", key: "PT_Label" },
-    risks: { endpoint: "/risk-types", title: "Typologies de Risques", label: "EX: QUALITÉ, ENVIRONNEMENT", key: "RT_Label" },
-  };
+  const config = TAB_CONFIGS[activeTab];
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get<any>(config[activeTab].endpoint);
-      const content = res.data?.data || res.data;
-      setData(Array.isArray(content) ? content : []);
-    } catch {
+      const res = await apiClient.get<ReferenceItem[]>(config.endpoint);
+      const content = Array.isArray(res.data) ? res.data : (Array.isArray(res.data?.data) ? res.data.data : []);
+      setData(content);
+    } catch (error) {
+      console.error('❌ Erreur chargement référentiel:', error);
       toast.error("ÉCHEC KERNEL : Synchronisation référentiel interrompue.");
-    } finally { setLoading(false); }
-  }, [activeTab, config]);
+    } finally { 
+      setLoading(false); 
+    }
+  }, [activeTab, config.endpoint]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { if (typeof window !== 'undefined') fetchData(); }, [fetchData]);
 
-  const handleAdd = async () => {
-    if (!newItem.label.trim()) return toast.warning("Libellé obligatoire.");
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {};
+    if (!formData.label.trim()) {
+      errors.label = "Le libellé est obligatoire";
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAdd = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    
+    if (!validateForm()) {
+      toast.warning("Libellé obligatoire.");
+      return;
+    }
+    
     setSubmitting(true);
-    const tid = toast.loading("Injection système...");
+    const toastId = toast.loading("Injection système...");
     try {
-      const payload = { [config[activeTab].key]: newItem.label.toUpperCase().trim(), ...(activeTab === "processes" && { PT_Color: newItem.color }) };
-      await apiClient.post(config[activeTab].endpoint, payload);
-      setNewItem({ label: "", color: "#2563eb" });
+      const payload: Record<string, string> = { [config.key]: formData.label.toUpperCase().trim() };
+      if (activeTab === "processes" && formData.color) {
+        payload.PT_Color = formData.color;
+      }
+      await apiClient.post(config.endpoint, payload);
+      setFormData(DEFAULT_FORM);
+      setFormErrors({});
       fetchData();
-      toast.success("Référentiel SMI mis à jour.", { id: tid });
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erreur d'écriture serveur.", { id: tid });
-    } finally { setSubmitting(false); }
+      toast.success("Référentiel SMI mis à jour.", { id: toastId });
+    } catch (error: unknown) {
+      const apiError = error as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(apiError?.response?.data?.message || "Erreur d'écriture serveur.", { id: toastId });
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("⚠️ Impact potentiel sur la traçabilité. Confirmer la révocation ?")) return;
-    const tid = toast.loading("Révocation en cours...");
+    const toastId = toast.loading("Révocation en cours...");
     try {
-      await apiClient.delete(`${config[activeTab].endpoint}/${id}`);
+      await apiClient.delete(`${config.endpoint}/${id}`);
       fetchData();
-      toast.success("Option révoquée.", { id: tid });
-    } catch {
-      toast.error("Contrainte d'intégrité : Option utilisée dans un processus actif.", { id: tid });
+      toast.success("Option révoquée.", { id: toastId });
+    } catch (error: unknown) {
+      const apiError = error as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(apiError?.response?.data?.message || "Contrainte d'intégrité : Option utilisée dans un processus actif.", { id: toastId });
     }
   };
 
-  if (loading && data.length === 0) return <LoadingScreen label="Synchronisation Configuration SMI..." />;
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setFormData(DEFAULT_FORM);
+    setFormErrors({});
+  };
+
+  const handleFormKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAdd();
+    }
+  };
+
+  const updateForm = useCallback((field: keyof FormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (formErrors[field as keyof FormErrors]) {
+      setFormErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  }, [formErrors]);
+
+  if (loading && data.length === 0 && typeof window !== 'undefined') {
+    return <LoadingScreen label="Synchronisation Configuration SMI..." />;
+  }
+
+  const tabs: TabType[] = ["units", "processes", "risks"];
 
   return (
-    <div className="h-screen bg-slate-50 text-slate-900 italic font-black uppercase flex flex-col overflow-hidden w-full lg:pl-72 selection:bg-blue-600/20">
-      <Toaster position="top-right" richColors />
+    <div className="h-screen bg-slate-50 text-slate-900 italic font-sans flex flex-col overflow-hidden w-full lg:pl-72 selection:bg-blue-600/20">
+      <Toaster position="top-right" richColors closeButton />
 
-      {/* 🔝 HEADER E-ADMIN */}
-      <header className="shrink-0 p-8 border-b border-slate-200 bg-white flex flex-col xl:flex-row justify-between items-center gap-6 mt-12 lg:mt-0">
-        <div className="text-left space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="bg-blue-600 text-white px-3 py-1 rounded-lg text-[9px] font-black italic shadow-lg uppercase tracking-widest">ISO 9001 §4.4</span>
-            <h1 className="text-3xl lg:text-4xl tracking-tighter leading-none m-0 italic flex items-center gap-4 uppercase">
-              <Settings2 className="text-blue-600" size={36} /> Paramétrage <span className="text-blue-600">Structure</span>
+      {/* 🔝 HEADER */}
+      <header className="shrink-0 px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 border-b border-slate-200 bg-white flex flex-col xl:flex-row justify-between items-center gap-4 md:gap-6 mt-12 lg:mt-0">
+        <div className="text-left space-y-2 md:space-y-3 w-full xl:w-auto">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            <span className="bg-blue-600 text-white px-2 md:px-3 py-1 rounded-lg text-[8px] md:text-[9px] font-black italic shadow-lg uppercase tracking-widest">
+              ISO 9001 §4.4
+            </span>
+            <h1 className="text-xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter leading-none m-0 italic flex items-center gap-3 md:gap-4 uppercase">
+              <Settings2 className="text-blue-400 w-8 h-8 md:w-10 md:h-10" aria-hidden="true" /> 
+              Paramétrage <span className="text-blue-400">Structure</span>
             </h1>
           </div>
-          <p className="text-slate-500 text-[10px] tracking-[0.4em] m-0">Architecture Normative • Configuration des Référentiels SMI</p>
+          <p className="text-slate-500 text-[9px] md:text-[10px] tracking-widest m-0">
+            Architecture Normative • Configuration des Référentiels SMI
+          </p>
         </div>
-        <div className="flex overflow-x-auto gap-3 w-full xl:w-auto p-2 bg-slate-100 rounded-3xl border border-slate-200">
-          {(["units", "processes", "risks"] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={cn(
-              "px-8 py-4 rounded-2xl font-black text-[10px] transition-all border-none cursor-pointer italic uppercase whitespace-nowrap tracking-widest",
-              activeTab === tab ? "bg-blue-600 text-white shadow-xl" : "bg-white text-slate-400 hover:text-blue-600"
-            )}>{config[tab].title}</button>
+        <nav 
+          className="flex overflow-x-auto gap-2 md:gap-3 w-full xl:w-auto p-2 bg-slate-100 rounded-xl md:rounded-2xl lg:rounded-3xl border border-slate-200" 
+          role="tablist" 
+          aria-label="Navigation des onglets de configuration"
+        >
+          {tabs.map((tab) => (
+            <TabButton 
+              key={tab} 
+              tab={tab} 
+              activeTab={activeTab} 
+              onClick={handleTabChange} 
+              title={TAB_CONFIGS[tab].title} 
+            />
           ))}
-        </div>
+        </nav>
       </header>
 
-      {/* 🧩 DUAL VIEWPORT GRID */}
-      <main className="flex-1 overflow-hidden p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* 🧩 MAIN CONTENT */}
+      <main className="flex-1 overflow-hidden px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 lg:gap-8">
         
-        {/* FORMULAIRE D'INJECTION (Sticky style within viewport) */}
-        <section className="lg:col-span-4 bg-white p-10 rounded-[3rem] border-2 border-slate-100 shadow-2xl flex flex-col gap-10">
-          <h2 className="text-lg font-black italic m-0 flex items-center gap-4 text-slate-900 uppercase">
-            <Plus className="text-blue-600" size={24} /> Ajouter <span className="text-blue-600">{activeTab}</span>
+        {/* FORMULAIRE */}
+        <section className="lg:col-span-4 bg-white p-6 md:p-8 lg:p-10 rounded-2xl md:rounded-3xl lg:rounded-[3rem] border-2 border-slate-100 shadow-xl flex flex-col gap-6 md:gap-8 lg:gap-10" aria-labelledby="form-title">
+          <h2 id="form-title" className="text-base md:text-lg font-black italic m-0 flex items-center gap-3 md:gap-4 text-slate-900 uppercase">
+            <Plus className="text-blue-400 w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8" aria-hidden="true" /> 
+            Ajouter <span className="text-blue-400">{activeTab}</span>
           </h2>
-          <div className="space-y-6">
-            <div className="space-y-3 text-left">
-              <label className="text-[10px] font-black text-slate-400 ml-4 tracking-widest italic uppercase">Libellé Radical *</label>
-              <input placeholder={config[activeTab].label} className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl p-6 text-sm font-black text-slate-900 outline-none focus:border-blue-600 italic uppercase shadow-inner" value={newItem.label} onChange={(e) => setNewItem({ ...newItem, label: e.target.value })} />
+          <form onSubmit={handleAdd} onKeyDown={handleFormKeyDown} className="space-y-4 md:space-y-5 lg:space-y-6">
+            <div className="space-y-2 md:space-y-3 text-left">
+              <label htmlFor="item-label" className="text-[9px] md:text-[10px] font-black text-slate-400 ml-2 md:ml-4 tracking-widest italic uppercase block">
+                Libellé Radical *
+              </label>
+              <input 
+                id="item-label"
+                placeholder={config.label} 
+                className={cn(
+                  "w-full bg-slate-50 border-2 rounded-2xl md:rounded-3xl p-4 md:p-5 lg:p-6 text-[11px] md:text-sm font-black text-slate-900 outline-none focus:border-blue-500 italic uppercase shadow-inner",
+                  formErrors.label ? "border-red-500/50" : "border-slate-100"
+                )}
+                value={formData.label} 
+                onChange={(e: ChangeEvent<HTMLInputElement>) => updateForm('label', e.target.value)}
+                aria-required="true"
+                aria-invalid={!!formErrors.label}
+              />
+              {formErrors.label && (
+                <p className="text-red-400 text-[8px] md:text-[9px] ml-2 md:ml-4 flex items-center gap-1" role="alert">
+                  <AlertCircle size={10} className="w-2.5 h-2.5" aria-hidden="true" /> {formErrors.label}
+                </p>
+              )}
             </div>
             {activeTab === "processes" && (
-              <div className="space-y-3 text-left">
-                <label className="text-[10px] font-black text-slate-400 ml-4 tracking-widest italic uppercase">Identité Visuelle</label>
-                <input type="color" className="w-full h-16 rounded-3xl cursor-pointer bg-white border-2 border-slate-100 p-2 shadow-inner" value={newItem.color} onChange={(e) => setNewItem({ ...newItem, color: e.target.value })} />
+              <div className="space-y-2 md:space-y-3 text-left">
+                <label htmlFor="item-color" className="text-[9px] md:text-[10px] font-black text-slate-400 ml-2 md:ml-4 tracking-widest italic uppercase block">
+                  Identité Visuelle
+                </label>
+                <input 
+                  id="item-color"
+                  type="color" 
+                  className="w-full h-12 md:h-14 lg:h-16 rounded-xl md:rounded-2xl lg:rounded-3xl cursor-pointer bg-white border-2 border-slate-100 p-1 md:p-2 shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                  value={formData.color} 
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => updateForm('color', e.target.value)}
+                  aria-label="Sélecteur de couleur"
+                />
               </div>
             )}
-            <button onClick={handleAdd} disabled={submitting} className="w-full py-6 bg-slate-900 text-white rounded-3xl font-black text-[11px] tracking-[0.4em] italic shadow-4xl border-none cursor-pointer hover:bg-blue-600 transition-all flex items-center justify-center gap-4 uppercase">
-              {submitting ? <Loader2 className="animate-spin" /> : <Save size={20} />} Injecter dans le Noyau
+            <button 
+              type="submit"
+              disabled={submitting} 
+              className={cn(
+                "w-full py-4 md:py-5 lg:py-6 bg-slate-900 text-white rounded-xl md:rounded-2xl lg:rounded-3xl font-black text-[10px] md:text-[11px] tracking-widest italic shadow-xl border-none cursor-pointer hover:bg-blue-600 transition-all flex items-center justify-center gap-3 md:gap-4 uppercase focus:outline-none focus:ring-2 focus:ring-blue-400",
+                submitting && "opacity-50 cursor-not-allowed"
+              )}
+              aria-busy={submitting}
+            >
+              {submitting ? (
+                <><Loader2 size={16} className="w-4 h-4 md:w-5 md:h-5 animate-spin" aria-hidden="true" /> <span className="hidden sm:inline">INJECTION...</span></>
+              ) : (
+                <><Save size={16} className="w-4 h-4 md:w-5 md:h-5" aria-hidden="true" /> <span className="hidden sm:inline">Injecter dans le Noyau</span></>
+              )}
             </button>
-          </div>
+          </form>
         </section>
 
-        {/* REGISTRE DATA STREAM (Isolated Scroll) */}
-        <section className="lg:col-span-8 bg-white rounded-[3rem] border-2 border-slate-100 shadow-2xl overflow-hidden flex flex-col">
-          <header className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-            <h2 className="text-sm font-black italic m-0 uppercase flex items-center gap-3 tracking-widest">
-              <Layers className="text-blue-600" size={20} /> Référentiel Actif
+        {/* REGISTRE */}
+        <section className="lg:col-span-8 bg-white rounded-2xl md:rounded-3xl lg:rounded-[3rem] border-2 border-slate-100 shadow-xl overflow-hidden flex flex-col" aria-labelledby="registry-title">
+          <header className="p-4 md:p-6 lg:p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h2 id="registry-title" className="text-[11px] md:text-sm font-black italic m-0 uppercase flex items-center gap-2 md:gap-3 tracking-widest">
+              <Layers className="text-blue-400 w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6" aria-hidden="true" /> 
+              Référentiel Actif
             </h2>
-            <button onClick={fetchData} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-blue-600 transition-all cursor-pointer">
-              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+            <button 
+              type="button"
+              onClick={fetchData} 
+              disabled={loading}
+              className="p-2 md:p-3 bg-white border border-slate-200 rounded-lg md:rounded-xl text-slate-400 hover:text-blue-400 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+              aria-label="Actualiser le référentiel"
+            >
+              <RefreshCw size={16} className={cn("w-4 h-4 md:w-4.5 md:h-4.5 lg:w-5 lg:h-5", loading ? "animate-spin" : "")} aria-hidden="true" />
             </button>
           </header>
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-            <table className="w-full text-left border-collapse">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6" role="region" aria-label="Liste des éléments du référentiel">
+            <table className="w-full text-left border-collapse" role="table">
               <tbody className="divide-y divide-slate-50">
-                {data.map((item) => {
-                  const id = item.PT_Id || item.OUT_Id || item.RT_Id;
-                  const label = item.OUT_Label || item.PT_Label || item.RT_Label;
-                  return (
-                    <tr key={id} className="group hover:bg-blue-50/30 transition-all italic">
-                      <td className="p-6">
-                        <div className="flex items-center gap-5">
-                          {activeTab === "processes" && <div className="w-10 h-10 rounded-xl border-2 border-white shadow-sm" style={{ backgroundColor: item.PT_Color }} />}
-                          <span className="text-sm font-black text-slate-800 uppercase tracking-tighter">{label}</span>
-                        </div>
-                      </td>
-                      <td className="p-6 text-right">
-                        <button onClick={() => handleDelete(id)} className="p-4 bg-white border border-slate-100 rounded-2xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all border-none cursor-pointer opacity-100 lg:opacity-0 group-hover:opacity-100"><Trash2 size={20}/></button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {data.length > 0 ? data.map((item) => (
+                  <DataRow 
+                    key={item[config.idKey] as string} 
+                    item={item} 
+                    idKey={config.idKey} 
+                    labelKey={config.key} 
+                    isProcessTab={activeTab === "processes"}
+                    onDelete={handleDelete} 
+                  />
+                )) : (
+                  <tr>
+                    <td colSpan={2} className="p-8 md:p-12 lg:p-16 text-center text-slate-500" role="status">
+                      <Layers size={48} className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 opacity-20" aria-hidden="true" />
+                      <p className="text-[10px] md:text-[11px] font-black uppercase tracking-widest">
+                        Aucun élément dans ce référentiel
+                      </p>
+                      <p className="text-[9px] md:text-[10px] text-slate-400 mt-2">
+                        Utilisez le formulaire pour ajouter un élément
+                      </p>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </section>
       </main>
-      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 0px; }` }} />
+
+      <style>{`.custom-scrollbar::-webkit-scrollbar{width:4px}.custom-scrollbar::-webkit-scrollbar-track{background:transparent}.custom-scrollbar::-webkit-scrollbar-thumb{background:rgba(59,130,246,0.3);border-radius:10px}:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}`}</style>
     </div>
   );
 }
-
-function LoadingScreen({ label }: { label: string }) {
-  return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-8 lg:pl-72 text-blue-600 italic font-black uppercase tracking-[0.5em]">
-      <RefreshCw className="animate-spin" size={70} strokeWidth={1} />
-      <span className="text-[10px] animate-pulse text-center px-10 leading-relaxed uppercase">{label}</span>
-    </div>
-  );
-}
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');

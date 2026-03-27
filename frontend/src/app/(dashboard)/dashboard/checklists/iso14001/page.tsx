@@ -2,16 +2,16 @@
 'use client';
 
 /**
- * 💡 MODULE : CHECKLIST D'AUDIT ISO 14001:2015 (elite-sde)
+ * 💡 MODULE : CHECKLIST D'AUDIT ISO 14001:2015 (ISO 14001 §9.1)
  * -------------------------------------------------------------------------
  * RÔLE : Évaluation du Système de Management Environnemental (SME)
- * VERSION : 2.0 - Typing strict + Design Elite + Contexte Sénégal + Accessibilité
- * API : apiClient Axios avec interceptors
- * RÉVISION : 19 Mars 2026 | 15:45 GMT
+ * VERSION : 3.0 - Typing strict Prisma + Design Elite + Contexte Sénégal + Accessibilité
+ * API : apiClient Axios avec interceptors (Bearer + X-Tenant-Id)
+ * RÉVISION : 19 Mars 2026 | Production OVH
  * -------------------------------------------------------------------------
  */
 
-import React, { useEffect, useMemo, useState, useCallback, ChangeEvent } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, ChangeEvent, KeyboardEvent } from 'react';
 import { 
   Leaf, Target, Flame, Recycle, Zap, CheckCircle, XCircle, AlertTriangle, 
   Minus, RefreshCw, Search, Download, UploadCloud, FileText, MapPin, ChevronDown, 
@@ -19,14 +19,16 @@ import {
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { cn } from '@/core/utils/cn';
-import apiClient, { ApiError } from '@/core/api/api-client';
+import apiClient, { type ApiError } from '@/core/api/api-client';
 
 // ============================================================================
-// TYPES & INTERFACES
+// TYPES & INTERFACES (Strict Typing - Prisma aligned)
 // ============================================================================
 
+// Basé sur enum/field CR_Response du schema.prisma (String avec valeurs contrôlées)
 export type EnvResponseType = 'COMPLIANT' | 'NON_COMPLIANT' | 'PARTIAL' | 'NA' | 'RISK';
 
+// Basé sur model ChecklistResponse du schema.prisma
 export interface EnvChecklistResponse {
   CR_Id?: string;
   CR_ChecklistId: string;
@@ -34,18 +36,19 @@ export interface EnvChecklistResponse {
   CR_RiskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   CR_Comment?: string;
   CR_ActionPlan?: string;
-  CR_UpdatedAt?: string;
+  CR_UpdatedAt?: string; // ISO string
 }
 
+// Basé sur model LegalChecklist du schema.prisma
 export interface EnvChecklistItem {
   LC_Id: string;
-  LC_Clause: string;
+  LC_Clause: string;        // ex: "4.1", "6.2", etc.
   LC_Title: string;
   LC_Criteria: string;
   LC_SenegalSpecific?: boolean;
   LC_RegulationRef?: string;
   LC_EnvironmentalAspect?: 'AIR' | 'WATER' | 'WASTE' | 'SOIL' | 'BIODIVERSITY' | 'ENERGY' | 'NOISE';
-  response?: EnvChecklistResponse;
+  response?: EnvChecklistResponse; // Relation eager-loaded
 }
 
 interface EnvClause {
@@ -69,12 +72,14 @@ const CLAUSE_GROUPS: EnvClause[] = [
   { id: '10', label: 'Amélioration', icon: Flame, color: 'text-rose-400' },
 ];
 
-const RESPONSE_CONFIG: Record<EnvResponseType, { 
-  label: string; 
-  color: string; 
-  bg: string; 
+interface ResponseConfig {
+  label: string;
+  color: string;
+  bg: string;
   icon: React.ElementType;
-}> = {
+}
+
+const RESPONSE_CONFIG: Record<EnvResponseType, ResponseConfig> = {
   COMPLIANT: { label: 'Conforme', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', icon: CheckCircle },
   NON_COMPLIANT: { label: 'Non-conforme', color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20', icon: XCircle },
   PARTIAL: { label: 'Partiel', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20', icon: AlertTriangle },
@@ -93,7 +98,7 @@ const ASPECT_ICONS: Record<NonNullable<EnvChecklistItem['LC_EnvironmentalAspect'
 };
 
 // ============================================================================
-// UTILITAIRES
+// UTILITAIRES (Pure Functions - SSR Safe)
 // ============================================================================
 
 const getAspectLabel = (aspect?: EnvChecklistItem['LC_EnvironmentalAspect']): string => {
@@ -121,7 +126,7 @@ const getRiskBadge = (level?: EnvChecklistResponse['CR_RiskLevel']): { label: st
 };
 
 // ============================================================================
-// SOUS-COMPOSANTS
+// SOUS-COMPOSANT : RESPONSE BADGE
 // ============================================================================
 
 function ResponseBadge({ response }: { response?: EnvResponseType }) {
@@ -140,25 +145,25 @@ function ResponseBadge({ response }: { response?: EnvResponseType }) {
       "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-wider border",
       config.bg, config.color
     )}>
-      <Icon size={10} aria-hidden="true" />
+      <Icon size={10} className="w-2.5 h-2.5" aria-hidden="true" />
       {config.label}
     </span>
   );
 }
 
-function RespBtn({ 
-  type, 
-  active, 
-  onClick, 
-  saving, 
-  'aria-label': ariaLabel 
-}: { 
-  type: EnvResponseType; 
-  active: boolean; 
-  onClick: () => void; 
+// ============================================================================
+// SOUS-COMPOSANT : RESPONSE BUTTON
+// ============================================================================
+
+interface RespBtnProps {
+  type: EnvResponseType;
+  active: boolean;
+  onClick: () => void;
   saving: boolean;
-  'aria-label': string;
-}) {
+  ariaLabel: string;
+}
+
+function RespBtn({ type, active, onClick, saving, ariaLabel }: RespBtnProps) {
   const config = RESPONSE_CONFIG[type];
   const Icon = config.icon;
 
@@ -178,21 +183,24 @@ function RespBtn({
       )}
     >
       {saving && active ? (
-        <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+        <Loader2 size={14} className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
       ) : (
-        <Icon size={14} aria-hidden="true" />
+        <Icon size={14} className="w-3.5 h-3.5" aria-hidden="true" />
       )}
     </button>
   );
 }
 
-function EnvChecklistCard({ 
-  item, 
-  onUpdate 
-}: { 
-  item: EnvChecklistItem; 
+// ============================================================================
+// SOUS-COMPOSANT : ENV CHECKLIST CARD
+// ============================================================================
+
+interface EnvChecklistCardProps {
+  item: EnvChecklistItem;
   onUpdate: (id: string, response: EnvResponseType) => Promise<void>;
-}) {
+}
+
+function EnvChecklistCard({ item, onUpdate }: EnvChecklistCardProps) {
   const [isSaving, setIsSaving] = useState(false);
   const AspectIcon = item.LC_EnvironmentalAspect ? ASPECT_ICONS[item.LC_EnvironmentalAspect] : null;
   const riskBadge = getRiskBadge(item.response?.CR_RiskLevel);
@@ -207,7 +215,11 @@ function EnvChecklistCard({
   };
 
   return (
-    <article className="bg-[#0F172A] border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-7 lg:p-8 hover:border-green-500/30 transition-all flex flex-col gap-5 group">
+    <article 
+      className="bg-[#0F172A] border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-7 lg:p-8 hover:border-green-500/30 transition-all flex flex-col gap-5 group focus-within:border-green-500/30"
+      role="article"
+      aria-labelledby={`env-clause-${item.LC_Id}`}
+    >
       
       {/* En-tête */}
       <div className="flex flex-wrap items-center gap-2">
@@ -216,7 +228,7 @@ function EnvChecklistCard({
         </span>
         {item.LC_SenegalSpecific && (
           <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 text-[7px] md:text-[8px] font-black uppercase rounded border border-amber-500/20 inline-flex items-center gap-1">
-            <MapPin size={9} aria-hidden="true" /> Sénégal
+            <MapPin size={9} className="w-2.25 h-2.25" aria-hidden="true" /> Sénégal
           </span>
         )}
         {item.LC_RegulationRef && (
@@ -226,14 +238,17 @@ function EnvChecklistCard({
         )}
         {AspectIcon && item.LC_EnvironmentalAspect && (
           <span className="inline-flex items-center gap-1.5 text-[7px] text-slate-400">
-            <AspectIcon size={10} aria-hidden="true" />
+            <AspectIcon size={10} className="w-2.5 h-2.5" aria-hidden="true" />
             {getAspectLabel(item.LC_EnvironmentalAspect)}
           </span>
         )}
       </div>
       
       {/* Titre */}
-      <h3 className="text-lg md:text-xl font-black uppercase italic text-white leading-tight m-0 group-hover:text-green-400 transition-colors">
+      <h3 
+        id={`env-clause-${item.LC_Id}`}
+        className="text-lg md:text-xl font-black uppercase italic text-white leading-tight m-0 group-hover:text-green-400 transition-colors"
+      >
         {item.LC_Title}
       </h3>
       
@@ -248,7 +263,7 @@ function EnvChecklistCard({
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <ResponseBadge response={item.response?.CR_Response} />
           
-          <div className="flex bg-[#0B0F1A] rounded-xl p-1 border border-white/5" role="radiogroup">
+          <div className="flex bg-[#0B0F1A] rounded-xl p-1 border border-white/5" role="radiogroup" aria-label={`Évaluer: ${item.LC_Title}`}>
             {(Object.keys(RESPONSE_CONFIG) as EnvResponseType[]).map((type) => (
               <RespBtn
                 key={type}
@@ -256,7 +271,7 @@ function EnvChecklistCard({
                 active={item.response?.CR_Response === type}
                 onClick={() => handleUpdate(type)}
                 saving={isSaving}
-                aria-label={`Marquer comme ${RESPONSE_CONFIG[type].label}`}
+                ariaLabel={`Marquer comme ${RESPONSE_CONFIG[type].label}`}
               />
             ))}
           </div>
@@ -278,7 +293,7 @@ function EnvChecklistCard({
             aria-label="Joindre un document de preuve"
             title="Joindre une preuve"
           >
-            <UploadCloud size={16} aria-hidden="true" />
+            <UploadCloud size={16} className="w-4 h-4" aria-hidden="true" />
           </button>
           <button 
             type="button"
@@ -286,7 +301,7 @@ function EnvChecklistCard({
             aria-label="Consulter la réglementation"
             title="Voir la réglementation"
           >
-            <FileText size={16} aria-hidden="true" />
+            <FileText size={16} className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -295,7 +310,7 @@ function EnvChecklistCard({
 }
 
 // ============================================================================
-// COMPOSANT PRINCIPAL
+// COMPOSANT PRINCIPAL : ISO 14001 CHECKLIST PAGE
 // ============================================================================
 
 export default function ISO14001ChecklistPage() {
@@ -306,7 +321,7 @@ export default function ISO14001ChecklistPage() {
   const [exporting, setExporting] = useState(false);
 
   // ============================================================================
-  // FETCH DATA
+  // FETCH DATA (CRUD: READ)
   // ============================================================================
 
   const fetchData = useCallback(async () => {
@@ -323,10 +338,14 @@ export default function ISO14001ChecklistPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { 
+    if (typeof window !== 'undefined') {
+      fetchData(); 
+    }
+  }, [fetchData]);
 
   // ============================================================================
-  // FILTRES
+  // FILTRES (Memoized)
   // ============================================================================
 
   const filteredItems = useMemo(() => {
@@ -341,7 +360,7 @@ export default function ISO14001ChecklistPage() {
   }, [items, activeGroup, searchTerm]);
 
   // ============================================================================
-  // ACTIONS
+  // ACTIONS (CRUD: UPDATE, EXPORT)
   // ============================================================================
 
   const updateResponse = async (id: string, response: EnvResponseType) => {
@@ -356,10 +375,10 @@ export default function ISO14001ChecklistPage() {
       toast.success("Impact environnemental évalué", { id: toastId });
       await fetchData();
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Erreur mise à jour réponse:', error);
-      const apiError = error?.response?.data as ApiError | undefined;
-      const message = apiError?.message || error?.message || "Erreur de sauvegarde";
+      const apiError = error as { response?: { data?: ApiError }; message?: string };
+      const message = apiError?.response?.data?.message || apiError?.message || "Erreur de sauvegarde";
       toast.error(message, { id: toastId, duration: 5000 });
     }
   };
@@ -392,13 +411,28 @@ export default function ISO14001ChecklistPage() {
   };
 
   // ============================================================================
+  // KEYBOARD NAVIGATION HELPER
+  // ============================================================================
+
+  const handleClauseKeyDown = useCallback((e: KeyboardEvent<HTMLButtonElement>, clauseId: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setActiveGroup(clauseId);
+    }
+  }, []);
+
+  // ============================================================================
   // ÉTATS D'AFFICHAGE
   // ============================================================================
 
-  if (loading && items.length === 0) {
+  if (loading && items.length === 0 && typeof window !== 'undefined') {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-[#0B0F1A]" role="status" aria-live="polite">
-        <Loader2 className="animate-spin text-green-500" size={48} aria-hidden="true" />
+      <div 
+        className="flex h-full w-full items-center justify-center bg-[#0B0F1A]" 
+        role="status" 
+        aria-live="polite"
+      >
+        <Loader2 className="animate-spin text-green-400 w-12 h-12" aria-hidden="true" />
       </div>
     );
   }
@@ -412,16 +446,16 @@ export default function ISO14001ChecklistPage() {
       <Toaster position="top-right" richColors theme="dark" closeButton />
 
       {/* 🔝 HEADER */}
-      <header className="shrink-0 p-4 md:p-6 lg:p-8 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-md z-20 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
+      <header className="shrink-0 px-4 md:px-6 lg:px-8 py-4 md:py-6 border-b border-white/5 bg-[#0B0F1A]/95 backdrop-blur-3xl z-40 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
         <div className="flex items-start gap-4 md:gap-5">
            <div className="bg-gradient-to-br from-green-600 to-emerald-800 p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-green-900/20 border border-green-500/20 shrink-0">
-             <Leaf size={24} className="w-24 h-24 md:w-32 md:h-32 flex-shrink-0" className="text-white" aria-hidden="true" />
+             <Leaf size={24} className="w-6 h-6 md:w-8 md:h-8 text-white" aria-hidden="true" />
            </div>
            <div>
-              <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black uppercase italic tracking-tighter m-0 leading-none text-white">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase italic tracking-tighter m-0 leading-none text-white">
                 ISO <span className="text-green-500">14001</span> Matrix
               </h1>
-              <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-[0.4em] mt-2 md:mt-3 italic m-0">
+              <p className="text-slate-500 font-black text-[8px] md:text-[9px] uppercase tracking-widest mt-1.5 md:mt-2 italic m-0">
                 Performance Durable & Protection de l&apos;Écosystème
               </p>
            </div>
@@ -431,12 +465,12 @@ export default function ISO14001ChecklistPage() {
           {/* Recherche */}
           <div className="relative flex-1 md:w-64">
             <label htmlFor="env-search" className="sr-only">Rechercher un aspect environnemental</label>
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} aria-hidden="true" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none w-4 h-4" aria-hidden="true" />
             <input 
               id="env-search"
               type="search"
               placeholder="ASPECTS ENVIRONNEMENTAUX..." 
-              className="w-full bg-[#0F172A] border border-white/10 rounded-2xl py-2.5 md:py-3 pl-10 md:pl-12 pr-4 text-[9px] md:text-[10px] font-black uppercase outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 text-white italic placeholder:text-slate-600"
+              className="w-full bg-[#0F172A] border border-white/10 rounded-xl md:rounded-2xl py-2.5 md:py-3 pl-10 md:pl-12 pr-4 text-[9px] md:text-[10px] font-black uppercase outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 text-white italic placeholder:text-slate-600"
               value={searchTerm} 
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
               aria-label="Filtrer les aspects environnementaux"
@@ -445,11 +479,17 @@ export default function ISO14001ChecklistPage() {
           
           {/* Actions */}
           <button 
+            type="button"
             onClick={handleExport}
             disabled={exporting}
-            className="px-5 md:px-6 py-2.5 md:py-3 bg-green-600 hover:bg-white hover:text-green-700 rounded-2xl font-black uppercase text-[9px] md:text-[10px] tracking-widest border-none text-white transition-all shadow-xl shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="px-5 md:px-6 py-2.5 md:py-3 bg-green-600 hover:bg-white hover:text-green-700 rounded-xl md:rounded-2xl font-black uppercase text-[9px] md:text-[10px] tracking-widest border-none text-white transition-all shadow-xl shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+            aria-label="Exporter le rapport environnemental"
           >
-            {exporting ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
+            {exporting ? (
+              <Loader2 size={14} className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <Download size={14} className="w-3.5 h-3.5" aria-hidden="true" />
+            )}
             <span className="hidden sm:inline">Rapport</span>
           </button>
         </div>
@@ -459,7 +499,10 @@ export default function ISO14001ChecklistPage() {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
         {/* Navigation SME */}
-        <aside className="w-full lg:w-72 xl:w-80 border-r border-white/5 bg-[#0F172A]/30 overflow-y-auto custom-scrollbar shrink-0">
+        <aside 
+          className="w-full lg:w-72 xl:w-80 border-r border-white/5 bg-[#0F172A]/30 overflow-y-auto custom-scrollbar shrink-0"
+          aria-label="Navigation des clauses ISO 14001"
+        >
            <div className="p-4 border-b border-white/5 bg-black/20 sticky top-0 z-10">
              <p className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest m-0">
                Piliers Environnementaux
@@ -473,14 +516,10 @@ export default function ISO14001ChecklistPage() {
                  <button 
                    key={group.id} 
                    onClick={() => setActiveGroup(group.id)}
-                   onKeyDown={(e) => {
-                     if (e.key === 'Enter' || e.key === ' ') {
-                       e.preventDefault();
-                       setActiveGroup(group.id);
-                     }
-                   }}
+                   onKeyDown={(e) => handleClauseKeyDown(e, group.id)}
                    role="tab"
                    aria-selected={isActive}
+                   id={`tab-${group.id}`}
                    className={cn(
                      "w-full p-4 text-left transition-all border-none cursor-pointer flex justify-between items-center group focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-inset",
                      isActive 
@@ -492,12 +531,12 @@ export default function ISO14001ChecklistPage() {
                       "text-[9px] md:text-[10px] font-black uppercase italic flex items-center gap-2",
                       isActive ? group.color : "text-slate-400 group-hover:text-slate-200"
                     )}>
-                      <Icon size={14} aria-hidden="true" />
+                      <Icon size={14} className="w-3.5 h-3.5" aria-hidden="true" />
                       §{group.id}. {group.label}
                     </span>
                     <ChevronDown 
                       size={14} 
-                      className={cn("shrink-0 transition-transform", isActive ? group.color : "text-slate-800")} 
+                      className={cn("w-3.5 h-3.5 shrink-0 transition-transform", isActive ? group.color : "text-slate-800")} 
                       aria-hidden="true" 
                     />
                  </button>
@@ -507,13 +546,18 @@ export default function ISO14001ChecklistPage() {
         </aside>
 
         {/* List Content */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 xl:p-10 bg-[#0B0F1A]">
+        <main className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-6 lg:px-8 py-5 md:py-6" aria-label="Évaluation des aspects environnementaux">
            <div className="max-w-4xl mx-auto space-y-5 md:space-y-6">
              
              {/* En-tête de section */}
              <div className="flex items-center justify-between pb-4 border-b border-white/5">
-               <h2 className="text-lg md:text-xl font-black uppercase italic text-white flex items-center gap-2">
-                 <Leaf size={18} className="text-green-500" aria-hidden="true" />
+               <h2 
+                 id={`clause-${activeGroup}`}
+                 className="text-lg md:text-xl font-black uppercase italic text-white flex items-center gap-2"
+                 role="heading"
+                 aria-level={2}
+               >
+                 <Leaf size={18} className="w-4.5 h-4.5 text-green-500" aria-hidden="true" />
                  Pilier §{activeGroup}
                </h2>
                <span className="text-[9px] text-slate-500 uppercase tracking-widest">
@@ -531,8 +575,12 @@ export default function ISO14001ChecklistPage() {
              
              {/* État vide */}
              {filteredItems.length === 0 && (
-               <div className="h-40 md:h-48 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center text-slate-500" role="status">
-                 <Search size={40} className="mb-3 opacity-20" aria-hidden="true" />
+               <div 
+                 className="h-40 md:h-48 border-2 border-dashed border-white/10 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center text-slate-500" 
+                 role="status"
+                 aria-live="polite"
+               >
+                 <Search size={40} className="w-10 h-10 mb-3 opacity-20" aria-hidden="true" />
                  <p className="text-[9px] md:text-[10px] font-black uppercase italic tracking-widest text-center px-4">
                    {searchTerm 
                      ? 'Aucun aspect ne correspond au filtre' 
@@ -540,6 +588,7 @@ export default function ISO14001ChecklistPage() {
                  </p>
                  {searchTerm && (
                    <button 
+                     type="button"
                      onClick={() => setSearchTerm('')}
                      className="mt-3 text-[8px] text-green-400 hover:text-green-300 uppercase tracking-widest italic focus:outline-none focus:ring-2 focus:ring-green-400 rounded px-3 py-1"
                    >
